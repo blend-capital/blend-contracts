@@ -5,7 +5,9 @@ members = [
     "lending-pool",
     "backstop-module",
     "emitter",
-    "pool-factory"
+    "mocks/mock-blend-oracle",
+    "pool-factory",
+    "oracle"
 ]
 
 [profile.release-with-logs]

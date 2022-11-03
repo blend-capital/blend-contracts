@@ -405,6 +405,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "mock-blend-oracle"
+version = "0.0.0"
+dependencies = [
+ "soroban-sdk",
+]
+
+[[package]]
 name = "num-bigint"
 version = "0.4.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -460,6 +467,14 @@ name = "opaque-debug"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "624a8340c38c1b80fd549087862da4ba43e08858af025b236e509b6649fc13d5"
+
+[[package]]
+name = "oracle"
+version = "0.0.0"
+dependencies = [
+ "soroban-auth",
+ "soroban-sdk",
+]
 
 [[package]]
 name = "parity-wasm"
@@ -669,6 +684,16 @@ checksum = "16d69225bde7a69b235da73377861095455d298f2b970996eec25ddbb42b3d1e"
 dependencies = [
  "bitmaps",
  "typenum",
+]
+
+[[package]]
+name = "soroban-auth"
+version = "0.1.0"
+source = "git+https://github.com/stellar/rs-soroban-sdk?rev=38f3768#38f376886fd37857b25753c0410eb5e05a31fbae"
+dependencies = [
+ "ed25519-dalek",
+ "rand 0.7.3",
+ "soroban-sdk",
 ]
 
 [[package]]
@@ -987,8 +1012,3 @@ dependencies = [
  "syn",
  "synstructure",
 ]
-
-[[patch.unused]]
-name = "soroban-auth"
-version = "0.1.0"
-source = "git+https://github.com/stellar/rs-soroban-sdk?rev=38f3768#38f376886fd37857b25753c0410eb5e05a31fbae"

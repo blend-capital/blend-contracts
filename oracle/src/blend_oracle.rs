@@ -1,4 +1,4 @@
-use soroban_sdk::{contractimpl, contracttype, Address, BytesN, Env};
+use soroban_sdk::{contractimpl, contracttype, Address, BytesN, Env, contracterror};
 
 #[derive(Clone)]
 #[contracttype]
@@ -9,6 +9,13 @@ pub enum BlendOracleDataKey {
     Decimals,
     // The map of asset price sources (asset contractId -> price source contractId)
     Sources(BytesN<32>),
+}
+
+#[contracterror]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, PartialOrd, Ord)]
+#[repr(u32)]
+pub enum OracleError {
+    StaleOracle = 1,
 }
 
 /// ### Blend Oracle
@@ -30,7 +37,7 @@ pub trait BlendOracleTrait {
     ///
     /// ### Panics
     /// If the oracle is stale
-    fn get_price(e: Env, asset: BytesN<32>) -> u64;
+    fn get_price(e: Env, asset: BytesN<32>) -> Result<u64, OracleError>;
 
     /// Fetch the price source of an asset or the 0 address if none is listed
     ///
@@ -69,31 +76,31 @@ pub trait BlendOracleTrait {
 
 #[contractimpl]
 impl BlendOracleTrait for BlendOracle {
-    fn decimals(e: Env) -> u32 {
+    fn decimals(_e: Env) -> u32 {
         7 as u32
     }
 
-    fn get_price(e: Env, asset: BytesN<32>) -> u64 {
+    fn get_price(_e: Env, _asset: BytesN<32>) -> Result<u64, OracleError> {
         panic!("not implemented")
     }
 
-    fn source(e: Env, asset: BytesN<32>) -> BytesN<32> {
+    fn source(_e: Env, _asset: BytesN<32>) -> BytesN<32> {
         panic!("not implemented")
     }
 
-    fn set_source(e: Env, asset: BytesN<32>, source: BytesN<32>) {
+    fn set_source(_e: Env, _asset: BytesN<32>, _source: BytesN<32>) {
         panic!("not implemented")
     }
 
-    fn admin(e: Env) -> Address {
+    fn admin(_e: Env) -> Address {
         panic!("not implemented")
     }
 
-    fn set_admin(e: Env, admin: Address) {
+    fn set_admin(_e: Env, _admin: Address) {
         panic!("not implemented")
     }
 
-    fn is_admin(e: Env) -> bool {
+    fn is_admin(_e: Env) -> bool {
         panic!("not implemented")
     }
 }

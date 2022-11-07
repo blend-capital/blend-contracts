@@ -876,9 +876,9 @@ dependencies = [
 
 [[package]]
 name = "soroban-auth"
-version = "0.2.0"
+version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "90facd158744d3bf57b4ad5d13da528304bd6cd8352fa50f28bcbe24421b5599"
+checksum = "9218b5b9e66c664000e87750ad8199cd7e94b37afb592b079183cc9619aaba9e"
 dependencies = [
  "ed25519-dalek",
  "rand 0.7.3",
@@ -958,9 +958,9 @@ dependencies = [
 
 [[package]]
 name = "soroban-sdk"
-version = "0.2.0"
+version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5a8ae8202182ea112f43e240f97106b71eec3c8574293fb111edcdfdc1e9cc66"
+checksum = "541d2e344e84c26342b086b761679c88fd88987fe86a1f0fa60a7bf70dbcc9c4"
 dependencies = [
  "bytes-lit",
  "ed25519-dalek",
@@ -973,9 +973,9 @@ dependencies = [
 
 [[package]]
 name = "soroban-sdk-macros"
-version = "0.2.0"
+version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f27a5319fa63f7bdf79263739cf5bb05639a53f02efd497f2beb6b7b0f8eac09"
+checksum = "3cd2b3180bd1b45b24290f5ed3f36784ef4ac88a33275bd970238c56778efef8"
 dependencies = [
  "darling",
  "itertools",
@@ -990,9 +990,9 @@ dependencies = [
 
 [[package]]
 name = "soroban-spec"
-version = "0.2.0"
+version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a095c48b372cae5ed04bf3c686feef0e76f042997843699fc0f60655c35ea523"
+checksum = "05fa8fffbfe5023a4be81695442a70f770ee954ab82a8e7a8077674882859817"
 dependencies = [
  "base64",
  "darling",

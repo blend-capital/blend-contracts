@@ -1,5 +1,5 @@
 use soroban_auth::Identifier;
-use soroban_sdk::{contracttype, BytesN, Env, Vec, vec, Address, BigInt};
+use soroban_sdk::{contracttype, BytesN, Env, Vec, vec, Address};
 
 use crate::types::{ReserveConfig, ReserveData};
 
@@ -27,9 +27,6 @@ pub enum PoolDataKey {
     ResList,
     // The configuration settings for a user
     UserConfig(Address),
-    // The liability balance for a user
-    // TODO: Revisit this as native token contract that disables transferability
-    Liability(LiabilityKey)
 }
 
 /********** Admin **********/
@@ -102,6 +99,7 @@ pub fn get_res_config(e: &Env, asset: BytesN<32>) -> ReserveConfig {
 pub fn set_res_config(e: &Env, asset: BytesN<32>, config: ReserveConfig) {
     let key = PoolDataKey::ResConfig(asset.clone());
 
+    // TODO: Might fit better in reserve module
     // add to reserve list if its new
     if !e.data().has(key.clone()) {
         add_res_to_list(e, asset);
@@ -193,29 +191,4 @@ pub fn get_user_config(e: &Env, user: Address) -> u64 {
 pub fn set_user_config(e: &Env, user: Address, config: u64) {
     let key = PoolDataKey::UserConfig(user);
     e.data().set::<PoolDataKey, u64>(key, config);
-}
-
-/********** Liability **********/
-
-/// Fetch the users liability in dTokens
-/// 
-/// ### Arguments
-/// * `user` - The address of the user
-/// * `asset` - The contract address of the underlying asset
-pub fn get_liability(e: &Env, user: Address, asset: BytesN<32>) -> BigInt {
-    let key = PoolDataKey::Liability(LiabilityKey { user, asset });
-    e.data().get::<PoolDataKey, BigInt>(key)
-        .unwrap_or(Ok(BigInt::zero(e)))
-        .unwrap()
-}
-
-/// Set the users liability
-/// 
-/// ### Arguments
-/// * `user` - The address of the user
-/// * `asset` - The contract address of the underlying asset
-/// * `amount` - The liability size in dTokens
-pub fn set_liability(e: &Env, user: Address, asset: BytesN<32>, amount: BigInt) {
-    let key = PoolDataKey::Liability(LiabilityKey { user, asset });
-    e.data().set::<PoolDataKey, BigInt>(key, amount);
 }

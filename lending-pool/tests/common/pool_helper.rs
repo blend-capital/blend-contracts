@@ -29,7 +29,8 @@ pub fn setup_reserve(
         util: 0_8000000,
         r_one: 0_0500000,
         r_two: 0_5000000,
-        r_three: 1_5000000, 
+        r_three: 1_5000000,
+        index: 0
     };
 
     pool_client.with_source_account(&admin).init_res(&underlying_id, &config);

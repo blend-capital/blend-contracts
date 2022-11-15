@@ -13,6 +13,7 @@ pub struct ReserveConfig {
     pub r_one: u32, // the R1 value in the interest rate formula
     pub r_two: u32, // the R2 value in the interest rate formula
     pub r_three: u32, // the R3 value in the interest rate formula
+    pub index: u32, // the index of the reserve in the list (TODO: Make u8)
 }
 
 /// The data for a reserve asset

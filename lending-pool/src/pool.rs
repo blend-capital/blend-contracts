@@ -1,6 +1,6 @@
 use soroban_auth::{Identifier, Signature};
 use soroban_sdk::{contractimpl, BytesN, Env, contracterror, BigInt};
-use crate::{dependencies::{OracleClient}, types::{ReserveConfig, ReserveData}, storage, token};
+use crate::{dependencies::{OracleClient}, types::{ReserveConfig, ReserveData}, storage::{StorageManager, PoolDataStore}, token};
 
 const SCALAR: i64 = 1_000_000_0;
 
@@ -87,36 +87,41 @@ pub trait PoolTrait {
 #[contractimpl]
 impl PoolTrait for Pool {
     fn initialize(e: Env, admin: Identifier, oracle: BytesN<32>) {
-        if storage::has_admin(&e) {
+        let storage = StorageManager::new(&e);
+        if storage.has_admin() {
             panic!("already initialized")
         }
 
-        storage::set_admin(&e, admin);
-        storage::set_oracle(&e, oracle);
+        storage.set_admin(admin);
+        storage.set_oracle(oracle);
     }
 
     // @dev: This function will be reworked - used for testing purposes
     fn init_res(e: Env, asset: BytesN<32>, config: ReserveConfig) {
-        if storage::has_res(&e, asset.clone()) {
+        let storage = StorageManager::new(&e);
+
+        if storage.has_res(asset.clone()) {
             panic!("already initialized")
         }
 
-        if Identifier::from(e.invoker()) != storage::get_admin(&e) {
+        if Identifier::from(e.invoker()) != storage.get_admin() {
             panic!("not authorized")
         }
 
-        storage::set_res_config(&e, asset.clone(), config);
+        storage.set_res_config(asset.clone(), config);
         let init_data = ReserveData {
             rate: 1_100_000_0, // TODO: revert this, currently set for testing
             d_rate: 1_200_000_0, // TODO: revert this, currently set for testing
             ir_mod: 1_000_000_0,
         };
-        storage::set_res_data(&e, asset, init_data)
+        storage.set_res_data(asset, init_data);
     }
 
     fn supply(e: Env, asset: BytesN<32>, amount: BigInt) -> Result<BigInt, PoolError> {
-        let res_config = storage::get_res_config(&e, asset.clone());
-        let res_data = storage::get_res_data(&e, asset.clone());
+        let storage = StorageManager::new(&e);
+
+        let res_config = storage.get_res_config(asset.clone());
+        let res_data = storage.get_res_data(asset.clone());
 
         let invoker = e.invoker();
         let to_mint = (amount.clone() * BigInt::from_i64(&e, SCALAR)) / BigInt::from_i64(&e, res_data.rate);
@@ -141,8 +146,10 @@ impl PoolTrait for Pool {
     }
 
     fn withdraw(e: Env, asset: BytesN<32>, amount: BigInt, to: Identifier) -> Result<BigInt, PoolError> {
-        let res_config = storage::get_res_config(&e, asset.clone());
-        let res_data = storage::get_res_data(&e, asset.clone());
+        let storage = StorageManager::new(&e);
+
+        let res_config = storage.get_res_config(asset.clone());
+        let res_data = storage.get_res_data(asset.clone());
 
         let invoker = e.invoker();
         let to_burn: BigInt;
@@ -177,8 +184,10 @@ impl PoolTrait for Pool {
     }
 
     fn borrow(e: Env, asset: BytesN<32>, amount: BigInt, to: Identifier) -> Result<BigInt, PoolError> {
-        let res_config = storage::get_res_config(&e, asset.clone());
-        let res_data = storage::get_res_data(&e, asset.clone());
+        let storage = StorageManager::new(&e);
+
+        let res_config = storage.get_res_config(asset.clone());
+        let res_data = storage.get_res_data(asset.clone());
 
         let invoker = e.invoker();
         let to_mint = (amount.clone() * BigInt::from_i64(&e, SCALAR)) / BigInt::from_i64(&e, res_data.d_rate);
@@ -204,8 +213,10 @@ impl PoolTrait for Pool {
     }
 
     fn repay(e: Env, asset: BytesN<32>, amount: BigInt, on_behalf_of: Identifier) -> Result<BigInt, PoolError>{
-        let res_config = storage::get_res_config(&e, asset.clone());
-        let res_data = storage::get_res_data(&e, asset.clone());
+        let storage = StorageManager::new(&e);
+
+        let res_config = storage.get_res_config(asset.clone());
+        let res_data = storage.get_res_data(asset.clone());
 
         let invoker = e.invoker();
         let to_burn: BigInt;

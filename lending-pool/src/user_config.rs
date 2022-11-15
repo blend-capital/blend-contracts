@@ -75,7 +75,6 @@ impl UserConfigurator for UserConfig {
         }
     }
     
-    
     fn set_collateral(&mut self, res_index: u32, collateral: bool) {
         let res_collateral_bit = 1 << (res_index * 2 + 1);
         if collateral {

@@ -1,6 +1,6 @@
 use soroban_auth::{Identifier, Signature};
 use soroban_sdk::{contractimpl, BytesN, Env, contracterror, BigInt};
-use crate::{dependencies::{OracleClient}, types::{ReserveConfig, ReserveData}, storage::{StorageManager, PoolDataStore}, token};
+use crate::{dependencies::{OracleClient}, storage::{StorageManager, PoolDataStore, ReserveConfig, ReserveData}, token};
 
 const SCALAR: i64 = 1_000_000_0;
 

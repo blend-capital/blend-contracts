@@ -5,7 +5,6 @@ extern crate std;
 
 mod pool;
 mod storage;
-mod types;
 mod user_config;
 
 mod dependencies;

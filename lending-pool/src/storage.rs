@@ -1,7 +1,35 @@
 use soroban_auth::Identifier;
 use soroban_sdk::{contracttype, BytesN, Env, Vec, vec, Address};
 
-use crate::types::{ReserveConfig, ReserveData};
+/********** Storage Types **********/
+
+/// The configuration information about a reserve asset
+#[derive(Clone)]
+#[contracttype]
+pub struct ReserveConfig {
+    pub b_token: BytesN<32>, // the address of the bToken contract
+    pub d_token: BytesN<32>, // the address of the dToken contract
+    pub decimals: u32, // the decimals used in both the bToken and underlying contract
+    pub c_factor: u32, // the collateral factor for the reserve
+    pub l_factor: u32, // the liability factor for the reserve
+    pub util: u32, // the target utilization rate
+    pub r_one: u32, // the R1 value in the interest rate formula
+    pub r_two: u32, // the R2 value in the interest rate formula
+    pub r_three: u32, // the R3 value in the interest rate formula
+    pub index: u32, // the index of the reserve in the list (TODO: Make u8)
+}
+
+/// The data for a reserve asset
+#[derive(Clone)]
+#[contracttype]
+pub struct ReserveData {
+    // TODO: These rates are correlated and can be simplified if both the b/dTokens have a totalSupply
+    pub rate: i64, // the conversion rate from bToken to underlying 
+    pub d_rate: i64, // the conversion rate from dToken to underlying
+    pub ir_mod: i64 // the interest rate curve modifier
+}
+
+/********** Storage Key Types **********/
 
 #[derive(Clone)]
 #[contracttype]
@@ -28,6 +56,8 @@ pub enum PoolDataKey {
     // The configuration settings for a user
     UserConfig(Address),
 }
+
+/********** Storage **********/
 
 // TODO: Consider reverting away from struct if mocking is not required
 // #[cfg_attr(test, automock)]
@@ -146,7 +176,7 @@ impl PoolDataStore for StorageManager {
     /********** Admin **********/
 
     fn get_admin(&self) -> Identifier {
-        self.0.data().get_unchecked(PoolDataKey::Admin).unwrap()
+        self.env().data().get_unchecked(PoolDataKey::Admin).unwrap()
     }
     
     fn set_admin(&self, new_admin: Identifier) {

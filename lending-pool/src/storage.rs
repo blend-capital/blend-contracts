@@ -24,7 +24,7 @@ pub struct ReserveConfig {
 #[contracttype]
 pub struct ReserveData {
     // TODO: These rates are correlated and can be simplified if both the b/dTokens have a totalSupply
-    pub rate: i64, // the conversion rate from bToken to underlying 
+    pub b_rate: i64, // the conversion rate from bToken to underlying 
     pub d_rate: i64, // the conversion rate from dToken to underlying
     pub ir_mod: i64 // the interest rate curve modifier
 }
@@ -54,7 +54,7 @@ pub enum PoolDataKey {
     // -> note: dropped reserves are still present
     ResList,
     // The configuration settings for a user
-    UserConfig(Address),
+    UserConfig(Identifier),
 }
 
 /********** Storage **********/
@@ -160,14 +160,14 @@ pub trait PoolDataStore {
     /// 
     /// ### Arguments
     /// * `user` - The address of the user
-    fn get_user_config(&self, user: Address) -> u64;
+    fn get_user_config(&self, user: Identifier) -> u64;
 
     /// Set the users reserve config
     /// 
     /// ### Arguments
     /// * `user` - The address of the user
     /// * `config` - The reserve config for the user
-    fn set_user_config(&self, user: Address, config: u64);
+    fn set_user_config(&self, user: Identifier, config: u64);
 }
 
 pub struct StorageManager(Env);
@@ -264,14 +264,14 @@ impl PoolDataStore for StorageManager {
 
     /********** UserConfig **********/
 
-    fn get_user_config(&self, user: Address) -> u64 {
+    fn get_user_config(&self, user: Identifier) -> u64 {
         let key = PoolDataKey::UserConfig(user);
         self.env().data().get::<PoolDataKey, u64>(key)
             .unwrap_or(Ok(0))
             .unwrap()
     }
 
-    fn set_user_config(&self, user: Address, config: u64) {
+    fn set_user_config(&self, user: Identifier, config: u64) {
         let key = PoolDataKey::UserConfig(user);
         self.env().data().set::<PoolDataKey, u64>(key, config);
     }

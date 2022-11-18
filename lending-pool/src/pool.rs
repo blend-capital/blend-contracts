@@ -1,6 +1,9 @@
 use soroban_auth::{Identifier, Signature};
 use soroban_sdk::{contractimpl, BytesN, Env, contracterror, BigInt};
-use crate::{dependencies::{OracleClient}, storage::{StorageManager, PoolDataStore, ReserveConfig, ReserveData}, token};
+use crate::{
+    dependencies::TokenClient,
+    storage::{StorageManager, PoolDataStore, ReserveConfig, ReserveData}, 
+};
 
 const SCALAR: i64 = 1_000_000_0;
 
@@ -110,7 +113,7 @@ impl PoolTrait for Pool {
 
         storage.set_res_config(asset.clone(), config);
         let init_data = ReserveData {
-            rate: 1_100_000_0, // TODO: revert this, currently set for testing
+            b_rate: 1_100_000_0, // TODO: revert this, currently set for testing
             d_rate: 1_200_000_0, // TODO: revert this, currently set for testing
             ir_mod: 1_000_000_0,
         };
@@ -124,9 +127,10 @@ impl PoolTrait for Pool {
         let res_data = storage.get_res_data(asset.clone());
 
         let invoker = e.invoker();
-        let to_mint = (amount.clone() * BigInt::from_i64(&e, SCALAR)) / BigInt::from_i64(&e, res_data.rate);
+        let to_mint = (amount.clone() * BigInt::from_i64(&e, SCALAR)) / BigInt::from_i64(&e, res_data.b_rate);
 
-        token::Client::new(&e, asset).xfer_from(
+
+        TokenClient::new(&e, asset).xfer_from(
             &Signature::Invoker, 
             &BigInt::zero(&e), 
             &Identifier::from(invoker.clone()), 
@@ -134,7 +138,7 @@ impl PoolTrait for Pool {
             &amount
         );
 
-        token::Client::new(&e, res_config.b_token).mint(
+        TokenClient::new(&e, res_config.b_token).mint(
             &Signature::Invoker, 
             &BigInt::zero(&e), 
             &Identifier::from(invoker), 
@@ -154,13 +158,13 @@ impl PoolTrait for Pool {
         let invoker = e.invoker();
         let to_burn: BigInt;
         let to_return: BigInt;
-        let b_token_client = token::Client::new(&e, res_config.b_token);
+        let b_token_client = TokenClient::new(&e, res_config.b_token);
         if amount == BigInt::from_u64(&e, u64::MAX) {
             // if they input u64::MAX as the burn amount, burn 100% of their holdings
             to_burn = b_token_client.balance(&Identifier::from(invoker.clone()));
-            to_return = (to_burn.clone() * BigInt::from_i64(&e, res_data.rate)) / BigInt::from_i64(&e, SCALAR);
+            to_return = (to_burn.clone() * BigInt::from_i64(&e, res_data.b_rate)) / BigInt::from_i64(&e, SCALAR);
         } else {
-            to_burn = (amount.clone() * BigInt::from_i64(&e, SCALAR)) / BigInt::from_i64(&e, res_data.rate);
+            to_burn = (amount.clone() * BigInt::from_i64(&e, SCALAR)) / BigInt::from_i64(&e, res_data.b_rate);
             to_return = amount;
         }
 
@@ -173,7 +177,7 @@ impl PoolTrait for Pool {
             &to_burn
         );
 
-        token::Client::new(&e, asset).xfer(
+        TokenClient::new(&e, asset).xfer(
             &Signature::Invoker, 
             &BigInt::zero(&e),
             &to, 
@@ -194,14 +198,14 @@ impl PoolTrait for Pool {
 
         // TODO: health factor check
 
-        token::Client::new(&e, res_config.d_token).mint(
+        TokenClient::new(&e, res_config.d_token).mint(
             &Signature::Invoker, 
             &BigInt::zero(&e), 
             &Identifier::from(invoker), 
             &to_mint
         );
         
-        token::Client::new(&e, asset).xfer(
+        TokenClient::new(&e, asset).xfer(
             &Signature::Invoker, 
             &BigInt::zero(&e), 
             &to, 
@@ -221,7 +225,7 @@ impl PoolTrait for Pool {
         let invoker = e.invoker();
         let to_burn: BigInt;
         let to_repay: BigInt;
-        let d_token_client = token::Client::new(&e, res_config.d_token);
+        let d_token_client = TokenClient::new(&e, res_config.d_token);
         if amount == BigInt::from_u64(&e, u64::MAX) {
             // if they input u64::MAX as the repay amount, burn 100% of their holdings
             to_burn = d_token_client.balance(&Identifier::from(invoker.clone()));
@@ -240,7 +244,7 @@ impl PoolTrait for Pool {
             &to_burn
         );
 
-        token::Client::new(&e, asset).xfer_from(
+        TokenClient::new(&e, asset).xfer_from(
             &Signature::Invoker, 
             &BigInt::zero(&e),
             &Identifier::from(invoker),

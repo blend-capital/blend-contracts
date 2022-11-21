@@ -1,9 +1,13 @@
-use soroban_auth::{Identifier, Signature};
-use soroban_sdk::{contractimpl, BytesN, Env, BigInt};
 use crate::{
     dependencies::TokenClient,
-    storage::{StorageManager, PoolDataStore, ReserveConfig, ReserveData}, errors::PoolError, user_validator::validate_hf, user_data::UserAction, user_config::{UserConfigurator, UserConfig}, 
+    errors::PoolError,
+    storage::{PoolDataStore, ReserveConfig, ReserveData, StorageManager},
+    user_config::{UserConfig, UserConfigurator},
+    user_data::UserAction,
+    user_validator::validate_hf,
 };
+use soroban_auth::{Identifier, Signature};
+use soroban_sdk::{contractimpl, Address, BigInt, BytesN, Env};
 
 const SCALAR: i64 = 1_000_000_0;
 
@@ -14,18 +18,18 @@ pub struct Pool;
 
 pub trait PoolTrait {
     /// Initialize the pool
-    /// 
+    ///
     /// ### Arguments
     /// * `admin` - The identifier for the admin account
     /// * `oracle` - The contract address of the oracle
     fn initialize(e: Env, admin: Identifier, oracle: BytesN<32>);
 
     /// Initialize a reserve in the pool
-    /// 
+    ///
     /// ### Arguments
     /// * `asset` - The underlying asset to add as a reserve
     /// * `config` - The ReserveConfig for the reserve
-    /// 
+    ///
     /// ### Errors
     /// If the caller is not the admin
     fn init_res(e: Env, asset: BytesN<32>, config: ReserveConfig);
@@ -33,7 +37,7 @@ pub trait PoolTrait {
     fn config(e: Env, user: Identifier) -> u64;
 
     /// Invoker supplies the `amount` of `asset` into the pool in return for the asset's bToken
-    /// 
+    ///
     /// Returns the amount of bTokens minted
     ///
     /// ### Arguments
@@ -41,45 +45,69 @@ pub trait PoolTrait {
     /// * `amount` - The amount of underlying `asset` tokens to supply
     ///
     /// ### Errors
-    /// If the invoker has not approved the pool to transfer `asset` at least `amount` and has 
+    /// If the invoker has not approved the pool to transfer `asset` at least `amount` and has
     /// enough tokens to do so
     fn supply(e: Env, asset: BytesN<32>, amount: BigInt) -> Result<BigInt, PoolError>;
 
     /// Withdraws `amount` of the `asset` from the invoker and returns it to the `to` Identifier
-    /// 
+    ///
     /// Returns the amount of bTokens burnt
-    /// 
+    ///
     /// ### Arguments
     /// * `asset` - The contract address of the asset
     /// * `amount` - The amount of underlying `asset` tokens to withdraw
     /// * `to` - The address to send the withdrawn funds to
-    /// 
+    ///
     /// ### Errors
     /// If the invoker does not have enough funds to burn
-    fn withdraw(e: Env, asset: BytesN<32>, amount: BigInt, to: Identifier) -> Result<BigInt, PoolError>;
+    fn withdraw(
+        e: Env,
+        asset: BytesN<32>,
+        amount: BigInt,
+        to: Identifier,
+    ) -> Result<BigInt, PoolError>;
 
     /// Borrow's `amount` of `asset` from the pool and sends it to the `to` address and credits a debt
     /// to the invoker
-    /// 
+    ///
     /// Returns the amount of dTokens minted
-    /// 
+    ///
     /// ### Arguments
     /// * `asset` - The contract address of the asset
     /// * `amount` - The amount of underlying `asset` tokens to borrow
     /// * `to` - The address receiving the funds
-    fn borrow(e: Env, asset: BytesN<32>, amount: BigInt, to: Identifier) -> Result<BigInt, PoolError>;
+    fn borrow(
+        e: Env,
+        asset: BytesN<32>,
+        amount: BigInt,
+        to: Identifier,
+    ) -> Result<BigInt, PoolError>;
 
     /// Invoker repays the `amount` of debt for the `asset`, such that the debt is reduced for
     /// the address `on_behalf_of`
-    /// 
+    ///
     /// Returns the amount of lTokens burned
-    /// 
+    ///
     /// ### Arguments
     /// * `asset` - The contract address of the asset
     /// * `amount` - The amount of underlying `asset` tokens to borrow
     ///     * Sending u64.MAX will repay the full amount of the debt
     /// * `on_behalf_of` - The address receiving the funds
-    fn repay(e: Env, asset: BytesN<32>, amount: BigInt, on_behalf_of: Identifier) -> Result<BigInt, PoolError>;
+    fn repay(
+        e: Env,
+        asset: BytesN<32>,
+        amount: BigInt,
+        on_behalf_of: Identifier,
+    ) -> Result<BigInt, PoolError>;
+
+    /// Pool status is changed to 'pool_status" if invoker is the admin
+    /// 0 - active, 1 - on ice, 2 - frozen
+    ///
+    /// Returns true on success and error otherwise
+    ///
+    /// ### Arguments
+    /// * 'pool_status' - The pool status to be set
+    fn set_status(e: Env, pool_status: u32) -> Result<bool, PoolError>;
 }
 
 #[contractimpl]
@@ -92,6 +120,7 @@ impl PoolTrait for Pool {
 
         storage.set_admin(admin);
         storage.set_oracle(oracle);
+        storage.set_pool_status(1);
     }
 
     // @dev: This function will be reworked - used for testing purposes
@@ -123,26 +152,31 @@ impl PoolTrait for Pool {
     fn supply(e: Env, asset: BytesN<32>, amount: BigInt) -> Result<BigInt, PoolError> {
         let storage = StorageManager::new(&e);
 
+        if storage.get_pool_status() == 2 {
+            return Err(PoolError::InvalidPoolStatus);
+        }
+
         let res_config = storage.get_res_config(asset.clone());
         let res_data = storage.get_res_data(asset.clone());
 
         let invoker = e.invoker();
         let invoker_id = Identifier::from(invoker);
-        let to_mint = (amount.clone() * BigInt::from_i64(&e, SCALAR)) / BigInt::from_i64(&e, res_data.b_rate);
+        let to_mint =
+            (amount.clone() * BigInt::from_i64(&e, SCALAR)) / BigInt::from_i64(&e, res_data.b_rate);
 
         TokenClient::new(&e, asset).xfer_from(
-            &Signature::Invoker, 
-            &BigInt::zero(&e), 
-            &invoker_id, 
-            &get_contract_id(&e), 
-            &amount
+            &Signature::Invoker,
+            &BigInt::zero(&e),
+            &invoker_id,
+            &get_contract_id(&e),
+            &amount,
         );
 
         TokenClient::new(&e, res_config.b_token).mint(
-            &Signature::Invoker, 
-            &BigInt::zero(&e), 
-            &invoker_id, 
-            &to_mint
+            &Signature::Invoker,
+            &BigInt::zero(&e),
+            &invoker_id,
+            &to_mint,
         );
 
         let mut user_config = UserConfig::new(storage.get_user_config(invoker_id.clone()));
@@ -155,7 +189,12 @@ impl PoolTrait for Pool {
         Ok(to_mint)
     }
 
-    fn withdraw(e: Env, asset: BytesN<32>, amount: BigInt, to: Identifier) -> Result<BigInt, PoolError> {
+    fn withdraw(
+        e: Env,
+        asset: BytesN<32>,
+        amount: BigInt,
+        to: Identifier,
+    ) -> Result<BigInt, PoolError> {
         let storage = StorageManager::new(&e);
 
         let res_config = storage.get_res_config(asset.clone());
@@ -169,16 +208,18 @@ impl PoolTrait for Pool {
         if amount == BigInt::from_u64(&e, u64::MAX) {
             // if they input u64::MAX as the burn amount, burn 100% of their holdings
             to_burn = b_token_client.balance(&invoker_id);
-            to_return = (to_burn.clone() * BigInt::from_i64(&e, res_data.b_rate)) / BigInt::from_i64(&e, SCALAR);
+            to_return = (to_burn.clone() * BigInt::from_i64(&e, res_data.b_rate))
+                / BigInt::from_i64(&e, SCALAR);
         } else {
-            to_burn = (amount.clone() * BigInt::from_i64(&e, SCALAR)) / BigInt::from_i64(&e, res_data.b_rate);
+            to_burn = (amount.clone() * BigInt::from_i64(&e, SCALAR))
+                / BigInt::from_i64(&e, res_data.b_rate);
             to_return = amount;
         }
 
         let user_action = UserAction {
             asset: asset.clone(),
             b_token_delta: -(to_burn.to_i64()),
-            d_token_delta: 0
+            d_token_delta: 0,
         };
         let is_healthy = validate_hf(&e, &invoker_id, &user_action);
         if !is_healthy {
@@ -186,18 +227,13 @@ impl PoolTrait for Pool {
         }
 
         b_token_client.burn(
-            &Signature::Invoker, 
-            &BigInt::zero(&e), 
-            &invoker_id, 
-            &to_burn
+            &Signature::Invoker,
+            &BigInt::zero(&e),
+            &invoker_id,
+            &to_burn,
         );
 
-        TokenClient::new(&e, asset).xfer(
-            &Signature::Invoker, 
-            &BigInt::zero(&e),
-            &to, 
-            &to_return
-        );
+        TokenClient::new(&e, asset).xfer(&Signature::Invoker, &BigInt::zero(&e), &to, &to_return);
 
         let mut user_config = UserConfig::new(storage.get_user_config(invoker_id.clone()));
         if b_token_client.balance(&invoker_id).is_zero() {
@@ -208,20 +244,30 @@ impl PoolTrait for Pool {
         Ok(to_burn)
     }
 
-    fn borrow(e: Env, asset: BytesN<32>, amount: BigInt, to: Identifier) -> Result<BigInt, PoolError> {
+    fn borrow(
+        e: Env,
+        asset: BytesN<32>,
+        amount: BigInt,
+        to: Identifier,
+    ) -> Result<BigInt, PoolError> {
         let storage = StorageManager::new(&e);
+
+        if storage.get_pool_status() > 0 {
+            return Err(PoolError::InvalidPoolStatus);
+        }
 
         let res_config = storage.get_res_config(asset.clone());
         let res_data = storage.get_res_data(asset.clone());
 
         let invoker = e.invoker();
         let invoker_id = Identifier::from(invoker);
-        let to_mint = (amount.clone() * BigInt::from_i64(&e, SCALAR)) / BigInt::from_i64(&e, res_data.d_rate);
+        let to_mint =
+            (amount.clone() * BigInt::from_i64(&e, SCALAR)) / BigInt::from_i64(&e, res_data.d_rate);
 
         let user_action = UserAction {
             asset: asset.clone(),
             b_token_delta: 0,
-            d_token_delta: to_mint.to_i64()
+            d_token_delta: to_mint.to_i64(),
         };
         let is_healthy = validate_hf(&e, &invoker_id, &user_action);
         if !is_healthy {
@@ -229,18 +275,13 @@ impl PoolTrait for Pool {
         }
 
         TokenClient::new(&e, res_config.d_token).mint(
-            &Signature::Invoker, 
-            &BigInt::zero(&e), 
-            &invoker_id, 
-            &to_mint
+            &Signature::Invoker,
+            &BigInt::zero(&e),
+            &invoker_id,
+            &to_mint,
         );
-        
-        TokenClient::new(&e, asset).xfer(
-            &Signature::Invoker, 
-            &BigInt::zero(&e), 
-            &to, 
-            &amount
-        );
+
+        TokenClient::new(&e, asset).xfer(&Signature::Invoker, &BigInt::zero(&e), &to, &amount);
 
         let mut user_config = UserConfig::new(storage.get_user_config(invoker_id.clone()));
         if !user_config.is_borrowing(res_config.index) {
@@ -252,7 +293,12 @@ impl PoolTrait for Pool {
         Ok(to_mint)
     }
 
-    fn repay(e: Env, asset: BytesN<32>, amount: BigInt, on_behalf_of: Identifier) -> Result<BigInt, PoolError>{
+    fn repay(
+        e: Env,
+        asset: BytesN<32>,
+        amount: BigInt,
+        on_behalf_of: Identifier,
+    ) -> Result<BigInt, PoolError> {
         let storage = StorageManager::new(&e);
 
         let res_config = storage.get_res_config(asset.clone());
@@ -266,25 +312,27 @@ impl PoolTrait for Pool {
         if amount == BigInt::from_u64(&e, u64::MAX) {
             // if they input u64::MAX as the repay amount, burn 100% of their holdings
             to_burn = d_token_client.balance(&invoker_id);
-            to_repay = (to_burn.clone() *  BigInt::from_i64(&e, res_data.d_rate)) / BigInt::from_i64(&e, SCALAR);
+            to_repay = (to_burn.clone() * BigInt::from_i64(&e, res_data.d_rate))
+                / BigInt::from_i64(&e, SCALAR);
         } else {
-            to_burn = (amount.clone() * BigInt::from_i64(&e, SCALAR)) / BigInt::from_i64(&e, res_data.d_rate);
+            to_burn = (amount.clone() * BigInt::from_i64(&e, SCALAR))
+                / BigInt::from_i64(&e, res_data.d_rate);
             to_repay = amount;
         }
 
         d_token_client.burn(
-            &Signature::Invoker, 
-            &BigInt::zero(&e), 
-            &on_behalf_of, 
-            &to_burn
+            &Signature::Invoker,
+            &BigInt::zero(&e),
+            &on_behalf_of,
+            &to_burn,
         );
 
         TokenClient::new(&e, asset).xfer_from(
-            &Signature::Invoker, 
+            &Signature::Invoker,
             &BigInt::zero(&e),
             &invoker_id,
             &get_contract_id(&e),
-            &to_repay
+            &to_repay,
         );
 
         let mut user_config = UserConfig::new(storage.get_user_config(invoker_id.clone()));
@@ -295,6 +343,21 @@ impl PoolTrait for Pool {
 
         // TODO: rate/index updates
         Ok(to_burn)
+    }
+
+    fn set_status(e: Env, pool_status: u32) -> Result<bool, PoolError> {
+        let storage = StorageManager::new(&e);
+        let invoker = e.invoker();
+        let invoker_id;
+        match invoker {
+            Address::Account(account_id) => invoker_id = Identifier::Account(account_id),
+            Address::Contract(bytes) => invoker_id = Identifier::Ed25519(bytes),
+        }
+        if invoker_id != storage.get_admin() {
+            return Err(PoolError::NotAuthorized);
+        }
+        storage.set_pool_status(pool_status);
+        Ok(true)
     }
 }
 

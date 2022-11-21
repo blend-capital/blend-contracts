@@ -1,0 +1,107 @@
+#![cfg(test)]
+use soroban_auth::{Identifier, Signature};
+use soroban_sdk::{testutils::Accounts, BigInt, Env, Status};
+
+mod common;
+use crate::common::{
+    create_mock_oracle, create_wasm_lending_pool, pool_helper, PoolError, TokenClient,
+};
+
+#[test]
+fn test_pool_supply_on_ice() {
+    let e = Env::default();
+
+    let bombadil = e.accounts().generate_and_create();
+    let bombadil_id = Identifier::Account(bombadil.clone());
+
+    let sauron = e.accounts().generate_and_create();
+    let sauron_id = Identifier::Account(sauron.clone());
+
+    let (mock_oracle, mock_oracle_client) = create_mock_oracle(&e);
+
+    let (pool, pool_client) = create_wasm_lending_pool(&e);
+    let pool_id = Identifier::Contract(pool.clone());
+    pool_client.initialize(&bombadil_id, &mock_oracle);
+    pool_client.with_source_account(&bombadil).set_status(&1);
+
+    let (asset1_id, _b_token1_id, _) =
+        pool_helper::setup_reserve(&e, &pool_id, &pool_client, &bombadil);
+
+    mock_oracle_client.set_price(&asset1_id, &2_0000000);
+
+    let asset1_client = TokenClient::new(&e, asset1_id.clone());
+
+    asset1_client.with_source_account(&bombadil).mint(
+        &Signature::Invoker,
+        &BigInt::zero(&e),
+        &sauron_id,
+        &BigInt::from_i64(&e, 10_0000000),
+    );
+    asset1_client.with_source_account(&sauron).approve(
+        &Signature::Invoker,
+        &BigInt::zero(&e),
+        &pool_id,
+        &BigInt::from_u64(&e, u64::MAX),
+    );
+
+    let result = pool_client
+        .with_source_account(&sauron)
+        .try_supply(&asset1_id, &BigInt::from_u64(&e, 1_0000000));
+
+    match result {
+        Ok(_) => assert!(true),
+        Err(_) => assert!(false),
+    }
+}
+
+#[test]
+fn test_pool_supply_frozen_panics() {
+    let e = Env::default();
+
+    let bombadil = e.accounts().generate_and_create();
+    let bombadil_id = Identifier::Account(bombadil.clone());
+
+    let sauron = e.accounts().generate_and_create();
+    let sauron_id = Identifier::Account(sauron.clone());
+
+    let (mock_oracle, mock_oracle_client) = create_mock_oracle(&e);
+
+    let (pool, pool_client) = create_wasm_lending_pool(&e);
+    let pool_id = Identifier::Contract(pool.clone());
+    pool_client.initialize(&bombadil_id, &mock_oracle);
+    pool_client.with_source_account(&bombadil).set_status(&2);
+
+    let (asset1_id, _b_token1_id, _) =
+        pool_helper::setup_reserve(&e, &pool_id, &pool_client, &bombadil);
+
+    mock_oracle_client.set_price(&asset1_id, &2_0000000);
+
+    let asset1_client = TokenClient::new(&e, asset1_id.clone());
+
+    asset1_client.with_source_account(&bombadil).mint(
+        &Signature::Invoker,
+        &BigInt::zero(&e),
+        &sauron_id,
+        &BigInt::from_i64(&e, 10_0000000),
+    );
+    asset1_client.with_source_account(&sauron).approve(
+        &Signature::Invoker,
+        &BigInt::zero(&e),
+        &pool_id,
+        &BigInt::from_u64(&e, u64::MAX),
+    );
+
+    let result = pool_client
+        .with_source_account(&sauron)
+        .try_supply(&asset1_id, &BigInt::from_u64(&e, 1_0000000));
+
+    match result {
+        Ok(_) => {
+            assert!(false);
+        }
+        Err(error) => match error {
+            Ok(p_error) => assert_eq!(p_error, PoolError::InvalidPoolStatus),
+            Err(s_error) => assert_eq!(s_error, Status::from_contract_error(4)),
+        },
+    }
+}

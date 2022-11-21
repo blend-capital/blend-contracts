@@ -1,5 +1,5 @@
 use soroban_auth::Identifier;
-use soroban_sdk::{contracttype, BytesN, Env, Vec, vec, Address};
+use soroban_sdk::{contracttype, vec, Address, BytesN, Env, Vec};
 
 /********** Storage Types **********/
 
@@ -9,14 +9,14 @@ use soroban_sdk::{contracttype, BytesN, Env, Vec, vec, Address};
 pub struct ReserveConfig {
     pub b_token: BytesN<32>, // the address of the bToken contract
     pub d_token: BytesN<32>, // the address of the dToken contract
-    pub decimals: u32, // the decimals used in both the bToken and underlying contract
-    pub c_factor: u32, // the collateral factor for the reserve
-    pub l_factor: u32, // the liability factor for the reserve
-    pub util: u32, // the target utilization rate
-    pub r_one: u32, // the R1 value in the interest rate formula
-    pub r_two: u32, // the R2 value in the interest rate formula
-    pub r_three: u32, // the R3 value in the interest rate formula
-    pub index: u32, // the index of the reserve in the list (TODO: Make u8)
+    pub decimals: u32,       // the decimals used in both the bToken and underlying contract
+    pub c_factor: u32,       // the collateral factor for the reserve
+    pub l_factor: u32,       // the liability factor for the reserve
+    pub util: u32,           // the target utilization rate
+    pub r_one: u32,          // the R1 value in the interest rate formula
+    pub r_two: u32,          // the R2 value in the interest rate formula
+    pub r_three: u32,        // the R3 value in the interest rate formula
+    pub index: u32,          // the index of the reserve in the list (TODO: Make u8)
 }
 
 /// The data for a reserve asset
@@ -24,9 +24,9 @@ pub struct ReserveConfig {
 #[contracttype]
 pub struct ReserveData {
     // TODO: These rates are correlated and can be simplified if both the b/dTokens have a totalSupply
-    pub b_rate: i64, // the conversion rate from bToken to underlying 
+    pub b_rate: i64, // the conversion rate from bToken to underlying
     pub d_rate: i64, // the conversion rate from dToken to underlying
-    pub ir_mod: i64 // the interest rate curve modifier
+    pub ir_mod: i64, // the interest rate curve modifier
 }
 
 /********** Storage Key Types **********/
@@ -35,7 +35,7 @@ pub struct ReserveData {
 #[contracttype]
 pub struct LiabilityKey {
     user: Address,
-    asset: BytesN<32>
+    asset: BytesN<32>,
 }
 
 // TODO: See if we can avoid publishing this
@@ -55,6 +55,8 @@ pub enum PoolDataKey {
     ResList,
     // The configuration settings for a user
     UserConfig(Identifier),
+    // The status of the pool
+    PoolStatus,
 }
 
 /********** Storage **********/
@@ -65,13 +67,13 @@ pub trait PoolDataStore {
     /********** Admin **********/
 
     /// Fetch the current admin Identifier
-    /// 
+    ///
     /// ### Errors
     /// If the admin does not exist
     fn get_admin(&self) -> Identifier;
 
     /// Set a new admin
-    /// 
+    ///
     /// ### Arguments
     /// * `new_admin` - The Identifier for the admin
     fn set_admin(&self, new_admin: Identifier);
@@ -82,13 +84,13 @@ pub trait PoolDataStore {
     /********** Oracle **********/
 
     /// Fetch the current oracle address
-    /// 
+    ///
     /// ### Errors
     /// If the oracle does not exist
     fn get_oracle(&self) -> BytesN<32>;
 
     /// Set a new oracle address
-    /// 
+    ///
     /// ### Arguments
     /// * `new_oracle` - The contract address of the oracle
     fn set_oracle(&self, new_oracle: BytesN<32>);
@@ -99,23 +101,23 @@ pub trait PoolDataStore {
     /********** Reserve Config (ResConfig) **********/
 
     /// Fetch the reserve data for an asset
-    /// 
+    ///
     /// ### Arguments
     /// * `asset` - The contract address of the asset
-    /// 
+    ///
     /// ### Errors
     /// If the reserve does not exist
     fn get_res_config(&self, asset: BytesN<32>) -> ReserveConfig;
 
     /// Set the reserve configuration for an asset
-    /// 
+    ///
     /// ### Arguments
     /// * `asset` - The contract address of the asset
     /// * `config` - The reserve configuration for the asset
     fn set_res_config(&self, asset: BytesN<32>, config: ReserveConfig);
 
     /// Checks if a reserve exists for an asset
-    /// 
+    ///
     /// ### Arguments
     /// * `asset` - The contract address of the asset
     fn has_res(&self, asset: BytesN<32>) -> bool;
@@ -123,16 +125,16 @@ pub trait PoolDataStore {
     /********** Reserve Data (ResData) **********/
 
     /// Fetch the reserve data for an asset
-    /// 
+    ///
     /// ### Arguments
     /// * `asset` - The contract address of the asset
-    /// 
+    ///
     /// ### Errors
     /// If the reserve does not exist
     fn get_res_data(&self, asset: BytesN<32>) -> ReserveData;
 
     /// Set the reserve data for an asset
-    /// 
+    ///
     /// ### Arguments
     /// * `asset` - The contract address of the asset
     /// * `data` - The reserve data for the asset
@@ -144,30 +146,41 @@ pub trait PoolDataStore {
     fn get_res_list(&self) -> Vec<BytesN<32>>;
 
     /// Add a reserve to the back of the list and returns the index
-    /// 
+    ///
     /// ### Arguments
     /// * `asset` - The contract address of the underlying asset
-    /// 
+    ///
     /// ### Errors
     /// If the number of reserves in the list exceeds 32
-    /// 
+    ///
     // @dev: Once added it can't be removed
     fn push_res_list(&self, asset: BytesN<32>) -> u32;
 
     /********** UserConfig **********/
 
     /// Fetch the users reserve config
-    /// 
+    ///
     /// ### Arguments
     /// * `user` - The address of the user
     fn get_user_config(&self, user: Identifier) -> u64;
 
     /// Set the users reserve config
-    /// 
+    ///
     /// ### Arguments
     /// * `user` - The address of the user
     /// * `config` - The reserve config for the user
     fn set_user_config(&self, user: Identifier, config: u64);
+
+    /********** Pool Status **********/
+
+    /// Fetch the pool status
+    fn get_pool_status(&self) -> u32;
+
+    /// Set the pool status
+    ///
+    /// ### Arguments
+    /// * 'pool_state' - The pool status
+    fn set_pool_status(&self, pool_status: u32);
 }
 
 pub struct StorageManager(Env);
@@ -178,9 +191,11 @@ impl PoolDataStore for StorageManager {
     fn get_admin(&self) -> Identifier {
         self.env().data().get_unchecked(PoolDataKey::Admin).unwrap()
     }
-    
+
     fn set_admin(&self, new_admin: Identifier) {
-        self.env().data().set::<PoolDataKey, Identifier>(PoolDataKey::Admin, new_admin);
+        self.env()
+            .data()
+            .set::<PoolDataKey, Identifier>(PoolDataKey::Admin, new_admin);
     }
 
     fn has_admin(&self) -> bool {
@@ -190,11 +205,16 @@ impl PoolDataStore for StorageManager {
     /********** Oracle **********/
 
     fn get_oracle(&self) -> BytesN<32> {
-        self.env().data().get_unchecked(PoolDataKey::Oracle).unwrap()
+        self.env()
+            .data()
+            .get_unchecked(PoolDataKey::Oracle)
+            .unwrap()
     }
 
     fn set_oracle(&self, new_oracle: BytesN<32>) {
-        self.env().data().set::<PoolDataKey, BytesN<32>>(PoolDataKey::Oracle, new_oracle);
+        self.env()
+            .data()
+            .set::<PoolDataKey, BytesN<32>>(PoolDataKey::Oracle, new_oracle);
     }
 
     fn has_oracle(&self) -> bool {
@@ -205,7 +225,9 @@ impl PoolDataStore for StorageManager {
 
     fn get_res_config(&self, asset: BytesN<32>) -> ReserveConfig {
         let key = PoolDataKey::ResConfig(asset);
-        self.env().data().get::<PoolDataKey, ReserveConfig>(key)
+        self.env()
+            .data()
+            .get::<PoolDataKey, ReserveConfig>(key)
             .unwrap()
             .unwrap()
     }
@@ -221,7 +243,9 @@ impl PoolDataStore for StorageManager {
             indexed_config.index = index;
         }
 
-        self.env().data().set::<PoolDataKey, ReserveConfig>(key, indexed_config);
+        self.env()
+            .data()
+            .set::<PoolDataKey, ReserveConfig>(key, indexed_config);
     }
 
     fn has_res(&self, asset: BytesN<32>) -> bool {
@@ -233,7 +257,9 @@ impl PoolDataStore for StorageManager {
 
     fn get_res_data(&self, asset: BytesN<32>) -> ReserveData {
         let key = PoolDataKey::ResData(asset);
-        self.env().data().get::<PoolDataKey, ReserveData>(key)
+        self.env()
+            .data()
+            .get::<PoolDataKey, ReserveData>(key)
             .unwrap()
             .unwrap()
     }
@@ -246,7 +272,9 @@ impl PoolDataStore for StorageManager {
     /********** Reserve List (ResList) **********/
 
     fn get_res_list(&self) -> Vec<BytesN<32>> {
-        self.env().data().get::<PoolDataKey, Vec<BytesN<32>>>(PoolDataKey::ResList)
+        self.env()
+            .data()
+            .get::<PoolDataKey, Vec<BytesN<32>>>(PoolDataKey::ResList)
             .unwrap_or(Ok(vec![&self.env()])) // empty vec if nothing exists
             .unwrap()
     }
@@ -258,7 +286,9 @@ impl PoolDataStore for StorageManager {
         }
         res_list.push_back(asset);
         let new_index = res_list.len() - 1;
-        self.env().data().set::<PoolDataKey, Vec<BytesN<32>>>(PoolDataKey::ResList, res_list);
+        self.env()
+            .data()
+            .set::<PoolDataKey, Vec<BytesN<32>>>(PoolDataKey::ResList, res_list);
         new_index
     }
 
@@ -266,7 +296,9 @@ impl PoolDataStore for StorageManager {
 
     fn get_user_config(&self, user: Identifier) -> u64 {
         let key = PoolDataKey::UserConfig(user);
-        self.env().data().get::<PoolDataKey, u64>(key)
+        self.env()
+            .data()
+            .get::<PoolDataKey, u64>(key)
             .unwrap_or(Ok(0))
             .unwrap()
     }
@@ -274,6 +306,21 @@ impl PoolDataStore for StorageManager {
     fn set_user_config(&self, user: Identifier, config: u64) {
         let key = PoolDataKey::UserConfig(user);
         self.env().data().set::<PoolDataKey, u64>(key, config);
+    }
+
+    /********** Pool Status **********/
+    fn get_pool_status(&self) -> u32 {
+        let key = PoolDataKey::PoolStatus;
+        self.env()
+            .data()
+            .get::<PoolDataKey, u32>(key)
+            .unwrap()
+            .unwrap()
+    }
+
+    fn set_pool_status(&self, pool_status: u32) {
+        let key = PoolDataKey::PoolStatus;
+        self.env().data().set::<PoolDataKey, u32>(key, pool_status);
     }
 }
 

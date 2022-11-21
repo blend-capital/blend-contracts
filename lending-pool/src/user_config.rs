@@ -39,7 +39,7 @@ pub trait UserConfigurator {
 }
 
 pub struct UserConfig {
-    config: u64,
+    pub config: u64,
 }
 
 impl UserConfig {

@@ -1,18 +1,11 @@
 use soroban_auth::{Identifier, Signature};
-use soroban_sdk::{contractimpl, BytesN, Env, contracterror, BigInt};
+use soroban_sdk::{contractimpl, BytesN, Env, BigInt};
 use crate::{
     dependencies::TokenClient,
-    storage::{StorageManager, PoolDataStore, ReserveConfig, ReserveData}, 
+    storage::{StorageManager, PoolDataStore, ReserveConfig, ReserveData}, errors::PoolError, user_validator::validate_hf, user_data::UserAction, user_config::{UserConfigurator, UserConfig}, 
 };
 
 const SCALAR: i64 = 1_000_000_0;
-
-#[contracterror]
-#[derive(Copy, Clone, Debug, Eq, PartialEq, PartialOrd, Ord)]
-#[repr(u32)]
-pub enum PoolError {
-    StaleOracle = 1,
-}
 
 /// ### Pool
 ///
@@ -36,6 +29,8 @@ pub trait PoolTrait {
     /// ### Errors
     /// If the caller is not the admin
     fn init_res(e: Env, asset: BytesN<32>, config: ReserveConfig);
+
+    fn config(e: Env, user: Identifier) -> u64;
 
     /// Invoker supplies the `amount` of `asset` into the pool in return for the asset's bToken
     /// 
@@ -120,6 +115,11 @@ impl PoolTrait for Pool {
         storage.set_res_data(asset, init_data);
     }
 
+    fn config(e: Env, user: Identifier) -> u64 {
+        let storage = StorageManager::new(&e);
+        storage.get_user_config(user)
+    }
+
     fn supply(e: Env, asset: BytesN<32>, amount: BigInt) -> Result<BigInt, PoolError> {
         let storage = StorageManager::new(&e);
 
@@ -127,13 +127,13 @@ impl PoolTrait for Pool {
         let res_data = storage.get_res_data(asset.clone());
 
         let invoker = e.invoker();
+        let invoker_id = Identifier::from(invoker);
         let to_mint = (amount.clone() * BigInt::from_i64(&e, SCALAR)) / BigInt::from_i64(&e, res_data.b_rate);
-
 
         TokenClient::new(&e, asset).xfer_from(
             &Signature::Invoker, 
             &BigInt::zero(&e), 
-            &Identifier::from(invoker.clone()), 
+            &invoker_id, 
             &get_contract_id(&e), 
             &amount
         );
@@ -141,9 +141,15 @@ impl PoolTrait for Pool {
         TokenClient::new(&e, res_config.b_token).mint(
             &Signature::Invoker, 
             &BigInt::zero(&e), 
-            &Identifier::from(invoker), 
+            &invoker_id, 
             &to_mint
         );
+
+        let mut user_config = UserConfig::new(storage.get_user_config(invoker_id.clone()));
+        if !user_config.is_collateral(res_config.index) {
+            user_config.set_collateral(res_config.index, true);
+            storage.set_user_config(invoker_id, user_config.config);
+        }
 
         // TODO: rate/index updates
         Ok(to_mint)
@@ -156,24 +162,33 @@ impl PoolTrait for Pool {
         let res_data = storage.get_res_data(asset.clone());
 
         let invoker = e.invoker();
+        let invoker_id = Identifier::from(invoker);
         let to_burn: BigInt;
         let to_return: BigInt;
         let b_token_client = TokenClient::new(&e, res_config.b_token);
         if amount == BigInt::from_u64(&e, u64::MAX) {
             // if they input u64::MAX as the burn amount, burn 100% of their holdings
-            to_burn = b_token_client.balance(&Identifier::from(invoker.clone()));
+            to_burn = b_token_client.balance(&invoker_id);
             to_return = (to_burn.clone() * BigInt::from_i64(&e, res_data.b_rate)) / BigInt::from_i64(&e, SCALAR);
         } else {
             to_burn = (amount.clone() * BigInt::from_i64(&e, SCALAR)) / BigInt::from_i64(&e, res_data.b_rate);
             to_return = amount;
         }
 
-        // TODO: health factor check
+        let user_action = UserAction {
+            asset: asset.clone(),
+            b_token_delta: -(to_burn.to_i64()),
+            d_token_delta: 0
+        };
+        let is_healthy = validate_hf(&e, &invoker_id, &user_action);
+        if !is_healthy {
+            return Err(PoolError::InvalidHf);
+        }
 
         b_token_client.burn(
             &Signature::Invoker, 
             &BigInt::zero(&e), 
-            &Identifier::from(invoker), 
+            &invoker_id, 
             &to_burn
         );
 
@@ -183,6 +198,12 @@ impl PoolTrait for Pool {
             &to, 
             &to_return
         );
+
+        let mut user_config = UserConfig::new(storage.get_user_config(invoker_id.clone()));
+        if b_token_client.balance(&invoker_id).is_zero() {
+            user_config.set_collateral(res_config.index, false);
+            storage.set_user_config(invoker_id, user_config.config);
+        }
         // TODO: rate/index updates
         Ok(to_burn)
     }
@@ -194,14 +215,23 @@ impl PoolTrait for Pool {
         let res_data = storage.get_res_data(asset.clone());
 
         let invoker = e.invoker();
+        let invoker_id = Identifier::from(invoker);
         let to_mint = (amount.clone() * BigInt::from_i64(&e, SCALAR)) / BigInt::from_i64(&e, res_data.d_rate);
 
-        // TODO: health factor check
+        let user_action = UserAction {
+            asset: asset.clone(),
+            b_token_delta: 0,
+            d_token_delta: to_mint.to_i64()
+        };
+        let is_healthy = validate_hf(&e, &invoker_id, &user_action);
+        if !is_healthy {
+            return Err(PoolError::InvalidHf);
+        }
 
         TokenClient::new(&e, res_config.d_token).mint(
             &Signature::Invoker, 
             &BigInt::zero(&e), 
-            &Identifier::from(invoker), 
+            &invoker_id, 
             &to_mint
         );
         
@@ -211,6 +241,12 @@ impl PoolTrait for Pool {
             &to, 
             &amount
         );
+
+        let mut user_config = UserConfig::new(storage.get_user_config(invoker_id.clone()));
+        if !user_config.is_borrowing(res_config.index) {
+            user_config.set_borrowing(res_config.index, true);
+            storage.set_user_config(invoker_id, user_config.config);
+        }
 
         // TODO: rate/index updates
         Ok(to_mint)
@@ -223,19 +259,18 @@ impl PoolTrait for Pool {
         let res_data = storage.get_res_data(asset.clone());
 
         let invoker = e.invoker();
+        let invoker_id = Identifier::from(invoker);
         let to_burn: BigInt;
         let to_repay: BigInt;
         let d_token_client = TokenClient::new(&e, res_config.d_token);
         if amount == BigInt::from_u64(&e, u64::MAX) {
             // if they input u64::MAX as the repay amount, burn 100% of their holdings
-            to_burn = d_token_client.balance(&Identifier::from(invoker.clone()));
+            to_burn = d_token_client.balance(&invoker_id);
             to_repay = (to_burn.clone() *  BigInt::from_i64(&e, res_data.d_rate)) / BigInt::from_i64(&e, SCALAR);
         } else {
             to_burn = (amount.clone() * BigInt::from_i64(&e, SCALAR)) / BigInt::from_i64(&e, res_data.d_rate);
             to_repay = amount;
         }
-
-        // TODO: health factor check
 
         d_token_client.burn(
             &Signature::Invoker, 
@@ -247,10 +282,17 @@ impl PoolTrait for Pool {
         TokenClient::new(&e, asset).xfer_from(
             &Signature::Invoker, 
             &BigInt::zero(&e),
-            &Identifier::from(invoker),
+            &invoker_id,
             &get_contract_id(&e),
             &to_repay
         );
+
+        let mut user_config = UserConfig::new(storage.get_user_config(invoker_id.clone()));
+        if d_token_client.balance(&invoker_id).is_zero() {
+            user_config.set_borrowing(res_config.index, false);
+            storage.set_user_config(invoker_id, user_config.config);
+        }
+
         // TODO: rate/index updates
         Ok(to_burn)
     }

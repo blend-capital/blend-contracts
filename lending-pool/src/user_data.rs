@@ -57,7 +57,7 @@ impl UserData {
                     e,
                     d_token_liability,
                     BigInt::from_i64(e, res_data.d_rate),
-                    BigInt::from_u32(e, res_config.l_factor),
+                    BigInt::from_u64(e, 1_0000000_0000000) / BigInt::from_u32(e, res_config.l_factor),
                     asset_to_base.clone()
                 );
             }
@@ -76,9 +76,9 @@ impl UserData {
                         asset_to_base.clone()
                     );                    
                     if action.b_token_delta > 0 { 
-                        e_collateral_base += e_collateral_delta.clone()
+                        e_collateral_base += e_collateral_delta.clone();
                     } else {
-                        e_collateral_base -= e_collateral_delta 
+                        e_collateral_base -= e_collateral_delta;
                     }
                 } 
 
@@ -88,10 +88,11 @@ impl UserData {
                         e,
                         BigInt::from_i64(e, abs_delta),
                         BigInt::from_i64(e, res_data.d_rate),
-                        BigInt::from_u32(e, res_config.l_factor),
+                        BigInt::from_u64(e, 1_0000000_0000000) / BigInt::from_u32(e, res_config.l_factor),
                         asset_to_base.clone()
                     );
-                    if action.b_token_delta > 0 { 
+
+                    if action.d_token_delta > 0 { 
                         e_liability_base += e_liability_delta.clone();
                     } else {
                         e_liability_base -= e_liability_delta;
@@ -319,7 +320,7 @@ mod tests {
         };
         e.as_contract(&pool_id, || {
             let user_data = UserData::load(&e, &user_id, &user_action);
-            assert_eq!(user_data.e_liability_base, BigInt::from_u64(&e, 72_6000000));
+            assert_eq!(user_data.e_liability_base, BigInt::from_u64(&e, 239_9999976)); // TODO: Rounding loss due to 1/l_factor taking floor
             assert_eq!(user_data.e_collateral_base, BigInt::zero(&e));
         });
     }
@@ -393,7 +394,7 @@ mod tests {
         oracle_client.set_price(&asset_id_0, &10_0000000);
         oracle_client.set_price(&asset_id_1, &5_0000000);
 
-        // setup user ()
+        // setup user
         e.as_contract(&pool_id, || { storage.set_user_config(user_id.clone(), 0x0000000000000000) });
 
         // load user
@@ -478,7 +479,7 @@ mod tests {
         oracle_client.set_price(&asset_id_0, &10_0000000);
         oracle_client.set_price(&asset_id_1, &5_0000000);
 
-        // setup user ()
+        // setup user
         let liability_amount = BigInt::from_u64(&e, 24_0000000);
         let collateral_amount = BigInt::from_u64(&e, 25_0000000);
         let additional_liability = -5_0000000;
@@ -504,7 +505,7 @@ mod tests {
         };
         e.as_contract(&pool_id, || {
             let user_data = UserData::load(&e, &user_id, &user_action);
-            assert_eq!(user_data.e_liability_base, BigInt::from_u64(&e, 68_4000000));
+            assert_eq!(user_data.e_liability_base, BigInt::from_u64(&e, 189_9999924)); // TODO: same rounding loss as above
             assert_eq!(user_data.e_collateral_base, BigInt::from_u64(&e, 187_5000000));
         });
     }

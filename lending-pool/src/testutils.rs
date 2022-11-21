@@ -1,10 +1,8 @@
 #![cfg(any(test, feature = "testutils"))]
 
-use std::println;
-
 use rand::{thread_rng, RngCore};
-use soroban_auth::{Identifier, Signature};
-use soroban_sdk::{testutils::Accounts, AccountId, BigInt, BytesN, Env, IntoVal};
+use soroban_auth::{Identifier};
+use soroban_sdk::{AccountId, BytesN, Env, IntoVal};
 use crate::dependencies::{TokenClient, TokenMetadata};
 // TODO: Avoid WASM-ing unit tests by adding conditional `rlib` for test builds 
 //       -> https://rust-lang.github.io/rfcs/3180-cargo-cli-crate-type.html
@@ -15,6 +13,7 @@ mod mock_oracle {
         file = "../target/wasm32-unknown-unknown/release/mock_blend_oracle.wasm"
     );
 }
+
 pub(crate) use mock_oracle::{Client as MockOracleClient};
 
 pub(crate) fn generate_contract_id(e: &Env) -> BytesN<32> {

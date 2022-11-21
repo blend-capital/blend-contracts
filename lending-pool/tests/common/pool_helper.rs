@@ -1,8 +1,8 @@
 use soroban_auth::Identifier;
 use soroban_sdk::{Env, BytesN, AccountId};
-use crate::common::{create_token, generate_contract_id};
+use crate::common::{create_token};
 
-use super::lending_pool_wasm::{Client as PoolClient, ReserveConfig};
+use super::{PoolClient, ReserveConfig};
 
 /// Uses default configuration
 pub fn setup_reserve(
@@ -11,14 +11,10 @@ pub fn setup_reserve(
     pool_client: &PoolClient,
     admin: &AccountId,
 ) -> (BytesN<32>, BytesN<32>, BytesN<32>) {
-    let underlying_id = generate_contract_id(e);
-    let b_token_id = generate_contract_id(e);
-    let d_token_id = generate_contract_id(e);
-
     let admin_id = Identifier::Account(admin.to_owned());
-    create_token(e, &underlying_id, &admin_id);
-    create_token(e, &b_token_id, &pool);
-    create_token(e, &d_token_id, &pool);
+    let (underlying_id, _) = create_token(e, &admin_id);
+    let (b_token_id, _) = create_token(e, &pool);
+    let (d_token_id, _) = create_token(e, &pool);
 
     let config = ReserveConfig {
         b_token: b_token_id.clone(),

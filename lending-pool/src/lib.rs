@@ -1,11 +1,16 @@
 #![no_std]
-use soroban_sdk::{contractimpl, symbol, Symbol};
 
-pub struct Contract;
+#[cfg(any(test, feature = "testutils"))]
+extern crate std;
 
-#[contractimpl]
-impl Contract {
-    pub fn whoami() -> Symbol {
-        symbol!("pool")
-    }
-}
+mod errors;
+mod pool;
+mod storage;
+mod user_config;
+mod user_data;
+mod user_validator;
+
+mod dependencies;
+
+pub mod testutils;
+pub use crate::pool::{PoolClient, Pool};

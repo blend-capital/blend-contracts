@@ -7,42 +7,42 @@ use crate::common::{
     create_mock_oracle, create_wasm_lending_pool, pool_helper, PoolError, TokenClient,
 };
 
-// #[test]
-// fn test_pool_borrow_no_collateral_panics() {
-//     let e = Env::default();
+#[test]
+fn test_pool_borrow_no_collateral_panics() {
+    let e = Env::default();
 
-//     let bombadil = e.accounts().generate_and_create();
-//     let bombadil_id = Identifier::Account(bombadil.clone());
+    let bombadil = e.accounts().generate_and_create();
+    let bombadil_id = Identifier::Account(bombadil.clone());
 
-//     let sauron = e.accounts().generate_and_create();
-//     let sauron_id = Identifier::Account(sauron.clone());
+    let sauron = e.accounts().generate_and_create();
+    let sauron_id = Identifier::Account(sauron.clone());
 
-//     let (mock_oracle, mock_oracle_client) = create_mock_oracle(&e);
+    let (mock_oracle, mock_oracle_client) = create_mock_oracle(&e);
 
-//     let (pool, pool_client) = create_wasm_lending_pool(&e);
-//     let pool_id = Identifier::Contract(pool.clone());
-//     pool_client.initialize(&bombadil_id, &mock_oracle);
-//     pool_client.with_source_account(&bombadil).set_status(&0);
+    let (pool, pool_client) = create_wasm_lending_pool(&e);
+    let pool_id = Identifier::Contract(pool.clone());
+    pool_client.initialize(&bombadil_id, &mock_oracle);
+    pool_client.with_source_account(&bombadil).set_status(&0);
 
-//     let (asset1_id, _, _) = pool_helper::setup_reserve(&e, &pool_id, &pool_client, &bombadil);
+    let (asset1_id, _, _) = pool_helper::setup_reserve(&e, &pool_id, &pool_client, &bombadil);
 
-//     mock_oracle_client.set_price(&asset1_id, &2_0000000);
+    mock_oracle_client.set_price(&asset1_id, &2_0000000);
 
-//     // borrow
-//     let borrow_amount = BigInt::from_u64(&e, 0_0000001);
-//     let result =
-//         pool_client
-//             .with_source_account(&sauron)
-//             .try_borrow(&asset1_id, &borrow_amount, &sauron_id);
-//     // TODO: The try_borrow is returning a different error than it should
-//     match result {
-//         Ok(_) => assert!(false),
-//         Err(error) => match error {
-//             Ok(p_error) => assert_eq!(p_error, PoolError::InvalidHf),
-//             Err(s_error) => assert_eq!(s_error, Status::from_contract_error(3)),
-//         },
-//     }
-// }
+    // borrow
+    let borrow_amount = BigInt::from_u64(&e, 0_0000002); // TODO: Rounding to zero for 1 stroop - see issues/2
+    let result =
+        pool_client
+            .with_source_account(&sauron)
+            .try_borrow(&asset1_id, &borrow_amount, &sauron_id);
+    // TODO: The try_borrow is returning a different error than it should
+    match result {
+        Ok(_) => assert!(false),
+        Err(error) => match error {
+            Ok(p_error) => assert_eq!(p_error, PoolError::InvalidHf),
+            Err(s_error) => assert_eq!(s_error, Status::from_contract_error(3)),
+        },
+    }
+}
 
 #[test]
 fn test_pool_borrow_bad_hf_panics() {

@@ -34,6 +34,7 @@ pub trait PoolTrait {
     /// If the caller is not the admin
     fn init_res(e: Env, asset: BytesN<32>, config: ReserveConfig);
 
+    /// TODO: Remove once basic testing complete
     fn config(e: Env, user: Identifier) -> u64;
 
     /// Invoker supplies the `amount` of `asset` into the pool in return for the asset's bToken
@@ -101,13 +102,19 @@ pub trait PoolTrait {
     ) -> Result<BigInt, PoolError>;
 
     /// Pool status is changed to 'pool_status" if invoker is the admin
-    /// 0 - active, 1 - on ice, 2 - frozen
-    ///
-    /// Returns true on success and error otherwise
+    /// * 0 = active
+    /// * 1 = on ice
+    /// * 2 = frozen
     ///
     /// ### Arguments
     /// * 'pool_status' - The pool status to be set
-    fn set_status(e: Env, pool_status: u32) -> Result<bool, PoolError>;
+    fn set_status(e: Env, pool_status: u32) -> Result<(), PoolError>;
+
+    /// Fetch the status of the pool
+    /// * 0 = active
+    /// * 1 = on ice
+    /// * 2 = frozen
+    fn status(e: Env) -> u32;
 }
 
 #[contractimpl]
@@ -345,7 +352,7 @@ impl PoolTrait for Pool {
         Ok(to_burn)
     }
 
-    fn set_status(e: Env, pool_status: u32) -> Result<bool, PoolError> {
+    fn set_status(e: Env, pool_status: u32) -> Result<(), PoolError> {
         let storage = StorageManager::new(&e);
         let invoker = e.invoker();
         let invoker_id;
@@ -353,11 +360,18 @@ impl PoolTrait for Pool {
             Address::Account(account_id) => invoker_id = Identifier::Account(account_id),
             Address::Contract(bytes) => invoker_id = Identifier::Ed25519(bytes),
         }
+
         if invoker_id != storage.get_admin() {
             return Err(PoolError::NotAuthorized);
         }
+
         storage.set_pool_status(pool_status);
-        Ok(true)
+        Ok(())
+    }
+
+    fn status(e: Env) -> u32 {
+        let storage = StorageManager::new(&e);
+        storage.get_pool_status()
     }
 }
 

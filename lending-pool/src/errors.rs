@@ -6,5 +6,6 @@ use soroban_sdk::contracterror;
 pub enum PoolError {
     NotAuthorized = 1,
     BadRequest = 2,
-    InvalidHf = 3
+    InvalidHf = 3,
+    InvalidPoolStatus = 4,
 }

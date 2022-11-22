@@ -1,9 +1,11 @@
 #![cfg(test)]
-use soroban_sdk::{BigInt, Env, testutils::Accounts, Status};
 use soroban_auth::{Identifier, Signature};
+use soroban_sdk::{testutils::Accounts, BigInt, Env, Status};
 
 mod common;
-use crate::common::{create_wasm_lending_pool, create_mock_oracle, pool_helper, PoolError, TokenClient};
+use crate::common::{
+    create_mock_oracle, create_wasm_lending_pool, pool_helper, PoolError, TokenClient,
+};
 
 #[test]
 fn test_pool_withdraw_no_supply_panics() {
@@ -35,13 +37,17 @@ fn test_pool_withdraw_no_supply_panics() {
 
     // withdraw
     let withdraw_amount = BigInt::from_u64(&e, 0_0000006); // TODO: Update to one stroop with https://github.com/blend-capital/blend-contracts/issues/2
-    let result = pool_client.with_source_account(&sauron).try_withdraw(&asset1_id, &withdraw_amount, &sauron_id);
+    let result = pool_client.with_source_account(&sauron).try_withdraw(
+        &asset1_id,
+        &withdraw_amount,
+        &sauron_id,
+    );
     match result {
         Ok(_) => assert!(false),
         Err(error) => match error {
-            Ok(p_error) => assert!(false),
+            Ok(_p_error) => assert!(false),
             Err(s_error) => assert_eq!(s_error, Status::from_contract_error(11)),
-        } 
+        },
     }
 }
 
@@ -60,8 +66,10 @@ fn test_pool_withdraw_bad_hf_panics() {
     let (pool, pool_client) = create_wasm_lending_pool(&e);
     let pool_id = Identifier::Contract(pool.clone());
     pool_client.initialize(&bombadil_id, &mock_oracle);
+    pool_client.with_source_account(&bombadil).set_status(&0);
 
-    let (asset1_id, b_token1_id, d_token1_id) = pool_helper::setup_reserve(&e, &pool_id, &pool_client, &bombadil);
+    let (asset1_id, b_token1_id, d_token1_id) =
+        pool_helper::setup_reserve(&e, &pool_id, &pool_client, &bombadil);
 
     mock_oracle_client.set_price(&asset1_id, &2_0000000);
 
@@ -75,29 +83,39 @@ fn test_pool_withdraw_bad_hf_panics() {
         &BigInt::from_i64(&e, 10_0000000),
     );
     asset1_client.with_source_account(&sauron).approve(
-        &Signature::Invoker, 
-        &BigInt::zero(&e), 
-        &pool_id, 
-        &BigInt::from_u64(&e, u64::MAX)
+        &Signature::Invoker,
+        &BigInt::zero(&e),
+        &pool_id,
+        &BigInt::from_u64(&e, u64::MAX),
     );
 
     // supply
-    let minted_btokens = pool_client.with_source_account(&sauron).supply(&asset1_id, &BigInt::from_u64(&e, 1_0000000));
+    let minted_btokens = pool_client
+        .with_source_account(&sauron)
+        .supply(&asset1_id, &BigInt::from_u64(&e, 1_0000000));
     assert_eq!(b_token1_client.balance(&sauron_id), minted_btokens);
 
     // borrow
-    let minted_dtokens = pool_client.with_source_account(&sauron).borrow(&asset1_id, &BigInt::from_u64(&e, 0_5357000), &sauron_id);
+    let minted_dtokens = pool_client.with_source_account(&sauron).borrow(
+        &asset1_id,
+        &BigInt::from_u64(&e, 0_5357000),
+        &sauron_id,
+    );
     assert_eq!(d_token1_client.balance(&sauron_id), minted_dtokens);
 
     // withdraw
     let withdraw_amount = BigInt::from_u64(&e, 0_0001000);
-    let result = pool_client.with_source_account(&sauron).try_withdraw(&asset1_id, &withdraw_amount, &sauron_id);
+    let result = pool_client.with_source_account(&sauron).try_withdraw(
+        &asset1_id,
+        &withdraw_amount,
+        &sauron_id,
+    );
     match result {
         Ok(_) => assert!(false),
         Err(error) => match error {
             Ok(p_error) => assert_eq!(p_error, PoolError::InvalidHf),
             Err(s_error) => assert_eq!(s_error, Status::from_contract_error(3)),
-        } 
+        },
     }
 }
 
@@ -116,8 +134,10 @@ fn test_pool_withdraw_good_hf_withdraws() {
     let (pool, pool_client) = create_wasm_lending_pool(&e);
     let pool_id = Identifier::Contract(pool.clone());
     pool_client.initialize(&bombadil_id, &mock_oracle);
+    pool_client.with_source_account(&bombadil).set_status(&0);
 
-    let (asset1_id, b_token1_id, d_token1_id) = pool_helper::setup_reserve(&e, &pool_id, &pool_client, &bombadil);
+    let (asset1_id, b_token1_id, d_token1_id) =
+        pool_helper::setup_reserve(&e, &pool_id, &pool_client, &bombadil);
 
     mock_oracle_client.set_price(&asset1_id, &2_0000000);
 
@@ -131,25 +151,44 @@ fn test_pool_withdraw_good_hf_withdraws() {
         &BigInt::from_u64(&e, 10_0000000),
     );
     asset1_client.with_source_account(&samwise).approve(
-        &Signature::Invoker, 
-        &BigInt::zero(&e), 
-        &pool_id, 
-        &BigInt::from_u64(&e, u64::MAX)
+        &Signature::Invoker,
+        &BigInt::zero(&e),
+        &pool_id,
+        &BigInt::from_u64(&e, u64::MAX),
     );
 
     // supply
-    let minted_btokens = pool_client.with_source_account(&samwise).supply(&asset1_id, &BigInt::from_u64(&e, 1_0000000));
+    let minted_btokens = pool_client
+        .with_source_account(&samwise)
+        .supply(&asset1_id, &BigInt::from_u64(&e, 1_0000000));
     assert_eq!(b_token1_client.balance(&samwise_id), minted_btokens);
 
     // borrow
-    let minted_dtokens = pool_client.with_source_account(&samwise).borrow(&asset1_id, &BigInt::from_u64(&e, 0_5355000), &samwise_id);
+    let minted_dtokens = pool_client.with_source_account(&samwise).borrow(
+        &asset1_id,
+        &BigInt::from_u64(&e, 0_5355000),
+        &samwise_id,
+    );
     assert_eq!(d_token1_client.balance(&samwise_id), minted_dtokens);
 
     // withdraw
     let withdraw_amount = BigInt::from_u64(&e, 0_0001000);
-    let burnt_btokens = pool_client.with_source_account(&samwise).withdraw(&asset1_id, &withdraw_amount, &samwise_id);
-    assert_eq!(asset1_client.balance(&samwise_id), BigInt::from_i64(&e, 10_0000000 - 1_0000000 + 0_5355000 + 0_0001000));
-    assert_eq!(asset1_client.balance(&pool_id), BigInt::from_i64(&e, 1_0000000 - 0_5355000 - 0_0001000));
-    assert_eq!(b_token1_client.balance(&samwise_id), minted_btokens - burnt_btokens);
+    let burnt_btokens = pool_client.with_source_account(&samwise).withdraw(
+        &asset1_id,
+        &withdraw_amount,
+        &samwise_id,
+    );
+    assert_eq!(
+        asset1_client.balance(&samwise_id),
+        BigInt::from_i64(&e, 10_0000000 - 1_0000000 + 0_5355000 + 0_0001000)
+    );
+    assert_eq!(
+        asset1_client.balance(&pool_id),
+        BigInt::from_i64(&e, 1_0000000 - 0_5355000 - 0_0001000)
+    );
+    assert_eq!(
+        b_token1_client.balance(&samwise_id),
+        minted_btokens - burnt_btokens
+    );
     assert_eq!(d_token1_client.balance(&samwise_id), minted_dtokens);
 }

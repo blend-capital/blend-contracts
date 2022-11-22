@@ -13,4 +13,4 @@ mod user_validator;
 mod dependencies;
 
 pub mod testutils;
-pub use crate::pool::{PoolClient, Pool};
+pub use crate::pool::{Pool, PoolClient};

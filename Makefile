@@ -5,8 +5,9 @@ all: build test
 test: build
 	cargo test
 
+ # TODO: Determine why removal of wasm blobs required (tests likely cache?)
 build:
-	rm -rf target/wasm32-unknown-unknown # TODO: Determine why integration tests cache these
+	rm -rf target/wasm32-unknown-unknown
 	cargo build --target wasm32-unknown-unknown --release -p oracle
 	cargo build --target wasm32-unknown-unknown --release
 	cd target/wasm32-unknown-unknown/release/ && \

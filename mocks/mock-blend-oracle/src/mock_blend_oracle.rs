@@ -1,4 +1,4 @@
-use soroban_sdk::{contractimpl, contracttype, contracterror, Address, BytesN, Env};
+use soroban_sdk::{contracterror, contractimpl, contracttype, Address, BytesN, Env};
 
 #[derive(Clone)]
 #[contracttype]
@@ -12,7 +12,7 @@ pub enum MockBlendOracleDataKey {
     // MOCK: Map of prices to return
     Prices(BytesN<32>),
     // MOCK: If the oracle should fail
-    ToError
+    ToError,
 }
 
 #[contracterror]
@@ -60,7 +60,8 @@ impl MockOracle for MockBlendOracle {
     }
 
     fn get_price(e: Env, asset: BytesN<32>) -> Result<u64, OracleError> {
-        let to_error = e.data()
+        let to_error = e
+            .data()
             .get::<MockBlendOracleDataKey, bool>(MockBlendOracleDataKey::ToError)
             .unwrap_or_else(|| Ok(false))
             .unwrap();

@@ -1,4 +1,4 @@
-use soroban_sdk::{contractimpl, contracttype, Address, BytesN, Env, contracterror};
+use soroban_sdk::{contracterror, contractimpl, contracttype, Address, BytesN, Env};
 
 #[derive(Clone)]
 #[contracttype]

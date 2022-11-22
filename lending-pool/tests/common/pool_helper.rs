@@ -1,12 +1,12 @@
+use crate::common::create_token;
 use soroban_auth::Identifier;
-use soroban_sdk::{Env, BytesN, AccountId};
-use crate::common::{create_token};
+use soroban_sdk::{AccountId, BytesN, Env};
 
 use super::{PoolClient, ReserveConfig};
 
 /// Uses default configuration
 pub fn setup_reserve(
-    e: &Env, 
+    e: &Env,
     pool: &Identifier,
     pool_client: &PoolClient,
     admin: &AccountId,
@@ -26,10 +26,12 @@ pub fn setup_reserve(
         r_one: 0_0500000,
         r_two: 0_5000000,
         r_three: 1_5000000,
-        index: 0
+        index: 0,
     };
 
-    pool_client.with_source_account(&admin).init_res(&underlying_id, &config);
+    pool_client
+        .with_source_account(&admin)
+        .init_res(&underlying_id, &config);
 
     return (underlying_id, b_token_id, d_token_id);
 }

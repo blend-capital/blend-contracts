@@ -1,21 +1,25 @@
 use rand::{thread_rng, RngCore};
-use soroban_sdk::{BytesN, Env, IntoVal};
 use soroban_auth::Identifier;
+use soroban_sdk::{BytesN, Env, IntoVal};
 
 // Generics
 
 mod token {
     soroban_sdk::contractimport!(file = "../soroban_token_spec.wasm");
 }
-pub use token::{Client as TokenClient};
+pub use token::Client as TokenClient;
 
 mod pool {
-    soroban_sdk::contractimport!(file = "../target/wasm32-unknown-unknown/release/lending_pool.wasm");
+    soroban_sdk::contractimport!(
+        file = "../target/wasm32-unknown-unknown/release/lending_pool.wasm"
+    );
 }
 pub use pool::{Client as PoolClient, PoolError, ReserveConfig, ReserveData};
 
 mod mock_blend_oracle {
-    soroban_sdk::contractimport!(file = "../target/wasm32-unknown-unknown/release/mock_blend_oracle.wasm");
+    soroban_sdk::contractimport!(
+        file = "../target/wasm32-unknown-unknown/release/mock_blend_oracle.wasm"
+    );
 }
 pub use mock_blend_oracle::{Client as MockOracleClient, OracleError};
 
@@ -31,12 +35,12 @@ pub fn create_token(e: &Env, admin: &Identifier) -> (BytesN<32>, TokenClient) {
     let client = TokenClient::new(e, contract_id.clone());
     let _the_balance = client.balance(admin);
     client.init(
-        &admin.clone(), 
-        &token::TokenMetadata { 
+        &admin.clone(),
+        &token::TokenMetadata {
             name: "unit".into_val(e),
             symbol: "test".into_val(&e),
-            decimals: 7 
-        }
+            decimals: 7,
+        },
     );
     (contract_id, client)
 }

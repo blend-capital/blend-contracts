@@ -5,33 +5,33 @@
 pub trait UserConfigurator {
     /// Determine is a reserve is being used by a user, where used means
     /// the asset is used as collateral or borrowed by the user
-    /// 
+    ///
     /// ### Arguments
     /// * `user_config` - The current user configuration
     /// * `res_index` - The index of the reserve to check
     fn is_using_reserve(&self, res_index: u32) -> bool;
 
     /// Checks if the user is borrowing a reserve
-    /// 
+    ///
     /// ### Arguments
     /// * `res_index` - The index of the reserve to check
     fn is_borrowing(&self, res_index: u32) -> bool;
-    
+
     /// Checks if the user is using the reserve as collateral
     ///
     /// ### Arguments
     /// * `res_index` - The index of the reserve to check
     fn is_collateral(&self, res_index: u32) -> bool;
-    
+
     /// Set the user config based on the new borrowing status of the reserve at the res_index
-    /// 
+    ///
     /// ### Arguments
     /// * `res_index` - The index of the reserve
     /// * `borrowing` - If the user is borrowing the reserve
     fn set_borrowing(&mut self, res_index: u32, borrowing: bool);
-    
+
     /// Set the user config based on the new collateral status of the reserve at the res_index
-    /// 
+    ///
     /// ### Arguments
     /// * `res_index` - The index of the reserve
     /// * `collateral` - If the user is using the reserve as collateral
@@ -44,7 +44,9 @@ pub struct UserConfig {
 
 impl UserConfig {
     pub fn new(user_config: u64) -> UserConfig {
-        UserConfig { config: user_config }
+        UserConfig {
+            config: user_config,
+        }
     }
 }
 
@@ -53,17 +55,17 @@ impl UserConfigurator for UserConfig {
         let to_res_shift = res_index * 2;
         (self.config >> to_res_shift) & 0b11 != 0
     }
-    
+
     fn is_borrowing(&self, res_index: u32) -> bool {
         let to_res_shift = res_index * 2;
         (self.config >> to_res_shift) & 0b01 != 0
     }
-    
+
     fn is_collateral(&self, res_index: u32) -> bool {
         let to_res_shift = res_index * 2;
         (self.config >> to_res_shift) & 0b10 != 0
     }
-    
+
     fn set_borrowing(&mut self, res_index: u32, borrowing: bool) {
         let res_borrow_bit = 1 << (res_index * 2);
         if borrowing {
@@ -74,7 +76,7 @@ impl UserConfigurator for UserConfig {
             self.config = self.config & !res_borrow_bit;
         }
     }
-    
+
     fn set_collateral(&mut self, res_index: u32, collateral: bool) {
         let res_collateral_bit = 1 << (res_index * 2 + 1);
         if collateral {
@@ -99,7 +101,7 @@ mod tests {
 
         let is_using = user_config.is_using_reserve(res_index);
         let is_collateral = user_config.is_collateral(res_index);
-        let is_borrowing =  user_config.is_borrowing(res_index);
+        let is_borrowing = user_config.is_borrowing(res_index);
 
         assert_eq!(is_using, false);
         assert_eq!(is_collateral, false);
@@ -113,7 +115,7 @@ mod tests {
 
         let is_using = user_config.is_using_reserve(res_index);
         let is_collateral = user_config.is_collateral(res_index);
-        let is_borrowing =  user_config.is_borrowing(res_index);
+        let is_borrowing = user_config.is_borrowing(res_index);
 
         assert_eq!(is_using, true);
         assert_eq!(is_collateral, true);
@@ -127,7 +129,7 @@ mod tests {
 
         let is_using = user_config.is_using_reserve(res_index);
         let is_collateral = user_config.is_collateral(res_index);
-        let is_borrowing =  user_config.is_borrowing(res_index);
+        let is_borrowing = user_config.is_borrowing(res_index);
 
         assert_eq!(is_using, true);
         assert_eq!(is_collateral, true);
@@ -141,7 +143,7 @@ mod tests {
 
         let is_using = user_config.is_using_reserve(res_index);
         let is_collateral = user_config.is_collateral(res_index);
-        let is_borrowing =  user_config.is_borrowing(res_index);
+        let is_borrowing = user_config.is_borrowing(res_index);
 
         assert_eq!(is_using, true);
         assert_eq!(is_collateral, false);
@@ -153,7 +155,7 @@ mod tests {
         let mut user_config: UserConfig = UserConfig::new(thread_rng().next_u64());
         let res_index: u32 = thread_rng().next_u32() % 32;
 
-        // setup - reset the bit 
+        // setup - reset the bit
         user_config.set_borrowing(res_index, false);
         assert_eq!(user_config.is_borrowing(res_index), false);
 
@@ -165,7 +167,7 @@ mod tests {
         user_config.set_borrowing(res_index, true);
         assert_eq!(user_config.is_borrowing(res_index), true);
 
-        // reset the bit 
+        // reset the bit
         user_config.set_borrowing(res_index, false);
         assert_eq!(user_config.is_borrowing(res_index), false);
 
@@ -179,7 +181,7 @@ mod tests {
         let mut user_config: UserConfig = UserConfig::new(thread_rng().next_u64());
         let res_index: u32 = thread_rng().next_u32() % 32;
 
-        // setup - reset the bit 
+        // setup - reset the bit
         user_config.set_collateral(res_index, false);
         assert_eq!(user_config.is_collateral(res_index), false);
 
@@ -191,7 +193,7 @@ mod tests {
         user_config.set_collateral(res_index, true);
         assert_eq!(user_config.is_collateral(res_index), true);
 
-        // reset the bit 
+        // reset the bit
         user_config.set_collateral(res_index, false);
         assert_eq!(user_config.is_collateral(res_index), false);
 

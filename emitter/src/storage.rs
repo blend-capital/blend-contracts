@@ -13,6 +13,8 @@ pub enum EmitterDataKey {
     BlendId,
     // The address of the blend lp token contract
     BlendLPId,
+    // The last timestamp distribution was ran on
+    LastDistro,
 }
 
 pub trait EmitterDataStore {
@@ -55,6 +57,20 @@ pub trait EmitterDataStore {
     /// ### Arguments
     /// * `blend_lp_id` - The blend lp token address
     fn set_blend_lp_id(&self, blend_lp_id: Identifier);
+
+    /********** Blend Distributions **********/
+
+    /// Fetch the last timestamp distribution was ran on
+    ///
+    /// Returns the last timestamp distribution was ran on
+    ///
+    fn get_last_distro_time(&self) -> u64;
+
+    /// Set the last timestamp distribution was ran on
+    ///
+    /// ### Arguments
+    /// * `last_distro` - The last timestamp distribution was ran on
+    fn set_last_distro_time(&self, last_distro: u64);
 }
 
 pub struct StorageManager(Env);
@@ -101,6 +117,21 @@ impl EmitterDataStore for StorageManager {
         self.env()
             .data()
             .set::<EmitterDataKey, Identifier>(EmitterDataKey::BlendLPId, blend_lp_id);
+    }
+
+    /********** Blend Distributions **********/
+
+    fn get_last_distro_time(&self) -> u64 {
+        self.env()
+            .data()
+            .get_unchecked(EmitterDataKey::LastDistro)
+            .unwrap()
+    }
+
+    fn set_last_distro_time(&self, last_distro: u64) {
+        self.env()
+            .data()
+            .set::<EmitterDataKey, u64>(EmitterDataKey::LastDistro, last_distro);
     }
 }
 

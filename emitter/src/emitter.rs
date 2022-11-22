@@ -3,7 +3,7 @@ use crate::{
     errors::EmitterError,
     storage::{EmitterDataKey, EmitterDataStore, StorageManager},
 };
-use soroban_auth::Identifier;
+use soroban_auth::{Identifier, Signature};
 use soroban_sdk::{contractimpl, BigInt, BytesN, Env};
 
 const SCALAR: i64 = 1_000_000_0;
@@ -54,15 +54,38 @@ impl EmitterTrait for Emitter {
         storage.set_backstop_id(backstop);
         storage.set_blend_id(blend_id);
         storage.set_blend_lp_id(blend_lp_id);
+        storage.set_last_distro_time(e.ledger().timestamp());
     }
 
-    fn distribute(e: Env) -> Result<BigInt, EmitterError> {}
+    fn distribute(e: Env) -> Result<BigInt, EmitterError> {
+        let storage = StorageManager::new(&e);
+        let backstop = storage.get_backstop_id();
+        if backstop != Identifier::from(e.invoker()) {
+            return Err(EmitterError::NotAuthorized);
+        }
+        let timestamp = e.ledger().timestamp();
+        let seconds_since_last_distro =
+            BigInt::from_u64(&e, timestamp - storage.get_last_distro_time());
+        let distribution_amount = seconds_since_last_distro * BigInt::from_i64(&e, SCALAR);
 
-    fn swap_bstop(e: Env, asset: BytesN<32>, amount: BigInt) -> Result<(), EmitterError> {}
+        let blend_client = get_blend_token_client(&e, &storage);
+        blend_client.xfer(
+            &Signature::Invoker,
+            &BigInt::zero(&e),
+            &storage.get_backstop_id(),
+            &distribution_amount,
+        );
+        Ok(distribution_amount)
+    }
+
+    fn swap_bstop(e: Env, asset: BytesN<32>, amount: BigInt) -> Result<(), EmitterError> {
+        Ok(())
+    }
 }
 
-// ****** Helpers *****
+// ****** Helpers ********
 
-fn get_contract_id(e: &Env) -> Identifier {
-    Identifier::Contract(e.current_contract())
+pub fn get_blend_token_client(e: &Env, storage: &StorageManager) -> TokenClient {
+    let id = storage.get_blend_id();
+    TokenClient::new(e, id)
 }

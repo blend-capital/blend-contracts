@@ -1,6 +1,7 @@
 use crate::{
     dependencies::TokenClient,
     errors::EmitterError,
+    lp_reader::get_lp_blend_holdings,
     storage::{EmitterDataKey, EmitterDataStore, StorageManager},
 };
 use soroban_auth::{Identifier, Signature};
@@ -41,7 +42,7 @@ pub trait EmitterTrait {
     ///
     /// ### Errors
     /// If the input contract does not have more backstop deposits than the listed backstop module
-    fn swap_bstop(e: Env, asset: BytesN<32>, amount: BigInt) -> Result<(), EmitterError>;
+    fn swap_bstop(e: Env, new_backstop: Identifier) -> Result<(), EmitterError>;
 }
 
 #[contractimpl]
@@ -78,7 +79,26 @@ impl EmitterTrait for Emitter {
         Ok(distribution_amount)
     }
 
-    fn swap_bstop(e: Env, asset: BytesN<32>, amount: BigInt) -> Result<(), EmitterError> {
+    fn swap_bstop(e: Env, new_backstop: Identifier) -> Result<(), EmitterError> {
+        let storage = StorageManager::new(&e);
+        let blend_client = get_blend_token_client(&e, &storage);
+
+        let old_backstop = storage.get_backstop_id();
+        let old_backstop_blend_balance = blend_client.balance(&old_backstop);
+        let old_backstop_blend_lp_balance = get_lp_blend_holdings(&e, old_backstop);
+        let effective_old_backstop_blend =
+            old_backstop_blend_balance / 4 + old_backstop_blend_lp_balance;
+
+        let new_backstop_blend_balance = blend_client.balance(&new_backstop);
+        let new_backstop_blend_lp_balance = get_lp_blend_holdings(&e, new_backstop.clone());
+        let effective_new_backstop_blend =
+            new_backstop_blend_balance / 4 + new_backstop_blend_lp_balance;
+
+        if effective_new_backstop_blend <= effective_old_backstop_blend {
+            return Err(EmitterError::InsufficientBLND);
+        }
+
+        storage.set_backstop_id(new_backstop);
         Ok(())
     }
 }

@@ -12,6 +12,13 @@ pub struct Reserve {
 }
 
 impl Reserve {
+    /// Load a reserve
+    /// 
+    /// ### Arguments
+    /// * `asset` - The contract address for the reserve asset
+    /// 
+    /// ### Panics
+    /// If the `asset` is not a reserve
     pub fn load(e: &Env, asset: BytesN<32>) -> Reserve {
         let storage = StorageManager::new(e);
         let config = storage.get_res_config(asset.clone());
@@ -52,49 +59,84 @@ impl Reserve {
         self.data.last_block = e.ledger().sequence();
     }
 
+    /// Adds tokens to the total b token supply
+    /// 
+    /// ### Arguments
+    /// * `b_tokens` - The amount of b_tokens minted
     pub fn add_supply(&mut self, b_tokens: &u64) {
         self.data.b_supply += b_tokens;
     }
 
+    /// Removes tokens from the total b token supply
+    /// 
+    /// ### Arguments
+    /// * `b_tokens` - The amount of b_tokens burnt
     pub fn remove_supply(&mut self, b_tokens: &u64) {
         // rust underflow protection will error if b_tokens is too large
         self.data.b_supply -= b_tokens;
     }
 
+    /// Adds tokens to the total d token supply
+    /// 
+    /// ### Arguments
+    /// * `d_tokens` - The amount of d_tokens minted
     pub fn add_liability(&mut self, d_tokens: &u64) {
         self.data.d_supply += d_tokens;
     }
 
+    /// Removes tokens from the total d token supply
+    /// 
+    /// ### Arguments
+    /// * `d_tokens` - The amount of d_tokens burnt
     pub fn remove_liability(&mut self, d_tokens: &u64) {
         self.data.d_supply -= d_tokens;
     }
 
+    /// Persist reserve data to ledger
     pub fn set_data(&self, e: &Env) {
         StorageManager::new(e).set_res_data(self.asset.clone(), self.data.clone());
     }
 
     // ***** Conversion functions *****
 
+    /// Fetch the total liabilities for the reserve
     pub fn total_liabilities(&self) -> u64 {
         self.to_asset_from_d_token(&self.data.d_supply)
     }
 
+    /// Fetch the total supply for the reserve
     pub fn total_supply(&self) -> u64 {
         self.to_asset_from_b_token(&self.data.b_supply)
     }
 
+    /// Convert d tokens to the corresponding asset value
+    /// 
+    /// ### Arguments
+    /// * `d_tokens` - The amount of tokens to convert
     pub fn to_asset_from_d_token(&self, d_tokens: &u64) -> u64 {
         (self.data.d_rate * d_tokens) / 1_000_000_000
     }
 
+    /// Convert d tokens to the corresponding asset value
+    /// 
+    /// ### Arguments
+    /// * `d_tokens` - The amount of tokens to convert
     pub fn to_asset_from_b_token(&self, b_tokens: &u64) -> u64 {
         (self.data.b_rate * b_tokens) / 1_000_000_000
     }
 
+    /// Convert asset tokens to the corresponding d token value
+    /// 
+    /// ### Arguments
+    /// * `amount` - The amount of tokens to convert
     pub fn to_d_token(&self, amount: &u64) -> u64 {
         (amount * 1_000_000_000) / self.data.d_rate
     }
 
+    /// Convert asset tokens to the corresponding b token value
+    /// 
+    /// ### Arguments
+    /// * `amount` - The amount of tokens to convert
     pub fn to_b_token(&self, amount: &u64) -> u64 {
         (amount * 1_000_000_000) / self.data.b_rate
     }
@@ -521,5 +563,73 @@ mod tests {
         let result = reserve.total_supply();
 
         assert_eq!(result, 180_5673565);
+    }
+
+    #[test]
+    fn test_to_d_token() {
+        let e = Env::default();
+
+        let reserve = Reserve {
+            asset: generate_contract_id(&e),
+            config: ReserveConfig {
+                b_token: generate_contract_id(&e),
+                d_token: generate_contract_id(&e),
+                decimals: 7,
+                c_factor: 0,
+                l_factor: 0,
+                util: 0_7500000,
+                r_one: 0_0500000,
+                r_two: 0_5000000,
+                r_three: 1_5000000,
+                reactivity: 0_000_010_000, // 10e-5
+                index: 0,
+            },
+            data: ReserveData {
+                b_rate: 1_000_000_000,
+                d_rate: 1_321_834_961,
+                ir_mod: 1_000_000_000,
+                b_supply: 99_0000000,
+                d_supply: 65_0000000,
+                last_block: 123,
+            },
+        };
+
+        let result = reserve.to_d_token(&1_4850243);
+
+        assert_eq!(result, 1_1234566);
+    }
+
+    #[test]
+    fn test_to_b_token() {
+        let e = Env::default();
+
+        let reserve = Reserve {
+            asset: generate_contract_id(&e),
+            config: ReserveConfig {
+                b_token: generate_contract_id(&e),
+                d_token: generate_contract_id(&e),
+                decimals: 7,
+                c_factor: 0,
+                l_factor: 0,
+                util: 0_7500000,
+                r_one: 0_0500000,
+                r_two: 0_5000000,
+                r_three: 1_5000000,
+                reactivity: 0_000_010_000, // 10e-5
+                index: 0,
+            },
+            data: ReserveData {
+                b_rate: 1_321_834_961,
+                d_rate: 1_000_000_000,
+                ir_mod: 1_000_000_000,
+                b_supply: 99_0000000,
+                d_supply: 65_0000000,
+                last_block: 123,
+            },
+        };
+
+        let result = reserve.to_b_token(&1_4850243);
+
+        assert_eq!(result, 1_1234566);
     }
 }

@@ -6,6 +6,7 @@ extern crate std;
 mod errors;
 mod interest;
 mod pool;
+mod reserve;
 mod storage;
 mod user_config;
 mod user_data;

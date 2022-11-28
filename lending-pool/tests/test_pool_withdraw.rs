@@ -36,7 +36,7 @@ fn test_pool_withdraw_no_supply_panics() {
     );
 
     // withdraw
-    let withdraw_amount = BigInt::from_u64(&e, 0_0000006); // TODO: Update to one stroop with https://github.com/blend-capital/blend-contracts/issues/2
+    let withdraw_amount = 0_0000006; // TODO: Update to one stroop with https://github.com/blend-capital/blend-contracts/issues/2
     let result = pool_client.with_source_account(&sauron).try_withdraw(
         &asset1_id,
         &withdraw_amount,
@@ -92,19 +92,17 @@ fn test_pool_withdraw_bad_hf_panics() {
     // supply
     let minted_btokens = pool_client
         .with_source_account(&sauron)
-        .supply(&asset1_id, &BigInt::from_u64(&e, 1_0000000));
+        .supply(&asset1_id, &1_0000000);
     assert_eq!(b_token1_client.balance(&sauron_id), minted_btokens);
 
     // borrow
-    let minted_dtokens = pool_client.with_source_account(&sauron).borrow(
-        &asset1_id,
-        &BigInt::from_u64(&e, 0_5357000),
-        &sauron_id,
-    );
+    let minted_dtokens = pool_client
+        .with_source_account(&sauron)
+        .borrow(&asset1_id, &0_5357000, &sauron_id);
     assert_eq!(d_token1_client.balance(&sauron_id), minted_dtokens);
 
     // withdraw
-    let withdraw_amount = BigInt::from_u64(&e, 0_0001000);
+    let withdraw_amount = 0_0001000;
     let result = pool_client.with_source_account(&sauron).try_withdraw(
         &asset1_id,
         &withdraw_amount,
@@ -160,19 +158,18 @@ fn test_pool_withdraw_good_hf_withdraws() {
     // supply
     let minted_btokens = pool_client
         .with_source_account(&samwise)
-        .supply(&asset1_id, &BigInt::from_u64(&e, 1_0000000));
+        .supply(&asset1_id, &1_0000000);
     assert_eq!(b_token1_client.balance(&samwise_id), minted_btokens);
 
     // borrow
-    let minted_dtokens = pool_client.with_source_account(&samwise).borrow(
-        &asset1_id,
-        &BigInt::from_u64(&e, 0_5355000),
-        &samwise_id,
-    );
+    let minted_dtokens =
+        pool_client
+            .with_source_account(&samwise)
+            .borrow(&asset1_id, &0_5355000, &samwise_id);
     assert_eq!(d_token1_client.balance(&samwise_id), minted_dtokens);
 
     // withdraw
-    let withdraw_amount = BigInt::from_u64(&e, 0_0001000);
+    let withdraw_amount = 0_0001000;
     let burnt_btokens = pool_client.with_source_account(&samwise).withdraw(
         &asset1_id,
         &withdraw_amount,

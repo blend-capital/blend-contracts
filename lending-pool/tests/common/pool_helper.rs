@@ -22,10 +22,11 @@ pub fn setup_reserve(
         decimals: 7,
         c_factor: 0_7500000,
         l_factor: 0_7500000,
-        util: 0_8000000,
+        util: 0_5000000,
         r_one: 0_0500000,
         r_two: 0_5000000,
         r_three: 1_5000000,
+        reactivity: 100, // 10e-5
         index: 0,
     };
 

@@ -133,9 +133,9 @@ impl PoolTrait for Pool {
 
         storage.set_res_config(asset.clone(), config);
         let init_data = ReserveData {
-            b_rate: 1_000_000_0,
-            d_rate: 1_000_000_0,
-            ir_mod: 1_000_000_0,
+            b_rate: 1_000_000_000,
+            d_rate: 1_000_000_000,
+            ir_mod: 1_000_000_000,
             d_supply: 0,
             b_supply: 0,
             last_block: e.ledger().sequence(),

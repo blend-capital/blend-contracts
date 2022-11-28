@@ -46,7 +46,7 @@ impl UserData {
                 e_collateral_base += to_effective_balance(
                     e,
                     b_token_balance,
-                    BigInt::from_i64(e, res_data.b_rate),
+                    BigInt::from_u64(e, res_data.b_rate),
                     BigInt::from_u32(e, res_config.c_factor),
                     asset_to_base.clone(),
                 );
@@ -59,7 +59,7 @@ impl UserData {
                 e_liability_base += to_effective_balance(
                     e,
                     d_token_liability,
-                    BigInt::from_i64(e, res_data.d_rate),
+                    BigInt::from_u64(e, res_data.d_rate),
                     BigInt::from_u64(e, 1_0000000_0000000)
                         / BigInt::from_u32(e, res_config.l_factor),
                     asset_to_base.clone(),
@@ -75,7 +75,7 @@ impl UserData {
                     let e_collateral_delta = to_effective_balance(
                         e,
                         BigInt::from_i64(e, abs_delta),
-                        BigInt::from_i64(e, res_data.b_rate),
+                        BigInt::from_u64(e, res_data.b_rate),
                         BigInt::from_u32(e, res_config.c_factor),
                         asset_to_base.clone(),
                     );
@@ -91,7 +91,7 @@ impl UserData {
                     let e_liability_delta = to_effective_balance(
                         e,
                         BigInt::from_i64(e, abs_delta),
-                        BigInt::from_i64(e, res_data.d_rate),
+                        BigInt::from_u64(e, res_data.d_rate),
                         BigInt::from_u64(e, 1_0000000_0000000)
                             / BigInt::from_u32(e, res_config.l_factor),
                         asset_to_base.clone(),
@@ -180,12 +180,16 @@ mod tests {
             r_one: 0,
             r_two: 0,
             r_three: 0,
+            reactivity: 100,
             index: 0,
         };
         let reserve_data_0 = ReserveData {
             b_rate: 1_0000000,
             d_rate: 1_1000000,
             ir_mod: 0,
+            b_supply: 0,
+            d_supply: 0,
+            last_block: 0,
         };
 
         // setup asset 1
@@ -202,12 +206,16 @@ mod tests {
             r_one: 0,
             r_two: 0,
             r_three: 0,
+            reactivity: 100,
             index: 1,
         };
         let reserve_data_1 = ReserveData {
             b_rate: 1_1000000,
             d_rate: 1_2000000,
             ir_mod: 0,
+            b_supply: 0,
+            d_supply: 0,
+            last_block: 0,
         };
 
         e.as_contract(&pool_id, || {
@@ -277,12 +285,16 @@ mod tests {
             r_one: 0,
             r_two: 0,
             r_three: 0,
+            reactivity: 100,
             index: 0,
         };
         let reserve_data_0 = ReserveData {
             b_rate: 1_0000000,
             d_rate: 1_1000000,
             ir_mod: 0,
+            b_supply: 0,
+            d_supply: 0,
+            last_block: 0,
         };
 
         // setup asset 1
@@ -299,12 +311,16 @@ mod tests {
             r_one: 0,
             r_two: 0,
             r_three: 0,
+            reactivity: 100,
             index: 1,
         };
         let reserve_data_1 = ReserveData {
             b_rate: 1_1000000,
             d_rate: 1_2000000,
             ir_mod: 0,
+            b_supply: 0,
+            d_supply: 0,
+            last_block: 0,
         };
 
         e.as_contract(&pool_id, || {
@@ -372,12 +388,16 @@ mod tests {
             r_one: 0,
             r_two: 0,
             r_three: 0,
+            reactivity: 100,
             index: 0,
         };
         let reserve_data_0 = ReserveData {
             b_rate: 1_0000000,
             d_rate: 1_1000000,
             ir_mod: 0,
+            b_supply: 0,
+            d_supply: 0,
+            last_block: 0,
         };
 
         // setup asset 1
@@ -394,12 +414,16 @@ mod tests {
             r_one: 0,
             r_two: 0,
             r_three: 0,
+            reactivity: 100,
             index: 1,
         };
         let reserve_data_1 = ReserveData {
             b_rate: 1_1000000,
             d_rate: 1_2000000,
             ir_mod: 0,
+            b_supply: 0,
+            d_supply: 0,
+            last_block: 0,
         };
 
         e.as_contract(&pool_id, || {
@@ -461,12 +485,16 @@ mod tests {
             r_one: 0,
             r_two: 0,
             r_three: 0,
+            reactivity: 100,
             index: 0,
         };
         let reserve_data_0 = ReserveData {
             b_rate: 1_0000000,
             d_rate: 1_1000000,
             ir_mod: 0,
+            b_supply: 0,
+            d_supply: 0,
+            last_block: 0,
         };
 
         // setup asset 1
@@ -483,12 +511,16 @@ mod tests {
             r_one: 0,
             r_two: 0,
             r_three: 0,
+            reactivity: 100,
             index: 1,
         };
         let reserve_data_1 = ReserveData {
             b_rate: 1_1000000,
             d_rate: 1_2000000,
             ir_mod: 0,
+            b_supply: 0,
+            d_supply: 0,
+            last_block: 0,
         };
 
         e.as_contract(&pool_id, || {

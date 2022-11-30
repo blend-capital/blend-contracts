@@ -23,7 +23,6 @@ pub trait EmitterDataStore {
     /// Fetch the current backstop Identifier
     ///
     /// Returns current backstop module contract address
-    ///
     fn get_backstop_id(&self) -> Identifier;
 
     /// Set a new backstop
@@ -32,12 +31,16 @@ pub trait EmitterDataStore {
     /// * `new_backstop` - The Identifier for the new backstop
     fn set_backstop_id(&self, new_backstop: Identifier);
 
+    /// Check if a backstop has been set
+    ///
+    /// Returns true if a backstop has been set
+    fn is_backstop_set(&self) -> bool;
+
     /********** Blend **********/
 
     /// Fetch the blend token address
     ///
     /// Returns blend token address
-    ///
     fn get_blend_id(&self) -> BytesN<32>;
 
     /// Set the blend token address
@@ -49,21 +52,19 @@ pub trait EmitterDataStore {
     /// Fetch the lp token address
     ///
     /// Returns the blend lp token address
-    ///
-    fn get_blend_lp_id(&self) -> Identifier;
+    fn get_blend_lp_id(&self) -> BytesN<32>;
 
     /// Set the lp token address
     ///
     /// ### Arguments
     /// * `blend_lp_id` - The blend lp token address
-    fn set_blend_lp_id(&self, blend_lp_id: Identifier);
+    fn set_blend_lp_id(&self, blend_lp_id: BytesN<32>);
 
     /********** Blend Distributions **********/
 
     /// Fetch the last timestamp distribution was ran on
     ///
     /// Returns the last timestamp distribution was ran on
-    ///
     fn get_last_distro_time(&self) -> u64;
 
     /// Set the last timestamp distribution was ran on
@@ -91,6 +92,10 @@ impl EmitterDataStore for StorageManager {
             .set::<EmitterDataKey, Identifier>(EmitterDataKey::Backstop, new_backstop);
     }
 
+    fn is_backstop_set(&self) -> bool {
+        self.env().data().has(EmitterDataKey::Backstop)
+    }
+
     /********** Blend **********/
 
     fn get_blend_id(&self) -> BytesN<32> {
@@ -106,17 +111,17 @@ impl EmitterDataStore for StorageManager {
             .set::<EmitterDataKey, BytesN<32>>(EmitterDataKey::BlendId, blend_id);
     }
 
-    fn get_blend_lp_id(&self) -> Identifier {
+    fn get_blend_lp_id(&self) -> BytesN<32> {
         self.env()
             .data()
             .get_unchecked(EmitterDataKey::BlendLPId)
             .unwrap()
     }
 
-    fn set_blend_lp_id(&self, blend_lp_id: Identifier) {
+    fn set_blend_lp_id(&self, blend_lp_id: BytesN<32>) {
         self.env()
             .data()
-            .set::<EmitterDataKey, Identifier>(EmitterDataKey::BlendLPId, blend_lp_id);
+            .set::<EmitterDataKey, BytesN<32>>(EmitterDataKey::BlendLPId, blend_lp_id);
     }
 
     /********** Blend Distributions **********/

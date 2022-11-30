@@ -1,5 +1,4 @@
 #![cfg(test)]
-use std::i64::MAX;
 
 use soroban_auth::{Identifier, Signature};
 use soroban_sdk::{testutils::Accounts, BigInt, Env, Status};
@@ -11,46 +10,46 @@ use crate::common::{create_token, create_wasm_emitter, generate_contract_id, Emi
 fn test_swap_backstop() {
     let e = Env::default();
 
-    let bilbo = e.accounts().generate_and_create();
-    let bilbo_id = Identifier::Account(bilbo.clone());
+    let bombadil = e.accounts().generate_and_create();
+    let bombadil_id = Identifier::Account(bombadil.clone());
 
-    let ring = generate_contract_id(&e);
-    let ring_id = Identifier::Contract(ring.clone());
+    let backstop = generate_contract_id(&e);
+    let backstop_id = Identifier::Contract(backstop.clone());
 
-    let new_ring = generate_contract_id(&e);
-    let new_ring_id = Identifier::Contract(new_ring.clone());
+    let new_backstop = generate_contract_id(&e);
+    let new_backstop_id = Identifier::Contract(new_backstop.clone());
 
-    let (blend_id, blend_client) = create_token(&e, &bilbo_id);
+    let (blend_id, blend_client) = create_token(&e, &bombadil_id);
 
     let blend_lp = generate_contract_id(&e);
-    let blend_lp_id = Identifier::Contract(blend_lp.clone());
 
     let (emitter, emitter_client) = create_wasm_emitter(&e);
-    emitter_client.initialize(&ring_id, &blend_id, &blend_lp_id);
+    let emitter_id = Identifier::Contract(emitter.clone());
+    emitter_client.initialize(&backstop, &blend_id, &blend_lp);
 
-    //Mint Bilbo some Blend
-    blend_client.with_source_account(&bilbo).mint(
+    //Mint Backstop Blend
+    blend_client.with_source_account(&bombadil).mint(
         &Signature::Invoker,
         &BigInt::zero(&e),
-        &bilbo_id,
-        &BigInt::from_i64(&e, MAX),
-    );
-    //Transfer Blend to Ring
-    blend_client.with_source_account(&bilbo).xfer(
-        &Signature::Invoker,
-        &BigInt::zero(&e),
-        &ring_id,
+        &backstop_id,
         &BigInt::from_i64(&e, 100),
     );
-    //Transfer Blend to New Ring - Note: we transfer 104 here just to check we're dividing raw Blend balance by 4
-    blend_client.with_source_account(&bilbo).xfer(
+    //Mint new Backstop Blend - Note: we mint 104 here just to check we're dividing raw Blend balance by 4
+    blend_client.with_source_account(&bombadil).mint(
         &Signature::Invoker,
         &BigInt::zero(&e),
-        &new_ring_id,
+        &new_backstop_id,
         &BigInt::from_i64(&e, 104),
     );
 
-    let result = emitter_client.try_swap_bstop(&new_ring_id);
+    //Set emitter as blend admin
+    blend_client.with_source_account(&bombadil).set_admin(
+        &Signature::Invoker,
+        &BigInt::zero(&e),
+        &emitter_id,
+    );
+
+    let result = emitter_client.try_swap_bstop(&new_backstop);
 
     match result {
         Ok(_) => assert!(true),
@@ -62,46 +61,44 @@ fn test_swap_backstop() {
 fn test_swap_backstop_fails_with_insufficient_blend() {
     let e = Env::default();
 
-    let bilbo = e.accounts().generate_and_create();
-    let bilbo_id = Identifier::Account(bilbo.clone());
+    let bombadil = e.accounts().generate_and_create();
+    let bombadil_id = Identifier::Account(bombadil.clone());
 
-    let ring = generate_contract_id(&e);
-    let ring_id = Identifier::Contract(ring.clone());
+    let backstop = generate_contract_id(&e);
+    let backstop_id = Identifier::Contract(backstop.clone());
 
-    let new_ring = generate_contract_id(&e);
-    let new_ring_id = Identifier::Contract(new_ring.clone());
+    let new_backstop = generate_contract_id(&e);
+    let new_backstop_id = Identifier::Contract(new_backstop.clone());
 
-    let (blend_id, blend_client) = create_token(&e, &bilbo_id);
+    let (blend_id, blend_client) = create_token(&e, &bombadil_id);
 
     let blend_lp = generate_contract_id(&e);
-    let blend_lp_id = Identifier::Contract(blend_lp.clone());
 
     let (emitter, emitter_client) = create_wasm_emitter(&e);
-    emitter_client.initialize(&ring_id, &blend_id, &blend_lp_id);
-
-    //Mint Bilbo some Blend
-    blend_client.with_source_account(&bilbo).mint(
+    let emitter_id = Identifier::Contract(emitter.clone());
+    emitter_client.initialize(&backstop, &blend_id, &blend_lp);
+    //Mint Blend to Backstop
+    blend_client.with_source_account(&bombadil).mint(
         &Signature::Invoker,
         &BigInt::zero(&e),
-        &bilbo_id,
-        &BigInt::from_i64(&e, MAX),
-    );
-    //Transfer Blend to Ring
-    blend_client.with_source_account(&bilbo).xfer(
-        &Signature::Invoker,
-        &BigInt::zero(&e),
-        &ring_id,
+        &backstop_id,
         &BigInt::from_i64(&e, 100),
     );
-    //Transfer Blend to New Ring - Note: we transfer 103 here just to check we're dividing raw Blend balance by 4
-    blend_client.with_source_account(&bilbo).xfer(
+    //Mint Blend to new backstop - Note: we mint 103 here just to check we're dividing raw Blend balance by 4
+    blend_client.with_source_account(&bombadil).mint(
         &Signature::Invoker,
         &BigInt::zero(&e),
-        &new_ring_id,
+        &new_backstop_id,
         &BigInt::from_i64(&e, 103),
     );
+    //Set emitter as Blend admin
+    blend_client.with_source_account(&bombadil).set_admin(
+        &Signature::Invoker,
+        &BigInt::zero(&e),
+        &emitter_id,
+    );
 
-    let result = emitter_client.try_swap_bstop(&new_ring_id);
+    let result = emitter_client.try_swap_bstop(&new_backstop);
 
     match result {
         Ok(_) => {

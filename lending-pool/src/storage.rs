@@ -16,6 +16,7 @@ pub struct ReserveConfig {
     pub r_one: u32,          // the R1 value in the interest rate formula
     pub r_two: u32,          // the R2 value in the interest rate formula
     pub r_three: u32,        // the R3 value in the interest rate formula
+    pub reactivity: u32,     // the reactivity constant for the reserve
     pub index: u32,          // the index of the reserve in the list (TODO: Make u8)
 }
 
@@ -24,9 +25,13 @@ pub struct ReserveConfig {
 #[contracttype]
 pub struct ReserveData {
     // TODO: These rates are correlated and can be simplified if both the b/dTokens have a totalSupply
-    pub b_rate: i64, // the conversion rate from bToken to underlying
-    pub d_rate: i64, // the conversion rate from dToken to underlying
-    pub ir_mod: i64, // the interest rate curve modifier
+    pub b_rate: u64, // the conversion rate from bToken to underlying
+    pub d_rate: u64, // the conversion rate from dToken to underlying
+    pub ir_mod: u64, // the interest rate curve modifier
+    // TODO: Remove or fix these once final choice on totalSupply for native or custom tokens added
+    pub b_supply: u64, // the total supply of b tokens - TODO: File issue to support u128 (likely added on token update to u128)
+    pub d_supply: u64, // the total supply of d tokens
+    pub last_block: u32, // the last block the data was updated
 }
 
 /********** Storage Key Types **********/

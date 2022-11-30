@@ -1,6 +1,9 @@
 #![cfg(test)]
 use soroban_auth::{Identifier, Signature};
-use soroban_sdk::{testutils::Accounts, BigInt, Env};
+use soroban_sdk::{
+    testutils::{Accounts, Ledger, LedgerInfo},
+    BigInt, Env,
+};
 
 mod common;
 use crate::common::{create_mock_oracle, create_wasm_lending_pool, pool_helper, TokenClient};
@@ -9,6 +12,14 @@ use crate::common::{create_mock_oracle, create_wasm_lending_pool, pool_helper, T
 #[test]
 fn test_pool_happy_path() {
     let e = Env::default();
+
+    e.ledger().set(LedgerInfo {
+        timestamp: 12345,
+        protocol_version: 1,
+        sequence_number: 0,
+        network_passphrase: Default::default(),
+        base_reserve: 10,
+    });
 
     let bombadil = e.accounts().generate_and_create();
     let bombadil_id = Identifier::Account(bombadil.clone());
@@ -32,12 +43,12 @@ fn test_pool_happy_path() {
 
     mock_oracle_client.set_price(&asset1_id, &2_0000000);
 
-    let supply_amount = BigInt::from_u64(&e, 2_2000000);
+    let supply_amount = 2_0000000;
     asset1_client.with_source_account(&bombadil).mint(
         &Signature::Invoker,
         &BigInt::zero(&e),
         &user1_id,
-        &supply_amount,
+        &BigInt::from_u64(&e, supply_amount),
     );
     asset1_client.with_source_account(&user1).approve(
         &Signature::Invoker,
@@ -55,12 +66,12 @@ fn test_pool_happy_path() {
     assert_eq!(asset1_client.balance(&user1_id), BigInt::zero(&e));
     assert_eq!(asset1_client.balance(&pool_id), supply_amount);
     assert_eq!(btoken1_id_client.balance(&user1_id), minted_btokens);
-    assert_eq!(minted_btokens, 2_0000000); // TODO: Update once actual rates are a thing
+    assert_eq!(minted_btokens, 2_0000000);
     assert_eq!(pool_client.config(&user1_id), 2);
     println!("supply successful");
 
     // borrow
-    let borrow_amount = BigInt::from_u64(&e, 0_6000000);
+    let borrow_amount = 1_0000000;
     let minted_dtokens =
         pool_client
             .with_source_account(&user1)
@@ -73,9 +84,19 @@ fn test_pool_happy_path() {
     );
     assert_eq!(btoken1_id_client.balance(&user1_id), minted_btokens);
     assert_eq!(dtoken1_id_client.balance(&user1_id), minted_dtokens);
-    assert_eq!(minted_dtokens, 0_5000000); // TODO: Update once actual rates are a thing
+    assert_eq!(minted_dtokens, 1_0000000);
     assert_eq!(pool_client.config(&user1_id), 3);
     println!("borrow successful");
+
+    // allow interest to accumulate
+    // IR -> 6%
+    e.ledger().set(LedgerInfo {
+        timestamp: 12345,
+        protocol_version: 1,
+        sequence_number: 6307200, // 1 year
+        network_passphrase: Default::default(),
+        base_reserve: 10,
+    });
 
     // repay
     let burnt_dtokens =
@@ -86,18 +107,46 @@ fn test_pool_happy_path() {
     assert_eq!(asset1_client.balance(&user1_id), BigInt::zero(&e));
     assert_eq!(asset1_client.balance(&pool_id), supply_amount);
     assert_eq!(btoken1_id_client.balance(&user1_id), minted_btokens);
-    assert_eq!(dtoken1_id_client.balance(&user1_id), BigInt::zero(&e));
-    assert_eq!(burnt_dtokens, minted_dtokens);
-    assert_eq!(pool_client.config(&user1_id), 2);
+    assert_eq!(dtoken1_id_client.balance(&user1_id), 566038);
+    assert_eq!(burnt_dtokens, minted_dtokens - 566038);
+    assert_eq!(pool_client.config(&user1_id), 3);
     println!("repay successful");
 
-    // withdraw
-    let burnt_btokens =
+    // repay interest
+    let interest_accrued = 0_0600000;
+    asset1_client.with_source_account(&bombadil).mint(
+        &Signature::Invoker,
+        &BigInt::zero(&e),
+        &user1_id,
+        &BigInt::from_u64(&e, interest_accrued),
+    );
+    let burnt_dtokens_interest =
         pool_client
             .with_source_account(&user1)
-            .withdraw(&asset1_id, &supply_amount, &user1_id);
+            .repay(&asset1_id, &u64::MAX, &user1_id);
 
-    assert_eq!(asset1_client.balance(&user1_id), supply_amount);
+    assert_eq!(asset1_client.balance(&user1_id), BigInt::zero(&e));
+    assert_eq!(
+        asset1_client.balance(&pool_id),
+        supply_amount + interest_accrued
+    );
+    assert_eq!(btoken1_id_client.balance(&user1_id), minted_btokens);
+    assert_eq!(dtoken1_id_client.balance(&user1_id), BigInt::zero(&e));
+    assert_eq!(burnt_dtokens_interest, 566038);
+    assert_eq!(pool_client.config(&user1_id), 2);
+    println!("full repay successful");
+
+    // withdraw
+    let burnt_btokens = pool_client.with_source_account(&user1).withdraw(
+        &asset1_id,
+        &(supply_amount + interest_accrued),
+        &user1_id,
+    );
+
+    assert_eq!(
+        asset1_client.balance(&user1_id),
+        supply_amount + interest_accrued
+    );
     assert_eq!(asset1_client.balance(&pool_id), BigInt::zero(&e));
     assert_eq!(btoken1_id_client.balance(&user1_id), BigInt::zero(&e));
     assert_eq!(burnt_btokens, minted_btokens);

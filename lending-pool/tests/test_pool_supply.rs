@@ -46,7 +46,7 @@ fn test_pool_supply_on_ice() {
 
     let result = pool_client
         .with_source_account(&sauron)
-        .try_supply(&asset1_id, &BigInt::from_u64(&e, 1_0000000));
+        .try_supply(&asset1_id, &1_0000000);
 
     match result {
         Ok(_) => assert!(true),
@@ -93,7 +93,7 @@ fn test_pool_supply_frozen_panics() {
 
     let result = pool_client
         .with_source_account(&sauron)
-        .try_supply(&asset1_id, &BigInt::from_u64(&e, 1_0000000));
+        .try_supply(&asset1_id, &1_0000000);
 
     match result {
         Ok(_) => {

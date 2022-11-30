@@ -29,7 +29,7 @@ fn test_pool_borrow_no_collateral_panics() {
     mock_oracle_client.set_price(&asset1_id, &2_0000000);
 
     // borrow
-    let borrow_amount = BigInt::from_u64(&e, 0_0000002); // TODO: Rounding to zero for 1 stroop - see issues/2
+    let borrow_amount = 0_0000002; // TODO: Rounding to zero for 1 stroop - see issues/2
     let result =
         pool_client
             .with_source_account(&sauron)
@@ -83,11 +83,11 @@ fn test_pool_borrow_bad_hf_panics() {
 
     let minted_btokens = pool_client
         .with_source_account(&sauron)
-        .supply(&asset1_id, &BigInt::from_u64(&e, 1_0000000));
+        .supply(&asset1_id, &1_0000000);
     assert_eq!(b_token1_client.balance(&sauron_id), minted_btokens);
 
     // borrow
-    let borrow_amount = BigInt::from_u64(&e, 0_5358000); // 0.75 cf * 0.75 lf => 0.5625 / 1.05 hf min => 0.5357 max
+    let borrow_amount = 0_5358000; // 0.75 cf * 0.75 lf => 0.5625 / 1.05 hf min => 0.5357 max
     let result =
         pool_client
             .with_source_account(&sauron)
@@ -143,11 +143,11 @@ fn test_pool_borrow_good_hf_borrows() {
 
     let minted_btokens = pool_client
         .with_source_account(&samwise)
-        .supply(&asset1_id, &BigInt::from_u64(&e, 1_0000000));
+        .supply(&asset1_id, &1_0000000);
     assert_eq!(b_token1_client.balance(&samwise_id), minted_btokens);
 
     // borrow
-    let borrow_amount = BigInt::from_u64(&e, 0_5357000); // 0.75 cf * 0.75 lf => 0.5625 / 1.05 hf min => 0.5357 max
+    let borrow_amount = 0_5357000; // 0.75 cf * 0.75 lf => 0.5625 / 1.05 hf min => 0.5357 max
     let minted_dtokens =
         pool_client
             .with_source_account(&samwise)
@@ -203,11 +203,11 @@ fn test_pool_borrow_on_ice_panics() {
 
     let minted_btokens = pool_client
         .with_source_account(&sauron)
-        .supply(&asset1_id, &BigInt::from_u64(&e, 1_0000000));
+        .supply(&asset1_id, &1_0000000);
     assert_eq!(b_token1_client.balance(&sauron_id), minted_btokens);
 
     // borrow
-    let borrow_amount = BigInt::from_u64(&e, 0_5358000); // 0.75 cf * 0.75 lf => 0.5625 / 1.05 hf min => 0.5357 max
+    let borrow_amount = 0_5358000; // 0.75 cf * 0.75 lf => 0.5625 / 1.05 hf min => 0.5357 max
     let result =
         pool_client
             .with_source_account(&sauron)
@@ -262,12 +262,12 @@ fn test_pool_borrow_frozen_panics() {
 
     let minted_btokens = pool_client
         .with_source_account(&sauron)
-        .supply(&asset1_id, &BigInt::from_u64(&e, 1_0000000));
+        .supply(&asset1_id, &1_0000000);
     assert_eq!(b_token1_client.balance(&sauron_id), minted_btokens);
 
     pool_client.with_source_account(&bombadil).set_status(&2);
     // borrow
-    let borrow_amount = BigInt::from_u64(&e, 0_5358000); // 0.75 cf * 0.75 lf => 0.5625 / 1.05 hf min => 0.5357 max
+    let borrow_amount = 0_5358000; // 0.75 cf * 0.75 lf => 0.5625 / 1.05 hf min => 0.5357 max
     let result =
         pool_client
             .with_source_account(&sauron)

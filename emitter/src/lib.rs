@@ -1,11 +1,13 @@
 #![no_std]
-use soroban_sdk::{contractimpl, symbol, Symbol};
 
-pub struct Contract;
+#[cfg(any(test, feature = "testutils"))]
+extern crate std;
 
-#[contractimpl]
-impl Contract {
-    pub fn whoami() -> Symbol {
-        symbol!("emitter")
-    }
-}
+mod emitter;
+mod errors;
+mod lp_reader;
+mod storage;
+
+mod dependencies;
+
+pub use crate::emitter::{Emitter, EmitterClient};

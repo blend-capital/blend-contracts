@@ -641,6 +641,8 @@ dependencies = [
 name = "pool-factory"
 version = "0.0.0"
 dependencies = [
+ "rand 0.7.3",
+ "soroban-auth",
  "soroban-sdk",
 ]
 

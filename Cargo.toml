@@ -2,12 +2,12 @@
 resolver = "2"
 
 members = [
-    "lending-pool",
     "backstop-module",
     "emitter",
+    "lending-pool",
     "mocks/mock-blend-oracle",
+    "oracle",
     "pool-factory",
-    "oracle"
 ]
 
 [profile.release-with-logs]

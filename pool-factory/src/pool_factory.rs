@@ -1,9 +1,11 @@
-use crate::storage::{PoolFactoryStore, StorageManager};
+use crate::storage::{PoolFactoryDataKey, PoolFactoryStore, StorageManager};
 use soroban_sdk::{contractimpl, Bytes, BytesN, Env, RawVal, Symbol, Vec};
 
 pub struct PoolFactory;
 
 pub trait PoolFactoryTrait {
+    fn initialize(e: Env, wasm: Bytes);
+
     /// Deploys and initalizes a lending pool
     ///
     /// # Arguments
@@ -11,13 +13,7 @@ pub trait PoolFactoryTrait {
     /// * 'salt' - The salt for deployment
     /// * 'init_function' - The name of the pool's initialization function
     /// * 'args' - The vectors of args for pool initialization
-    fn deploy(
-        e: Env,
-        wasm: Bytes,
-        salt: Bytes,
-        init_function: Symbol,
-        args: Vec<RawVal>,
-    ) -> BytesN<32>;
+    fn deploy(e: Env, init_function: Symbol, args: Vec<RawVal>) -> BytesN<32>;
 
     /// Checks if contract address was deployed by the factory
     ///
@@ -30,15 +26,27 @@ pub trait PoolFactoryTrait {
 
 #[contractimpl]
 impl PoolFactoryTrait for PoolFactory {
-    fn deploy(
-        e: Env,
-        wasm: Bytes,
-        salt: Bytes,
-        init_function: Symbol,
-        args: Vec<RawVal>,
-    ) -> BytesN<32> {
+    fn initialize(e: Env, wasm: Bytes) {
         let storage = StorageManager::new(&e);
-        let pool_address = e.deployer().with_current_contract(salt).deploy(wasm);
+        if storage.has_wasm() {
+            panic!("Already initalized");
+        }
+        storage.set_wasm(wasm);
+    }
+
+    fn deploy(e: Env, init_function: Symbol, args: Vec<RawVal>) -> BytesN<32> {
+        let storage = StorageManager::new(&e);
+        let mut salt: [u8; 32] = [0; 32];
+        let sequence_as_bytes = e.ledger().sequence().to_be_bytes();
+
+        for n in 0..sequence_as_bytes.len() {
+            salt[n] = sequence_as_bytes[n];
+        }
+
+        let pool_address = e
+            .deployer()
+            .with_current_contract(salt)
+            .deploy(storage.get_wasm());
         e.invoke_contract::<RawVal>(&pool_address, &init_function, args);
         storage.set_deployed(pool_address.clone());
         pool_address

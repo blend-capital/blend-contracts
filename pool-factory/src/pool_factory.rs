@@ -9,8 +9,6 @@ pub trait PoolFactoryTrait {
     /// Deploys and initalizes a lending pool
     ///
     /// # Arguments
-    /// * 'wasm' - The lending pool wasm blob
-    /// * 'salt' - The salt for deployment
     /// * 'init_function' - The name of the pool's initialization function
     /// * 'args' - The vectors of args for pool initialization
     fn deploy(e: Env, init_function: Symbol, args: Vec<RawVal>) -> BytesN<32>;
@@ -21,7 +19,7 @@ pub trait PoolFactoryTrait {
     ///
     /// # Arguments
     /// * 'pool_address' - The contract address to be checked
-    fn is_deploy(e: Env, pool_address: BytesN<32>) -> bool;
+    fn is_pool(e: Env, pool_address: BytesN<32>) -> bool;
 }
 
 #[contractimpl]
@@ -52,7 +50,7 @@ impl PoolFactoryTrait for PoolFactory {
         pool_address
     }
 
-    fn is_deploy(e: Env, pool_address: BytesN<32>) -> bool {
+    fn is_pool(e: Env, pool_address: BytesN<32>) -> bool {
         let storage = StorageManager::new(&e);
         storage.get_deployed(pool_address)
     }

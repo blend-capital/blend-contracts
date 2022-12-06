@@ -13,10 +13,10 @@ pub struct Reserve {
 
 impl Reserve {
     /// Load a reserve
-    /// 
+    ///
     /// ### Arguments
     /// * `asset` - The contract address for the reserve asset
-    /// 
+    ///
     /// ### Panics
     /// If the `asset` is not a reserve
     pub fn load(e: &Env, asset: BytesN<32>) -> Reserve {
@@ -60,7 +60,7 @@ impl Reserve {
     }
 
     /// Adds tokens to the total b token supply
-    /// 
+    ///
     /// ### Arguments
     /// * `b_tokens` - The amount of b_tokens minted
     pub fn add_supply(&mut self, b_tokens: &u64) {
@@ -68,7 +68,7 @@ impl Reserve {
     }
 
     /// Removes tokens from the total b token supply
-    /// 
+    ///
     /// ### Arguments
     /// * `b_tokens` - The amount of b_tokens burnt
     pub fn remove_supply(&mut self, b_tokens: &u64) {
@@ -77,7 +77,7 @@ impl Reserve {
     }
 
     /// Adds tokens to the total d token supply
-    /// 
+    ///
     /// ### Arguments
     /// * `d_tokens` - The amount of d_tokens minted
     pub fn add_liability(&mut self, d_tokens: &u64) {
@@ -85,7 +85,7 @@ impl Reserve {
     }
 
     /// Removes tokens from the total d token supply
-    /// 
+    ///
     /// ### Arguments
     /// * `d_tokens` - The amount of d_tokens burnt
     pub fn remove_liability(&mut self, d_tokens: &u64) {
@@ -110,7 +110,7 @@ impl Reserve {
     }
 
     /// Convert d tokens to the corresponding asset value
-    /// 
+    ///
     /// ### Arguments
     /// * `d_tokens` - The amount of tokens to convert
     pub fn to_asset_from_d_token(&self, d_tokens: &u64) -> u64 {
@@ -118,7 +118,7 @@ impl Reserve {
     }
 
     /// Convert d tokens to the corresponding asset value
-    /// 
+    ///
     /// ### Arguments
     /// * `d_tokens` - The amount of tokens to convert
     pub fn to_asset_from_b_token(&self, b_tokens: &u64) -> u64 {
@@ -126,7 +126,7 @@ impl Reserve {
     }
 
     /// Convert asset tokens to the corresponding d token value
-    /// 
+    ///
     /// ### Arguments
     /// * `amount` - The amount of tokens to convert
     pub fn to_d_token(&self, amount: &u64) -> u64 {
@@ -134,7 +134,7 @@ impl Reserve {
     }
 
     /// Convert asset tokens to the corresponding b token value
-    /// 
+    ///
     /// ### Arguments
     /// * `amount` - The amount of tokens to convert
     pub fn to_b_token(&self, amount: &u64) -> u64 {

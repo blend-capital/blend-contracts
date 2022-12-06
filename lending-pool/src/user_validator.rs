@@ -1,5 +1,5 @@
 use soroban_auth::Identifier;
-use soroban_sdk::{BigInt, Env};
+use soroban_sdk::Env;
 
 use crate::user_data::{UserAction, UserData};
 
@@ -11,9 +11,7 @@ use crate::user_data::{UserAction, UserData};
 pub fn validate_hf(e: &Env, user: &Identifier, user_action: &UserAction) -> bool {
     let account_data = UserData::load(e, user, &user_action);
 
-    let collateral_required = (account_data.e_liability_base.clone()
-        * BigInt::from_u64(e, 1_0500000))
-        / BigInt::from_u64(e, 1_0000000);
+    let collateral_required = (account_data.e_liability_base.clone() * 1_0500000) / 1_0000000;
     return (collateral_required < account_data.e_collateral_base)
-        || account_data.e_liability_base.is_zero();
+        || (account_data.e_liability_base == 0);
 }

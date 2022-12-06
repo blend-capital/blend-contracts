@@ -6,7 +6,7 @@ use crate::{
     user::User,
 };
 use soroban_auth::{Identifier, Signature};
-use soroban_sdk::{contractimpl, BigInt, BytesN, Env, Vec};
+use soroban_sdk::{contractimpl, BytesN, Env, Vec};
 
 /// ### Backstop Module
 ///
@@ -48,10 +48,10 @@ impl BackstopTrait for Backstop {
         let blnd_client = TokenClient::new(&e, BytesN::from_array(&e, &BLND_TOKEN));
         blnd_client.xfer_from(
             &Signature::Invoker,
-            &BigInt::zero(&e),
+            &0,
             &user.id,
             &get_contract_id(&e),
-            &BigInt::from_u64(&e, amount),
+            &(amount as i128),
         );
 
         // "mint" shares to the user
@@ -112,12 +112,7 @@ impl BackstopTrait for Backstop {
 
         // send tokens back to user
         let blnd_client = TokenClient::new(&e, BytesN::from_array(&e, &BLND_TOKEN));
-        blnd_client.xfer(
-            &Signature::Invoker,
-            &BigInt::zero(&e),
-            &user.id,
-            &BigInt::from_u64(&e, to_return),
-        );
+        blnd_client.xfer(&Signature::Invoker, &0, &user.id, &(to_return as i128));
 
         Ok(to_return)
     }

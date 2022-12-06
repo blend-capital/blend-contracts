@@ -3,7 +3,7 @@ use common::generate_contract_id;
 use soroban_auth::{Identifier, Signature};
 use soroban_sdk::{
     testutils::{Accounts, Ledger, LedgerInfo},
-    BigInt, BytesN, Env,
+    BytesN, Env,
 };
 
 mod common;
@@ -40,15 +40,15 @@ fn test_pool_happy_path() {
     let deposit_amount: u64 = 10_0000000;
     token_client.with_source_account(&bombadil).mint(
         &Signature::Invoker,
-        &BigInt::zero(&e),
+        &0,
         &samwise_id,
-        &BigInt::from_u64(&e, deposit_amount),
+        &(deposit_amount as i128),
     );
     token_client.with_source_account(&samwise).approve(
         &Signature::Invoker,
-        &BigInt::zero(&e),
+        &0,
         &backstop_id,
-        &BigInt::from_u64(&e, u64::MAX),
+        &(u64::MAX as i128),
     );
 
     // deposit into backstop module
@@ -56,11 +56,8 @@ fn test_pool_happy_path() {
         .with_source_account(&samwise)
         .deposit(&pool_addr, &deposit_amount);
 
-    assert_eq!(token_client.balance(&samwise_id), BigInt::zero(&e));
-    assert_eq!(
-        token_client.balance(&backstop_id),
-        BigInt::from_u64(&e, deposit_amount)
-    );
+    assert_eq!(token_client.balance(&samwise_id), 0);
+    assert_eq!(token_client.balance(&backstop_id), deposit_amount as i128);
     assert_eq!(
         backstop_client.balance(&pool_addr, &samwise_id),
         deposit_amount
@@ -76,11 +73,8 @@ fn test_pool_happy_path() {
         .with_source_account(&samwise)
         .q_withdraw(&pool_addr, &shares_minted);
 
-    assert_eq!(token_client.balance(&samwise_id), BigInt::zero(&e));
-    assert_eq!(
-        token_client.balance(&backstop_id),
-        BigInt::from_u64(&e, deposit_amount)
-    );
+    assert_eq!(token_client.balance(&samwise_id), 0);
+    assert_eq!(token_client.balance(&backstop_id), deposit_amount as i128);
     assert_eq!(
         backstop_client.balance(&pool_addr, &samwise_id),
         deposit_amount
@@ -109,11 +103,8 @@ fn test_pool_happy_path() {
         .with_source_account(&samwise)
         .withdraw(&pool_addr, &shares_minted);
 
-    assert_eq!(
-        token_client.balance(&samwise_id),
-        BigInt::from_u64(&e, deposit_amount)
-    );
-    assert_eq!(token_client.balance(&backstop_id), BigInt::zero(&e));
+    assert_eq!(token_client.balance(&samwise_id), deposit_amount as i128);
+    assert_eq!(token_client.balance(&backstop_id), 0);
     assert_eq!(backstop_client.balance(&pool_addr, &samwise_id), 0);
     assert_eq!(backstop_client.p_balance(&pool_addr), (0, 0, 0));
     assert_eq!(amount_returned, deposit_amount);

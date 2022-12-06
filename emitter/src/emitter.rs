@@ -5,9 +5,9 @@ use crate::{
     storage::{EmitterDataStore, StorageManager},
 };
 use soroban_auth::{Identifier, Signature};
-use soroban_sdk::{contractimpl, BigInt, BytesN, Env};
+use soroban_sdk::{contractimpl, BytesN, Env};
 
-const SCALAR: i64 = 1_000_000_0;
+const SCALAR: u64 = 1_000_000_0;
 
 /// ### Emitter
 ///
@@ -29,7 +29,7 @@ pub trait EmitterTrait {
     ///
     /// ### Errors
     /// If the caller is not the listed backstop module
-    fn distribute(e: Env) -> Result<BigInt, EmitterError>;
+    fn distribute(e: Env) -> Result<u64, EmitterError>;
 
     /// Switches the listed backstop module to one with more effective backstop deposits
     ///
@@ -57,24 +57,23 @@ impl EmitterTrait for Emitter {
         storage.set_last_distro_time(e.ledger().timestamp());
     }
 
-    fn distribute(e: Env) -> Result<BigInt, EmitterError> {
+    fn distribute(e: Env) -> Result<u64, EmitterError> {
         let storage = StorageManager::new(&e);
         let backstop = storage.get_backstop_id();
         if backstop != Identifier::from(e.invoker()) {
             return Err(EmitterError::NotAuthorized);
         }
         let timestamp = e.ledger().timestamp();
-        let seconds_since_last_distro =
-            BigInt::from_u64(&e, timestamp - storage.get_last_distro_time());
+        let seconds_since_last_distro = timestamp - storage.get_last_distro_time();
         // Blend tokens are distributed at a rate of 1 token per second
-        let distribution_amount = seconds_since_last_distro * BigInt::from_i64(&e, SCALAR);
+        let distribution_amount = seconds_since_last_distro * SCALAR;
 
         let blend_client = get_blend_token_client(&e, &storage);
         blend_client.mint(
             &Signature::Invoker,
-            &BigInt::zero(&e),
+            &0,
             &storage.get_backstop_id(),
-            &distribution_amount,
+            &(distribution_amount as i128),
         );
         Ok(distribution_amount)
     }
@@ -88,12 +87,12 @@ impl EmitterTrait for Emitter {
         let old_backstop_blend_balance = blend_client.balance(&old_backstop);
         let old_backstop_blend_lp_balance = get_lp_blend_holdings(&e, old_backstop);
         let effective_old_backstop_blend =
-            old_backstop_blend_balance / 4 + old_backstop_blend_lp_balance;
+            ((old_backstop_blend_balance / 4) as u64) + old_backstop_blend_lp_balance;
 
         let new_backstop_blend_balance = blend_client.balance(&new_backstop_id);
         let new_backstop_blend_lp_balance = get_lp_blend_holdings(&e, new_backstop_id.clone());
         let effective_new_backstop_blend =
-            new_backstop_blend_balance / 4 + new_backstop_blend_lp_balance;
+            ((new_backstop_blend_balance / 4) as u64) + new_backstop_blend_lp_balance;
 
         if effective_new_backstop_blend <= effective_old_backstop_blend {
             return Err(EmitterError::InsufficientBLND);

@@ -1,6 +1,6 @@
 #![cfg(test)]
 use soroban_auth::{Identifier, Signature};
-use soroban_sdk::{testutils::Accounts, BigInt, Env, Status};
+use soroban_sdk::{testutils::Accounts, Env, Status};
 
 mod common;
 use crate::common::{
@@ -70,21 +70,21 @@ fn test_pool_borrow_bad_hf_panics() {
     let b_token1_client = TokenClient::new(&e, b_token1_id.clone());
     asset1_client.with_source_account(&bombadil).mint(
         &Signature::Invoker,
-        &BigInt::zero(&e),
+        &0,
         &sauron_id,
-        &BigInt::from_i64(&e, 10_0000000),
+        &10_0000000,
     );
     asset1_client.with_source_account(&sauron).approve(
         &Signature::Invoker,
-        &BigInt::zero(&e),
+        &0,
         &pool_id,
-        &BigInt::from_u64(&e, u64::MAX),
+        &(u64::MAX as i128),
     );
 
     let minted_btokens = pool_client
         .with_source_account(&sauron)
         .supply(&asset1_id, &1_0000000);
-    assert_eq!(b_token1_client.balance(&sauron_id), minted_btokens);
+    assert_eq!(b_token1_client.balance(&sauron_id), minted_btokens as i128);
 
     // borrow
     let borrow_amount = 0_5358000; // 0.75 cf * 0.75 lf => 0.5625 / 1.05 hf min => 0.5357 max
@@ -130,21 +130,21 @@ fn test_pool_borrow_good_hf_borrows() {
     let d_token1_client = TokenClient::new(&e, d_token1_id.clone());
     asset1_client.with_source_account(&bombadil).mint(
         &Signature::Invoker,
-        &BigInt::zero(&e),
+        &0,
         &samwise_id,
-        &BigInt::from_i64(&e, 10_0000000),
+        &10_0000000,
     );
     asset1_client.with_source_account(&samwise).approve(
         &Signature::Invoker,
-        &BigInt::zero(&e),
+        &0,
         &pool_id,
-        &BigInt::from_u64(&e, u64::MAX),
+        &(u64::MAX as i128),
     );
 
     let minted_btokens = pool_client
         .with_source_account(&samwise)
         .supply(&asset1_id, &1_0000000);
-    assert_eq!(b_token1_client.balance(&samwise_id), minted_btokens);
+    assert_eq!(b_token1_client.balance(&samwise_id), minted_btokens as i128);
 
     // borrow
     let borrow_amount = 0_5357000; // 0.75 cf * 0.75 lf => 0.5625 / 1.05 hf min => 0.5357 max
@@ -154,14 +154,11 @@ fn test_pool_borrow_good_hf_borrows() {
             .borrow(&asset1_id, &borrow_amount, &samwise_id);
     assert_eq!(
         asset1_client.balance(&samwise_id),
-        BigInt::from_u64(&e, 10_0000000 - 1_0000000 + 0_5357000)
+        10_0000000 - 1_0000000 + 0_5357000
     );
-    assert_eq!(
-        asset1_client.balance(&pool_id),
-        BigInt::from_u64(&e, 1_0000000 - 0_5357000)
-    );
-    assert_eq!(b_token1_client.balance(&samwise_id), minted_btokens);
-    assert_eq!(d_token1_client.balance(&samwise_id), minted_dtokens);
+    assert_eq!(asset1_client.balance(&pool_id), 1_0000000 - 0_5357000);
+    assert_eq!(b_token1_client.balance(&samwise_id), minted_btokens as i128);
+    assert_eq!(d_token1_client.balance(&samwise_id), minted_dtokens as i128);
 }
 
 #[test]
@@ -190,21 +187,21 @@ fn test_pool_borrow_on_ice_panics() {
     let b_token1_client = TokenClient::new(&e, b_token1_id.clone());
     asset1_client.with_source_account(&bombadil).mint(
         &Signature::Invoker,
-        &BigInt::zero(&e),
+        &0,
         &sauron_id,
-        &BigInt::from_i64(&e, 10_0000000),
+        &10_0000000,
     );
     asset1_client.with_source_account(&sauron).approve(
         &Signature::Invoker,
-        &BigInt::zero(&e),
+        &0,
         &pool_id,
-        &BigInt::from_u64(&e, u64::MAX),
+        &(u64::MAX as i128),
     );
 
     let minted_btokens = pool_client
         .with_source_account(&sauron)
         .supply(&asset1_id, &1_0000000);
-    assert_eq!(b_token1_client.balance(&sauron_id), minted_btokens);
+    assert_eq!(b_token1_client.balance(&sauron_id), minted_btokens as i128);
 
     // borrow
     let borrow_amount = 0_5358000; // 0.75 cf * 0.75 lf => 0.5625 / 1.05 hf min => 0.5357 max
@@ -249,21 +246,21 @@ fn test_pool_borrow_frozen_panics() {
     let b_token1_client = TokenClient::new(&e, b_token1_id.clone());
     asset1_client.with_source_account(&bombadil).mint(
         &Signature::Invoker,
-        &BigInt::zero(&e),
+        &0,
         &sauron_id,
-        &BigInt::from_i64(&e, 10_0000000),
+        &10_0000000,
     );
     asset1_client.with_source_account(&sauron).approve(
         &Signature::Invoker,
-        &BigInt::zero(&e),
+        &0,
         &pool_id,
-        &BigInt::from_u64(&e, u64::MAX),
+        &(u64::MAX as i128),
     );
 
     let minted_btokens = pool_client
         .with_source_account(&sauron)
         .supply(&asset1_id, &1_0000000);
-    assert_eq!(b_token1_client.balance(&sauron_id), minted_btokens);
+    assert_eq!(b_token1_client.balance(&sauron_id), minted_btokens as i128);
 
     pool_client.with_source_account(&bombadil).set_status(&2);
     // borrow

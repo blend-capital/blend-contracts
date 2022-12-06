@@ -7,7 +7,6 @@ members = [
     "lending-pool",
     "mocks/mock-blend-oracle",
     "oracle",
-    "pool-factory",
 ]
 
 [profile.release-with-logs]
@@ -23,9 +22,3 @@ debug-assertions = false
 panic = "abort"
 codegen-units = 1
 lto = true
-
-[patch.crates-io]
-soroban-sdk = { git = "https://github.com/stellar/rs-soroban-sdk", rev = "caefda3" }
-soroban-spec = { git = "https://github.com/stellar/rs-soroban-sdk", rev = "caefda3" }
-soroban-auth = { git = "https://github.com/stellar/rs-soroban-sdk", rev = "caefda3" }
-soroban-sdk-macros = { git = "https://github.com/stellar/rs-soroban-sdk", rev = "caefda3" }

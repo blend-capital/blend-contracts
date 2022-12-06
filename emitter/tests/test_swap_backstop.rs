@@ -1,7 +1,7 @@
 #![cfg(test)]
 
 use soroban_auth::{Identifier, Signature};
-use soroban_sdk::{testutils::Accounts, BigInt, Env, Status};
+use soroban_sdk::{testutils::Accounts, Env, Status};
 
 mod common;
 use crate::common::{create_token, create_wasm_emitter, generate_contract_id, EmitterError};
@@ -27,27 +27,22 @@ fn test_swap_backstop() {
     let emitter_id = Identifier::Contract(emitter.clone());
     emitter_client.initialize(&backstop, &blend_id, &blend_lp);
 
-    //Mint Backstop Blend
+    // Mint Backstop Blend
+    blend_client
+        .with_source_account(&bombadil)
+        .mint(&Signature::Invoker, &0, &backstop_id, &100);
+    // Mint new Backstop Blend - Note: we mint 104 here just to check we're dividing raw Blend balance by 4
     blend_client.with_source_account(&bombadil).mint(
         &Signature::Invoker,
-        &BigInt::zero(&e),
-        &backstop_id,
-        &BigInt::from_i64(&e, 100),
-    );
-    //Mint new Backstop Blend - Note: we mint 104 here just to check we're dividing raw Blend balance by 4
-    blend_client.with_source_account(&bombadil).mint(
-        &Signature::Invoker,
-        &BigInt::zero(&e),
+        &0,
         &new_backstop_id,
-        &BigInt::from_i64(&e, 104),
+        &104,
     );
 
-    //Set emitter as blend admin
-    blend_client.with_source_account(&bombadil).set_admin(
-        &Signature::Invoker,
-        &BigInt::zero(&e),
-        &emitter_id,
-    );
+    // Set emitter as blend admin
+    blend_client
+        .with_source_account(&bombadil)
+        .set_admin(&Signature::Invoker, &0, &emitter_id);
 
     let result = emitter_client.try_swap_bstop(&new_backstop);
 
@@ -78,25 +73,20 @@ fn test_swap_backstop_fails_with_insufficient_blend() {
     let emitter_id = Identifier::Contract(emitter.clone());
     emitter_client.initialize(&backstop, &blend_id, &blend_lp);
     //Mint Blend to Backstop
-    blend_client.with_source_account(&bombadil).mint(
-        &Signature::Invoker,
-        &BigInt::zero(&e),
-        &backstop_id,
-        &BigInt::from_i64(&e, 100),
-    );
+    blend_client
+        .with_source_account(&bombadil)
+        .mint(&Signature::Invoker, &0, &backstop_id, &100);
     //Mint Blend to new backstop - Note: we mint 103 here just to check we're dividing raw Blend balance by 4
     blend_client.with_source_account(&bombadil).mint(
         &Signature::Invoker,
-        &BigInt::zero(&e),
+        &0,
         &new_backstop_id,
-        &BigInt::from_i64(&e, 103),
+        &103,
     );
     //Set emitter as Blend admin
-    blend_client.with_source_account(&bombadil).set_admin(
-        &Signature::Invoker,
-        &BigInt::zero(&e),
-        &emitter_id,
-    );
+    blend_client
+        .with_source_account(&bombadil)
+        .set_admin(&Signature::Invoker, &0, &emitter_id);
 
     let result = emitter_client.try_swap_bstop(&new_backstop);
 

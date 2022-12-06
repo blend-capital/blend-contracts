@@ -48,7 +48,7 @@ fn test_deploy() {
     assert_ne!(deployed_pool_address_1, zero_address);
     assert_ne!(deployed_pool_address_2, zero_address);
     assert_ne!(deployed_pool_address_1, deployed_pool_address_2);
-    assert!(pool_factory_client.is_deploy(&deployed_pool_address_1));
-    assert!(pool_factory_client.is_deploy(&deployed_pool_address_2));
-    assert!(!pool_factory_client.is_deploy(&zero_address));
+    assert!(pool_factory_client.is_pool(&deployed_pool_address_1));
+    assert!(pool_factory_client.is_pool(&deployed_pool_address_2));
+    assert!(!pool_factory_client.is_pool(&zero_address));
 }

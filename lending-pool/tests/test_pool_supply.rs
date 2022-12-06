@@ -1,6 +1,6 @@
 #![cfg(test)]
 use soroban_auth::{Identifier, Signature};
-use soroban_sdk::{testutils::Accounts, BigInt, Env, Status};
+use soroban_sdk::{testutils::Accounts, Env, Status};
 
 mod common;
 use crate::common::{
@@ -33,15 +33,15 @@ fn test_pool_supply_on_ice() {
 
     asset1_client.with_source_account(&bombadil).mint(
         &Signature::Invoker,
-        &BigInt::zero(&e),
+        &0,
         &sauron_id,
-        &BigInt::from_i64(&e, 10_0000000),
+        &10_0000000,
     );
     asset1_client.with_source_account(&sauron).approve(
         &Signature::Invoker,
-        &BigInt::zero(&e),
+        &0,
         &pool_id,
-        &BigInt::from_u64(&e, u64::MAX),
+        &(u64::MAX as i128),
     );
 
     let result = pool_client
@@ -80,15 +80,15 @@ fn test_pool_supply_frozen_panics() {
 
     asset1_client.with_source_account(&bombadil).mint(
         &Signature::Invoker,
-        &BigInt::zero(&e),
+        &0,
         &sauron_id,
-        &BigInt::from_i64(&e, 10_0000000),
+        &10_0000000,
     );
     asset1_client.with_source_account(&sauron).approve(
         &Signature::Invoker,
-        &BigInt::zero(&e),
+        &0,
         &pool_id,
-        &BigInt::from_u64(&e, u64::MAX),
+        &(u64::MAX as i128),
     );
 
     let result = pool_client

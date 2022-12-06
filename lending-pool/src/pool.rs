@@ -8,7 +8,7 @@ use crate::{
     user_validator::validate_hf,
 };
 use soroban_auth::{Identifier, Signature};
-use soroban_sdk::{contractimpl, Address, BigInt, BytesN, Env};
+use soroban_sdk::{contractimpl, Address, BytesN, Env};
 
 /// ### Pool
 ///
@@ -164,17 +164,17 @@ impl PoolTrait for Pool {
 
         TokenClient::new(&e, asset).xfer_from(
             &Signature::Invoker,
-            &BigInt::zero(&e),
+            &0,
             &invoker_id,
             &get_contract_id(&e),
-            &BigInt::from_u64(&e, amount),
+            &(amount as i128),
         );
 
         TokenClient::new(&e, reserve.config.b_token.clone()).mint(
             &Signature::Invoker,
-            &BigInt::zero(&e),
+            &0,
             &invoker_id,
-            &BigInt::from_u64(&e, to_mint as u64),
+            &(to_mint as i128),
         );
 
         let mut user_config = UserConfig::new(storage.get_user_config(invoker_id.clone()));
@@ -201,7 +201,7 @@ impl PoolTrait for Pool {
         let b_token_client = TokenClient::new(&e, reserve.config.b_token.clone());
         if amount == u64::MAX {
             // if they input u64::MAX as the burn amount, burn 100% of their holdings
-            to_burn = b_token_client.balance(&invoker_id).to_u64();
+            to_burn = b_token_client.balance(&invoker_id) as u64;
             to_return = reserve.to_asset_from_b_token(&to_burn);
         } else {
             to_burn = reserve.to_b_token(&amount);
@@ -218,22 +218,12 @@ impl PoolTrait for Pool {
             return Err(PoolError::InvalidHf);
         }
 
-        b_token_client.burn(
-            &Signature::Invoker,
-            &BigInt::zero(&e),
-            &invoker_id,
-            &BigInt::from_u64(&e, to_burn),
-        );
+        b_token_client.burn(&Signature::Invoker, &0, &invoker_id, &(to_burn as i128));
 
-        TokenClient::new(&e, asset).xfer(
-            &Signature::Invoker,
-            &BigInt::zero(&e),
-            &to,
-            &BigInt::from_u64(&e, to_return),
-        );
+        TokenClient::new(&e, asset).xfer(&Signature::Invoker, &0, &to, &(to_return as i128));
 
         let mut user_config = UserConfig::new(storage.get_user_config(invoker_id.clone()));
-        if b_token_client.balance(&invoker_id).is_zero() {
+        if b_token_client.balance(&invoker_id) == 0 {
             user_config.set_collateral(reserve.config.index, false);
             storage.set_user_config(invoker_id, user_config.config);
         }
@@ -269,17 +259,12 @@ impl PoolTrait for Pool {
 
         TokenClient::new(&e, reserve.config.d_token.clone()).mint(
             &Signature::Invoker,
-            &BigInt::zero(&e),
+            &0,
             &invoker_id,
-            &BigInt::from_u64(&e, to_mint),
+            &(to_mint as i128),
         );
 
-        TokenClient::new(&e, asset).xfer(
-            &Signature::Invoker,
-            &BigInt::zero(&e),
-            &to,
-            &BigInt::from_u64(&e, amount),
-        );
+        TokenClient::new(&e, asset).xfer(&Signature::Invoker, &0, &to, &(amount as i128));
 
         let mut user_config = UserConfig::new(storage.get_user_config(invoker_id.clone()));
         if !user_config.is_borrowing(reserve.config.index) {
@@ -310,30 +295,25 @@ impl PoolTrait for Pool {
         let d_token_client = TokenClient::new(&e, reserve.config.d_token.clone());
         if amount == u64::MAX {
             // if they input u64::MAX as the repay amount, burn 100% of their holdings
-            to_burn = d_token_client.balance(&invoker_id).to_u64();
+            to_burn = d_token_client.balance(&invoker_id) as u64;
             to_repay = reserve.to_asset_from_d_token(&to_burn);
         } else {
             to_burn = reserve.to_d_token(&amount);
             to_repay = amount;
         }
 
-        d_token_client.burn(
-            &Signature::Invoker,
-            &BigInt::zero(&e),
-            &on_behalf_of,
-            &BigInt::from_u64(&e, to_burn),
-        );
+        d_token_client.burn(&Signature::Invoker, &0, &on_behalf_of, &(to_burn as i128));
 
         TokenClient::new(&e, asset).xfer_from(
             &Signature::Invoker,
-            &BigInt::zero(&e),
+            &0,
             &invoker_id,
             &get_contract_id(&e),
-            &BigInt::from_u64(&e, to_repay),
+            &(to_repay as i128),
         );
 
         let mut user_config = UserConfig::new(storage.get_user_config(invoker_id.clone()));
-        if d_token_client.balance(&invoker_id).is_zero() {
+        if d_token_client.balance(&invoker_id) == 0 {
             user_config.set_borrowing(reserve.config.index, false);
             storage.set_user_config(invoker_id, user_config.config);
         }

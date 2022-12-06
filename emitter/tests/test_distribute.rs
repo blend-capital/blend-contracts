@@ -3,7 +3,7 @@
 use soroban_auth::{Identifier, Signature};
 use soroban_sdk::{
     testutils::{Accounts, Ledger, LedgerInfo},
-    BigInt, Env, Status,
+    Env, Status,
 };
 
 mod common;
@@ -34,11 +34,9 @@ fn test_distribute_from_backstop() {
     emitter_client.initialize(&backstop, &blend_id, &blend_lp);
 
     //Set emitter as blend admin
-    blend_client.with_source_account(&bombadil).set_admin(
-        &Signature::Invoker,
-        &BigInt::zero(&e),
-        &emitter_id,
-    );
+    blend_client
+        .with_source_account(&bombadil)
+        .set_admin(&Signature::Invoker, &0, &emitter_id);
 
     //pass some time
     let seconds_passed = 10000;
@@ -86,11 +84,9 @@ fn test_distribute_from_non_backstop_panics() {
     emitter_client.initialize(&backstop, &blend_id, &blend_lp);
 
     //Set emitter as blend admin
-    blend_client.with_source_account(&bombadil).set_admin(
-        &Signature::Invoker,
-        &BigInt::zero(&e),
-        &emitter_id,
-    );
+    blend_client
+        .with_source_account(&bombadil)
+        .set_admin(&Signature::Invoker, &0, &emitter_id);
 
     //pass some time
     let seconds_passed = 10000;

@@ -1,8 +1,9 @@
 use crate::{
     dependencies::TokenClient,
     errors::BackstopError,
-    shares::{to_shares, to_tokens},
+    pool::Pool,
     storage::{BackstopDataStore, StorageManager, Q4W},
+    user::User,
 };
 use soroban_auth::{Identifier, Signature};
 use soroban_sdk::{contractimpl, BigInt, BytesN, Env, Vec};
@@ -17,139 +18,95 @@ const BLND_TOKEN: [u8; 32] = [222; 32]; // TODO: Use actual token bytes
 pub trait BackstopTrait {
     fn distribute(e: Env);
 
-    fn deposit(e: Env, pool: BytesN<32>, amount: u64) -> Result<u64, BackstopError>;
+    fn deposit(e: Env, pool_address: BytesN<32>, amount: u64) -> Result<u64, BackstopError>;
 
-    fn q_withdraw(e: Env, pool: BytesN<32>, amount: u64) -> Result<Q4W, BackstopError>;
+    fn q_withdraw(e: Env, pool_address: BytesN<32>, amount: u64) -> Result<Q4W, BackstopError>;
 
-    fn withdraw(e: Env, pool: BytesN<32>, amount: u64) -> Result<u64, BackstopError>;
+    fn withdraw(e: Env, pool_address: BytesN<32>, amount: u64) -> Result<u64, BackstopError>;
 
-    fn balance(e: Env, pool: BytesN<32>, user: Identifier) -> u64;
+    fn balance(e: Env, pool_address: BytesN<32>, user: Identifier) -> u64;
 
-    fn q4w(e: Env, pool: BytesN<32>, user: Identifier) -> Vec<Q4W>;
+    fn q4w(e: Env, pool_address: BytesN<32>, user: Identifier) -> Vec<Q4W>;
 
-    fn p_balance(e: Env, pool: BytesN<32>) -> (u64, u64, u64);
+    fn p_balance(e: Env, pool_address: BytesN<32>) -> (u64, u64, u64);
 }
 
 #[contractimpl]
 impl BackstopTrait for Backstop {
-    fn distribute(e: Env) {
+    fn distribute(_e: Env) {
         panic!("not impl")
     }
 
-    fn deposit(e: Env, pool: BytesN<32>, amount: u64) -> Result<u64, BackstopError> {
-        let storage = StorageManager::new(&e);
-        let invoker_id = Identifier::from(e.invoker());
+    fn deposit(e: Env, pool_address: BytesN<32>, amount: u64) -> Result<u64, BackstopError> {
+        let mut user = User::new(pool_address.clone(), Identifier::from(e.invoker()));
+        let mut pool = Pool::new(pool_address);
 
         // calculate share minting rate
-        let pool_shares = storage.get_pool_shares(pool.clone());
-        let pool_tokens = storage.get_pool_tokens(pool.clone());
-        let to_mint = to_shares(pool_shares, pool_tokens, amount);
+        let to_mint = pool.convert_to_shares(&e, amount);
 
         // take tokens from user
         let blnd_client = TokenClient::new(&e, BytesN::from_array(&e, &BLND_TOKEN));
         blnd_client.xfer_from(
             &Signature::Invoker,
             &BigInt::zero(&e),
-            &invoker_id,
+            &user.id,
             &get_contract_id(&e),
             &BigInt::from_u64(&e, amount),
         );
-        storage.set_pool_tokens(pool.clone(), pool_tokens + amount);
 
         // "mint" shares to the user
-        storage.set_pool_shares(pool.clone(), to_mint + pool_shares);
-        storage.set_shares(
-            pool.clone(),
-            invoker_id.clone(),
-            storage.get_shares(pool.clone(), invoker_id.clone()) + to_mint,
-        );
+        // TODO: storing and writing are currently separated. Consider revisiting
+        // after the logic for emissions and interest rates is added
+        pool.deposit(&e, amount, to_mint);
+        pool.write_shares(&e);
+        pool.write_tokens(&e);
+
+        user.add_shares(&e, to_mint);
+        user.write_shares(&e);
 
         // TODO: manage backstop state changes (bToken rates, emissions)
 
         Ok(to_mint)
     }
 
-    fn q_withdraw(e: Env, pool: BytesN<32>, amount: u64) -> Result<Q4W, BackstopError> {
-        let storage = StorageManager::new(&e);
-        let invoker_id = Identifier::from(e.invoker());
+    fn q_withdraw(e: Env, pool_address: BytesN<32>, amount: u64) -> Result<Q4W, BackstopError> {
+        let mut user = User::new(pool_address.clone(), Identifier::from(e.invoker()));
+        let mut pool = Pool::new(pool_address);
 
-        let mut user_q4w = storage.get_q4w(pool.clone(), invoker_id.clone());
-        let mut user_q4w_amt: u64 = 0;
-        for q4w in user_q4w.iter() {
-            user_q4w_amt += q4w.unwrap().amount
-        }
-
-        let user_shares = storage.get_shares(pool.clone(), invoker_id.clone());
-        if user_shares - user_q4w_amt < amount {
-            return Err(BackstopError::InvalidBalance);
-        }
-
-        // user has enough tokens to withdrawal, add Q4W
-        let thirty_days_in_sec = 30 * 24 * 60 * 60;
-        let new_q4w = Q4W {
-            amount,
-            exp: e.ledger().timestamp() + thirty_days_in_sec,
+        let new_q4w = match user.try_queue_shares_for_withdrawal(&e, amount) {
+            Ok(q4w) => q4w,
+            Err(e) => return Err(e),
         };
-        user_q4w.push_back(new_q4w.clone());
-        storage.set_q4w(pool.clone(), invoker_id, user_q4w);
+        user.write_q4w(&e);
 
-        // reflect changes in pool totals
-        storage.set_pool_q4w(pool.clone(), storage.get_pool_q4w(pool.clone()) + amount);
+        pool.queue_for_withdraw(&e, amount);
+        pool.write_q4w(&e);
 
         // TODO: manage backstop state changes (bToken rates)
 
         Ok(new_q4w)
     }
 
-    fn withdraw(e: Env, pool: BytesN<32>, amount: u64) -> Result<u64, BackstopError> {
-        let storage = StorageManager::new(&e);
-        let invoker_id = Identifier::from(e.invoker());
+    fn withdraw(e: Env, pool_address: BytesN<32>, amount: u64) -> Result<u64, BackstopError> {
+        let mut user = User::new(pool_address.clone(), Identifier::from(e.invoker()));
+        let mut pool = Pool::new(pool_address);
 
-        // validate the invoke has enough unlocked Q4W to claim
-        // manage the q4w list while verifying
-        let mut user_q4w = storage.get_q4w(pool.clone(), invoker_id.clone());
-        let mut to_withdraw: u64 = amount;
-        for _index in 0..user_q4w.len() {
-            let mut cur_q4w = user_q4w.pop_front_unchecked().unwrap();
-            if cur_q4w.exp <= e.ledger().timestamp() {
-                if cur_q4w.amount > to_withdraw {
-                    // last record we need to update, but the q4w should remain
-                    cur_q4w.amount -= to_withdraw;
-                    to_withdraw = 0;
-                    user_q4w.push_front(cur_q4w);
-                    break;
-                } else if cur_q4w.amount == to_withdraw {
-                    // last record we need to update, q4w fully consumed
-                    to_withdraw = 0;
-                    break;
-                } else {
-                    // allow the pop to consume the record
-                    to_withdraw -= cur_q4w.amount;
-                }
-            } else {
-                return Err(BackstopError::NotExpired);
-            }
-        }
-
-        if to_withdraw > 0 {
-            return Err(BackstopError::InvalidBalance);
-        }
+        match user.try_withdraw_shares(&e, amount) {
+            Ok(_) => (),
+            Err(e) => return Err(e),
+        };
 
         // convert withdrawn shares to tokens
-        let pool_shares = storage.get_pool_shares(pool.clone());
-        let pool_tokens = storage.get_pool_tokens(pool.clone());
-        let to_return = to_tokens(pool_shares, pool_tokens, amount);
+        let to_return = pool.convert_to_tokens(&e, amount);
 
         // "burn" shares
-        storage.set_pool_shares(pool.clone(), pool_shares - amount);
-        storage.set_pool_q4w(pool.clone(), storage.get_pool_q4w(pool.clone()) - amount);
-        storage.set_pool_tokens(pool.clone(), pool_tokens - to_return);
-        storage.set_shares(
-            pool.clone(),
-            invoker_id.clone(),
-            storage.get_shares(pool.clone(), invoker_id.clone()) - amount,
-        );
-        storage.set_q4w(pool.clone(), invoker_id.clone(), user_q4w);
+        pool.withdraw(&e, to_return, amount);
+        pool.write_shares(&e);
+        pool.write_tokens(&e);
+        pool.write_q4w(&e);
+
+        user.write_q4w(&e);
+        user.write_shares(&e);
 
         // TODO: manage backstop state changes (emission rates)
 
@@ -158,7 +115,7 @@ impl BackstopTrait for Backstop {
         blnd_client.xfer(
             &Signature::Invoker,
             &BigInt::zero(&e),
-            &invoker_id,
+            &user.id,
             &BigInt::from_u64(&e, to_return),
         );
 

@@ -40,7 +40,7 @@ impl User {
     }
 
     /// Set the user's shares locally
-    /// 
+    ///
     /// ### Arguments
     /// * `shares` - The user's shares
     pub fn set_shares(&mut self, shares: u64) {
@@ -68,7 +68,7 @@ impl User {
     }
 
     /// Set the user's queued for withdraw locally
-    /// 
+    ///
     /// ### Arguments
     /// * `q4w` - The user's queued for withdraw
     pub fn set_q4w(&mut self, q4w: Vec<Q4W>) {
@@ -88,10 +88,10 @@ impl User {
     /***** Deposit *****/
 
     /// Add shares to the user
-    /// 
+    ///
     /// Updates but does not write:
     /// * shares
-    /// 
+    ///
     /// ### Arguments
     /// * `to_add` - The amount of new shares the user has
     pub fn add_shares(&mut self, e: &Env, to_add: u64) {
@@ -102,13 +102,13 @@ impl User {
     /***** Queue for Withdrawal *****/
 
     /// Queue new shares for withdraw for the user
-    /// 
+    ///
     /// Updates but does not write:
     /// * q4w
-    /// 
+    ///
     /// ### Arguments
     /// * `to_q` - The amount of new shares to queue for withdraw
-    /// 
+    ///
     /// ### Errors
     /// If the amount to queue is greater than the available shares
     pub fn try_queue_shares_for_withdrawal(
@@ -142,14 +142,14 @@ impl User {
     /***** Queue for Withdrawal *****/
 
     /// Withdraw shares from the user
-    /// 
+    ///
     /// Updates but does not write:
     /// * q4w
     /// * shares
-    /// 
+    ///
     /// ### Arguments
     /// * `to_q` - The amount of new shares to queue for withdraw
-    /// 
+    ///
     /// ### Errors
     /// If the amount to queue is greater than the available shares
     pub fn try_withdraw_shares(&mut self, e: &Env, to_withdraw: u64) -> Result<(), BackstopError> {
@@ -193,7 +193,7 @@ impl User {
 
 #[cfg(test)]
 mod tests {
-    use crate::{testutils::generate_contract_id};
+    use crate::testutils::generate_contract_id;
 
     use super::*;
     use soroban_sdk::{
@@ -517,7 +517,7 @@ mod tests {
                     let q4w = user.get_q4w(&e);
                     assert_eq_vec_q4w(&q4w, &vec![&e]);
                     assert_eq!(user.get_shares(&e), 800);
-                },
+                }
                 Err(_) => assert!(false),
             }
         });
@@ -568,7 +568,7 @@ mod tests {
                     let q4w = user.get_q4w(&e);
                     assert_eq_vec_q4w(&q4w, &expected_q4w);
                     assert_eq!(user.get_shares(&e), 850);
-                },
+                }
                 Err(_) => assert!(false),
             }
         });
@@ -631,7 +631,7 @@ mod tests {
                     let q4w = user.get_q4w(&e);
                     assert_eq_vec_q4w(&q4w, &expected_q4w);
                     assert_eq!(user.get_shares(&e), 700);
-                },
+                }
                 Err(_) => assert!(false),
             }
         });
@@ -686,7 +686,7 @@ mod tests {
                         let q4w = user.get_q4w(&e);
                         assert_eq_vec_q4w(&q4w, &cur_q4w);
                         assert_eq!(user.get_shares(&e), 1000);
-                    },
+                    }
                     _ => assert!(false),
                 },
             }

@@ -39,7 +39,7 @@ impl Pool {
     }
 
     /// Set the pool's total issued shares to the cache
-    /// 
+    ///
     /// ### Arguments
     /// * `shares` - The pool's total issued shares
     pub fn set_shares(&mut self, shares: u64) {
@@ -67,7 +67,7 @@ impl Pool {
     }
 
     /// Set the pool's total queued for withdraw to the cache
-    /// 
+    ///
     /// ### Arguments
     /// * `q4w` - The pool's total queued for withdraw
     pub fn set_q4w(&mut self, q4w: u64) {
@@ -95,7 +95,7 @@ impl Pool {
     }
 
     /// Set the pool's total backstop tokens to the cache
-    /// 
+    ///
     /// ### Arguments
     /// * `tokens` - The pool's backstop tokens
     pub fn set_tokens(&mut self, tokens: u64) {
@@ -113,7 +113,7 @@ impl Pool {
     /********** Logic **********/
 
     /// Convert a token balance to a share balance based on the current pool state
-    /// 
+    ///
     /// ### Arguments
     /// * `tokens` - the token balance to convert
     pub fn convert_to_shares(&mut self, e: &Env, tokens: u64) -> u64 {
@@ -126,7 +126,7 @@ impl Pool {
     }
 
     /// Convert a pool share balance to a token balance based on the current pool state
-    /// 
+    ///
     /// ### Arguments
     /// * `shares` - the pool share balance to convert
     pub fn convert_to_tokens(&mut self, e: &Env, shares: u64) -> u64 {
@@ -139,11 +139,11 @@ impl Pool {
     }
 
     /// Deposit tokens and shares into the pool
-    /// 
+    ///
     /// Updates cached values but does not write:
     /// * tokens
     /// * shares
-    /// 
+    ///
     /// ### Arguments
     /// * `tokens` - The amount of tokens to add
     /// * `shares` - The amount of shares to add
@@ -155,12 +155,12 @@ impl Pool {
     }
 
     /// Withdraw tokens and shares from the pool
-    /// 
+    ///
     /// Updates cached values but does not write:
     /// * tokens
     /// * shares
     /// * q4w
-    /// 
+    ///
     /// ### Arguments
     /// * `tokens` - The amount of tokens to withdraw
     /// * `shares` - The amount of shares to withdraw
@@ -174,10 +174,10 @@ impl Pool {
     }
 
     /// Queue withdraw for the pool
-    /// 
+    ///
     /// Updates cached values but does not write:
     /// * q4w
-    /// 
+    ///
     /// ### Arguments
     /// * `shares` - The amount of shares to queue for withdraw
     pub fn queue_for_withdraw(&mut self, e: &Env, shares: u64) {
@@ -188,10 +188,10 @@ impl Pool {
 
 #[cfg(test)]
 mod tests {
-    use crate::{testutils::generate_contract_id};
+    use crate::testutils::generate_contract_id;
 
     use super::*;
-    
+
     /********** Cache / Getters / Setters **********/
 
     #[test]
@@ -312,7 +312,7 @@ mod tests {
             tokens: Some(0),
             q4w: Some(0),
         };
-        
+
         let to_convert = 1234567;
         let shares = pool.convert_to_shares(&e, to_convert);
         assert_eq!(shares, to_convert);
@@ -329,7 +329,7 @@ mod tests {
             tokens: Some(103302),
             q4w: Some(0),
         };
-        
+
         let to_convert = 1234567;
         let shares = pool.convert_to_shares(&e, to_convert);
         assert_eq!(shares, 959920);
@@ -346,7 +346,7 @@ mod tests {
             tokens: Some(0),
             q4w: Some(0),
         };
-        
+
         let to_convert = 1234567;
         let shares = pool.convert_to_tokens(&e, to_convert);
         assert_eq!(shares, to_convert);
@@ -363,7 +363,7 @@ mod tests {
             tokens: Some(103302),
             q4w: Some(0),
         };
-        
+
         let to_convert = 40000;
         let shares = pool.convert_to_tokens(&e, to_convert);
         assert_eq!(shares, 51444);
@@ -425,4 +425,4 @@ mod tests {
         assert_eq!(pool.get_tokens(&e), 150);
         assert_eq!(pool.get_q4w(&e), 0);
     }
-} 
+}

@@ -28,6 +28,9 @@ pub enum BackstopDataKey {
     PoolTkn(BytesN<32>),
     PoolShares(BytesN<32>),
     PoolQ4W(BytesN<32>),
+    NextDist,
+    RewardZone,
+    PoolEPS(BytesN<32>),
 }
 
 /********** Storage **********/
@@ -107,6 +110,41 @@ pub trait BackstopDataStore {
     /// * `pool` - The pool the backstop balance belongs to
     /// * `amount` - The amount of tokens attributed to the pool
     fn set_pool_tokens(&self, pool: BytesN<32>, amount: u64);
+
+    /********** Distribution / Reward Zone **********/
+
+    /// Get the timestamp of when the next distribution window opens
+    fn get_next_dist(&self) -> u64;
+
+    /// Set the timestamp of when the next distribution window opens
+    ///
+    /// ### Arguments
+    /// * `timestamp` - The timestamp the distribution window will open
+    fn set_next_dist(&self, timestamp: u64);
+
+    /// Get the current pool addresses that are in the reward zone
+    ///
+    // @dev - TODO: Once data access costs are available, find the breakeven point for splitting this up
+    fn get_reward_zone(&self) -> Vec<BytesN<32>>;
+
+    /// Set the reward zone
+    ///
+    /// ### Arguments
+    /// * `reward_zone` - The vector of pool addresses that comprise the reward zone
+    fn set_reward_zone(&self, reward_zone: Vec<BytesN<32>>);
+
+    /// Get current emissions EPS the backstop is distributing to the pool
+    ///
+    /// ### Arguments
+    /// * `pool` - The pool
+    fn get_pool_eps(&self, pool: BytesN<32>) -> u64;
+
+    /// Set the current emissions EPS the backstop is distributing to the pool
+    ///
+    /// ### Arguments
+    /// * `pool` - The pool
+    /// * `eps` - The eps being distributed to the pool
+    fn set_pool_eps(&self, pool: BytesN<32>, eps: u64);
 }
 
 pub struct StorageManager(Env);
@@ -184,6 +222,50 @@ impl BackstopDataStore for StorageManager {
     fn set_pool_tokens(&self, pool: BytesN<32>, amount: u64) {
         let key = BackstopDataKey::PoolTkn(pool);
         self.env().data().set::<BackstopDataKey, u64>(key, amount);
+    }
+
+    /********** Distribution / Reward Zone **********/
+
+    fn get_next_dist(&self) -> u64 {
+        self.env()
+            .data()
+            .get::<BackstopDataKey, u64>(BackstopDataKey::NextDist)
+            .unwrap_or(Ok(0))
+            .unwrap()
+    }
+
+    fn set_next_dist(&self, timestamp: u64) {
+        self.env()
+            .data()
+            .set::<BackstopDataKey, u64>(BackstopDataKey::NextDist, timestamp);
+    }
+
+    fn get_reward_zone(&self) -> Vec<BytesN<32>> {
+        self.env()
+            .data()
+            .get::<BackstopDataKey, Vec<BytesN<32>>>(BackstopDataKey::RewardZone)
+            .unwrap_or(Ok(vec![&self.env()]))
+            .unwrap()
+    }
+
+    fn set_reward_zone(&self, reward_zone: Vec<BytesN<32>>) {
+        self.env()
+            .data()
+            .set::<BackstopDataKey, Vec<BytesN<32>>>(BackstopDataKey::RewardZone, reward_zone);
+    }
+
+    fn get_pool_eps(&self, pool: BytesN<32>) -> u64 {
+        let key = BackstopDataKey::PoolEPS(pool);
+        self.env()
+            .data()
+            .get::<BackstopDataKey, u64>(key)
+            .unwrap_or(Ok(0))
+            .unwrap()
+    }
+
+    fn set_pool_eps(&self, pool: BytesN<32>, eps: u64) {
+        let key = BackstopDataKey::PoolEPS(pool);
+        self.env().data().set::<BackstopDataKey, u64>(key, eps);
     }
 }
 

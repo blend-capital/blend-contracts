@@ -7,4 +7,5 @@ pub enum BackstopError {
     BadRequest = 1,
     InvalidBalance = 2,
     NotExpired = 3,
+    InvalidRewardZoneEntry = 4,
 }

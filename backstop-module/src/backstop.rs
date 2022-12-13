@@ -1,5 +1,6 @@
 use crate::{
     dependencies::TokenClient,
+    distributor::Distributor,
     errors::BackstopError,
     pool::Pool,
     storage::{BackstopDataStore, StorageManager, Q4W},
@@ -16,27 +17,84 @@ pub struct Backstop;
 const BLND_TOKEN: [u8; 32] = [222; 32]; // TODO: Use actual token bytes
 
 pub trait BackstopTrait {
-    fn distribute(e: Env);
+    /********** Core **********/
 
+    /// Deposit tokens from the invoker into the backstop of a pool
+    ///
+    /// Returns the number of backstop pool shares minted
+    ///
+    /// ### Arguments
+    /// * `pool_address` - The address of the pool
+    /// * `amount` - The amount of tokens to deposit
     fn deposit(e: Env, pool_address: BytesN<32>, amount: u64) -> Result<u64, BackstopError>;
 
+    /// Queue deposited pool shares for withdraw from a backstop of a pool
+    ///
+    /// Returns the created queue for withdrawal
+    ///
+    /// ### Arguments
+    /// * `pool_address` - The address of the pool
+    /// * `amount` - The amount of shares to queue for withdraw
     fn q_withdraw(e: Env, pool_address: BytesN<32>, amount: u64) -> Result<Q4W, BackstopError>;
 
+    /// Withdraw shares from the withdraw queue for a backstop of a pool
+    ///
+    /// Returns the amount of tokens returned
+    ///
+    /// ### Arguments
+    /// * `pool_address` - The address of the pool
+    /// * `amount` - The amount of shares to withdraw
     fn withdraw(e: Env, pool_address: BytesN<32>, amount: u64) -> Result<u64, BackstopError>;
 
+    /// Fetch the balance of backstop shares of a pool for the user
+    ///
+    /// ### Arguments
+    /// * `pool_address` - The address of the pool
+    /// * `user` - The user to fetch the balance for
     fn balance(e: Env, pool_address: BytesN<32>, user: Identifier) -> u64;
 
+    /// Fetch the withdraw queue for the user
+    ///
+    /// ### Arguments
+    /// * `pool_address` - The address of the pool
+    /// * `user` - The user to fetch the q4w for
     fn q4w(e: Env, pool_address: BytesN<32>, user: Identifier) -> Vec<Q4W>;
 
+    /// Fetch the balances for the pool
+    ///
+    /// Return (total pool backstop tokens, total pool shares, total pool queued for withdraw)
+    ///
+    /// ### Arguments
+    /// * `pool_address` - The address of the pool
     fn p_balance(e: Env, pool_address: BytesN<32>) -> (u64, u64, u64);
+
+    /********** Emissions **********/
+
+    /// Distribute BLND from the Emitter
+    fn dist(e: Env) -> Result<(), BackstopError>;
+
+    /// Fetch the next distribution window in seconds since epoch in UTC
+    fn next_dist(e: Env) -> u64;
+
+    /// Add a pool to the reward zone, and if the reward zone is full, a pool to remove
+    ///
+    /// ### Arguments
+    /// * `to_add` - The address of the pool to add
+    /// * `to_remove` - The address of the pool to remove
+    ///
+    /// ### Errors
+    /// If the pool to remove has more tokens, or if distribution occurred in the last 48 hours
+    fn add_reward(e: Env, to_add: BytesN<32>, to_remove: BytesN<32>) -> Result<(), BackstopError>;
+
+    /// Fetch the reward zone
+    fn get_rz(e: Env) -> Vec<BytesN<32>>;
+
+    /// Fetch the EPS (emissions per second) for the current distribution window of a pool
+    fn pool_eps(e: Env, pool_address: BytesN<32>) -> u64;
 }
 
 #[contractimpl]
 impl BackstopTrait for Backstop {
-    fn distribute(_e: Env) {
-        panic!("not impl")
-    }
-
     fn deposit(e: Env, pool_address: BytesN<32>, amount: u64) -> Result<u64, BackstopError> {
         let mut user = User::new(pool_address.clone(), Identifier::from(e.invoker()));
         let mut pool = Pool::new(pool_address);
@@ -133,6 +191,28 @@ impl BackstopTrait for Backstop {
         let pool_shares = storage.get_pool_shares(pool.clone());
         let pool_q4w = storage.get_pool_q4w(pool.clone());
         (pool_tokens, pool_shares, pool_q4w)
+    }
+
+    /********** Emissions **********/
+
+    fn dist(e: Env) -> Result<(), BackstopError> {
+        Distributor::distribute(&e)
+    }
+
+    fn next_dist(e: Env) -> u64 {
+        StorageManager::new(&e).get_next_dist()
+    }
+
+    fn add_reward(e: Env, to_add: BytesN<32>, to_remove: BytesN<32>) -> Result<(), BackstopError> {
+        Distributor::add_to_reward_zone(&e, to_add, to_remove)
+    }
+
+    fn get_rz(e: Env) -> Vec<BytesN<32>> {
+        StorageManager::new(&e).get_reward_zone()
+    }
+
+    fn pool_eps(e: Env, pool_address: BytesN<32>) -> u64 {
+        StorageManager::new(&e).get_pool_eps(pool_address)
     }
 }
 

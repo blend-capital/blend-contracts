@@ -8,7 +8,7 @@ mod interest;
 mod pool;
 mod reserve;
 mod storage;
-mod user_config;
+mod reserve_usage;
 mod user_data;
 mod user_validator;
 

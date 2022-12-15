@@ -4,7 +4,7 @@ use soroban_sdk::{BytesN, Env};
 use crate::{
     dependencies::{OracleClient, TokenClient},
     storage::{PoolDataStore, StorageManager},
-    user_config::{UserConfig, UserConfigurator},
+    reserve_usage::{ReserveUsage},
 };
 
 /// A user's account data
@@ -25,13 +25,13 @@ impl UserData {
         let oracle_address = storage.get_oracle();
         let oracle_client = OracleClient::new(e, oracle_address);
 
-        let user_config = UserConfig::new(storage.get_user_config(user.clone()));
+        let user_config = ReserveUsage::new(storage.get_user_config(user.clone()));
         let reserve_count = storage.get_res_list();
         let mut e_collateral_base = 0;
         let mut e_liability_base = 0;
         for i in 0..reserve_count.len() {
             let res_asset_address = reserve_count.get_unchecked(i).unwrap();
-            if !user_config.is_using_reserve(i) && res_asset_address != action.asset {
+            if !user_config.is_active_reserve(i) && res_asset_address != action.asset {
                 continue;
             }
 
@@ -51,7 +51,7 @@ impl UserData {
                 );
             }
 
-            if user_config.is_borrowing(i) {
+            if user_config.is_liability(i) {
                 // append users effective liability (after liability factor) to e_liability_base
                 let d_token_client = TokenClient::new(e, res_config.d_token);
                 let d_token_liability = d_token_client.balance(user);
@@ -224,7 +224,7 @@ mod tests {
 
         // setup user (only collateralize asset 1)
         e.as_contract(&pool_id, || {
-            storage.set_user_config(user_id.clone(), 0x0000000000000008)
+            storage.set_user_config(user_id.clone(), 0x0000000000000010)
         });
         b_token_1.with_source_account(&bombadil).mint(
             &Signature::Invoker,
@@ -522,9 +522,11 @@ mod tests {
         let liability_amount = 24_0000000;
         let collateral_amount = 25_0000000;
         let additional_liability = -5_0000000;
+
+        // collateralize asset 0 and borrow asset 1
         e.as_contract(&pool_id, || {
-            storage.set_user_config(user_id.clone(), 0x0000000000000006)
-        }); // ...01_10
+            storage.set_user_config(user_id.clone(), 0x000000000000000A)
+        }); // ...001_010
         b_token_0.with_source_account(&bombadil).mint(
             &Signature::Invoker,
             &0,

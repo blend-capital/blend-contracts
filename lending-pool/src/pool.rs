@@ -3,7 +3,7 @@ use crate::{
     errors::PoolError,
     reserve::Reserve,
     storage::{PoolDataStore, ReserveConfig, ReserveData, StorageManager},
-    user_config::{UserConfig, UserConfigurator},
+    reserve_usage::{ReserveUsage},
     user_data::UserAction,
     user_validator::validate_hf,
 };
@@ -33,8 +33,11 @@ pub trait PoolTrait {
     /// If the caller is not the admin
     fn init_res(e: Env, asset: BytesN<32>, config: ReserveConfig);
 
-    /// TODO: Remove once basic testing complete
-    fn config(e: Env, user: Identifier) -> u64;
+    /// Fetch the reserve usage configuration for a user
+    /// 
+    /// ### Arguments
+    /// * `user` - The identifier to fetch the reserve usage for
+    fn config(e: Env, user: Identifier) -> u128;
 
     /// Invoker supplies the `amount` of `asset` into the pool in return for the asset's bToken
     ///
@@ -143,7 +146,7 @@ impl PoolTrait for Pool {
         storage.set_res_data(asset, init_data);
     }
 
-    fn config(e: Env, user: Identifier) -> u64 {
+    fn config(e: Env, user: Identifier) -> u128 {
         let storage = StorageManager::new(&e);
         storage.get_user_config(user)
     }
@@ -177,9 +180,9 @@ impl PoolTrait for Pool {
             &(to_mint as i128),
         );
 
-        let mut user_config = UserConfig::new(storage.get_user_config(invoker_id.clone()));
-        if !user_config.is_collateral(reserve.config.index) {
-            user_config.set_collateral(reserve.config.index, true);
+        let mut user_config = ReserveUsage::new(storage.get_user_config(invoker_id.clone()));
+        if !user_config.is_supply(reserve.config.index) {
+            user_config.set_supply(reserve.config.index, true);
             storage.set_user_config(invoker_id, user_config.config);
         }
 
@@ -222,9 +225,9 @@ impl PoolTrait for Pool {
 
         TokenClient::new(&e, asset).xfer(&Signature::Invoker, &0, &to, &(to_return as i128));
 
-        let mut user_config = UserConfig::new(storage.get_user_config(invoker_id.clone()));
+        let mut user_config = ReserveUsage::new(storage.get_user_config(invoker_id.clone()));
         if b_token_client.balance(&invoker_id) == 0 {
-            user_config.set_collateral(reserve.config.index, false);
+            user_config.set_supply(reserve.config.index, false);
             storage.set_user_config(invoker_id, user_config.config);
         }
 
@@ -266,9 +269,9 @@ impl PoolTrait for Pool {
 
         TokenClient::new(&e, asset).xfer(&Signature::Invoker, &0, &to, &(amount as i128));
 
-        let mut user_config = UserConfig::new(storage.get_user_config(invoker_id.clone()));
-        if !user_config.is_borrowing(reserve.config.index) {
-            user_config.set_borrowing(reserve.config.index, true);
+        let mut user_config = ReserveUsage::new(storage.get_user_config(invoker_id.clone()));
+        if !user_config.is_liability(reserve.config.index) {
+            user_config.set_liability(reserve.config.index, true);
             storage.set_user_config(invoker_id, user_config.config);
         }
 
@@ -312,9 +315,9 @@ impl PoolTrait for Pool {
             &(to_repay as i128),
         );
 
-        let mut user_config = UserConfig::new(storage.get_user_config(invoker_id.clone()));
+        let mut user_config = ReserveUsage::new(storage.get_user_config(invoker_id.clone()));
         if d_token_client.balance(&invoker_id) == 0 {
-            user_config.set_borrowing(reserve.config.index, false);
+            user_config.set_liability(reserve.config.index, false);
             storage.set_user_config(invoker_id, user_config.config);
         }
 

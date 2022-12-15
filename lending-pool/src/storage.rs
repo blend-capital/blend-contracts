@@ -167,14 +167,14 @@ pub trait PoolDataStore {
     ///
     /// ### Arguments
     /// * `user` - The address of the user
-    fn get_user_config(&self, user: Identifier) -> u64;
+    fn get_user_config(&self, user: Identifier) -> u128;
 
     /// Set the users reserve config
     ///
     /// ### Arguments
     /// * `user` - The address of the user
     /// * `config` - The reserve config for the user
-    fn set_user_config(&self, user: Identifier, config: u64);
+    fn set_user_config(&self, user: Identifier, config: u128);
 
     /********** Pool Status **********/
 
@@ -299,18 +299,18 @@ impl PoolDataStore for StorageManager {
 
     /********** UserConfig **********/
 
-    fn get_user_config(&self, user: Identifier) -> u64 {
+    fn get_user_config(&self, user: Identifier) -> u128 {
         let key = PoolDataKey::UserConfig(user);
         self.env()
             .data()
-            .get::<PoolDataKey, u64>(key)
+            .get::<PoolDataKey, u128>(key)
             .unwrap_or(Ok(0))
             .unwrap()
     }
 
-    fn set_user_config(&self, user: Identifier, config: u64) {
+    fn set_user_config(&self, user: Identifier, config: u128) {
         let key = PoolDataKey::UserConfig(user);
-        self.env().data().set::<PoolDataKey, u64>(key, config);
+        self.env().data().set::<PoolDataKey, u128>(key, config);
     }
 
     /********** Pool Status **********/

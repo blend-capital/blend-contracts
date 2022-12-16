@@ -5,6 +5,7 @@ extern crate std;
 
 mod backstop;
 mod dependencies;
+mod distributor;
 mod errors;
 mod pool;
 mod storage;

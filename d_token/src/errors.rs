@@ -6,10 +6,7 @@ use soroban_sdk::contracterror;
 pub enum DTokenError {
     NegativeNumber = 1,
     AlreadyInitialized = 2,
-    InsufficientBLND = 3,
-    NotAuthorized = 4,
-    OverflowError = 5,
-    BalanceError = 6,
-    InvalidCaller = 7,
-    InvalidNonce = 8,
+    NotAuthorized = 3,
+    OverflowError = 4,
+    BalanceError = 5,
 }

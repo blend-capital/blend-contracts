@@ -6,7 +6,7 @@ use crate::{
     public_types::{Metadata, TokenMetadata},
 };
 use soroban_auth::{Identifier, Signature};
-use soroban_sdk::{contractimpl, panic_with_error, symbol, Bytes, Env};
+use soroban_sdk::{contractimpl, symbol, Bytes, Env};
 
 /// ### d_token
 ///
@@ -76,9 +76,9 @@ pub trait DTokenTrait {
 
 pub struct DToken;
 
-fn check_nonnegative_amount(e: &Env, amount: i128) -> Result<(), DTokenError> {
+fn check_nonnegative_amount(amount: i128) -> Result<(), DTokenError> {
     if amount < 0 {
-        panic_with_error!(e, DTokenError::NegativeNumber);
+        Err(DTokenError::NegativeNumber)
     } else {
         Ok(())
     }
@@ -88,16 +88,16 @@ fn check_nonnegative_amount(e: &Env, amount: i128) -> Result<(), DTokenError> {
 impl DTokenTrait for DToken {
     fn init(e: Env, admin: Identifier, metadata: TokenMetadata) -> Result<(), DTokenError> {
         if has_metadata(&e) {
-            panic_with_error!(e, DTokenError::AlreadyInitialized);
+            Err(DTokenError::AlreadyInitialized)
+        } else {
+            write_administrator(&e, admin);
+            write_metadata(&e, Metadata::Token(metadata));
+            Ok(())
         }
-
-        write_administrator(&e, admin);
-        write_metadata(&e, Metadata::Token(metadata));
-        Ok(())
     }
 
     fn balance(e: Env, id: Identifier) -> i128 {
-        read_balance(&e, id) as i128
+        read_balance(&e, id).unwrap() as i128
     }
 
     fn xfer_from(
@@ -106,7 +106,7 @@ impl DTokenTrait for DToken {
         to: Identifier,
         amount: i128,
     ) -> Result<(), DTokenError> {
-        check_nonnegative_amount(&e, amount)?;
+        check_nonnegative_amount(amount)?;
         //Only the admin may transfer tokens
         check_administrator(&e, &Signature::Invoker)?;
         spend_balance(&e, from.clone(), amount.clone() as u64)?;
@@ -116,7 +116,7 @@ impl DTokenTrait for DToken {
     }
 
     fn burn(e: Env, from: Identifier, amount: i128) -> Result<(), DTokenError> {
-        check_nonnegative_amount(&e, amount)?;
+        check_nonnegative_amount(amount)?;
         let admin_signature = Signature::Invoker;
         check_administrator(&e, &admin_signature)?;
         spend_balance(&e, from.clone(), amount.clone() as u64)?;
@@ -128,7 +128,7 @@ impl DTokenTrait for DToken {
     }
 
     fn mint(e: Env, to: Identifier, amount: i128) -> Result<(), DTokenError> {
-        check_nonnegative_amount(&e, amount)?;
+        check_nonnegative_amount(amount)?;
         let admin_signature = Signature::Invoker;
         check_administrator(&e, &admin_signature)?;
         receive_balance(&e, to.clone(), amount.clone() as u64)?;

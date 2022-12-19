@@ -7,7 +7,8 @@ members = [
     "lending-pool",
     "mocks/mock-blend-oracle",
     "oracle",
-    "d_token"
+    "d_token",
+    "b_token"
 ]
 
 [profile.release-with-logs]

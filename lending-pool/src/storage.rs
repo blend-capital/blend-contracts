@@ -1,5 +1,5 @@
 use soroban_auth::Identifier;
-use soroban_sdk::{contracttype, vec, Address, BytesN, Env, Vec};
+use soroban_sdk::{contracttype, vec, BytesN, Env, Vec};
 
 /********** Storage Types **********/
 
@@ -34,13 +34,39 @@ pub struct ReserveData {
     pub last_block: u32, // the last block the data was updated
 }
 
+/// The configuration of emissions for the reserve b or d token
+///
+/// `@dev` If this is updated, ReserveEmissionsData MUST also be updated
+#[derive(Clone)]
+#[contracttype]
+pub struct ReserveEmissionsConfig {
+    pub expiration: u64,
+    pub eps: u64,
+}
+
+/// The emission data for the reserve b or d token
+#[derive(Clone)]
+#[contracttype]
+pub struct ReserveEmissionsData {
+    pub index: u64,
+    pub last_time: u64,
+}
+
+/// The user emission data for the reserve b or d token
+#[derive(Clone)]
+#[contracttype]
+pub struct UserEmissionData {
+    pub index: u64,
+    pub accrued: u64,
+}
+
 /********** Storage Key Types **********/
 
 #[derive(Clone)]
 #[contracttype]
-pub struct LiabilityKey {
-    user: Address,
-    asset: BytesN<32>,
+pub struct UserReserveKey {
+    user: Identifier,
+    reserve_id: u32,
 }
 
 // TODO: See if we can avoid publishing this
@@ -58,10 +84,20 @@ pub enum PoolDataKey {
     // A list of reserve where index -> underlying asset's contract address
     // -> note: dropped reserves are still present
     ResList,
+    // The reserve's emission config
+    EmisConfig(u32),
+    // The reserve's emission data
+    EmisData(u32),
     // The configuration settings for a user
     UserConfig(Identifier),
+    // The emission information for a reserve asset for a user
+    UserEmis(UserReserveKey),
     // The status of the pool
     PoolStatus,
+    // A list of the next reserve emission allocation percentages
+    PoolEmis,
+    // The reserve configuration for emissions
+    PEConfig,
 }
 
 /********** Storage **********/
@@ -161,6 +197,34 @@ pub trait PoolDataStore {
     // @dev: Once added it can't be removed
     fn push_res_list(&self, asset: BytesN<32>) -> u32;
 
+    /********** Reserve Emissions **********/
+
+    /// Fetch the emission config for the reserve b or d token
+    ///
+    /// ### Arguments
+    /// * `res_token_index` - The d/bToken index for the reserve
+    fn get_res_emis_config(&self, res_token_index: u32) -> Option<ReserveEmissionsConfig>;
+
+    /// Set the emission config for the reserve b or d token
+    ///
+    /// ### Arguments
+    /// * `res_token_index` - The d/bToken index for the reserve
+    /// * `res_emis_config` - The new emission config for the reserve token
+    fn set_res_emis_config(&self, res_token_index: u32, res_emis_config: ReserveEmissionsConfig);
+
+    /// Fetch the emission data for the reserve b or d token
+    ///
+    /// ### Arguments
+    /// * `res_token_index` - The d/bToken index for the reserve
+    fn get_res_emis_data(&self, res_token_index: u32) -> Option<ReserveEmissionsData>;
+
+    /// Set the emission data for the reserve b or d token
+    ///
+    /// ### Arguments
+    /// * `res_token_index` - The d/bToken index for the reserve
+    /// * `res_emis_data` - The new emission data for the reserve token
+    fn set_res_emis_data(&self, res_token_index: u32, res_emis_data: ReserveEmissionsData);
+
     /********** UserConfig **********/
 
     /// Fetch the users reserve config
@@ -175,6 +239,27 @@ pub trait PoolDataStore {
     /// * `user` - The address of the user
     /// * `config` - The reserve config for the user
     fn set_user_config(&self, user: Identifier, config: u128);
+
+    /********** User Emissions **********/
+
+    /// Fetch the users emission data for a reserve's b or d token
+    ///
+    /// ### Arguments
+    /// * `user` - The address of the user
+    /// * `res_token_index` - The d/bToken index for the reserve
+    fn get_user_emissions(
+        &self,
+        user: Identifier,
+        res_token_index: u32,
+    ) -> Option<UserEmissionData>;
+
+    /// Set the users emission data for a reserve's d or d token
+    ///
+    /// ### Arguments
+    /// * `user` - The address of the user
+    /// * `res_token_index` - The d/bToken index for the reserve
+    /// * `data` - The new user emission d ata for the d/bToken
+    fn set_user_emissions(&self, user: Identifier, res_token_index: u32, data: UserEmissionData);
 
     /********** Pool Status **********/
 
@@ -297,6 +382,46 @@ impl PoolDataStore for StorageManager {
         new_index
     }
 
+    /********** Reserve Emissions **********/
+
+    fn get_res_emis_config(&self, res_token_index: u32) -> Option<ReserveEmissionsConfig> {
+        let key = PoolDataKey::EmisConfig(res_token_index);
+        let result = self
+            .env()
+            .data()
+            .get::<PoolDataKey, ReserveEmissionsConfig>(key);
+        match result {
+            Some(data) => Some(data.unwrap()),
+            None => None,
+        }
+    }
+
+    fn set_res_emis_config(&self, res_token_index: u32, res_emis_config: ReserveEmissionsConfig) {
+        let key = PoolDataKey::EmisConfig(res_token_index);
+        self.env()
+            .data()
+            .set::<PoolDataKey, ReserveEmissionsConfig>(key, res_emis_config);
+    }
+
+    fn get_res_emis_data(&self, res_token_index: u32) -> Option<ReserveEmissionsData> {
+        let key = PoolDataKey::EmisData(res_token_index);
+        let result = self
+            .env()
+            .data()
+            .get::<PoolDataKey, ReserveEmissionsData>(key);
+        match result {
+            Some(data) => Some(data.unwrap()),
+            None => None,
+        }
+    }
+
+    fn set_res_emis_data(&self, res_token_index: u32, res_emis_data: ReserveEmissionsData) {
+        let key = PoolDataKey::EmisData(res_token_index);
+        self.env()
+            .data()
+            .set::<PoolDataKey, ReserveEmissionsData>(key, res_emis_data);
+    }
+
     /********** UserConfig **********/
 
     fn get_user_config(&self, user: Identifier) -> u128 {
@@ -313,7 +438,36 @@ impl PoolDataStore for StorageManager {
         self.env().data().set::<PoolDataKey, u128>(key, config);
     }
 
+    /********** User Emissions **********/
+
+    fn get_user_emissions(
+        &self,
+        user: Identifier,
+        res_token_index: u32,
+    ) -> Option<UserEmissionData> {
+        let key = PoolDataKey::UserEmis(UserReserveKey {
+            user,
+            reserve_id: res_token_index,
+        });
+        let result = self.env().data().get::<PoolDataKey, UserEmissionData>(key);
+        match result {
+            Some(data) => Some(data.unwrap()),
+            None => None,
+        }
+    }
+
+    fn set_user_emissions(&self, user: Identifier, res_token_index: u32, data: UserEmissionData) {
+        let key = PoolDataKey::UserEmis(UserReserveKey {
+            user,
+            reserve_id: res_token_index,
+        });
+        self.env()
+            .data()
+            .set::<PoolDataKey, UserEmissionData>(key, data);
+    }
+
     /********** Pool Status **********/
+
     fn get_pool_status(&self) -> u32 {
         let key = PoolDataKey::PoolStatus;
         self.env()

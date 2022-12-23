@@ -1,6 +1,9 @@
+use soroban_auth::Identifier;
 use soroban_sdk::{BytesN, Env};
 
 use crate::{
+    emissions_distributor,
+    errors::PoolError,
     interest::calc_accrual,
     storage::{PoolDataStore, ReserveConfig, ReserveData, StorageManager},
 };
@@ -30,17 +33,39 @@ impl Reserve {
         }
     }
 
+    /// Performs updates to the reserve before an action has taken place, including accruing interest
+    /// and managing emissions.
+    ///
+    /// Does not write ReserveData to the ledger. This must be written later once
+    /// the action has been completed.
+    ///
+    /// ### Arguments
+    /// * `res_token_type` - The reserve token being acted against (0 for d_token / 1 for b_token)
+    /// * `user` - The user performing the action
+    ///
+    /// ### Errors
+    /// This function will return an error if the emission or rate update fails
+    pub fn pre_action(
+        &mut self,
+        e: &Env,
+        res_token_type: u32,
+        user: Identifier,
+    ) -> Result<(), PoolError> {
+        self.update_rates(e);
+
+        emissions_distributor::update(e, &self, res_token_type, user)
+    }
+
     /// Update the reserve rates based on the current chain state
     ///
     /// Does not store reserve data back to ledger
-    pub fn update_rates(&mut self, e: &Env) {
+    fn update_rates(&mut self, e: &Env) {
         // if updating has already happened this block, don't repeat
         if e.ledger().sequence() == self.data.last_block {
             return;
         }
 
-        // calc current utilization
-        // cast to u128 math to avoid overflow
+        // accrue interest to current block
         let cur_util = ((self.total_liabilities() as u128 * 1_0000000 as u128)
             / self.total_supply() as u128) as u64;
         let (loan_accrual, new_ir_mod) = calc_accrual(
@@ -54,8 +79,8 @@ impl Reserve {
             ((loan_accrual - 1_000_000_000) * cur_util) / 1_0000000 + 1_000_000_000;
         self.data.b_rate = (self.data.b_rate * b_rate_accrual) / 1_000_000_000; // TODO: Will overflow with u64 math past 18x
         self.data.d_rate = (self.data.d_rate * loan_accrual) / 1_000_000_000;
-
         self.data.ir_mod = new_ir_mod;
+
         self.data.last_block = e.ledger().sequence();
     }
 

@@ -1,18 +1,18 @@
 // Adapted from: https://github.com/aave/aave-v3-core/blob/master/contracts/protocol/libraries/configuration/UserConfiguration.sol
 
- /// Packs a `u128` to represent the configuration of what reserves are used and how:
- /// 
- /// * `liability` - the reserve d_token is used
- /// * `supply` - the reserve b_token is used
- /// * `collateral` - the reserve b_token is used as collateral
- /// 
- /// The u128 is packed from LSB to MSB for each reserve such that ->
- /// 
- /// LSB -> 0 / 1 = (liability flag) not used as liability / used as liability\
- /// -----> 0 / 1 = (supply flag) not used as supply / used as supply\
- /// MSB -> 0 / 1 = (disable collateral flag) collateral active / collateral disabled\
- /// 
- /// Supports a maximum of 42 indexable reserves
+/// Packs a `u128` to represent the configuration of what reserves are used and how:
+///
+/// * `liability` - the reserve d_token is used
+/// * `supply` - the reserve b_token is used
+/// * `collateral` - the reserve b_token is used as collateral
+///
+/// The u128 is packed from LSB to MSB for each reserve such that ->
+///
+/// LSB -> 0 / 1 = (liability flag) not used as liability / used as liability\
+/// -----> 0 / 1 = (supply flag) not used as supply / used as supply\
+/// MSB -> 0 / 1 = (disable collateral flag) collateral active / collateral disabled\
+///
+/// Supports a maximum of 42 indexable reserves. The final 2 bits are unused.
 pub struct ReserveUsage {
     pub config: u128,
 }
@@ -62,7 +62,7 @@ impl ReserveUsage {
     }
 
     /// Checks if the reserve disable collateral flag is active
-    /// 
+    ///
     /// ### Arguments
     /// * `res_index` - The index of the reserve to check
     pub fn is_collateral_disabled(&self, res_index: u32) -> bool {
@@ -158,7 +158,6 @@ mod tests {
         assert_eq!(is_borrowing, true);
         assert_eq!(is_supply, true);
         assert_eq!(is_collateral, true);
-
     }
 
     #[test]
@@ -177,7 +176,6 @@ mod tests {
         assert_eq!(is_borrowing, true);
         assert_eq!(is_supply, false);
         assert_eq!(is_collateral, false);
-
     }
 
     #[test]
@@ -196,7 +194,6 @@ mod tests {
         assert_eq!(is_borrowing, false);
         assert_eq!(is_supply, true);
         assert_eq!(is_collateral, true);
-
     }
 
     #[test]
@@ -216,7 +213,6 @@ mod tests {
         assert_eq!(is_supply, true);
         assert_eq!(is_collateral, false);
     }
-
 
     #[test]
     fn test_set_liability() {

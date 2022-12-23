@@ -2,8 +2,8 @@ use crate::{
     dependencies::TokenClient,
     errors::PoolError,
     reserve::Reserve,
+    reserve_usage::ReserveUsage,
     storage::{PoolDataStore, ReserveConfig, ReserveData, StorageManager},
-    reserve_usage::{ReserveUsage},
     user_data::UserAction,
     user_validator::validate_hf,
 };
@@ -34,7 +34,7 @@ pub trait PoolTrait {
     fn init_res(e: Env, asset: BytesN<32>, config: ReserveConfig);
 
     /// Fetch the reserve usage configuration for a user
-    /// 
+    ///
     /// ### Arguments
     /// * `user` - The identifier to fetch the reserve usage for
     fn config(e: Env, user: Identifier) -> u128;
@@ -153,18 +153,17 @@ impl PoolTrait for Pool {
 
     fn supply(e: Env, asset: BytesN<32>, amount: u64) -> Result<u64, PoolError> {
         let storage = StorageManager::new(&e);
+        let invoker = e.invoker();
+        let invoker_id = Identifier::from(invoker);
 
         if storage.get_pool_status() == 2 {
             return Err(PoolError::InvalidPoolStatus);
         }
 
         let mut reserve = Reserve::load(&e, asset.clone());
-        reserve.update_rates(&e);
+        reserve.pre_action(&e, 1, invoker_id.clone())?;
 
-        let invoker = e.invoker();
-        let invoker_id = Identifier::from(invoker);
         let to_mint = reserve.to_b_token(&amount);
-
         TokenClient::new(&e, asset).xfer_from(
             &Signature::Invoker,
             &0,
@@ -193,12 +192,12 @@ impl PoolTrait for Pool {
 
     fn withdraw(e: Env, asset: BytesN<32>, amount: u64, to: Identifier) -> Result<u64, PoolError> {
         let storage = StorageManager::new(&e);
-
-        let mut reserve = Reserve::load(&e, asset.clone());
-        reserve.update_rates(&e);
-
         let invoker = e.invoker();
         let invoker_id = Identifier::from(invoker);
+
+        let mut reserve = Reserve::load(&e, asset.clone());
+        reserve.pre_action(&e, 1, invoker_id.clone())?;
+
         let to_burn: u64;
         let to_return: u64;
         let b_token_client = TokenClient::new(&e, reserve.config.b_token.clone());
@@ -238,18 +237,17 @@ impl PoolTrait for Pool {
 
     fn borrow(e: Env, asset: BytesN<32>, amount: u64, to: Identifier) -> Result<u64, PoolError> {
         let storage = StorageManager::new(&e);
+        let invoker = e.invoker();
+        let invoker_id = Identifier::from(invoker);
 
         if storage.get_pool_status() > 0 {
             return Err(PoolError::InvalidPoolStatus);
         }
 
         let mut reserve = Reserve::load(&e, asset.clone());
-        reserve.update_rates(&e);
+        reserve.pre_action(&e, 0, invoker_id.clone())?;
 
-        let invoker = e.invoker();
-        let invoker_id = Identifier::from(invoker);
         let to_mint = reserve.to_d_token(&amount);
-
         let user_action = UserAction {
             asset: asset.clone(),
             b_token_delta: 0,
@@ -287,12 +285,12 @@ impl PoolTrait for Pool {
         on_behalf_of: Identifier,
     ) -> Result<u64, PoolError> {
         let storage = StorageManager::new(&e);
-
-        let mut reserve = Reserve::load(&e, asset.clone());
-        reserve.update_rates(&e);
-
         let invoker = e.invoker();
         let invoker_id = Identifier::from(invoker);
+
+        let mut reserve = Reserve::load(&e, asset.clone());
+        reserve.pre_action(&e, 0, invoker_id.clone())?;
+
         let to_burn: u64;
         let to_repay: u64;
         let d_token_client = TokenClient::new(&e, reserve.config.d_token.clone());

@@ -3,8 +3,8 @@ use soroban_sdk::{BytesN, Env};
 
 use crate::{
     dependencies::{OracleClient, TokenClient},
+    reserve_usage::ReserveUsage,
     storage::{PoolDataStore, StorageManager},
-    reserve_usage::{ReserveUsage},
 };
 
 /// A user's account data

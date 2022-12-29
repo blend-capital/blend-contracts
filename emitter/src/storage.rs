@@ -1,4 +1,3 @@
-use soroban_auth::Identifier;
 use soroban_sdk::{contracttype, BytesN, Env};
 
 /********** Storage **********/
@@ -23,13 +22,13 @@ pub trait EmitterDataStore {
     /// Fetch the current backstop Identifier
     ///
     /// Returns current backstop module contract address
-    fn get_backstop_id(&self) -> Identifier;
+    fn get_backstop(&self) -> BytesN<32>;
 
     /// Set a new backstop
     ///
     /// ### Arguments
     /// * `new_backstop` - The Identifier for the new backstop
-    fn set_backstop_id(&self, new_backstop: Identifier);
+    fn set_backstop(&self, new_backstop: BytesN<32>);
 
     /// Check if a backstop has been set
     ///
@@ -79,17 +78,17 @@ pub struct StorageManager(Env);
 impl EmitterDataStore for StorageManager {
     /********** Backstop **********/
 
-    fn get_backstop_id(&self) -> Identifier {
+    fn get_backstop(&self) -> BytesN<32> {
         self.env()
             .data()
             .get_unchecked(EmitterDataKey::Backstop)
             .unwrap()
     }
 
-    fn set_backstop_id(&self, new_backstop: Identifier) {
+    fn set_backstop(&self, new_backstop: BytesN<32>) {
         self.env()
             .data()
-            .set::<EmitterDataKey, Identifier>(EmitterDataKey::Backstop, new_backstop);
+            .set::<EmitterDataKey, BytesN<32>>(EmitterDataKey::Backstop, new_backstop);
     }
 
     fn is_backstop_set(&self) -> bool {

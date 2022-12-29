@@ -31,6 +31,9 @@ pub trait EmitterTrait {
     /// If the caller is not the listed backstop module
     fn distribute(e: Env) -> Result<u64, EmitterError>;
 
+    /// Fetch the current backstop
+    fn get_bstop(e: Env) -> BytesN<32>;
+
     /// Switches the listed backstop module to one with more effective backstop deposits
     ///
     /// Returns OK or an error
@@ -50,7 +53,7 @@ impl EmitterTrait for Emitter {
         if storage.is_backstop_set() {
             panic!("Emitter already initialized");
         }
-        storage.set_backstop_id(Identifier::Contract(backstop));
+        storage.set_backstop(backstop);
         storage.set_blend_id(blend_id);
         storage.set_blend_lp_id(blend_lp_id);
         //TODO: Determine if setting the last distro time here is appropriate, since it means tokens immediately start being distributed
@@ -59,7 +62,7 @@ impl EmitterTrait for Emitter {
 
     fn distribute(e: Env) -> Result<u64, EmitterError> {
         let storage = StorageManager::new(&e);
-        let backstop = storage.get_backstop_id();
+        let backstop = Identifier::Contract(storage.get_backstop());
         if backstop != Identifier::from(e.invoker()) {
             return Err(EmitterError::NotAuthorized);
         }
@@ -72,18 +75,23 @@ impl EmitterTrait for Emitter {
         blend_client.mint(
             &Signature::Invoker,
             &0,
-            &storage.get_backstop_id(),
+            &backstop,
             &(distribution_amount as i128),
         );
         Ok(distribution_amount)
     }
 
+    fn get_bstop(e: Env) -> BytesN<32> {
+        let storage = StorageManager::new(&e);
+        storage.get_backstop()
+    }
+
     fn swap_bstop(e: Env, new_backstop: BytesN<32>) -> Result<(), EmitterError> {
         let storage = StorageManager::new(&e);
         let blend_client = get_blend_token_client(&e, &storage);
-        let new_backstop_id = Identifier::Contract(new_backstop);
+        let new_backstop_id = Identifier::Contract(new_backstop.clone());
 
-        let old_backstop = storage.get_backstop_id();
+        let old_backstop = Identifier::Contract(storage.get_backstop());
         let old_backstop_blend_balance = blend_client.balance(&old_backstop);
         let old_backstop_blend_lp_balance = get_lp_blend_holdings(&e, old_backstop);
         let effective_old_backstop_blend =
@@ -98,7 +106,7 @@ impl EmitterTrait for Emitter {
             return Err(EmitterError::InsufficientBLND);
         }
 
-        storage.set_backstop_id(new_backstop_id);
+        storage.set_backstop(new_backstop);
         Ok(())
     }
 }

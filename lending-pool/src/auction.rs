@@ -1,6 +1,7 @@
 use crate::{
     dependencies::{OracleClient, TokenClient},
     errors::AuctionError,
+    pool::execute_repay,
     reserve::Reserve,
     storage::{AuctionData, PoolDataStore, StorageManager},
     user_data::{UserAction, UserData},
@@ -98,7 +99,7 @@ impl Auction {
         )
         .unwrap();
         let invoker = e.invoker();
-        let invoker_id;
+        let invoker_id = Identifier::from(invoker);
         let mut ask_id_iter = auction_data.ask_ids.iter();
         let mut ask_amt_iter = ask_amts.iter();
         //perform ask token transfers
@@ -106,22 +107,25 @@ impl Auction {
             //if accrued interest auction the ask amounts aren't paying off debt
             //TODO: deposit backstop_tokens and increase the value of backstop shares, need function for this
         } else {
-            //other liquidation types involve transferring underlying or backstop tokens
+            let liquidatee_id = Identifier::Ed25519(auct_id.clone());
             for _ in 0..auction_data.ask_count {
                 let asset_id = ask_id_iter.next().unwrap().unwrap();
-                let amt =
-                    (ask_amt_iter.next().unwrap().unwrap() * ask_modifier / 1_000_0000) as i128;
-                //execute repay on behalf of the auction_id. TODO - push repay function down so we can use it here
+                let amt = (ask_amt_iter.next().unwrap().unwrap() * ask_modifier / 1_000_0000);
+                let reserve = Reserve::load(&e, asset_id.clone());
+                execute_repay(
+                    &e,
+                    reserve,
+                    amt,
+                    invoker_id.clone(),
+                    &liquidatee_id,
+                    &storage,
+                );
             }
         }
         //perform bid token transfers
         let mut bid_id_iter = auction_data.bid_ids.iter();
         let mut bid_amt_iter = bid_amts.iter();
 
-        match invoker {
-            Address::Account(account_id) => invoker_id = Identifier::Account(account_id),
-            Address::Contract(bytes) => invoker_id = Identifier::Ed25519(bytes),
-        }
         if auction_data.auct_type == 0 {
             //if user liquidation auction we transfer b_tokens to the auction filler
             //TODO: implement once we decide whether to use custom b_tokens or not

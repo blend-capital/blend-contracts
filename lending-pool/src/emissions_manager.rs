@@ -11,6 +11,8 @@ use crate::{
 use soroban_sdk::{contracttype, map, BytesN, Env, Map, Vec};
 
 // Types
+
+/// Metadata for a pool's reserve emission configuration
 #[contracttype]
 pub struct ReserveEmissionMetadata {
     res_index: u32,
@@ -18,6 +20,16 @@ pub struct ReserveEmissionMetadata {
     share: u64,
 }
 
+/// Updates the pool's emissions for the next emission cycle
+/// 
+/// Needs to be run each time a new emission cycle starts
+/// 
+/// ### Arguments
+/// * `next_exp` - The next expiration time of the emission cycle
+/// * `pool_eps` - The total eps the pool is receiving from the backstop
+/// 
+/// ### Errors
+/// If update has already been run for this emission cycle
 pub fn update_emissions(e: &Env, next_exp: u64, pool_eps: u64) -> Result<u64, PoolError> {
     let storage = StorageManager::new(&e);
 
@@ -97,7 +109,16 @@ fn update_reserve_emission_config(
     storage.set_res_emis_config(key, new_reserve_emis_config);
 }
 
-// TODO: Consider doing a more granular or vote based system
+/// Set the pool emissions
+/// 
+/// These will not be applied until the next `update_emissions` is run
+/// 
+/// ### Arguments
+/// * `res_emission_metadata` - A vector of `ReserveEmissionMetadata` that details each reserve token's share
+///                             if the total pool eps
+/// 
+/// ### Errors
+/// If the total share of the pool eps from the reserves is over 1
 pub fn set_pool_emissions(
     e: &Env,
     res_emission_metadata: Vec<ReserveEmissionMetadata>,

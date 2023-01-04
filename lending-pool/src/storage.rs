@@ -1,5 +1,5 @@
 use soroban_auth::Identifier;
-use soroban_sdk::{contracttype, vec, BytesN, Env, Vec};
+use soroban_sdk::{contracttype, vec, BytesN, Env, Map, Vec};
 
 /********** Storage Types **********/
 
@@ -58,6 +58,14 @@ pub struct ReserveEmissionsData {
 pub struct UserEmissionData {
     pub index: u64,
     pub accrued: u64,
+}
+
+/// The pool's emission config
+#[derive(Clone)]
+#[contracttype]
+pub struct PoolEmissionConfig {
+    pub config: u128,
+    pub last_time: u64,
 }
 
 /********** Storage Key Types **********/
@@ -218,6 +226,12 @@ pub trait PoolDataStore {
     /// * `res_token_index` - The d/bToken index for the reserve
     fn get_res_emis_data(&self, res_token_index: u32) -> Option<ReserveEmissionsData>;
 
+    /// Checks if the reserve token has emissions data
+    ///
+    /// ### Arguments
+    /// * `res_token_index` - The d/bToken index for the reserve
+    fn has_res_emis_data(&self, res_token_index: u32) -> bool;
+
     /// Set the emission data for the reserve b or d token
     ///
     /// ### Arguments
@@ -269,8 +283,28 @@ pub trait PoolDataStore {
     /// Set the pool status
     ///
     /// ### Arguments
-    /// * 'pool_state' - The pool status
+    /// * `pool_state` - The pool status
     fn set_pool_status(&self, pool_status: u32);
+
+    /********** Pool Emissions **********/
+
+    /// Fetch the pool reserve emissions
+    fn get_pool_emissions(&self) -> Map<u32, u64>;
+
+    /// Set the pool reserve emissions
+    ///
+    /// ### Arguments
+    /// * `emissions` - The map of emissions by reserve token id to EPS
+    fn set_pool_emissions(&self, emissions: Map<u32, u64>);
+
+    /// Fetch the pool emission configuration
+    fn get_pool_emission_config(&self) -> PoolEmissionConfig;
+
+    /// Set the pool emission configuration
+    ///
+    /// ### Arguments
+    /// * `config` - The pool's emission configuration
+    fn set_pool_emission_config(&self, config: PoolEmissionConfig);
 }
 
 pub struct StorageManager(Env);
@@ -415,6 +449,11 @@ impl PoolDataStore for StorageManager {
         }
     }
 
+    fn has_res_emis_data(&self, res_token_index: u32) -> bool {
+        let key = PoolDataKey::EmisData(res_token_index);
+        self.env().data().has(key)
+    }
+
     fn set_res_emis_data(&self, res_token_index: u32, res_emis_data: ReserveEmissionsData) {
         let key = PoolDataKey::EmisData(res_token_index);
         self.env()
@@ -480,6 +519,40 @@ impl PoolDataStore for StorageManager {
     fn set_pool_status(&self, pool_status: u32) {
         let key = PoolDataKey::PoolStatus;
         self.env().data().set::<PoolDataKey, u32>(key, pool_status);
+    }
+
+    /********** Pool Emissions **********/
+
+    fn get_pool_emissions(&self) -> Map<u32, u64> {
+        let key = PoolDataKey::PoolEmis;
+        self.env()
+            .data()
+            .get::<PoolDataKey, Map<u32, u64>>(key)
+            .unwrap()
+            .unwrap()
+    }
+
+    fn set_pool_emissions(&self, emissions: Map<u32, u64>) {
+        let key = PoolDataKey::PoolEmis;
+        self.env()
+            .data()
+            .set::<PoolDataKey, Map<u32, u64>>(key, emissions);
+    }
+
+    fn get_pool_emission_config(&self) -> PoolEmissionConfig {
+        let key = PoolDataKey::PEConfig;
+        self.env()
+            .data()
+            .get::<PoolDataKey, PoolEmissionConfig>(key)
+            .unwrap()
+            .unwrap()
+    }
+
+    fn set_pool_emission_config(&self, config: PoolEmissionConfig) {
+        let key = PoolDataKey::PEConfig;
+        self.env()
+            .data()
+            .set::<PoolDataKey, PoolEmissionConfig>(key, config);
     }
 }
 

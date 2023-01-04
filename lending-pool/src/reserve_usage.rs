@@ -24,7 +24,22 @@ impl ReserveUsage {
         }
     }
 
-    /// Determine is a reserve is being actively used, where used means the reserve used as
+    /// Fetch the key for the reserve liability token
+    pub fn liability_key(res_index: u32) -> u32 {
+        res_index * 3
+    }
+
+    /// Fetch the key for the reserve supply token
+    pub fn supply_key(res_index: u32) -> u32 {
+        res_index * 3 + 1
+    }
+
+    /// Fetch the key for the reserve collateral disabled flag
+    pub fn collateral_disabled_key(res_index: u32) -> u32 {
+        res_index * 3 + 2
+    }
+
+    /// Determine if a reserve is being actively used, where active means the reserve is used as
     /// a liability or as collateral
     ///
     /// ### Arguments
@@ -76,7 +91,7 @@ impl ReserveUsage {
     /// * `res_index` - The index of the reserve
     /// * `borrowing` - If the user is borrowing the reserve
     pub fn set_liability(&mut self, res_index: u32, borrowing: bool) {
-        let res_borrow_bit = 1 << (res_index * 3);
+        let res_borrow_bit = 1 << (Self::liability_key(res_index));
         if borrowing {
             // set bit to 1
             self.config = self.config | res_borrow_bit;
@@ -92,7 +107,7 @@ impl ReserveUsage {
     /// * `res_index` - The index of the reserve
     /// * `collateral` - If the user is using the reserve as collateral
     pub fn set_supply(&mut self, res_index: u32, supply: bool) {
-        let res_supply_bit = 1 << (res_index * 3 + 1);
+        let res_supply_bit = 1 << (Self::supply_key(res_index));
         if supply {
             // set bit to 1
             self.config = self.config | res_supply_bit;
@@ -108,7 +123,7 @@ impl ReserveUsage {
     /// * `res_index` - The index of the reserve
     /// * `collateral_disabled` - If collateral usage is disabled
     pub fn set_collateral_disabled(&mut self, res_index: u32, collateral_disabled: bool) {
-        let res_collateral_bit = 1 << (res_index * 3 + 2);
+        let res_collateral_bit = 1 << (Self::collateral_disabled_key(res_index));
         if collateral_disabled {
             // set bit to 1
             self.config = self.config | res_collateral_bit;

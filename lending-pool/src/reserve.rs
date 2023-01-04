@@ -59,7 +59,7 @@ impl Reserve {
     /// Update the reserve rates based on the current chain state
     ///
     /// Does not store reserve data back to ledger
-    fn update_rates(&mut self, e: &Env) {
+    pub fn update_rates(&mut self, e: &Env) {
         // if updating has already happened this block, don't repeat
         if e.ledger().sequence() == self.data.last_block {
             return;

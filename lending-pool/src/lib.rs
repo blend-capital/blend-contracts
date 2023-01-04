@@ -4,6 +4,7 @@
 extern crate std;
 
 mod emissions_distributor;
+mod emissions_manager;
 mod errors;
 mod interest;
 mod pool;

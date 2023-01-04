@@ -1,19 +1,26 @@
 use crate::{
-    dependencies::TokenClient,
+    dependencies::{BackstopClient, EmitterClient, TokenClient},
+    emissions_manager::{self, ReserveEmissionMetadata},
     errors::PoolError,
     reserve::Reserve,
     reserve_usage::ReserveUsage,
-    storage::{PoolDataStore, ReserveConfig, ReserveData, StorageManager},
+    storage::{
+        PoolDataStore, ReserveConfig, ReserveData, ReserveEmissionsConfig, ReserveEmissionsData,
+        StorageManager,
+    },
     user_data::UserAction,
     user_validator::validate_hf,
 };
 use soroban_auth::{Identifier, Signature};
-use soroban_sdk::{contractimpl, Address, BytesN, Env};
+use soroban_sdk::{contractimpl, Address, BytesN, Env, Map, Vec};
 
 /// ### Pool
 ///
 /// An isolated money market pool.
 pub struct Pool;
+
+// Constants
+const EMITTER: [u8; 32] = [100; 32]; // TODO: Use the emitter
 
 pub trait PoolTrait {
     /// Initialize the pool
@@ -107,6 +114,46 @@ pub trait PoolTrait {
     /// * 1 = on ice
     /// * 2 = frozen
     fn status(e: Env) -> u32;
+
+    /********* Emission Functions **********/
+
+    /// Fetch the next emission configuration
+    fn get_emis(e: Env) -> Map<u32, u64>;
+
+    /// Update emissions for reserves for the next emission cycle
+    ///
+    /// Needs to be performed each emission cycle, as determined by the expiration
+    ///
+    /// Returns the expiration timestamp
+    fn updt_emis(e: Env) -> Result<u64, PoolError>;
+
+    /// Set the emission configuration for the pool
+    ///
+    /// Changes will be applied in the next pool `updt_emis`, and affect the next emission cycle
+    ///
+    /// ### Arguments
+    /// * `res_emission_metadata` - A vector of ReserveEmissionMetadata to update metadata to
+    ///
+    /// ### Errors
+    /// * If the caller is not the admin
+    /// * If the sum of ReserveEmissionMetadata shares is greater than 1
+    fn set_emis(
+        e: Env,
+        res_emission_metadata: Vec<ReserveEmissionMetadata>,
+    ) -> Result<(), PoolError>;
+
+    /***** Reserve Emission Functions *****/
+
+    /// Fetch the emission details for a given reserve token
+    ///
+    /// ### Arguments
+    /// * `asset` - The contract address of the asset backing the reserve
+    /// * `token_type` - The type of reserve token (0 for dToken / 1 for bToken)
+    fn res_emis(
+        e: Env,
+        asset: BytesN<32>,
+        token_type: u32,
+    ) -> Result<Option<(ReserveEmissionsConfig, ReserveEmissionsData)>, PoolError>;
 }
 
 #[contractimpl]
@@ -344,6 +391,58 @@ impl PoolTrait for Pool {
     fn status(e: Env) -> u32 {
         let storage = StorageManager::new(&e);
         storage.get_pool_status()
+    }
+
+    /********** Emissions **********/
+
+    fn get_emis(e: Env) -> Map<u32, u64> {
+        let storage = StorageManager::new(&e);
+        storage.get_pool_emissions()
+    }
+
+    fn updt_emis(e: Env) -> Result<u64, PoolError> {
+        let bkstp_addr = EmitterClient::new(&e, BytesN::from_array(&e, &EMITTER)).get_bstop();
+        let backstop = BackstopClient::new(&e, &bkstp_addr);
+        let next_exp = backstop.next_dist();
+        let pool_eps = backstop.pool_eps(&e.current_contract());
+        emissions_manager::update_emissions(&e, next_exp, pool_eps)
+    }
+
+    fn set_emis(
+        e: Env,
+        res_emission_metadata: Vec<ReserveEmissionMetadata>,
+    ) -> Result<(), PoolError> {
+        let storage = StorageManager::new(&e);
+        if Identifier::from(e.invoker()) != storage.get_admin() {
+            return Err(PoolError::NotAuthorized);
+        }
+
+        emissions_manager::set_pool_emissions(&e, res_emission_metadata)
+    }
+
+    fn res_emis(
+        e: Env,
+        asset: BytesN<32>,
+        token_type: u32,
+    ) -> Result<Option<(ReserveEmissionsConfig, ReserveEmissionsData)>, PoolError> {
+        if token_type > 1 {
+            return Err(PoolError::BadRequest);
+        }
+
+        let storage = StorageManager::new(&e);
+        let res_list = storage.get_res_list();
+        if let Some(res_index) = res_list.first_index_of(asset) {
+            let res_token_index = res_index * 3 + token_type;
+            if storage.has_res_emis_data(res_token_index) {
+                return Ok(Some((
+                    storage.get_res_emis_config(res_token_index).unwrap(),
+                    storage.get_res_emis_data(res_token_index).unwrap(),
+                )));
+            }
+            return Ok(None);
+        }
+
+        Err(PoolError::BadRequest)
     }
 }
 

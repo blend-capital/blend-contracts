@@ -252,7 +252,7 @@ impl BackstopTrait for Backstop {
     ) -> Result<(), BackstopError> {
         //only pool can draw
         if Identifier::Contract(pool_address.clone()) != Identifier::from(e.invoker()) {
-            return Err(BackstopError::Unauthorized);
+            return Err(BackstopError::NotAuthorized);
         }
         let mut pool = Pool::new(pool_address);
 
@@ -278,7 +278,7 @@ impl BackstopTrait for Backstop {
     ) -> Result<(), BackstopError> {
         //only pool can donate
         if Identifier::Contract(pool_address.clone()) != Identifier::from(e.invoker()) {
-            return Err(BackstopError::Unauthorized);
+            return Err(BackstopError::NotAuthorized);
         }
         // send tokens to recipient
         let blnd_client = TokenClient::new(&e, BytesN::from_array(&e, &BLND_TOKEN));

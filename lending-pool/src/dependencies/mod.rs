@@ -8,7 +8,7 @@ pub use token::Client as TokenClient;
 #[cfg(any(test, feature = "testutils"))]
 pub use token::{TokenMetadata, WASM as TOKEN_WASM};
 
-// mod backstop_module;
-// pub use backstop_module::Client as BackstopClient;
-// #[cfg(any(test, feature = "testutils"))]
-// pub use backstop_module::{BackstopError, Client as BackstopClient};
+mod backstop_module;
+#[cfg(any(test, feature = "testutils"))]
+pub use backstop_module::WASM as BACKSTOP_WASM;
+pub use backstop_module::{BackstopError, Client as BackstopClient};

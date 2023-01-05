@@ -14,8 +14,8 @@ pub enum PoolError {
 #[derive(Copy, Clone, Debug, Eq, PartialEq, PartialOrd, Ord)]
 #[repr(u32)]
 pub enum AuctionError {
-    InvalidBids = 1,
-    InvalidAsks = 2,
+    InvalidAsks = 1,
+    InvalidBids = 2,
     AuctionInProgress = 3,
     InvalidPoolStatus = 4,
     InvalidAuctionType = 5,

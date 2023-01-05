@@ -8,7 +8,7 @@ use crate::{
     user_validator::validate_hf,
 };
 use soroban_auth::{Identifier, Signature};
-use soroban_sdk::{contractimpl, Address, BytesN, Env};
+use soroban_sdk::{contractimpl, BytesN, Env};
 
 /// ### Pool
 ///
@@ -322,7 +322,7 @@ impl PoolTrait for Pool {
 
 // ****** Helpers *****
 
-fn get_contract_id(e: &Env) -> Identifier {
+pub fn get_contract_id(e: &Env) -> Identifier {
     Identifier::Contract(e.current_contract())
 }
 

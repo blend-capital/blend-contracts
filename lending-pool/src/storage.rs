@@ -40,10 +40,11 @@ pub struct ReserveData {
 pub struct AuctionData {
     pub strt_block: u32,          // the block the auction starts on
     pub auct_type: u32,           // the type of auction
-    pub bid_count: u32,           // the number of assets being sold
-    pub bid_ids: Vec<BytesN<32>>, // a vector of ids for the assets being sold
-    pub ask_count: u32,           // the number of assets being purchased
-    pub ask_ids: Vec<BytesN<32>>, // a vector of ids for the assets being purchased
+    pub ask_count: u32, // the number of assets being sold by contract and purchased by user
+    pub ask_ids: Vec<BytesN<32>>, // a vector of ids for the assets being sold by contract and purchased by user
+    pub bid_count: u32, // the number of assets being purchased by contract and sold by user
+    pub bid_ids: Vec<BytesN<32>>, // a vector of ids for the assets being purchased by contract and sold by user
+    pub bid_ratio: u64,           // the ratio of user bad_debt to bid_amount
 }
 
 /********** Storage Key Types **********/
@@ -75,7 +76,7 @@ pub enum PoolDataKey {
     // The status of the pool
     PoolStatus,
     // A list of auctions and their associated data
-    AuctData(BytesN<32>),
+    AuctData(Identifier),
 }
 
 /********** Storage **********/
@@ -210,14 +211,14 @@ pub trait PoolDataStore {
     ///
     /// Errors
     /// If the auction does not exist
-    fn get_auction_data(&self, auction_id: BytesN<32>) -> AuctionData;
+    fn get_auction_data(&self, auction_id: Identifier) -> AuctionData;
 
     /// Set the data for an auction
     ///
     /// ### Arguments
     /// * `auction_id` - The auction id
     /// * `data` - The auction data
-    fn set_auction_data(&self, auction_id: BytesN<32>, data: AuctionData);
+    fn set_auction_data(&self, auction_id: Identifier, data: AuctionData);
 }
 
 pub struct StorageManager(Env);
@@ -361,7 +362,7 @@ impl PoolDataStore for StorageManager {
     }
 
     /********** Auctions ***********/
-    fn get_auction_data(&self, auction_id: BytesN<32>) -> AuctionData {
+    fn get_auction_data(&self, auction_id: Identifier) -> AuctionData {
         let key = PoolDataKey::AuctData(auction_id);
         self.env()
             .data()
@@ -370,7 +371,7 @@ impl PoolDataStore for StorageManager {
             .unwrap()
     }
 
-    fn set_auction_data(&self, auction_id: BytesN<32>, data: AuctionData) {
+    fn set_auction_data(&self, auction_id: Identifier, data: AuctionData) {
         let key = PoolDataKey::AuctData(auction_id);
         self.env().data().set::<PoolDataKey, AuctionData>(key, data);
     }

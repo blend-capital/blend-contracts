@@ -1,5 +1,5 @@
 use crate::{
-    dependencies::{OracleClient, TokenClient},
+    dependencies::{BackstopClient, OracleClient, TokenClient},
     errors::AuctionError,
     pool::execute_repay,
     reserve::Reserve,
@@ -7,7 +7,7 @@ use crate::{
     user_data::{UserAction, UserData},
 };
 use soroban_auth::{Identifier, Signature};
-use soroban_sdk::{vec, Address, BytesN, Env, Vec};
+use soroban_sdk::{vec, BytesN, Env, Vec};
 
 /// ### Auction
 ///
@@ -28,31 +28,33 @@ impl Auction {
     ///
     /// ### Arguments
     /// * `auct_type` - The type of auction to initiate
-    /// * `bid_ids` - The identifiers of the bidders
+    /// * `bid_ids` - The identifiers of assets the user will sell and the contract will buy
     /// * `bid_amts` - The amounts of the bids
-    /// * `ask_ids` - The identifiers of the askers
+    /// * `ask_ids` - The identifiers of assets the user will buy and the contract will sell
     /// * `ask_amts` - The amounts of the asks
     ///
     /// ### Notes
     /// * Auction initiation validation is carried out in the calling function
     fn initiate(
-        e: Env,
-        auction_id: BytesN<32>,
+        e: &Env,
+        auction_id: Identifier,
         auction_type: AuctionType,
-        bid_ids: Vec<BytesN<32>>,
         ask_ids: Vec<BytesN<32>>,
+        bid_ids: Vec<BytesN<32>>,
+        bid_ratio: u64,
     ) {
-        let bid_count = bid_ids.len();
         let ask_count = ask_ids.len();
+        let bid_count = bid_ids.len();
         let auct_type = auction_type as u32;
 
         let auction_data: AuctionData = AuctionData {
             strt_block: e.ledger().sequence(),
             auct_type,
-            bid_count,
-            bid_ids,
             ask_count,
             ask_ids,
+            bid_count,
+            bid_ids,
+            bid_ratio,
         };
         let storage = StorageManager::new(&e);
         storage.set_auction_data(auction_id, auction_data);
@@ -66,76 +68,88 @@ impl Auction {
     /// If the auction is not in progress - storage function will throw
     ///
     /// ### Returns
-    /// The bid/ask modifier the auction was filled at
-    pub fn fill(e: Env, auct_id: BytesN<32>) -> u64 {
+    /// The ask/bid modifier the auction was filled at
+    pub fn fill(e: &Env, auct_id: Identifier) -> u64 {
         let storage = StorageManager::new(&e);
         let auction_data = storage.get_auction_data(auct_id.clone());
 
         //calculate modifiers
         let start_block = auction_data.strt_block;
-        let block_dif = (e.ledger().sequence() - start_block) as u64;
-        let ask_modifier: u64;
+        let block_dif = (e.ledger().sequence() - start_block) as i128;
         let bid_modifier: u64;
+        let mut ask_modifier: u64;
         let return_value: u64;
         if block_dif > 200 {
-            ask_modifier = 1;
-            bid_modifier = get_modifier(&e, block_dif);
-            return_value = bid_modifier;
-        } else {
-            ask_modifier = get_modifier(&e, block_dif);
             bid_modifier = 1;
+            ask_modifier = get_modifier(&e, block_dif);
             return_value = ask_modifier;
+        } else {
+            bid_modifier = get_modifier(&e, block_dif);
+            ask_modifier = 1;
+            return_value = bid_modifier;
         };
 
-        //get bid/ask amounts
-        let bid_amts: Vec<u64> =
-            get_bid_amts(&e, &storage, auction_data.clone(), auct_id.clone()).unwrap();
-        let ask_amts: Vec<u64> = get_ask_amts(
+        //get ask/bid amounts
+        let ask_amts: Vec<u64> =
+            get_ask_amts(&e, &storage, auction_data.clone(), auct_id.clone()).unwrap();
+        let bid_amts: Vec<u64> = get_bid_amts(
             &e,
             &storage,
             auction_data.clone(),
             auct_id.clone(),
-            bid_amts.clone(),
+            ask_amts.clone(),
         )
         .unwrap();
+
+        //perform bid token transfers
         let invoker = e.invoker();
         let invoker_id = Identifier::from(invoker);
-        let mut ask_id_iter = auction_data.ask_ids.iter();
-        let mut ask_amt_iter = ask_amts.iter();
-        //perform ask token transfers
-        if auction_data.auct_type == 3 {
-            //if accrued interest auction the ask amounts aren't paying off debt
-            //TODO: deposit backstop_tokens and increase the value of backstop shares, need function for this
+        if auction_data.auct_type == AuctionType::AccruedInterestAuction as u32 {
+            //if accrued interest auction the bid amounts aren't paying off debt, they're adding to the backstop
+            let backstop_id = storage.get_oracle(); //TODO swap for function that gets backstop module id
+            let backstop_client = BackstopClient::new(&e, backstop_id);
+            backstop_client.donate(
+                &e.current_contract(),
+                &(bid_amts.first().unwrap().unwrap() * bid_modifier / 1_000_0000),
+                &invoker_id,
+            )
         } else {
-            let liquidatee_id = Identifier::Ed25519(auct_id.clone());
-            for _ in 0..auction_data.ask_count {
-                let asset_id = ask_id_iter.next().unwrap().unwrap();
-                let amt = (ask_amt_iter.next().unwrap().unwrap() * ask_modifier / 1_000_0000);
+            let mut bid_id_iter = auction_data.bid_ids.iter();
+            let mut bid_amt_iter = bid_amts.iter();
+            for _ in 0..auction_data.bid_count {
+                let asset_id = bid_id_iter.next().unwrap().unwrap();
+                let amt = bid_amt_iter.next().unwrap().unwrap() * bid_modifier / 1_000_0000;
                 let reserve = Reserve::load(&e, asset_id.clone());
-                execute_repay(
-                    &e,
-                    reserve,
-                    amt,
-                    invoker_id.clone(),
-                    &liquidatee_id,
-                    &storage,
-                );
+                execute_repay(&e, reserve, amt, invoker_id.clone(), &auct_id, &storage);
             }
         }
-        //perform bid token transfers
-        let mut bid_id_iter = auction_data.bid_ids.iter();
-        let mut bid_amt_iter = bid_amts.iter();
+        //perform ask token transfers
+        let mut ask_id_iter = auction_data.ask_ids.iter();
+        let mut ask_amt_iter = ask_amts.iter();
 
-        if auction_data.auct_type == 0 {
+        if auction_data.auct_type == AuctionType::UserLiquidation as u32 {
             //if user liquidation auction we transfer b_tokens to the auction filler
             //TODO: implement once we decide whether to use custom b_tokens or not
         } else {
-            //other liquidation types involve transferring underlying or backstop tokens
-            for _ in 0..auction_data.bid_count {
-                let asset_id = bid_id_iter.next().unwrap().unwrap();
+            if auction_data.auct_type == AuctionType::BackstopLiquidation as u32 {
+                //if backstop liquidation auction we transfer backstop tokens to the auction filler without using the ask_amt iterator
+                let pool = e.current_contract();
+                let backstop_id = storage.get_oracle(); //TODO swap for function that gets backstop module id
+                let backstop_client = BackstopClient::new(&e, backstop_id);
+                let (backstop_pool_balance, _, _) = backstop_client.p_balance(&pool);
+                backstop_client.draw(
+                    &e.current_contract(),
+                    &(backstop_pool_balance * ask_modifier / 1_000_0000),
+                    &invoker_id,
+                );
+                //as modifier is set to 1 since in backstop liquidations all accrued interest is transferred
+                ask_modifier = 1;
+            }
+            //other auction types involve transferring underlying to the auction filler
+            for _ in 0..auction_data.ask_count {
+                let asset_id = ask_id_iter.next().unwrap().unwrap();
                 let amt =
-                    (bid_amt_iter.next().unwrap().unwrap() * bid_modifier / 1_000_0000) as i128;
-                //TODO add check for backstop token, we probably need a unique function for transferring the backstop token
+                    (ask_amt_iter.next().unwrap().unwrap() * ask_modifier / 1_000_0000) as i128;
                 let token_client = TokenClient::new(&e, asset_id);
                 token_client.xfer(&Signature::Invoker, &0, &invoker_id, &amt)
             }
@@ -146,51 +160,43 @@ impl Auction {
 
 // ****** Helpers *****
 
-fn get_contract_id(e: &Env) -> Identifier {
-    Identifier::Contract(e.current_contract())
-}
-
 //TODO: fixed point math library
-fn get_modifier(e: &Env, block_dif: u64) -> u64 {
-    if block_dif > 200 {
-        return block_dif / 2 * 1_0000000 / 100 + 2_0000000;
+fn get_modifier(e: &Env, block_dif: i128) -> u64 {
+    if block_dif > 400 {
+        return 0;
+    } else if block_dif > 200 {
+        return (-block_dif / 2 * 1_0000000 / 100 + 2_0000000) as u64;
     } else {
-        return block_dif / 2 * 1_0000000 / 100;
+        return (block_dif / 2 * 1_0000000 / 100) as u64;
     }
 }
 
-//TODO: fixed point math library
-fn get_ask_amts(
+fn get_bid_amts(
     e: &Env,
     storage: &StorageManager,
     auction_data: AuctionData,
-    auction_id: BytesN<32>,
-    bid_amts: Vec<u64>,
+    auction_id: Identifier,
+    ask_amts: Vec<u64>,
 ) -> Result<Vec<u64>, AuctionError> {
-    let oracle_address = storage.get_oracle();
-    let oracle_client = OracleClient::new(e, oracle_address);
     return match auction_data.auct_type {
         //user liquidation
         0 => Ok(get_target_liquidation_amts(
             e,
-            storage,
             auction_id,
             auction_data.bid_ids,
-            auction_data.ask_ids,
-            bid_amts,
-            &oracle_client,
+            auction_data.bid_ratio,
         )),
         //backstop liquidation
-        1 => Ok(get_bad_debt_amts(e, auction_data.ask_ids, &storage)),
+        1 => Ok(get_bad_debt_amts(e, auction_data.bid_ids, &storage)),
         //bad debt auction
-        2 => Ok(get_bad_debt_amts(e, auction_data.ask_ids, &storage)),
+        2 => Ok(get_bad_debt_amts(e, auction_data.bid_ids, &storage)),
         //accrued interest auction
         3 => Ok(get_target_accrued_interest_price(
             e,
-            auction_data.bid_ids,
             auction_data.ask_ids,
-            bid_amts,
-            &oracle_client,
+            auction_data.bid_ids,
+            ask_amts,
+            storage,
         )),
         4_u32..=u32::MAX => Err(AuctionError::InvalidAuctionType),
     };
@@ -198,69 +204,40 @@ fn get_ask_amts(
 
 fn get_target_liquidation_amts(
     e: &Env,
-    storage: &StorageManager,
-    user_id: BytesN<32>,
+    user_id: Identifier,
     bid_ids: Vec<BytesN<32>>,
-    ask_ids: Vec<BytesN<32>>,
-    bid_amts: Vec<u64>,
-    oracle: &OracleClient,
+    bid_ratio: u64,
 ) -> Vec<u64> {
-    //calculate auction collateral factor
-    let mut effective_collateral_value: u64 = 0;
-    let mut raw_collateral_value: u64 = 0;
-    let mut bid_id_iter = bid_ids.iter();
-    let mut bid_amt_iter = bid_amts.iter();
-    for _ in 0..bid_ids.len() {
-        let asset_id = bid_id_iter.next().unwrap().unwrap();
-        let res_config = storage.get_res_config(asset_id.clone());
-        let res_data = storage.get_res_data(asset_id.clone());
-        //TODO: swap for b_token_client if we end up using a custom b_token
-        let asset_to_base = oracle.get_price(&asset_id);
-        let b_token_balance = bid_amt_iter.next().unwrap().unwrap();
-        let underlying = (b_token_balance * res_data.b_rate) / 1_000_0000;
-        let base = (underlying * asset_to_base) / 1_000_0000;
-        raw_collateral_value += base;
-        effective_collateral_value += (base * res_config.c_factor as u64) / 1_000_0000;
-    }
-    let auction_collateral_factor = effective_collateral_value / raw_collateral_value;
-
-    //get auction liability factor
-    let liability_id = ask_ids.first().unwrap().unwrap();
-    let res_config = storage.get_res_config(liability_id.clone());
-    let auction_liability_factor = res_config.l_factor as u64;
-
-    //get effective liability value
-    let blank_asset: [u8; 32] = Default::default();
     let user_action: UserAction = UserAction {
-        asset: BytesN::from_array(&e, &blank_asset),
+        asset: bid_ids.first().unwrap().unwrap(),
         b_token_delta: 0,
         d_token_delta: 0,
     };
-    let user_data = UserData::load(&e, &Identifier::Ed25519(user_id), &user_action);
-    let effective_liability_value: u64 = user_data.e_liability_base;
+    let user_data = UserData::load(&e, &user_id, &user_action);
+    let liq_amt = (user_data.e_liability_base * 1_020_0000 / 1_000_0000
+        - user_data.e_collateral_base)
+        * bid_ratio
+        / 1_000_0000;
 
-    //calculate target liquidation amount
-    let numerator = effective_collateral_value - effective_liability_value;
-    let denominator = 1_020_0000 * 1_000_0000 / auction_liability_factor
-        - 2 * auction_collateral_factor * 1_000_0000
-            / (1_000_0000 + auction_collateral_factor * auction_collateral_factor / 1_000_0000);
-    vec![&e, (numerator / denominator)]
+    vec![&e, liq_amt]
 }
 
 fn get_target_accrued_interest_price(
     e: &Env,
-    bid_ids: Vec<BytesN<32>>,
     ask_ids: Vec<BytesN<32>>,
-    bid_amts: Vec<u64>,
-    oracle: &OracleClient,
+    bid_ids: Vec<BytesN<32>>,
+    ask_amts: Vec<u64>,
+    storage: &StorageManager,
 ) -> Vec<u64> {
+    let oracle_address = storage.get_oracle();
+    let oracle = OracleClient::new(e, oracle_address);
     //update rates to accrue interest on all assets
     let mut interest_value: u64 = 0;
-    let mut bid_id_iter = bid_ids.iter();
-    let mut bid_amt_iter = bid_amts.iter();
-    for _ in 0..bid_ids.len() {
-        let asset_id = bid_id_iter.next().unwrap().unwrap();
-        let accrued_interest: u64 = bid_amt_iter.next().unwrap().unwrap();
+    let mut ask_id_iter = ask_ids.iter();
+    let mut ask_amt_iter = ask_amts.iter();
+    for _ in 0..ask_ids.len() {
+        let asset_id = ask_id_iter.next().unwrap().unwrap();
+        let accrued_interest: u64 = ask_amt_iter.next().unwrap().unwrap();
         let interest_price = oracle.get_price(&asset_id);
         interest_value += (accrued_interest * interest_price) / 1_000_0000;
     }
@@ -268,7 +245,7 @@ fn get_target_accrued_interest_price(
     let lp_share_blnd_holdings: u64 = 8_000_0000;
     let lp_share_usdc_holdings: u64 = 2_000_0000;
     //TODO: get BLND token_id from somewhere - currently not implemented - then get blend price from oracle
-    let blnd_id = ask_ids.first().unwrap().unwrap();
+    let blnd_id = bid_ids.first().unwrap().unwrap();
     let blnd_value = oracle.get_price(&blnd_id);
     // There's no need to get USDC price since USDC is the base asset for pricing
     let lp_share_value = lp_share_blnd_holdings * blnd_value / 1_000_0000 + lp_share_usdc_holdings;
@@ -276,74 +253,59 @@ fn get_target_accrued_interest_price(
     vec![&e, target_price]
 }
 
-fn get_bad_debt_amts(e: &Env, ask_ids: Vec<BytesN<32>>, storage: &StorageManager) -> Vec<u64> {
-    let mut ask_amts: Vec<u64> = Vec::new(e);
-    for ask_id in ask_ids {
-        let asset_id = ask_id.unwrap();
+fn get_bad_debt_amts(e: &Env, bid_ids: Vec<BytesN<32>>, storage: &StorageManager) -> Vec<u64> {
+    let mut bid_amts: Vec<u64> = Vec::new(e);
+    for bid_id in bid_ids {
+        let asset_id = bid_id.unwrap();
         let res_config = storage.get_res_config(asset_id.clone());
         // TODO: get debt bad debt for this reserve, however we end up storing that
         let debt_amt: u64 = 1_000_0000;
-        ask_amts.push_back(debt_amt);
+        bid_amts.push_back(debt_amt);
     }
-    return ask_amts;
+    return bid_amts;
 }
 
-//TODO: fixed point math library
-fn get_bid_amts(
+fn get_ask_amts(
     e: &Env,
     storage: &StorageManager,
     auction_data: AuctionData,
-    auction_id: BytesN<32>,
+    auction_id: Identifier,
 ) -> Result<Vec<u64>, AuctionError> {
-    let oracle_address = storage.get_oracle();
-    let oracle_client = OracleClient::new(e, oracle_address);
-    let temp_return: Vec<u64> = Vec::new(e);
     return match auction_data.auct_type {
         //user liquidation
         0 => Ok(get_user_collateral(
             e,
             auction_id,
-            auction_data.bid_ids,
+            auction_data.ask_ids,
             storage,
         )),
-        //backstop liquidation
-        1 => Ok(get_backstop_liquidation_bids(
-            e,
-            storage,
-            auction_data.bid_ids,
-        )),
-        //bad debt auction
-        2 => Ok(get_accrued_interest(e, storage, auction_data.bid_ids)),
-        //accrued interest auction
-        3 => Ok(get_accrued_interest(e, storage, auction_data.bid_ids)),
+        //backstop liquidation, bad debt auction, accrued interest auction
+        1 | 2 | 3 => Ok(get_accrued_interest(e, storage, auction_data.ask_ids)),
         4_u32..=u32::MAX => Err(AuctionError::InvalidAuctionType),
     };
 }
 
 fn get_user_collateral(
     e: &Env,
-    user_id: BytesN<32>,
-    bid_ids: Vec<BytesN<32>>,
+    user_id: Identifier,
+    ask_ids: Vec<BytesN<32>>,
     storage: &StorageManager,
 ) -> Vec<u64> {
     let mut collateral_amounts: Vec<u64> = Vec::new(e);
-    let mut collateral_value: u64 = 0;
-    for bid_id in bid_ids {
-        let asset_id = bid_id.unwrap();
+    for ask_id in ask_ids {
+        let asset_id = ask_id.unwrap();
         let res_config = storage.get_res_config(asset_id.clone());
-        let res_data = storage.get_res_data(asset_id.clone());
         //TODO: swap for b_token_client if we end up using a custom b_token
         let b_token_client = TokenClient::new(e, res_config.b_token.clone());
-        collateral_amounts
-            .push_back(b_token_client.balance(&Identifier::Ed25519(user_id.clone())) as u64);
+        collateral_amounts.push_back(b_token_client.balance(&user_id) as u64);
     }
     return collateral_amounts;
 }
 
-fn get_accrued_interest(e: &Env, storage: &StorageManager, bid_ids: Vec<BytesN<32>>) -> Vec<u64> {
+fn get_accrued_interest(e: &Env, storage: &StorageManager, ask_ids: Vec<BytesN<32>>) -> Vec<u64> {
     let mut accrued_interest_amts: Vec<u64> = Vec::new(e);
-    for bid_id in bid_ids {
-        let asset_id = bid_id.unwrap();
+    for ask_id in ask_ids {
+        let asset_id = ask_id.unwrap();
         let mut reserve = Reserve::load(e, asset_id.clone());
         reserve.update_rates(e);
         //TODO: get backstop interest accrued from this reserve - currently not implemented
@@ -353,16 +315,71 @@ fn get_accrued_interest(e: &Env, storage: &StorageManager, bid_ids: Vec<BytesN<3
     return accrued_interest_amts;
 }
 
-fn get_backstop_liquidation_bids(
-    e: &Env,
-    storage: &StorageManager,
-    bid_ids: Vec<BytesN<32>>,
-) -> Vec<u64> {
-    let mut bid_amts: Vec<u64> = Vec::new(e);
-    //TODO add backstop_module client token pull
-    let backstop_lp_tokens: Vec<u64> = vec![&e, 1_000_0000];
-    let accrued_interest = get_accrued_interest(e, storage, bid_ids);
-    bid_amts.append(&backstop_lp_tokens);
-    bid_amts.append(&accrued_interest);
-    return bid_amts;
+#[cfg(test)]
+mod tests {
+
+    use crate::testutils::generate_contract_id;
+
+    use super::*;
+    use soroban_sdk::testutils::{Accounts, Ledger, LedgerInfo};
+
+    #[test]
+    fn test_initiate_auction() {
+        let e = Env::default();
+        let storage = StorageManager::new(&e);
+        e.ledger().set(LedgerInfo {
+            timestamp: 12345,
+            protocol_version: 1,
+            sequence_number: 100,
+            network_passphrase: Default::default(),
+            base_reserve: 10,
+        });
+        let pool_id = generate_contract_id(&e);
+        let samwise = e.accounts().generate_and_create();
+        let samwise_id = Identifier::Account(samwise.clone());
+        let collateral_1 = generate_contract_id(&e);
+        let collateral_2 = generate_contract_id(&e);
+        let liability_1 = generate_contract_id(&e);
+        let ask_ids = vec![&e, collateral_1, collateral_2];
+        let bid_ids = vec![&e, liability_1];
+        let bid_ratio: u64 = 500_0000;
+
+        //initiate auction
+        e.as_contract(&pool_id, || {
+            Auction::initiate(
+                &e,
+                samwise_id.clone(),
+                AuctionType::UserLiquidation,
+                ask_ids.clone(),
+                bid_ids.clone(),
+                bid_ratio.clone(),
+            );
+
+            //verify auction data
+            let auction_data = storage.get_auction_data(samwise_id.clone());
+            assert_eq!(auction_data.auct_type, 0);
+            assert_eq!(auction_data.ask_ids, ask_ids);
+            assert_eq!(auction_data.bid_ids, bid_ids);
+            assert_eq!(auction_data.strt_block, 100);
+            assert_eq!(auction_data.bid_count, 1);
+            assert_eq!(auction_data.ask_count, 2);
+            assert_eq!(auction_data.bid_ratio, 500_0000);
+        });
+    }
+
+    #[test]
+    fn test_modifier_calcs() {
+        let e = Env::default();
+        let mut modifier = get_modifier(&e, 7);
+        assert_eq!(modifier, 0_030_0000);
+        modifier = get_modifier(&e, 250);
+        assert_eq!(modifier, 750_0000);
+        modifier = get_modifier(&e, 420);
+        assert_eq!(modifier, 0);
+    }
+
+    #[test]
+    fn test_fill_auction() {
+        //TODO implement once more things are plugged in since this is basically an integration test
+    }
 }

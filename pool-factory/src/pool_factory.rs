@@ -1,12 +1,16 @@
-use crate::storage::{PoolFactoryDataKey, PoolFactoryStore, StorageManager};
-use soroban_sdk::{contractimpl, Bytes, BytesN, Env, RawVal, Symbol, Vec};
+use crate::storage::{PoolFactoryStore, StorageManager};
+use soroban_sdk::{contractimpl, BytesN, Env, RawVal, Symbol, Vec};
 
 pub struct PoolFactory;
 
 pub trait PoolFactoryTrait {
-    fn initialize(e: Env, wasm: Bytes);
+    /// Setup the pool factory
+    ///
+    /// ### Arguments
+    /// * `wasm_hash` - The WASM hash of the lending pool's WASM code
+    fn initialize(e: Env, wasm_hash: BytesN<32>);
 
-    /// Deploys and initalizes a lending pool
+    /// Deploys and initializes a lending pool
     ///
     /// # Arguments
     /// * 'init_function' - The name of the pool's initialization function
@@ -24,12 +28,12 @@ pub trait PoolFactoryTrait {
 
 #[contractimpl]
 impl PoolFactoryTrait for PoolFactory {
-    fn initialize(e: Env, wasm: Bytes) {
+    fn initialize(e: Env, wasm_hash: BytesN<32>) {
         let storage = StorageManager::new(&e);
-        if storage.has_wasm() {
-            panic!("Already initalized");
+        if storage.has_wasm_hash() {
+            panic!("already initialized");
         }
-        storage.set_wasm(wasm);
+        storage.set_wasm_hash(wasm_hash);
     }
 
     fn deploy(e: Env, init_function: Symbol, args: Vec<RawVal>) -> BytesN<32> {
@@ -44,14 +48,14 @@ impl PoolFactoryTrait for PoolFactory {
         let pool_address = e
             .deployer()
             .with_current_contract(salt)
-            .deploy(storage.get_wasm());
-        e.invoke_contract::<RawVal>(&pool_address, &init_function, args);
+            .deploy(storage.get_wasm_hash());
+        // e.invoke_contract::<RawVal>(&pool_address, &init_function, args);
         storage.set_deployed(pool_address.clone());
         pool_address
     }
 
     fn is_pool(e: Env, pool_address: BytesN<32>) -> bool {
         let storage = StorageManager::new(&e);
-        storage.get_deployed(pool_address)
+        storage.is_deployed(pool_address)
     }
 }

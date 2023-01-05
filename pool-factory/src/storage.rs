@@ -1,4 +1,4 @@
-use soroban_sdk::{contracttype, Bytes, BytesN, Env};
+use soroban_sdk::{contracttype, BytesN, Env};
 
 #[derive(Clone)]
 #[contracttype]
@@ -8,44 +8,52 @@ pub enum PoolFactoryDataKey {
 }
 
 pub trait PoolFactoryStore {
-    /********** Deployed Contracts **********/
-    fn get_wasm(&self) -> Bytes;
+    /// Fetch the factory's WASM hash
+    fn get_wasm_hash(&self) -> BytesN<32>;
 
-    fn set_wasm(&self, wasm: Bytes);
+    /// Set the factory's WASM hash
+    ///
+    /// ### Arguments
+    /// * `wasm_hash` - The WASM hash the factory uses to deploy new contracts
+    fn set_wasm_hash(&self, wasm_hash: BytesN<32>);
 
-    fn has_wasm(&self) -> bool;
+    /// Check if the factory has a WASM hash set
+    fn has_wasm_hash(&self) -> bool;
 
-    /********** Deployed Contracts **********/
+    /// Check if a given contract_id was deployed by the factory
+    ///
+    /// ### Arguments
+    /// * `contract_id` - The contract_id to check
+    fn is_deployed(&self, contract_id: BytesN<32>) -> bool;
 
-    fn get_deployed(&self, contract: BytesN<32>) -> bool;
-
-    fn set_deployed(&self, contract: BytesN<32>);
+    /// Set a contract_id as having been deployed by the factory
+    ///
+    /// ### Arguments
+    /// * `contract_id` - The contract_id that was deployed by the factory
+    fn set_deployed(&self, contract_id: BytesN<32>);
 }
 
 impl PoolFactoryStore for StorageManager {
-    /********** Deployed Contracts **********/
-    fn get_wasm(&self) -> Bytes {
+    fn get_wasm_hash(&self) -> BytesN<32> {
         self.env()
             .data()
-            .get::<PoolFactoryDataKey, Bytes>(PoolFactoryDataKey::Wasm)
+            .get::<PoolFactoryDataKey, BytesN<32>>(PoolFactoryDataKey::Wasm)
             .unwrap()
             .unwrap()
     }
 
-    fn set_wasm(&self, wasm: Bytes) {
+    fn set_wasm_hash(&self, wasm_hash: BytesN<32>) {
         self.env()
             .data()
-            .set::<PoolFactoryDataKey, Bytes>(PoolFactoryDataKey::Wasm, wasm);
+            .set::<PoolFactoryDataKey, BytesN<32>>(PoolFactoryDataKey::Wasm, wasm_hash)
     }
 
-    fn has_wasm(&self) -> bool {
+    fn has_wasm_hash(&self) -> bool {
         self.env().data().has(PoolFactoryDataKey::Wasm)
     }
 
-    /********** Deployed Contracts **********/
-
-    fn get_deployed(&self, contract: BytesN<32>) -> bool {
-        let key = PoolFactoryDataKey::Contracts(contract);
+    fn is_deployed(&self, contract_id: BytesN<32>) -> bool {
+        let key = PoolFactoryDataKey::Contracts(contract_id);
         self.env()
             .data()
             .get::<PoolFactoryDataKey, bool>(key)
@@ -53,8 +61,8 @@ impl PoolFactoryStore for StorageManager {
             .unwrap()
     }
 
-    fn set_deployed(&self, contract: BytesN<32>) {
-        let key = PoolFactoryDataKey::Contracts(contract);
+    fn set_deployed(&self, contract_id: BytesN<32>) {
+        let key = PoolFactoryDataKey::Contracts(contract_id);
         self.env().data().set::<PoolFactoryDataKey, bool>(key, true);
     }
 }

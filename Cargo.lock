@@ -653,6 +653,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "pool-factory"
+version = "0.0.0"
+dependencies = [
+ "rand 0.7.3",
+ "soroban-auth",
+ "soroban-sdk",
+]
+
+[[package]]
 name = "ppv-lite86"
 version = "0.2.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"

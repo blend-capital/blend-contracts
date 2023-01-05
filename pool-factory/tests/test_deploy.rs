@@ -1,27 +1,28 @@
 #![cfg(test)]
+
 use soroban_auth::Identifier;
 use soroban_sdk::{
     symbol,
     testutils::{Accounts, Ledger, LedgerInfo},
-    Bytes, BytesN, Env, IntoVal,
+    BytesN, Env, IntoVal,
 };
-mod lending_pool {
-    soroban_sdk::contractimport!(
-        file = "../target/wasm32-unknown-unknown/release/lending_pool.wasm"
-    );
-}
+
+use crate::common::{create_wasm_pool_factory, generate_contract_id, lending_pool};
 mod common;
-use crate::common::{create_wasm_pool_factory, generate_contract_id};
 
 #[test]
 fn test_deploy() {
     let e = Env::default();
     let (_pool_factory_address, pool_factory_client) = create_wasm_pool_factory(&e);
-    pool_factory_client.initialize(&lending_pool::WASM.into_val(&e));
+
+    let wasm_hash = e.install_contract_wasm(lending_pool::WASM);
+    pool_factory_client.initialize(&wasm_hash);
 
     let bombadil = e.accounts().generate_and_create();
     let bombadil_id = Identifier::Account(bombadil);
+
     let oracle = generate_contract_id(&e);
+    // TODO: Verify this works when issues/14 is resolved
     let args = (bombadil_id, oracle).into_val(&e);
     let init_func = symbol!("initialize");
 

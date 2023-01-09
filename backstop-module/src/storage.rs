@@ -31,6 +31,7 @@ pub enum BackstopDataKey {
     NextDist,
     RewardZone,
     PoolEPS(BytesN<32>),
+    PoolEmis(BytesN<32>),
 }
 
 /********** Storage **********/
@@ -145,6 +146,19 @@ pub trait BackstopDataStore {
     /// * `pool` - The pool
     /// * `eps` - The eps being distributed to the pool
     fn set_pool_eps(&self, pool: BytesN<32>, eps: u64);
+
+    /// Get current emissions allotment the backstop has distributed to the pool
+    ///
+    /// ### Arguments
+    /// * `pool` - The pool
+    fn get_pool_emis(&self, pool: BytesN<32>) -> u64;
+
+    /// Set the current emissions allotment the backstop has distributed to the pool
+    ///
+    /// ### Arguments
+    /// * `pool` - The pool
+    /// * `amount` - The pool's emission allotment
+    fn set_pool_emis(&self, pool: BytesN<32>, amount: u64);
 }
 
 pub struct StorageManager(Env);
@@ -266,6 +280,20 @@ impl BackstopDataStore for StorageManager {
     fn set_pool_eps(&self, pool: BytesN<32>, eps: u64) {
         let key = BackstopDataKey::PoolEPS(pool);
         self.env().data().set::<BackstopDataKey, u64>(key, eps);
+    }
+
+    fn get_pool_emis(&self, pool: BytesN<32>) -> u64 {
+        let key = BackstopDataKey::PoolEmis(pool);
+        self.env()
+            .data()
+            .get::<BackstopDataKey, u64>(key)
+            .unwrap_or(Ok(0))
+            .unwrap()
+    }
+
+    fn set_pool_emis(&self, pool: BytesN<32>, amount: u64) {
+        let key = BackstopDataKey::PoolEmis(pool);
+        self.env().data().set::<BackstopDataKey, u64>(key, amount);
     }
 }
 

@@ -11,7 +11,7 @@ use crate::common::{create_backstop_module, create_token_from_id};
 
 // TODO: Investigate if mint / burn semantics will be better (operate in bTokens)
 #[test]
-fn test_pool_happy_path() {
+fn test_backstop_happy_path() {
     let e = Env::default();
 
     let bombadil = e.accounts().generate_and_create();
@@ -113,7 +113,7 @@ fn test_pool_happy_path() {
 }
 
 #[test]
-fn test_pool_distribution_happy_path() {
+fn test_backstop_distribution_happy_path() {
     let e = Env::default();
 
     // create backstop module

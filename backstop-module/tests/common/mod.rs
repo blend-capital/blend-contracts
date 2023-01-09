@@ -7,7 +7,7 @@ use soroban_sdk::{BytesN, Env, IntoVal};
 mod token {
     soroban_sdk::contractimport!(file = "../soroban_token_spec.wasm");
 }
-pub use token::Client as TokenClient;
+pub use token::{Client as TokenClient, WASM as TOKEN_WASM};
 
 mod backstop {
     soroban_sdk::contractimport!(

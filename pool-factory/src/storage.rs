@@ -36,7 +36,7 @@ pub trait PoolFactoryStore {
 impl PoolFactoryStore for StorageManager {
     fn get_wasm_hash(&self) -> BytesN<32> {
         self.env()
-            .data()
+            .storage()
             .get::<PoolFactoryDataKey, BytesN<32>>(PoolFactoryDataKey::Wasm)
             .unwrap()
             .unwrap()
@@ -44,18 +44,18 @@ impl PoolFactoryStore for StorageManager {
 
     fn set_wasm_hash(&self, wasm_hash: BytesN<32>) {
         self.env()
-            .data()
+            .storage()
             .set::<PoolFactoryDataKey, BytesN<32>>(PoolFactoryDataKey::Wasm, wasm_hash)
     }
 
     fn has_wasm_hash(&self) -> bool {
-        self.env().data().has(PoolFactoryDataKey::Wasm)
+        self.env().storage().has(PoolFactoryDataKey::Wasm)
     }
 
     fn is_deployed(&self, contract_id: BytesN<32>) -> bool {
         let key = PoolFactoryDataKey::Contracts(contract_id);
         self.env()
-            .data()
+            .storage()
             .get::<PoolFactoryDataKey, bool>(key)
             .unwrap_or(Ok(false))
             .unwrap()
@@ -63,7 +63,7 @@ impl PoolFactoryStore for StorageManager {
 
     fn set_deployed(&self, contract_id: BytesN<32>) {
         let key = PoolFactoryDataKey::Contracts(contract_id);
-        self.env().data().set::<PoolFactoryDataKey, bool>(key, true);
+        self.env().storage().set::<PoolFactoryDataKey, bool>(key, true);
     }
 }
 

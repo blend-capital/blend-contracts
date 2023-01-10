@@ -169,7 +169,7 @@ impl BackstopDataStore for StorageManager {
     fn get_shares(&self, pool: BytesN<32>, user: Identifier) -> u64 {
         let key = BackstopDataKey::Shares(PoolUserKey { pool, user });
         self.env()
-            .data()
+            .storage()
             .get::<BackstopDataKey, u64>(key)
             .unwrap_or(Ok(0))
             .unwrap()
@@ -178,7 +178,7 @@ impl BackstopDataStore for StorageManager {
     fn get_pool_shares(&self, pool: BytesN<32>) -> u64 {
         let key = BackstopDataKey::PoolShares(pool);
         self.env()
-            .data()
+            .storage()
             .get::<BackstopDataKey, u64>(key)
             .unwrap_or(Ok(0))
             .unwrap()
@@ -187,7 +187,7 @@ impl BackstopDataStore for StorageManager {
     fn get_q4w(&self, pool: BytesN<32>, user: Identifier) -> Vec<Q4W> {
         let key = BackstopDataKey::Q4W(PoolUserKey { pool, user });
         self.env()
-            .data()
+            .storage()
             .get::<BackstopDataKey, Vec<Q4W>>(key)
             .unwrap_or(Ok(vec![&self.env()]))
             .unwrap()
@@ -196,7 +196,7 @@ impl BackstopDataStore for StorageManager {
     fn get_pool_q4w(&self, pool: BytesN<32>) -> u64 {
         let key = BackstopDataKey::PoolQ4W(pool);
         self.env()
-            .data()
+            .storage()
             .get::<BackstopDataKey, u64>(key)
             .unwrap_or(Ok(0))
             .unwrap()
@@ -204,22 +204,22 @@ impl BackstopDataStore for StorageManager {
 
     fn set_shares(&self, pool: BytesN<32>, user: Identifier, amount: u64) {
         let key = BackstopDataKey::Shares(PoolUserKey { pool, user });
-        self.env().data().set::<BackstopDataKey, u64>(key, amount);
+        self.env().storage().set::<BackstopDataKey, u64>(key, amount);
     }
 
     fn set_pool_shares(&self, pool: BytesN<32>, amount: u64) {
         let key = BackstopDataKey::PoolShares(pool);
-        self.env().data().set::<BackstopDataKey, u64>(key, amount);
+        self.env().storage().set::<BackstopDataKey, u64>(key, amount);
     }
 
     fn set_q4w(&self, pool: BytesN<32>, user: Identifier, q4w: Vec<Q4W>) {
         let key = BackstopDataKey::Q4W(PoolUserKey { pool, user });
-        self.env().data().set::<BackstopDataKey, Vec<Q4W>>(key, q4w);
+        self.env().storage().set::<BackstopDataKey, Vec<Q4W>>(key, q4w);
     }
 
     fn set_pool_q4w(&self, pool: BytesN<32>, amount: u64) {
         let key = BackstopDataKey::PoolQ4W(pool);
-        self.env().data().set::<BackstopDataKey, u64>(key, amount);
+        self.env().storage().set::<BackstopDataKey, u64>(key, amount);
     }
 
     /********** Tokens **********/
@@ -227,7 +227,7 @@ impl BackstopDataStore for StorageManager {
     fn get_pool_tokens(&self, pool: BytesN<32>) -> u64 {
         let key = BackstopDataKey::PoolTkn(pool);
         self.env()
-            .data()
+            .storage()
             .get::<BackstopDataKey, u64>(key)
             .unwrap_or(Ok(0))
             .unwrap()
@@ -235,14 +235,14 @@ impl BackstopDataStore for StorageManager {
 
     fn set_pool_tokens(&self, pool: BytesN<32>, amount: u64) {
         let key = BackstopDataKey::PoolTkn(pool);
-        self.env().data().set::<BackstopDataKey, u64>(key, amount);
+        self.env().storage().set::<BackstopDataKey, u64>(key, amount);
     }
 
     /********** Distribution / Reward Zone **********/
 
     fn get_next_dist(&self) -> u64 {
         self.env()
-            .data()
+            .storage()
             .get::<BackstopDataKey, u64>(BackstopDataKey::NextDist)
             .unwrap_or(Ok(0))
             .unwrap()
@@ -250,13 +250,13 @@ impl BackstopDataStore for StorageManager {
 
     fn set_next_dist(&self, timestamp: u64) {
         self.env()
-            .data()
+            .storage()
             .set::<BackstopDataKey, u64>(BackstopDataKey::NextDist, timestamp);
     }
 
     fn get_reward_zone(&self) -> Vec<BytesN<32>> {
         self.env()
-            .data()
+            .storage()
             .get::<BackstopDataKey, Vec<BytesN<32>>>(BackstopDataKey::RewardZone)
             .unwrap_or(Ok(vec![&self.env()]))
             .unwrap()
@@ -264,14 +264,14 @@ impl BackstopDataStore for StorageManager {
 
     fn set_reward_zone(&self, reward_zone: Vec<BytesN<32>>) {
         self.env()
-            .data()
+            .storage()
             .set::<BackstopDataKey, Vec<BytesN<32>>>(BackstopDataKey::RewardZone, reward_zone);
     }
 
     fn get_pool_eps(&self, pool: BytesN<32>) -> u64 {
         let key = BackstopDataKey::PoolEPS(pool);
         self.env()
-            .data()
+            .storage()
             .get::<BackstopDataKey, u64>(key)
             .unwrap_or(Ok(0))
             .unwrap()
@@ -279,13 +279,13 @@ impl BackstopDataStore for StorageManager {
 
     fn set_pool_eps(&self, pool: BytesN<32>, eps: u64) {
         let key = BackstopDataKey::PoolEPS(pool);
-        self.env().data().set::<BackstopDataKey, u64>(key, eps);
+        self.env().storage().set::<BackstopDataKey, u64>(key, eps);
     }
 
     fn get_pool_emis(&self, pool: BytesN<32>) -> u64 {
         let key = BackstopDataKey::PoolEmis(pool);
         self.env()
-            .data()
+            .storage()
             .get::<BackstopDataKey, u64>(key)
             .unwrap_or(Ok(0))
             .unwrap()
@@ -293,7 +293,7 @@ impl BackstopDataStore for StorageManager {
 
     fn set_pool_emis(&self, pool: BytesN<32>, amount: u64) {
         let key = BackstopDataKey::PoolEmis(pool);
-        self.env().data().set::<BackstopDataKey, u64>(key, amount);
+        self.env().storage().set::<BackstopDataKey, u64>(key, amount);
     }
 }
 

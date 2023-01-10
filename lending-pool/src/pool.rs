@@ -275,7 +275,7 @@ impl PoolTrait for Pool {
             return Err(PoolError::InvalidHf);
         }
 
-        b_token_client.burn(&Signature::Invoker, &0, &invoker_id, &(to_burn as i128));
+        b_token_client.clawback(&Signature::Invoker, &0, &invoker_id, &(to_burn as i128));
 
         TokenClient::new(&e, asset).xfer(&Signature::Invoker, &0, &to, &(to_return as i128));
 
@@ -358,7 +358,7 @@ impl PoolTrait for Pool {
             to_repay = amount;
         }
 
-        d_token_client.burn(&Signature::Invoker, &0, &on_behalf_of, &(to_burn as i128));
+        d_token_client.clawback(&Signature::Invoker, &0, &on_behalf_of, &(to_burn as i128));
 
         TokenClient::new(&e, asset).xfer_from(
             &Signature::Invoker,

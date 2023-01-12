@@ -106,23 +106,24 @@ impl UserData {
         }
     }
 }
-
+//TODO: Mootz update function to user Reserve functions for rate conversions
 fn to_effective_balance(
     protocol_tokens: u64,
     rate: u64,
     ltv_factor: u64,
     oracle_price: u64,
 ) -> u64 {
-    let underlying = (protocol_tokens * rate) / 1_000_0000;
+    let underlying = (protocol_tokens * rate) / 1_000_000_000;
     let base = (underlying * oracle_price) / 1_000_0000;
     (base * ltv_factor) / 1_000_0000
 }
 
 #[cfg(test)]
 mod tests {
+
     use crate::{
         storage::{ReserveConfig, ReserveData},
-        testutils::{create_mock_oracle, create_token_contract, generate_contract_id},
+        testutils::{create_mock_oracle, create_token, generate_contract_id},
     };
 
     use super::*;
@@ -133,7 +134,7 @@ mod tests {
     #[test]
     fn test_to_effective_balance() {
         let protocol_tokens = 1_000_000_0;
-        let rate = 1_234_567_8;
+        let rate = 1_234_567_800;
         let ltv_factor = 0_777_777_7;
         let oracle_price = 987_654_321_1;
 
@@ -156,11 +157,12 @@ mod tests {
         let user_id = Identifier::Account(user.clone());
 
         let bombadil = e.accounts().generate_and_create();
+        let bombadil_id = Identifier::Account(bombadil.clone());
 
         // setup assets 0
-        let (asset_id_0, _asset_0) = create_token_contract(&e, &bombadil);
-        let (b_token_id_0, _b_token_0) = create_token_contract(&e, &bombadil);
-        let (d_token_id_0, _d_token_0) = create_token_contract(&e, &bombadil);
+        let (asset_id_0, _asset_0) = create_token(&e, &bombadil_id);
+        let (b_token_id_0, _b_token_0) = create_token(&e, &bombadil_id);
+        let (d_token_id_0, _d_token_0) = create_token(&e, &bombadil_id);
         let reserve_config_0 = ReserveConfig {
             b_token: b_token_id_0,
             d_token: d_token_id_0,
@@ -175,8 +177,8 @@ mod tests {
             index: 0,
         };
         let reserve_data_0 = ReserveData {
-            b_rate: 1_0000000,
-            d_rate: 1_1000000,
+            b_rate: 1_000_000_000,
+            d_rate: 1_100_000_000,
             ir_mod: 0,
             b_supply: 0,
             d_supply: 0,
@@ -184,9 +186,9 @@ mod tests {
         };
 
         // setup asset 1
-        let (asset_id_1, _asset_1) = create_token_contract(&e, &bombadil);
-        let (b_token_id_1, b_token_1) = create_token_contract(&e, &bombadil);
-        let (d_token_id_1, _d_token_1) = create_token_contract(&e, &bombadil);
+        let (asset_id_1, _asset_1) = create_token(&e, &bombadil_id);
+        let (b_token_id_1, b_token_1) = create_token(&e, &bombadil_id);
+        let (d_token_id_1, _d_token_1) = create_token(&e, &bombadil_id);
         let reserve_config_1 = ReserveConfig {
             b_token: b_token_id_1,
             d_token: d_token_id_1,
@@ -201,8 +203,8 @@ mod tests {
             index: 1,
         };
         let reserve_data_1 = ReserveData {
-            b_rate: 1_1000000,
-            d_rate: 1_2000000,
+            b_rate: 1_100_000_000,
+            d_rate: 1_200_000_000,
             ir_mod: 0,
             b_supply: 0,
             d_supply: 0,
@@ -232,7 +234,6 @@ mod tests {
             &user_id,
             &collateral_amount,
         );
-
         // load user
         let user_action = UserAction {
             asset: BytesN::from_array(&e, &[0u8; 32]),
@@ -258,11 +259,12 @@ mod tests {
         let user_id = Identifier::Account(user.clone());
 
         let bombadil = e.accounts().generate_and_create();
+        let bombadil_id = Identifier::Account(bombadil.clone());
 
         // setup assets 0
-        let (asset_id_0, _asset_0) = create_token_contract(&e, &bombadil);
-        let (b_token_id_0, _b_token_0) = create_token_contract(&e, &bombadil);
-        let (d_token_id_0, d_token_0) = create_token_contract(&e, &bombadil);
+        let (asset_id_0, _asset_0) = create_token(&e, &bombadil_id);
+        let (b_token_id_0, _b_token_0) = create_token(&e, &bombadil_id);
+        let (d_token_id_0, d_token_0) = create_token(&e, &bombadil_id);
         let reserve_config_0 = ReserveConfig {
             b_token: b_token_id_0,
             d_token: d_token_id_0,
@@ -277,8 +279,8 @@ mod tests {
             index: 0,
         };
         let reserve_data_0 = ReserveData {
-            b_rate: 1_0000000,
-            d_rate: 1_1000000,
+            b_rate: 1_000_000_000,
+            d_rate: 1_100_000_000,
             ir_mod: 0,
             b_supply: 0,
             d_supply: 0,
@@ -286,9 +288,9 @@ mod tests {
         };
 
         // setup asset 1
-        let (asset_id_1, _asset_1) = create_token_contract(&e, &bombadil);
-        let (b_token_id_1, _b_token_1) = create_token_contract(&e, &bombadil);
-        let (d_token_id_1, _d_token_1) = create_token_contract(&e, &bombadil);
+        let (asset_id_1, _asset_1) = create_token(&e, &bombadil_id);
+        let (b_token_id_1, _b_token_1) = create_token(&e, &bombadil_id);
+        let (d_token_id_1, _d_token_1) = create_token(&e, &bombadil_id);
         let reserve_config_1 = ReserveConfig {
             b_token: b_token_id_1,
             d_token: d_token_id_1,
@@ -303,8 +305,8 @@ mod tests {
             index: 1,
         };
         let reserve_data_1 = ReserveData {
-            b_rate: 1_1000000,
-            d_rate: 1_2000000,
+            b_rate: 1_100_000_000,
+            d_rate: 1_200_000_000,
             ir_mod: 0,
             b_supply: 0,
             d_supply: 0,
@@ -358,11 +360,12 @@ mod tests {
         let user_id = Identifier::Account(user.clone());
 
         let bombadil = e.accounts().generate_and_create();
+        let bombadil_id = Identifier::Account(bombadil.clone());
 
         // setup assets 0
-        let (asset_id_0, _asset_0) = create_token_contract(&e, &bombadil);
-        let (b_token_id_0, _b_token_0) = create_token_contract(&e, &bombadil);
-        let (d_token_id_0, _d_token_0) = create_token_contract(&e, &bombadil);
+        let (asset_id_0, _asset_0) = create_token(&e, &bombadil_id);
+        let (b_token_id_0, _b_token_0) = create_token(&e, &bombadil_id);
+        let (d_token_id_0, _d_token_0) = create_token(&e, &bombadil_id);
         let reserve_config_0 = ReserveConfig {
             b_token: b_token_id_0,
             d_token: d_token_id_0,
@@ -377,8 +380,8 @@ mod tests {
             index: 0,
         };
         let reserve_data_0 = ReserveData {
-            b_rate: 1_0000000,
-            d_rate: 1_1000000,
+            b_rate: 1_000_000_000,
+            d_rate: 1_100_000_000,
             ir_mod: 0,
             b_supply: 0,
             d_supply: 0,
@@ -386,9 +389,9 @@ mod tests {
         };
 
         // setup asset 1
-        let (asset_id_1, _asset_1) = create_token_contract(&e, &bombadil);
-        let (b_token_id_1, _b_token_1) = create_token_contract(&e, &bombadil);
-        let (d_token_id_1, _d_token_1) = create_token_contract(&e, &bombadil);
+        let (asset_id_1, _asset_1) = create_token(&e, &bombadil_id);
+        let (b_token_id_1, _b_token_1) = create_token(&e, &bombadil_id);
+        let (d_token_id_1, _d_token_1) = create_token(&e, &bombadil_id);
         let reserve_config_1 = ReserveConfig {
             b_token: b_token_id_1,
             d_token: d_token_id_1,
@@ -403,8 +406,8 @@ mod tests {
             index: 1,
         };
         let reserve_data_1 = ReserveData {
-            b_rate: 1_1000000,
-            d_rate: 1_2000000,
+            b_rate: 1_100_000_000,
+            d_rate: 1_200_000_000,
             ir_mod: 0,
             b_supply: 0,
             d_supply: 0,
@@ -452,11 +455,12 @@ mod tests {
         let user_id = Identifier::Account(user.clone());
 
         let bombadil = e.accounts().generate_and_create();
+        let bombadil_id = Identifier::Account(bombadil.clone());
 
         // setup assets 0
-        let (asset_id_0, _asset_0) = create_token_contract(&e, &bombadil);
-        let (b_token_id_0, b_token_0) = create_token_contract(&e, &bombadil);
-        let (d_token_id_0, _d_token_0) = create_token_contract(&e, &bombadil);
+        let (asset_id_0, _asset_0) = create_token(&e, &bombadil_id);
+        let (b_token_id_0, b_token_0) = create_token(&e, &bombadil_id);
+        let (d_token_id_0, _d_token_0) = create_token(&e, &bombadil_id);
         let reserve_config_0 = ReserveConfig {
             b_token: b_token_id_0,
             d_token: d_token_id_0,
@@ -471,8 +475,8 @@ mod tests {
             index: 0,
         };
         let reserve_data_0 = ReserveData {
-            b_rate: 1_0000000,
-            d_rate: 1_1000000,
+            b_rate: 1_000_000_000,
+            d_rate: 1_100_000_000,
             ir_mod: 0,
             b_supply: 0,
             d_supply: 0,
@@ -480,9 +484,9 @@ mod tests {
         };
 
         // setup asset 1
-        let (asset_id_1, _asset_1) = create_token_contract(&e, &bombadil);
-        let (b_token_id_1, _b_token_1) = create_token_contract(&e, &bombadil);
-        let (d_token_id_1, d_token_1) = create_token_contract(&e, &bombadil);
+        let (asset_id_1, _asset_1) = create_token(&e, &bombadil_id);
+        let (b_token_id_1, _b_token_1) = create_token(&e, &bombadil_id);
+        let (d_token_id_1, d_token_1) = create_token(&e, &bombadil_id);
         let reserve_config_1 = ReserveConfig {
             b_token: b_token_id_1,
             d_token: d_token_id_1,
@@ -497,8 +501,8 @@ mod tests {
             index: 1,
         };
         let reserve_data_1 = ReserveData {
-            b_rate: 1_1000000,
-            d_rate: 1_2000000,
+            b_rate: 1_100_000_000,
+            d_rate: 1_200_000_000,
             ir_mod: 0,
             b_supply: 0,
             d_supply: 0,

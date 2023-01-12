@@ -111,7 +111,15 @@ pub trait BackstopTrait {
         to: Identifier,
     ) -> Result<(), BackstopError>;
 
-    //add BLND to a pools backstop and update share value
+    /// Add BLND to a pools backstop and update share value
+    ///
+    /// ### Arguments
+    /// * `pool_address` - The address of the pool
+    /// * `amount` - The amount of BLND to add
+    /// * `from` - The address to take the BLND from
+    ///
+    /// ### Errors
+    /// If the function is invoked by something other than the specified pool
     fn donate(
         e: Env,
         pool_address: BytesN<32>,
@@ -250,6 +258,7 @@ impl BackstopTrait for Backstop {
         amount: u64,
         to: Identifier,
     ) -> Result<(), BackstopError> {
+        // TODO: properly vet pool address
         //only pool can draw
         if Identifier::Contract(pool_address.clone()) != Identifier::from(e.invoker()) {
             return Err(BackstopError::NotAuthorized);
@@ -276,6 +285,7 @@ impl BackstopTrait for Backstop {
         amount: u64,
         from: Identifier,
     ) -> Result<(), BackstopError> {
+        // TODO: properly vet pool address
         //only pool can donate
         if Identifier::Contract(pool_address.clone()) != Identifier::from(e.invoker()) {
             return Err(BackstopError::NotAuthorized);

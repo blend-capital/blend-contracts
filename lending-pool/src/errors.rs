@@ -3,20 +3,14 @@ use soroban_sdk::contracterror;
 #[contracterror]
 #[derive(Copy, Clone, Debug, Eq, PartialEq, PartialOrd, Ord)]
 #[repr(u32)]
+//auction errors are begin at 100
 pub enum PoolError {
     NotAuthorized = 1,
     BadRequest = 2,
     InvalidHf = 3,
     InvalidPoolStatus = 4,
-}
-
-#[contracterror]
-#[derive(Copy, Clone, Debug, Eq, PartialEq, PartialOrd, Ord)]
-#[repr(u32)]
-pub enum AuctionError {
-    InvalidAsks = 1,
-    InvalidBids = 2,
-    AuctionInProgress = 3,
-    InvalidPoolStatus = 4,
-    InvalidAuctionType = 5,
+    InvalidAsks = 101,
+    InvalidBids = 102,
+    AlreadyInProgress = 103,
+    InvalidAuctionType = 104,
 }

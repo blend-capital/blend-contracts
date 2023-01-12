@@ -361,7 +361,7 @@ fn test_draw_fails_not_authorized() {
             assert!(false);
         }
         Err(error) => match error {
-            Ok(p_error) => assert_eq!(p_error, BackstopError::Unauthorized),
+            Ok(p_error) => assert_eq!(p_error, BackstopError::NotAuthorized),
             Err(s_error) => assert_eq!(s_error, Status::from_contract_error(5)),
         },
     }
@@ -619,7 +619,7 @@ fn test_donate_fails_not_authorized() {
             assert!(false);
         }
         Err(error) => match error {
-            Ok(p_error) => assert_eq!(p_error, BackstopError::Unauthorized),
+            Ok(p_error) => assert_eq!(p_error, BackstopError::NotAuthorized),
             Err(s_error) => assert_eq!(s_error, Status::from_contract_error(5)),
         },
     }

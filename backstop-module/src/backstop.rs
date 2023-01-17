@@ -102,6 +102,41 @@ pub trait BackstopTrait {
     /// ### Errors
     /// If the pool has no emissions left to claim
     fn claim(e: Env, to: Identifier, amount: u64) -> Result<(), BackstopError>;
+    
+    /********** Fund Management *********/
+
+    /// Take BLND from a pools backstop and update share value
+    ///
+    /// ### Arguments
+    /// * `pool_address` - The address of the pool
+    /// * `amount` - The amount of BLND to take
+    /// * `to` - The address to send the BLND to
+    ///
+    /// ### Errors
+    /// If the pool does not have enough BLND
+    /// If the function is invoked by something other than the specified pool
+    fn draw(
+        e: Env,
+        pool_address: BytesN<32>,
+        amount: u64,
+        to: Identifier,
+    ) -> Result<(), BackstopError>;
+
+    /// Add BLND to a pools backstop and update share value
+    ///
+    /// ### Arguments
+    /// * `pool_address` - The address of the pool
+    /// * `amount` - The amount of BLND to add
+    /// * `from` - The address to take the BLND from
+    ///
+    /// ### Errors
+    /// If the function is invoked by something other than the specified pool
+    fn donate(
+        e: Env,
+        pool_address: BytesN<32>,
+        amount: u64,
+        from: Identifier,
+    ) -> Result<(), BackstopError>;
 }
 
 #[contractimpl]
@@ -247,10 +282,62 @@ impl BackstopTrait for Backstop {
         }
         pool_emis -= amount;
         storage.set_pool_emis(pool, pool_emis);
+        Ok(())
+    }
 
+    /********** Fund Management *********/
+
+    fn draw(
+        e: Env,
+        pool_address: BytesN<32>,
+        amount: u64,
+        to: Identifier,
+    ) -> Result<(), BackstopError> {
+        // TODO: properly vet pool address
+        //only pool can draw
+        if Identifier::Contract(pool_address.clone()) != Identifier::from(e.invoker()) {
+            return Err(BackstopError::NotAuthorized);
+        }
+        let mut pool = Pool::new(pool_address);
+
+        // update pool state
+        if pool.get_tokens(&e) < amount {
+            return Err(BackstopError::InsufficientFunds);
+        }
+        pool.withdraw(&e, amount, 0);
+        pool.write_tokens(&e);
+
+        // send tokens to recipient
         let blnd_client = TokenClient::new(&e, BytesN::from_array(&e, &BLND_TOKEN));
         blnd_client.xfer(&Signature::Invoker, &0, &to, &(amount as i128));
 
+        Ok(())
+    }
+
+    fn donate(
+        e: Env,
+        pool_address: BytesN<32>,
+        amount: u64,
+        from: Identifier,
+    ) -> Result<(), BackstopError> {
+        // TODO: properly vet pool address
+        //only pool can donate
+        if Identifier::Contract(pool_address.clone()) != Identifier::from(e.invoker()) {
+            return Err(BackstopError::NotAuthorized);
+        }
+        // send tokens to recipient
+        let blnd_client = TokenClient::new(&e, BytesN::from_array(&e, &BLND_TOKEN));
+        blnd_client.xfer_from(
+            &Signature::Invoker,
+            &0,
+            &from,
+            &Identifier::Contract(e.current_contract()),
+            &(amount as i128),
+        );
+        // update backstop state
+        let mut pool = Pool::new(pool_address);
+        pool.deposit(&e, amount, 0);
+        pool.write_tokens(&e);
         Ok(())
     }
 }

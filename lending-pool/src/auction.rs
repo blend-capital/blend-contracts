@@ -484,10 +484,9 @@ mod tests {
     use crate::{
         storage::{ReserveConfig, ReserveData},
         testutils::{
-            create_backstop, create_mock_oracle, create_token, create_token_from_id,
+            create_backstop, create_mock_oracle, create_token_contract, create_token_from_id,
             generate_contract_id,
-        },
-        user_config::{UserConfig, UserConfigurator},
+        }, reserve_usage::ReserveUsage,
     };
 
     use super::*;
@@ -514,9 +513,9 @@ mod tests {
         let bombadil_id = Identifier::Account(bombadil.clone());
 
         //setup collateral and liabilities
-        let (asset_id_0, _asset_0) = create_token(&e, &bombadil_id);
-        let (b_token_id_0, b_token_0) = create_token(&e, &bombadil_id);
-        let (d_token_id_0, _d_token_0) = create_token(&e, &bombadil_id);
+        let (asset_id_0, _asset_0) = create_token_contract(&e, &bombadil_id);
+        let (b_token_id_0, b_token_0) = create_token_contract(&e, &bombadil_id);
+        let (d_token_id_0, _d_token_0) = create_token_contract(&e, &bombadil_id);
         let reserve_config_0 = ReserveConfig {
             b_token: b_token_id_0,
             d_token: d_token_id_0,
@@ -540,9 +539,9 @@ mod tests {
         };
 
         // setup asset 1
-        let (asset_id_1, _asset_1) = create_token(&e, &bombadil_id);
-        let (b_token_id_1, _b_token_1) = create_token(&e, &bombadil_id);
-        let (d_token_id_1, d_token_1) = create_token(&e, &bombadil_id);
+        let (asset_id_1, _asset_1) = create_token_contract(&e, &bombadil_id);
+        let (b_token_id_1, _b_token_1) = create_token_contract(&e, &bombadil_id);
+        let (d_token_id_1, d_token_1) = create_token_contract(&e, &bombadil_id);
         let reserve_config_1 = ReserveConfig {
             b_token: b_token_id_1,
             d_token: d_token_id_1,
@@ -645,9 +644,9 @@ mod tests {
         let bombadil_id = Identifier::Account(bombadil.clone());
 
         //setup collateral and liabilities
-        let (asset_id_0, _asset_0) = create_token(&e, &bombadil_id);
-        let (b_token_id_0, b_token_0) = create_token(&e, &bombadil_id);
-        let (d_token_id_0, _d_token_0) = create_token(&e, &bombadil_id);
+        let (asset_id_0, _asset_0) = create_token_contract(&e, &bombadil_id);
+        let (b_token_id_0, b_token_0) = create_token_contract(&e, &bombadil_id);
+        let (d_token_id_0, _d_token_0) = create_token_contract(&e, &bombadil_id);
         let reserve_config_0 = ReserveConfig {
             b_token: b_token_id_0,
             d_token: d_token_id_0,
@@ -671,9 +670,9 @@ mod tests {
         };
 
         // setup asset 1
-        let (asset_id_1, _asset_1) = create_token(&e, &bombadil_id);
-        let (b_token_id_1, b_token_1) = create_token(&e, &bombadil_id);
-        let (d_token_id_1, _d_token_1) = create_token(&e, &bombadil_id);
+        let (asset_id_1, _asset_1) = create_token_contract(&e, &bombadil_id);
+        let (b_token_id_1, b_token_1) = create_token_contract(&e, &bombadil_id);
+        let (d_token_id_1, _d_token_1) = create_token_contract(&e, &bombadil_id);
         let reserve_config_1 = ReserveConfig {
             b_token: b_token_id_1,
             d_token: d_token_id_1,
@@ -771,9 +770,9 @@ mod tests {
         let bombadil_id = Identifier::Account(bombadil.clone());
 
         //setup collateral and liabilities
-        let (asset_id_0, _asset_0) = create_token(&e, &bombadil_id);
-        let (b_token_id_0, b_token_0) = create_token(&e, &bombadil_id);
-        let (d_token_id_0, _d_token_0) = create_token(&e, &bombadil_id);
+        let (asset_id_0, _asset_0) = create_token_contract(&e, &bombadil_id);
+        let (b_token_id_0, b_token_0) = create_token_contract(&e, &bombadil_id);
+        let (d_token_id_0, _d_token_0) = create_token_contract(&e, &bombadil_id);
         let reserve_config_0 = ReserveConfig {
             b_token: b_token_id_0,
             d_token: d_token_id_0,
@@ -797,9 +796,9 @@ mod tests {
         };
 
         // setup asset 1
-        let (asset_id_1, _asset_1) = create_token(&e, &bombadil_id);
-        let (b_token_id_1, _b_token_1) = create_token(&e, &bombadil_id);
-        let (d_token_id_1, d_token_1) = create_token(&e, &bombadil_id);
+        let (asset_id_1, _asset_1) = create_token_contract(&e, &bombadil_id);
+        let (b_token_id_1, _b_token_1) = create_token_contract(&e, &bombadil_id);
+        let (d_token_id_1, d_token_1) = create_token_contract(&e, &bombadil_id);
         let reserve_config_1 = ReserveConfig {
             b_token: b_token_id_1,
             d_token: d_token_id_1,
@@ -894,9 +893,9 @@ mod tests {
 
         //setup collateral and liabilities
         // setup asset 0
-        let (asset_id_0, _asset_0) = create_token(&e, &bombadil_id);
-        let (b_token_id_0, b_token_0) = create_token(&e, &bombadil_id);
-        let (d_token_id_0, d_token_0) = create_token(&e, &bombadil_id);
+        let (asset_id_0, _asset_0) = create_token_contract(&e, &bombadil_id);
+        let (b_token_id_0, b_token_0) = create_token_contract(&e, &bombadil_id);
+        let (d_token_id_0, d_token_0) = create_token_contract(&e, &bombadil_id);
         let reserve_config_0 = ReserveConfig {
             b_token: b_token_id_0,
             d_token: d_token_id_0,
@@ -920,9 +919,9 @@ mod tests {
         };
 
         // setup asset 1
-        let (asset_id_1, _asset_1) = create_token(&e, &bombadil_id);
-        let (b_token_id_1, _b_token_1) = create_token(&e, &bombadil_id);
-        let (d_token_id_1, d_token_1) = create_token(&e, &bombadil_id);
+        let (asset_id_1, _asset_1) = create_token_contract(&e, &bombadil_id);
+        let (b_token_id_1, _b_token_1) = create_token_contract(&e, &bombadil_id);
+        let (d_token_id_1, d_token_1) = create_token_contract(&e, &bombadil_id);
         let reserve_config_1 = ReserveConfig {
             b_token: b_token_id_1,
             d_token: d_token_id_1,
@@ -962,9 +961,9 @@ mod tests {
         let collateral_amount = 20_000_0000;
         let liability_amount = 60_000_0000;
         e.as_contract(&pool_id, || {
-            let mut user_config = UserConfig::new(0);
-            user_config.set_borrowing(0, true);
-            user_config.set_borrowing(1, true);
+            let mut user_config = ReserveUsage::new(0);
+            user_config.set_liability(0, true);
+            user_config.set_liability(1, true);
 
             storage.set_user_config(samwise_id.clone(), user_config.config);
         }); // sets the liability as "borrowed" for the reserve at index 0 and 1
@@ -1036,10 +1035,10 @@ mod tests {
         let bombadil_id = Identifier::Account(bombadil.clone());
 
         //setup asset 0
-        let (asset_id_0, asset_0) = create_token(&e, &bombadil_id);
+        let (asset_id_0, asset_0) = create_token_contract(&e, &bombadil_id);
 
         // setup asset 1
-        let (asset_id_1, asset_1) = create_token(&e, &bombadil_id);
+        let (asset_id_1, asset_1) = create_token_contract(&e, &bombadil_id);
 
         // setup pool
         let collateral_amount = 20_000_0000;
@@ -1105,9 +1104,9 @@ mod tests {
         //setup collateral and liabilities
         let liability_amount: i128 = 60_000_0000;
         //setup asset 0
-        let (asset_id_0, asset_0) = create_token(&e, &bombadil_id);
-        let (b_token_id_0, _b_token_0) = create_token(&e, &bombadil_id);
-        let (d_token_id_0, d_token_0) = create_token(&e, &bombadil_id);
+        let (asset_id_0, asset_0) = create_token_contract(&e, &bombadil_id);
+        let (b_token_id_0, _b_token_0) = create_token_contract(&e, &bombadil_id);
+        let (d_token_id_0, d_token_0) = create_token_contract(&e, &bombadil_id);
         let reserve_config_0 = ReserveConfig {
             b_token: b_token_id_0,
             d_token: d_token_id_0,
@@ -1131,9 +1130,9 @@ mod tests {
         };
 
         // setup asset 1
-        let (asset_id_1, asset_1) = create_token(&e, &bombadil_id);
-        let (b_token_id_1, _b_token_1) = create_token(&e, &bombadil_id);
-        let (d_token_id_1, d_token_1) = create_token(&e, &bombadil_id);
+        let (asset_id_1, asset_1) = create_token_contract(&e, &bombadil_id);
+        let (b_token_id_1, _b_token_1) = create_token_contract(&e, &bombadil_id);
+        let (d_token_id_1, d_token_1) = create_token_contract(&e, &bombadil_id);
         let reserve_config_1 = ReserveConfig {
             b_token: b_token_id_1,
             d_token: d_token_id_1,
@@ -1171,9 +1170,9 @@ mod tests {
 
         // setup user
         e.as_contract(&pool, || {
-            let mut user_config = UserConfig::new(0);
-            user_config.set_borrowing(0, true);
-            user_config.set_borrowing(1, true);
+            let mut user_config = ReserveUsage::new(0);
+            user_config.set_liability(0, true);
+            user_config.set_liability(1, true);
 
             storage.set_user_config(samwise_id.clone(), user_config.config);
         }); // sets the liability as "borrowed" for the reserve at index 0
@@ -1201,13 +1200,13 @@ mod tests {
             &samwise_id,
             &(liability_amount / 2),
         );
-        asset_0.with_source_account(&samwise).approve(
+        asset_0.with_source_account(&samwise).incr_allow(
             &Signature::Invoker,
             &0,
             &pool_id,
             &liability_amount,
         );
-        asset_1.with_source_account(&samwise).approve(
+        asset_1.with_source_account(&samwise).incr_allow(
             &Signature::Invoker,
             &0,
             &pool_id,
@@ -1286,9 +1285,9 @@ mod tests {
         //setup collateral and liabilities
         let liability_amount: i128 = 60_000_0000;
         // setup asset 0
-        let (asset_id_0, asset_0) = create_token(&e, &bombadil_id);
-        let (b_token_id_0, _b_token_0) = create_token(&e, &bombadil_id);
-        let (d_token_id_0, d_token_0) = create_token(&e, &bombadil_id);
+        let (asset_id_0, asset_0) = create_token_contract(&e, &bombadil_id);
+        let (b_token_id_0, _b_token_0) = create_token_contract(&e, &bombadil_id);
+        let (d_token_id_0, d_token_0) = create_token_contract(&e, &bombadil_id);
         let reserve_config_0 = ReserveConfig {
             b_token: b_token_id_0,
             d_token: d_token_id_0,
@@ -1312,9 +1311,9 @@ mod tests {
         };
 
         // setup asset 1
-        let (asset_id_1, asset_1) = create_token(&e, &bombadil_id);
-        let (b_token_id_1, _b_token_1) = create_token(&e, &bombadil_id);
-        let (d_token_id_1, d_token_1) = create_token(&e, &bombadil_id);
+        let (asset_id_1, asset_1) = create_token_contract(&e, &bombadil_id);
+        let (b_token_id_1, _b_token_1) = create_token_contract(&e, &bombadil_id);
+        let (d_token_id_1, d_token_1) = create_token_contract(&e, &bombadil_id);
         let reserve_config_1 = ReserveConfig {
             b_token: b_token_id_1,
             d_token: d_token_id_1,
@@ -1347,9 +1346,9 @@ mod tests {
 
         // setup user
         e.as_contract(&pool, || {
-            let mut user_config = UserConfig::new(0);
-            user_config.set_borrowing(0, true);
-            user_config.set_borrowing(1, true);
+            let mut user_config = ReserveUsage::new(0);
+            user_config.set_liability(0, true);
+            user_config.set_liability(1, true);
 
             storage.set_user_config(samwise_id.clone(), user_config.config);
         }); // sets the liability as "borrowed" for the reserve at index 0 and 1
@@ -1377,13 +1376,13 @@ mod tests {
             &samwise_id,
             &(liability_amount / 2),
         );
-        asset_0.with_source_account(&samwise).approve(
+        asset_0.with_source_account(&samwise).incr_allow(
             &Signature::Invoker,
             &0,
             &pool_id,
             &liability_amount,
         );
-        asset_1.with_source_account(&samwise).approve(
+        asset_1.with_source_account(&samwise).incr_allow(
             &Signature::Invoker,
             &0,
             &pool_id,
@@ -1467,7 +1466,7 @@ mod tests {
             &samwise_id,
             &400_000_0000000, // total deposit amount
         );
-        backstop_token_client.with_source_account(&samwise).approve(
+        backstop_token_client.with_source_account(&samwise).incr_allow(
             &Signature::Invoker,
             &0,
             &backstop_id,
@@ -1482,9 +1481,9 @@ mod tests {
         // setup collateral and liabilities
         let liability_amount: i128 = 20_000_0000;
         // setup asset 0
-        let (asset_id_0, asset_0) = create_token(&e, &bombadil_id);
-        let (b_token_id_0, _b_token_0) = create_token(&e, &bombadil_id);
-        let (d_token_id_0, d_token_0) = create_token(&e, &bombadil_id);
+        let (asset_id_0, asset_0) = create_token_contract(&e, &bombadil_id);
+        let (b_token_id_0, _b_token_0) = create_token_contract(&e, &bombadil_id);
+        let (d_token_id_0, d_token_0) = create_token_contract(&e, &bombadil_id);
         let reserve_config_0 = ReserveConfig {
             b_token: b_token_id_0,
             d_token: d_token_id_0,
@@ -1508,9 +1507,9 @@ mod tests {
         };
 
         // setup asset 1
-        let (asset_id_1, asset_1) = create_token(&e, &bombadil_id);
-        let (b_token_id_1, _b_token_1) = create_token(&e, &bombadil_id);
-        let (d_token_id_1, d_token_1) = create_token(&e, &bombadil_id);
+        let (asset_id_1, asset_1) = create_token_contract(&e, &bombadil_id);
+        let (b_token_id_1, _b_token_1) = create_token_contract(&e, &bombadil_id);
+        let (d_token_id_1, d_token_1) = create_token_contract(&e, &bombadil_id);
         let reserve_config_1 = ReserveConfig {
             b_token: b_token_id_1,
             d_token: d_token_id_1,
@@ -1543,9 +1542,9 @@ mod tests {
 
         // setup user
         e.as_contract(&pool, || {
-            let mut user_config = UserConfig::new(0);
-            user_config.set_borrowing(0, true);
-            user_config.set_borrowing(1, true);
+            let mut user_config = ReserveUsage::new(0);
+            user_config.set_liability(0, true);
+            user_config.set_liability(1, true);
 
             storage.set_user_config(samwise_id.clone(), user_config.config);
         }); // sets the liability as "borrowed" for the reserve at index 0 and 1
@@ -1573,13 +1572,13 @@ mod tests {
             &samwise_id,
             &(liability_amount / 2),
         );
-        asset_0.with_source_account(&samwise).approve(
+        asset_0.with_source_account(&samwise).incr_allow(
             &Signature::Invoker,
             &0,
             &pool_id,
             &liability_amount,
         );
-        asset_1.with_source_account(&samwise).approve(
+        asset_1.with_source_account(&samwise).incr_allow(
             &Signature::Invoker,
             &0,
             &pool_id,
@@ -1683,9 +1682,9 @@ mod tests {
 
         //setup collateral and liabilities
         let liability_amount: i128 = 20_000_0000;
-        let (asset_id_0, asset_0) = create_token(&e, &bombadil_id);
-        let (b_token_id_0, _b_token_0) = create_token(&e, &bombadil_id);
-        let (d_token_id_0, d_token_0) = create_token(&e, &bombadil_id);
+        let (asset_id_0, asset_0) = create_token_contract(&e, &bombadil_id);
+        let (b_token_id_0, _b_token_0) = create_token_contract(&e, &bombadil_id);
+        let (d_token_id_0, d_token_0) = create_token_contract(&e, &bombadil_id);
         let reserve_config_0 = ReserveConfig {
             b_token: b_token_id_0,
             d_token: d_token_id_0,
@@ -1709,9 +1708,9 @@ mod tests {
         };
 
         // setup asset 1
-        let (asset_id_1, asset_1) = create_token(&e, &bombadil_id);
-        let (b_token_id_1, _b_token_1) = create_token(&e, &bombadil_id);
-        let (d_token_id_1, d_token_1) = create_token(&e, &bombadil_id);
+        let (asset_id_1, asset_1) = create_token_contract(&e, &bombadil_id);
+        let (b_token_id_1, _b_token_1) = create_token_contract(&e, &bombadil_id);
+        let (d_token_id_1, d_token_1) = create_token_contract(&e, &bombadil_id);
         let reserve_config_1 = ReserveConfig {
             b_token: b_token_id_1,
             d_token: d_token_id_1,
@@ -1744,9 +1743,9 @@ mod tests {
 
         // setup user
         e.as_contract(&pool, || {
-            let mut user_config = UserConfig::new(0);
-            user_config.set_borrowing(0, true);
-            user_config.set_borrowing(1, true);
+            let mut user_config = ReserveUsage::new(0);
+            user_config.set_liability(0, true);
+            user_config.set_liability(1, true);
 
             storage.set_user_config(samwise_id.clone(), user_config.config);
         }); // sets the liability as "borrowed" for the reserve at index 0 and 1
@@ -1774,13 +1773,13 @@ mod tests {
             &samwise_id,
             &(liability_amount / 2),
         );
-        asset_0.with_source_account(&samwise).approve(
+        asset_0.with_source_account(&samwise).incr_allow(
             &Signature::Invoker,
             &0,
             &pool_id,
             &liability_amount,
         );
-        asset_1.with_source_account(&samwise).approve(
+        asset_1.with_source_account(&samwise).incr_allow(
             &Signature::Invoker,
             &0,
             &pool_id,
@@ -1881,7 +1880,7 @@ mod tests {
             &samwise_id,
             &4_000_0000000, // total deposit amount
         );
-        backstop_token_client.with_source_account(&samwise).approve(
+        backstop_token_client.with_source_account(&samwise).incr_allow(
             &Signature::Invoker,
             &0,
             &backstop_id,
@@ -1890,7 +1889,7 @@ mod tests {
 
         // setup user
         e.as_contract(&pool, || {
-            let user_config = UserConfig::new(0);
+            let user_config = ReserveUsage::new(0);
 
             storage.set_user_config(samwise_id.clone(), user_config.config);
         });
@@ -1898,9 +1897,9 @@ mod tests {
         //setup collateral and liabilities
         let liability_amount: i128 = 20_000_0000;
 
-        let (asset_id_0, asset_0) = create_token(&e, &bombadil_id);
-        let (b_token_id_0, _b_token_0) = create_token(&e, &bombadil_id);
-        let (d_token_id_0, _d_token_0) = create_token(&e, &bombadil_id);
+        let (asset_id_0, asset_0) = create_token_contract(&e, &bombadil_id);
+        let (b_token_id_0, _b_token_0) = create_token_contract(&e, &bombadil_id);
+        let (d_token_id_0, _d_token_0) = create_token_contract(&e, &bombadil_id);
         let reserve_config_0 = ReserveConfig {
             b_token: b_token_id_0,
             d_token: d_token_id_0,
@@ -1924,9 +1923,9 @@ mod tests {
         };
 
         // setup asset 1
-        let (asset_id_1, asset_1) = create_token(&e, &bombadil_id);
-        let (b_token_id_1, _b_token_1) = create_token(&e, &bombadil_id);
-        let (d_token_id_1, _d_token_1) = create_token(&e, &bombadil_id);
+        let (asset_id_1, asset_1) = create_token_contract(&e, &bombadil_id);
+        let (b_token_id_1, _b_token_1) = create_token_contract(&e, &bombadil_id);
+        let (d_token_id_1, _d_token_1) = create_token_contract(&e, &bombadil_id);
         let reserve_config_1 = ReserveConfig {
             b_token: b_token_id_1,
             d_token: d_token_id_1,

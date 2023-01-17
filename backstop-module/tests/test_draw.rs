@@ -40,7 +40,7 @@ fn test_draw_happy_path() {
         &samwise_id,
         &600_000_0000000, // total deposit amount
     );
-    token_client.with_source_account(&samwise).approve(
+    token_client.with_source_account(&samwise).incr_allow(
         &Signature::Invoker,
         &0,
         &backstop_id,
@@ -122,7 +122,7 @@ fn test_draw_fails_not_authorized() {
         &samwise_id,
         &600_000_0000000, // total deposit amount
     );
-    token_client.with_source_account(&samwise).approve(
+    token_client.with_source_account(&samwise).incr_allow(
         &Signature::Invoker,
         &0,
         &backstop_id,
@@ -208,7 +208,7 @@ fn test_draw_fails_insufficient() {
         &samwise_id,
         &600_000_0000000, // total deposit amount
     );
-    token_client.with_source_account(&samwise).approve(
+    token_client.with_source_account(&samwise).incr_allow(
         &Signature::Invoker,
         &0,
         &backstop_id,

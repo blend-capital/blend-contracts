@@ -1,6 +1,6 @@
 #![cfg(any(test, feature = "testutils"))]
 
-use crate::dependencies::{BackstopClient, TokenClient, TokenMetadata, BACKSTOP_WASM};
+use crate::dependencies::{BackstopClient, TokenClient, TOKEN_WASM, BACKSTOP_WASM};
 use rand::{thread_rng, RngCore};
 use soroban_auth::Identifier;
 use soroban_sdk::{BytesN, Env, IntoVal};
@@ -48,7 +48,7 @@ pub(crate) fn create_backstop(e: &Env) -> (BytesN<32>, BackstopClient) {
 }
 
 pub fn create_token_from_id(e: &Env, contract_id: &BytesN<32>, admin: &Identifier) -> TokenClient {
-    e.register_contract_wasm(&contract_id, TOKEN_WASM);
+    e.register_contract_wasm(contract_id, TOKEN_WASM);
     let client = TokenClient::new(e, contract_id.clone());
     client.initialize(
         admin,

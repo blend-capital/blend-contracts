@@ -123,7 +123,7 @@ mod tests {
 
     use crate::{
         storage::{ReserveConfig, ReserveData},
-        testutils::{create_mock_oracle, create_token, generate_contract_id},
+        testutils::{create_mock_oracle, generate_contract_id, create_token_contract},
     };
 
     use super::*;

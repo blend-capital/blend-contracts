@@ -1,19 +1,27 @@
 use crate::{
-    dependencies::TokenClient,
+    dependencies::{BackstopClient, EmitterClient, TokenClient},
+    emissions_distributor,
+    emissions_manager::{self, ReserveEmissionMetadata},
     errors::PoolError,
     reserve::Reserve,
-    storage::{PoolDataStore, ReserveConfig, ReserveData, StorageManager},
-    user_config::{UserConfig, UserConfigurator},
+    reserve_usage::ReserveUsage,
+    storage::{
+        PoolDataStore, ReserveConfig, ReserveData, ReserveEmissionsConfig, ReserveEmissionsData,
+        StorageManager,
+    },
     user_data::UserAction,
     user_validator::validate_hf,
 };
 use soroban_auth::{Identifier, Signature};
-use soroban_sdk::{contractimpl, BytesN, Env};
+use soroban_sdk::{contractimpl, Address, BytesN, Env, Map, Vec};
 
 /// ### Pool
 ///
 /// An isolated money market pool.
 pub struct Pool;
+
+// Constants
+const EMITTER: [u8; 32] = [100; 32]; // TODO: Use the emitter
 
 pub trait PoolTrait {
     /// Initialize the pool
@@ -33,8 +41,11 @@ pub trait PoolTrait {
     /// If the caller is not the admin
     fn init_res(e: Env, asset: BytesN<32>, config: ReserveConfig);
 
-    /// TODO: Remove once basic testing complete
-    fn config(e: Env, user: Identifier) -> u64;
+    /// Fetch the reserve usage configuration for a user
+    ///
+    /// ### Arguments
+    /// * `user` - The identifier to fetch the reserve usage for
+    fn config(e: Env, user: Identifier) -> u128;
 
     /// Invoker supplies the `amount` of `asset` into the pool in return for the asset's bToken
     ///
@@ -104,6 +115,53 @@ pub trait PoolTrait {
     /// * 1 = on ice
     /// * 2 = frozen
     fn status(e: Env) -> u32;
+
+    /********* Emission Functions **********/
+
+    /// Fetch the next emission configuration
+    fn get_emis(e: Env) -> Map<u32, u64>;
+
+    /// Update emissions for reserves for the next emission cycle
+    ///
+    /// Needs to be performed each emission cycle, as determined by the expiration
+    ///
+    /// Returns the expiration timestamp
+    fn updt_emis(e: Env) -> Result<u64, PoolError>;
+
+    /// Set the emission configuration for the pool
+    ///
+    /// Changes will be applied in the next pool `updt_emis`, and affect the next emission cycle
+    ///
+    /// ### Arguments
+    /// * `res_emission_metadata` - A vector of ReserveEmissionMetadata to update metadata to
+    ///
+    /// ### Errors
+    /// * If the caller is not the admin
+    /// * If the sum of ReserveEmissionMetadata shares is greater than 1
+    fn set_emis(
+        e: Env,
+        res_emission_metadata: Vec<ReserveEmissionMetadata>,
+    ) -> Result<(), PoolError>;
+
+    /// Claims outstanding emissions for the caller for the given reserve's
+    ///
+    /// ### Arguments
+    /// * `reserve_token_ids` - Vector of reserve token ids
+    /// * `to` - The Identifier to send the claimed tokens to
+    fn claim(e: Env, reserve_token_ids: Vec<u32>, to: Identifier) -> Result<(), PoolError>;
+
+    /***** Reserve Emission Functions *****/
+
+    /// Fetch the emission details for a given reserve token
+    ///
+    /// ### Arguments
+    /// * `asset` - The contract address of the asset backing the reserve
+    /// * `token_type` - The type of reserve token (0 for dToken / 1 for bToken)
+    fn res_emis(
+        e: Env,
+        asset: BytesN<32>,
+        token_type: u32,
+    ) -> Result<Option<(ReserveEmissionsConfig, ReserveEmissionsData)>, PoolError>;
 }
 
 #[contractimpl]
@@ -143,25 +201,24 @@ impl PoolTrait for Pool {
         storage.set_res_data(asset, init_data);
     }
 
-    fn config(e: Env, user: Identifier) -> u64 {
+    fn config(e: Env, user: Identifier) -> u128 {
         let storage = StorageManager::new(&e);
         storage.get_user_config(user)
     }
 
     fn supply(e: Env, asset: BytesN<32>, amount: u64) -> Result<u64, PoolError> {
         let storage = StorageManager::new(&e);
+        let invoker = e.invoker();
+        let invoker_id = Identifier::from(invoker);
 
         if storage.get_pool_status() == 2 {
             return Err(PoolError::InvalidPoolStatus);
         }
 
         let mut reserve = Reserve::load(&e, asset.clone());
-        reserve.update_rates(&e);
+        reserve.pre_action(&e, 1, invoker_id.clone())?;
 
-        let invoker = e.invoker();
-        let invoker_id = Identifier::from(invoker);
         let to_mint = reserve.to_b_token(&amount);
-
         TokenClient::new(&e, asset).xfer_from(
             &Signature::Invoker,
             &0,
@@ -177,9 +234,9 @@ impl PoolTrait for Pool {
             &(to_mint as i128),
         );
 
-        let mut user_config = UserConfig::new(storage.get_user_config(invoker_id.clone()));
-        if !user_config.is_collateral(reserve.config.index) {
-            user_config.set_collateral(reserve.config.index, true);
+        let mut user_config = ReserveUsage::new(storage.get_user_config(invoker_id.clone()));
+        if !user_config.is_supply(reserve.config.index) {
+            user_config.set_supply(reserve.config.index, true);
             storage.set_user_config(invoker_id, user_config.config);
         }
 
@@ -190,12 +247,12 @@ impl PoolTrait for Pool {
 
     fn withdraw(e: Env, asset: BytesN<32>, amount: u64, to: Identifier) -> Result<u64, PoolError> {
         let storage = StorageManager::new(&e);
-
-        let mut reserve = Reserve::load(&e, asset.clone());
-        reserve.update_rates(&e);
-
         let invoker = e.invoker();
         let invoker_id = Identifier::from(invoker);
+
+        let mut reserve = Reserve::load(&e, asset.clone());
+        reserve.pre_action(&e, 1, invoker_id.clone())?;
+
         let to_burn: u64;
         let to_return: u64;
         let b_token_client = TokenClient::new(&e, reserve.config.b_token.clone());
@@ -218,13 +275,13 @@ impl PoolTrait for Pool {
             return Err(PoolError::InvalidHf);
         }
 
-        b_token_client.burn(&Signature::Invoker, &0, &invoker_id, &(to_burn as i128));
+        b_token_client.clawback(&Signature::Invoker, &0, &invoker_id, &(to_burn as i128));
 
         TokenClient::new(&e, asset).xfer(&Signature::Invoker, &0, &to, &(to_return as i128));
 
-        let mut user_config = UserConfig::new(storage.get_user_config(invoker_id.clone()));
+        let mut user_config = ReserveUsage::new(storage.get_user_config(invoker_id.clone()));
         if b_token_client.balance(&invoker_id) == 0 {
-            user_config.set_collateral(reserve.config.index, false);
+            user_config.set_supply(reserve.config.index, false);
             storage.set_user_config(invoker_id, user_config.config);
         }
 
@@ -235,18 +292,17 @@ impl PoolTrait for Pool {
 
     fn borrow(e: Env, asset: BytesN<32>, amount: u64, to: Identifier) -> Result<u64, PoolError> {
         let storage = StorageManager::new(&e);
+        let invoker = e.invoker();
+        let invoker_id = Identifier::from(invoker);
 
         if storage.get_pool_status() > 0 {
             return Err(PoolError::InvalidPoolStatus);
         }
 
         let mut reserve = Reserve::load(&e, asset.clone());
-        reserve.update_rates(&e);
+        reserve.pre_action(&e, 0, invoker_id.clone())?;
 
-        let invoker = e.invoker();
-        let invoker_id = Identifier::from(invoker);
         let to_mint = reserve.to_d_token(&amount);
-
         let user_action = UserAction {
             asset: asset.clone(),
             b_token_delta: 0,
@@ -266,9 +322,9 @@ impl PoolTrait for Pool {
 
         TokenClient::new(&e, asset).xfer(&Signature::Invoker, &0, &to, &(amount as i128));
 
-        let mut user_config = UserConfig::new(storage.get_user_config(invoker_id.clone()));
-        if !user_config.is_borrowing(reserve.config.index) {
-            user_config.set_borrowing(reserve.config.index, true);
+        let mut user_config = ReserveUsage::new(storage.get_user_config(invoker_id.clone()));
+        if !user_config.is_liability(reserve.config.index) {
+            user_config.set_liability(reserve.config.index, true);
             storage.set_user_config(invoker_id, user_config.config);
         }
 
@@ -284,12 +340,11 @@ impl PoolTrait for Pool {
         on_behalf_of: Identifier,
     ) -> Result<u64, PoolError> {
         let storage = StorageManager::new(&e);
-
         let invoker = e.invoker();
         let invoker_id = Identifier::from(invoker);
 
         let mut reserve = Reserve::load(&e, asset.clone());
-        reserve.update_rates(&e);
+        reserve.pre_action(&e, 0, invoker_id.clone())?;
 
         Ok(execute_repay(
             &e,
@@ -317,6 +372,73 @@ impl PoolTrait for Pool {
     fn status(e: Env) -> u32 {
         let storage = StorageManager::new(&e);
         storage.get_pool_status()
+    }
+
+    /********** Emissions **********/
+
+    fn get_emis(e: Env) -> Map<u32, u64> {
+        let storage = StorageManager::new(&e);
+        storage.get_pool_emissions()
+    }
+
+    fn updt_emis(e: Env) -> Result<u64, PoolError> {
+        let bkstp_addr = EmitterClient::new(&e, BytesN::from_array(&e, &EMITTER)).get_bstop();
+        let backstop = BackstopClient::new(&e, &bkstp_addr);
+        let next_exp = backstop.next_dist();
+        let pool_eps = backstop.pool_eps(&e.current_contract());
+        emissions_manager::update_emissions(&e, next_exp, pool_eps)
+    }
+
+    fn set_emis(
+        e: Env,
+        res_emission_metadata: Vec<ReserveEmissionMetadata>,
+    ) -> Result<(), PoolError> {
+        let storage = StorageManager::new(&e);
+        if Identifier::from(e.invoker()) != storage.get_admin() {
+            return Err(PoolError::NotAuthorized);
+        }
+
+        emissions_manager::set_pool_emissions(&e, res_emission_metadata)
+    }
+
+    fn claim(e: Env, reserve_token_ids: Vec<u32>, to: Identifier) -> Result<(), PoolError> {
+        let user = Identifier::from(e.invoker());
+        let to_claim = emissions_distributor::calc_claim(&e, user, reserve_token_ids)?;
+
+        if to_claim > 0 {
+            let bkstp_addr = EmitterClient::new(&e, BytesN::from_array(&e, &EMITTER)).get_bstop();
+            let backstop = BackstopClient::new(&e, &bkstp_addr);
+            backstop.claim(&to, &to_claim);
+        }
+
+        Ok(())
+    }
+
+    /***** Reserve Emission Functions *****/
+
+    fn res_emis(
+        e: Env,
+        asset: BytesN<32>,
+        token_type: u32,
+    ) -> Result<Option<(ReserveEmissionsConfig, ReserveEmissionsData)>, PoolError> {
+        if token_type > 1 {
+            return Err(PoolError::BadRequest);
+        }
+
+        let storage = StorageManager::new(&e);
+        let res_list = storage.get_res_list();
+        if let Some(res_index) = res_list.first_index_of(asset) {
+            let res_token_index = res_index * 3 + token_type;
+            if storage.has_res_emis_data(res_token_index) {
+                return Ok(Some((
+                    storage.get_res_emis_config(res_token_index).unwrap(),
+                    storage.get_res_emis_data(res_token_index).unwrap(),
+                )));
+            }
+            return Ok(None);
+        }
+
+        Err(PoolError::BadRequest)
     }
 }
 
@@ -346,7 +468,7 @@ pub fn execute_repay(
         to_repay = amount;
     }
 
-    d_token_client.burn(&Signature::Invoker, &0, &on_behalf_of, &(to_burn as i128));
+    d_token_client.clawback(&Signature::Invoker, &0, &on_behalf_of, &(to_burn as i128));
 
     TokenClient::new(&e, reserve.asset.clone()).xfer_from(
         &Signature::Invoker,
@@ -356,9 +478,9 @@ pub fn execute_repay(
         &(to_repay as i128),
     );
 
-    let mut user_config = UserConfig::new(storage.get_user_config(invoker_id.clone()));
+    let mut user_config = ReserveUsage::new(storage.get_user_config(invoker_id.clone()));
     if d_token_client.balance(&invoker_id) == 0 {
-        user_config.set_borrowing(reserve.config.index, false);
+        user_config.set_liability(reserve.config.index, false);
         storage.set_user_config(invoker_id, user_config.config);
     }
 

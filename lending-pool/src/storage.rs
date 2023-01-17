@@ -1,5 +1,5 @@
 use soroban_auth::Identifier;
-use soroban_sdk::{contracttype, vec, Address, BytesN, Env, Vec};
+use soroban_sdk::{contracttype, vec, BytesN, Env, Map, Vec};
 
 /********** Storage Types **********/
 
@@ -34,6 +34,40 @@ pub struct ReserveData {
     pub last_block: u32, // the last block the data was updated
 }
 
+/// The configuration of emissions for the reserve b or d token
+///
+/// `@dev` If this is updated, ReserveEmissionsData MUST also be updated
+#[derive(Clone)]
+#[contracttype]
+pub struct ReserveEmissionsConfig {
+    pub expiration: u64,
+    pub eps: u64,
+}
+
+/// The emission data for the reserve b or d token
+#[derive(Clone)]
+#[contracttype]
+pub struct ReserveEmissionsData {
+    pub index: u64,
+    pub last_time: u64,
+}
+
+/// The user emission data for the reserve b or d token
+#[derive(Clone)]
+#[contracttype]
+pub struct UserEmissionData {
+    pub index: u64,
+    pub accrued: u64,
+}
+
+/// The pool's emission config
+#[derive(Clone)]
+#[contracttype]
+pub struct PoolEmissionConfig {
+    pub config: u128,
+    pub last_time: u64,
+}
+
 /// The data for auctions
 #[derive(Clone)]
 #[contracttype]
@@ -51,9 +85,9 @@ pub struct AuctionData {
 
 #[derive(Clone)]
 #[contracttype]
-pub struct LiabilityKey {
-    user: Address,
-    asset: BytesN<32>,
+pub struct UserReserveKey {
+    user: Identifier,
+    reserve_id: u32,
 }
 
 // TODO: See if we can avoid publishing this
@@ -71,10 +105,20 @@ pub enum PoolDataKey {
     // A list of reserve where index -> underlying asset's contract address
     // -> note: dropped reserves are still present
     ResList,
+    // The reserve's emission config
+    EmisConfig(u32),
+    // The reserve's emission data
+    EmisData(u32),
     // The configuration settings for a user
     UserConfig(Identifier),
+    // The emission information for a reserve asset for a user
+    UserEmis(UserReserveKey),
     // The status of the pool
     PoolStatus,
+    // A list of the next reserve emission allocation percentages
+    PoolEmis,
+    // The reserve configuration for emissions
+    PEConfig,
     // A list of auctions and their associated data
     AuctData(Identifier),
 }
@@ -176,20 +220,75 @@ pub trait PoolDataStore {
     // @dev: Once added it can't be removed
     fn push_res_list(&self, asset: BytesN<32>) -> u32;
 
+    /********** Reserve Emissions **********/
+
+    /// Fetch the emission config for the reserve b or d token
+    ///
+    /// ### Arguments
+    /// * `res_token_index` - The d/bToken index for the reserve
+    fn get_res_emis_config(&self, res_token_index: u32) -> Option<ReserveEmissionsConfig>;
+
+    /// Set the emission config for the reserve b or d token
+    ///
+    /// ### Arguments
+    /// * `res_token_index` - The d/bToken index for the reserve
+    /// * `res_emis_config` - The new emission config for the reserve token
+    fn set_res_emis_config(&self, res_token_index: u32, res_emis_config: ReserveEmissionsConfig);
+
+    /// Fetch the emission data for the reserve b or d token
+    ///
+    /// ### Arguments
+    /// * `res_token_index` - The d/bToken index for the reserve
+    fn get_res_emis_data(&self, res_token_index: u32) -> Option<ReserveEmissionsData>;
+
+    /// Checks if the reserve token has emissions data
+    ///
+    /// ### Arguments
+    /// * `res_token_index` - The d/bToken index for the reserve
+    fn has_res_emis_data(&self, res_token_index: u32) -> bool;
+
+    /// Set the emission data for the reserve b or d token
+    ///
+    /// ### Arguments
+    /// * `res_token_index` - The d/bToken index for the reserve
+    /// * `res_emis_data` - The new emission data for the reserve token
+    fn set_res_emis_data(&self, res_token_index: u32, res_emis_data: ReserveEmissionsData);
+
     /********** UserConfig **********/
 
     /// Fetch the users reserve config
     ///
     /// ### Arguments
     /// * `user` - The address of the user
-    fn get_user_config(&self, user: Identifier) -> u64;
+    fn get_user_config(&self, user: Identifier) -> u128;
 
     /// Set the users reserve config
     ///
     /// ### Arguments
     /// * `user` - The address of the user
     /// * `config` - The reserve config for the user
-    fn set_user_config(&self, user: Identifier, config: u64);
+    fn set_user_config(&self, user: Identifier, config: u128);
+
+    /********** User Emissions **********/
+
+    /// Fetch the users emission data for a reserve's b or d token
+    ///
+    /// ### Arguments
+    /// * `user` - The address of the user
+    /// * `res_token_index` - The d/bToken index for the reserve
+    fn get_user_emissions(
+        &self,
+        user: Identifier,
+        res_token_index: u32,
+    ) -> Option<UserEmissionData>;
+
+    /// Set the users emission data for a reserve's d or d token
+    ///
+    /// ### Arguments
+    /// * `user` - The address of the user
+    /// * `res_token_index` - The d/bToken index for the reserve
+    /// * `data` - The new user emission d ata for the d/bToken
+    fn set_user_emissions(&self, user: Identifier, res_token_index: u32, data: UserEmissionData);
 
     /********** Pool Status **********/
 
@@ -199,8 +298,28 @@ pub trait PoolDataStore {
     /// Set the pool status
     ///
     /// ### Arguments
-    /// * 'pool_state' - The pool status
+    /// * `pool_state` - The pool status
     fn set_pool_status(&self, pool_status: u32);
+
+    /********** Pool Emissions **********/
+
+    /// Fetch the pool reserve emissions
+    fn get_pool_emissions(&self) -> Map<u32, u64>;
+
+    /// Set the pool reserve emissions
+    ///
+    /// ### Arguments
+    /// * `emissions` - The map of emissions by reserve token id to EPS
+    fn set_pool_emissions(&self, emissions: Map<u32, u64>);
+
+    /// Fetch the pool emission configuration
+    fn get_pool_emission_config(&self) -> PoolEmissionConfig;
+
+    /// Set the pool emission configuration
+    ///
+    /// ### Arguments
+    /// * `config` - The pool's emission configuration
+    fn set_pool_emission_config(&self, config: PoolEmissionConfig);
 
     /******** Auction Data *********/
 
@@ -233,36 +352,39 @@ impl PoolDataStore for StorageManager {
     /********** Admin **********/
 
     fn get_admin(&self) -> Identifier {
-        self.env().data().get_unchecked(PoolDataKey::Admin).unwrap()
+        self.env()
+            .storage()
+            .get_unchecked(PoolDataKey::Admin)
+            .unwrap()
     }
 
     fn set_admin(&self, new_admin: Identifier) {
         self.env()
-            .data()
+            .storage()
             .set::<PoolDataKey, Identifier>(PoolDataKey::Admin, new_admin);
     }
 
     fn has_admin(&self) -> bool {
-        self.env().data().has(PoolDataKey::Admin)
+        self.env().storage().has(PoolDataKey::Admin)
     }
 
     /********** Oracle **********/
 
     fn get_oracle(&self) -> BytesN<32> {
         self.env()
-            .data()
+            .storage()
             .get_unchecked(PoolDataKey::Oracle)
             .unwrap()
     }
 
     fn set_oracle(&self, new_oracle: BytesN<32>) {
         self.env()
-            .data()
+            .storage()
             .set::<PoolDataKey, BytesN<32>>(PoolDataKey::Oracle, new_oracle);
     }
 
     fn has_oracle(&self) -> bool {
-        self.env().data().has(PoolDataKey::Oracle)
+        self.env().storage().has(PoolDataKey::Oracle)
     }
 
     /********** Reserve Config (ResConfig) **********/
@@ -270,7 +392,7 @@ impl PoolDataStore for StorageManager {
     fn get_res_config(&self, asset: BytesN<32>) -> ReserveConfig {
         let key = PoolDataKey::ResConfig(asset);
         self.env()
-            .data()
+            .storage()
             .get::<PoolDataKey, ReserveConfig>(key)
             .unwrap()
             .unwrap()
@@ -282,19 +404,19 @@ impl PoolDataStore for StorageManager {
 
         // TODO: Might fit better in reserve module
         // add to reserve list if its new
-        if !self.env().data().has(key.clone()) {
+        if !self.env().storage().has(key.clone()) {
             let index = self.push_res_list(asset);
             indexed_config.index = index;
         }
 
         self.env()
-            .data()
+            .storage()
             .set::<PoolDataKey, ReserveConfig>(key, indexed_config);
     }
 
     fn has_res(&self, asset: BytesN<32>) -> bool {
         let key = PoolDataKey::ResConfig(asset);
-        self.env().data().has(key)
+        self.env().storage().has(key)
     }
 
     /********** Reserve Data (ResData) **********/
@@ -302,7 +424,7 @@ impl PoolDataStore for StorageManager {
     fn get_res_data(&self, asset: BytesN<32>) -> ReserveData {
         let key = PoolDataKey::ResData(asset);
         self.env()
-            .data()
+            .storage()
             .get::<PoolDataKey, ReserveData>(key)
             .unwrap()
             .unwrap()
@@ -310,14 +432,16 @@ impl PoolDataStore for StorageManager {
 
     fn set_res_data(&self, asset: BytesN<32>, data: ReserveData) {
         let key = PoolDataKey::ResData(asset);
-        self.env().data().set::<PoolDataKey, ReserveData>(key, data);
+        self.env()
+            .storage()
+            .set::<PoolDataKey, ReserveData>(key, data);
     }
 
     /********** Reserve List (ResList) **********/
 
     fn get_res_list(&self) -> Vec<BytesN<32>> {
         self.env()
-            .data()
+            .storage()
             .get::<PoolDataKey, Vec<BytesN<32>>>(PoolDataKey::ResList)
             .unwrap_or(Ok(vec![&self.env()])) // empty vec if nothing exists
             .unwrap()
@@ -331,32 +455,109 @@ impl PoolDataStore for StorageManager {
         res_list.push_back(asset);
         let new_index = res_list.len() - 1;
         self.env()
-            .data()
+            .storage()
             .set::<PoolDataKey, Vec<BytesN<32>>>(PoolDataKey::ResList, res_list);
         new_index
     }
 
+    /********** Reserve Emissions **********/
+
+    fn get_res_emis_config(&self, res_token_index: u32) -> Option<ReserveEmissionsConfig> {
+        let key = PoolDataKey::EmisConfig(res_token_index);
+        let result = self
+            .env()
+            .storage()
+            .get::<PoolDataKey, ReserveEmissionsConfig>(key);
+        match result {
+            Some(data) => Some(data.unwrap()),
+            None => None,
+        }
+    }
+
+    fn set_res_emis_config(&self, res_token_index: u32, res_emis_config: ReserveEmissionsConfig) {
+        let key = PoolDataKey::EmisConfig(res_token_index);
+        self.env()
+            .storage()
+            .set::<PoolDataKey, ReserveEmissionsConfig>(key, res_emis_config);
+    }
+
+    fn get_res_emis_data(&self, res_token_index: u32) -> Option<ReserveEmissionsData> {
+        let key = PoolDataKey::EmisData(res_token_index);
+        let result = self
+            .env()
+            .storage()
+            .get::<PoolDataKey, ReserveEmissionsData>(key);
+        match result {
+            Some(data) => Some(data.unwrap()),
+            None => None,
+        }
+    }
+
+    fn has_res_emis_data(&self, res_token_index: u32) -> bool {
+        let key = PoolDataKey::EmisData(res_token_index);
+        self.env().storage().has(key)
+    }
+
+    fn set_res_emis_data(&self, res_token_index: u32, res_emis_data: ReserveEmissionsData) {
+        let key = PoolDataKey::EmisData(res_token_index);
+        self.env()
+            .storage()
+            .set::<PoolDataKey, ReserveEmissionsData>(key, res_emis_data);
+    }
+
     /********** UserConfig **********/
 
-    fn get_user_config(&self, user: Identifier) -> u64 {
+    fn get_user_config(&self, user: Identifier) -> u128 {
         let key = PoolDataKey::UserConfig(user);
         self.env()
-            .data()
-            .get::<PoolDataKey, u64>(key)
+            .storage()
+            .get::<PoolDataKey, u128>(key)
             .unwrap_or(Ok(0))
             .unwrap()
     }
 
-    fn set_user_config(&self, user: Identifier, config: u64) {
+    fn set_user_config(&self, user: Identifier, config: u128) {
         let key = PoolDataKey::UserConfig(user);
-        self.env().data().set::<PoolDataKey, u64>(key, config);
+        self.env().storage().set::<PoolDataKey, u128>(key, config);
+    }
+
+    /********** User Emissions **********/
+
+    fn get_user_emissions(
+        &self,
+        user: Identifier,
+        res_token_index: u32,
+    ) -> Option<UserEmissionData> {
+        let key = PoolDataKey::UserEmis(UserReserveKey {
+            user,
+            reserve_id: res_token_index,
+        });
+        let result = self
+            .env()
+            .storage()
+            .get::<PoolDataKey, UserEmissionData>(key);
+        match result {
+            Some(data) => Some(data.unwrap()),
+            None => None,
+        }
+    }
+
+    fn set_user_emissions(&self, user: Identifier, res_token_index: u32, data: UserEmissionData) {
+        let key = PoolDataKey::UserEmis(UserReserveKey {
+            user,
+            reserve_id: res_token_index,
+        });
+        self.env()
+            .storage()
+            .set::<PoolDataKey, UserEmissionData>(key, data);
     }
 
     /********** Pool Status **********/
+
     fn get_pool_status(&self) -> u32 {
         let key = PoolDataKey::PoolStatus;
         self.env()
-            .data()
+            .storage()
             .get::<PoolDataKey, u32>(key)
             .unwrap()
             .unwrap()
@@ -364,7 +565,43 @@ impl PoolDataStore for StorageManager {
 
     fn set_pool_status(&self, pool_status: u32) {
         let key = PoolDataKey::PoolStatus;
-        self.env().data().set::<PoolDataKey, u32>(key, pool_status);
+        self.env()
+            .storage()
+            .set::<PoolDataKey, u32>(key, pool_status);
+    }
+
+    /********** Pool Emissions **********/
+
+    fn get_pool_emissions(&self) -> Map<u32, u64> {
+        let key = PoolDataKey::PoolEmis;
+        self.env()
+            .storage()
+            .get::<PoolDataKey, Map<u32, u64>>(key)
+            .unwrap()
+            .unwrap()
+    }
+
+    fn set_pool_emissions(&self, emissions: Map<u32, u64>) {
+        let key = PoolDataKey::PoolEmis;
+        self.env()
+            .storage()
+            .set::<PoolDataKey, Map<u32, u64>>(key, emissions);
+    }
+
+    fn get_pool_emission_config(&self) -> PoolEmissionConfig {
+        let key = PoolDataKey::PEConfig;
+        self.env()
+            .storage()
+            .get::<PoolDataKey, PoolEmissionConfig>(key)
+            .unwrap()
+            .unwrap()
+    }
+
+    fn set_pool_emission_config(&self, config: PoolEmissionConfig) {
+        let key = PoolDataKey::PEConfig;
+        self.env()
+            .storage()
+            .set::<PoolDataKey, PoolEmissionConfig>(key, config);
     }
 
     /********** Auctions ***********/

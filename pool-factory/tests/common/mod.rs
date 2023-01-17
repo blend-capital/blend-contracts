@@ -1,11 +1,15 @@
 use rand::{thread_rng, RngCore};
-use soroban_auth::Identifier;
-use soroban_sdk::{BytesN, Env, IntoVal};
+use soroban_sdk::{BytesN, Env};
 
 mod pool_factory {
     soroban_sdk::contractimport!(
         file = "../target/wasm32-unknown-unknown/release/pool_factory.wasm"
     );
+}
+
+// TODO: revert back to lending pool when issues/14 is resolved
+pub mod lending_pool {
+    soroban_sdk::contractimport!(file = "../target/wasm32-unknown-unknown/release/emitter.wasm");
 }
 
 pub use pool_factory::Client as PoolFactoryClient;

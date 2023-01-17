@@ -47,7 +47,10 @@ fn test_swap_backstop() {
     let result = emitter_client.try_swap_bstop(&new_backstop);
 
     match result {
-        Ok(_) => assert!(true),
+        Ok(_) => {
+            let emitter_bstop = emitter_client.get_bstop();
+            assert_eq!(emitter_bstop, new_backstop);
+        }
         Err(_) => assert!(false),
     }
 }

@@ -37,7 +37,7 @@ fn test_pool_supply_on_ice() {
         &sauron_id,
         &10_0000000,
     );
-    asset1_client.with_source_account(&sauron).approve(
+    asset1_client.with_source_account(&sauron).incr_allow(
         &Signature::Invoker,
         &0,
         &pool_id,
@@ -84,7 +84,7 @@ fn test_pool_supply_frozen_panics() {
         &sauron_id,
         &10_0000000,
     );
-    asset1_client.with_source_account(&sauron).approve(
+    asset1_client.with_source_account(&sauron).incr_allow(
         &Signature::Invoker,
         &0,
         &pool_id,

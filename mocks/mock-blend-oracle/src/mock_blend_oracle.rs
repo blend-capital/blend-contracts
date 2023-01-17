@@ -61,7 +61,7 @@ impl MockOracle for MockBlendOracle {
 
     fn get_price(e: Env, asset: BytesN<32>) -> Result<u64, OracleError> {
         let to_error = e
-            .data()
+            .storage()
             .get::<MockBlendOracleDataKey, bool>(MockBlendOracleDataKey::ToError)
             .unwrap_or_else(|| Ok(false))
             .unwrap();
@@ -70,7 +70,7 @@ impl MockOracle for MockBlendOracle {
         }
 
         let key = MockBlendOracleDataKey::Prices(asset);
-        Ok(e.data()
+        Ok(e.storage()
             .get::<MockBlendOracleDataKey, u64>(key)
             .unwrap_or_else(|| Ok(0))
             .unwrap())
@@ -99,11 +99,12 @@ impl MockOracle for MockBlendOracle {
 
     fn set_price(e: Env, asset: BytesN<32>, price: u64) {
         let key = MockBlendOracleDataKey::Prices(asset);
-        e.data().set::<MockBlendOracleDataKey, u64>(key, price);
+        e.storage().set::<MockBlendOracleDataKey, u64>(key, price);
     }
 
     fn set_error(e: Env, to_error: bool) {
         let key = MockBlendOracleDataKey::ToError;
-        e.data().set::<MockBlendOracleDataKey, bool>(key, to_error);
+        e.storage()
+            .set::<MockBlendOracleDataKey, bool>(key, to_error);
     }
 }

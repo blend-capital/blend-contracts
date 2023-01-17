@@ -10,4 +10,5 @@ pub enum BackstopError {
     InvalidRewardZoneEntry = 4,
     NotAuthorized = 5,
     InsufficientFunds = 6,
+    NotPool = 10,
 }

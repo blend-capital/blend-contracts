@@ -11,7 +11,7 @@ use crate::common::{create_backstop_module, create_token_from_id, BackstopError}
 
 // TODO: Investigate if mint / burn semantics will be better (operate in bTokens)
 #[test]
-fn test_pool_happy_path() {
+fn test_backstop_happy_path() {
     let e = Env::default();
 
     let bombadil = e.accounts().generate_and_create();
@@ -44,7 +44,7 @@ fn test_pool_happy_path() {
         &samwise_id,
         &(deposit_amount as i128),
     );
-    token_client.with_source_account(&samwise).approve(
+    token_client.with_source_account(&samwise).incr_allow(
         &Signature::Invoker,
         &0,
         &backstop_id,
@@ -113,7 +113,7 @@ fn test_pool_happy_path() {
 }
 
 #[test]
-fn test_pool_distribution_happy_path() {
+fn test_backstop_distribution_happy_path() {
     let e = Env::default();
 
     // create backstop module
@@ -143,7 +143,7 @@ fn test_pool_distribution_happy_path() {
         &samwise_id,
         &600_000_0000000, // total deposit amount
     );
-    token_client.with_source_account(&samwise).approve(
+    token_client.with_source_account(&samwise).incr_allow(
         &Signature::Invoker,
         &0,
         &backstop_id,

@@ -4,12 +4,14 @@
 extern crate std;
 
 mod auction;
+mod emissions_distributor;
+mod emissions_manager;
 mod errors;
 mod interest;
 mod pool;
 mod reserve;
+mod reserve_usage;
 mod storage;
-mod user_config;
 mod user_data;
 mod user_validator;
 

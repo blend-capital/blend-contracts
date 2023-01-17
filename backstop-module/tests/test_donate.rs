@@ -40,7 +40,7 @@ fn test_donate_happy_path() {
         &samwise_id,
         &700_000_0000000, // total deposit amount
     );
-    token_client.with_source_account(&samwise).approve(
+    token_client.with_source_account(&samwise).incr_allow(
         &Signature::Invoker,
         &0,
         &backstop_id,
@@ -75,7 +75,7 @@ fn test_donate_happy_path() {
     backstop_client.add_reward(&pool_2, &BytesN::from_array(&e, &[0u8; 32]));
 
     // donate
-    token_client.with_source_account(&samwise).approve(
+    token_client.with_source_account(&samwise).incr_allow(
         &Signature::Invoker,
         &0,
         &pool_2_id,
@@ -128,7 +128,7 @@ fn test_donate_fails_not_authorized() {
         &samwise_id,
         &600_000_0000000, // total deposit amount
     );
-    token_client.with_source_account(&samwise).approve(
+    token_client.with_source_account(&samwise).incr_allow(
         &Signature::Invoker,
         &0,
         &backstop_id,

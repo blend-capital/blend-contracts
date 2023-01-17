@@ -32,7 +32,7 @@ fn test_xfer_from() {
     b_token_client
         .with_source_account(&bombadil)
         .mint(&samwise_id, &mint_amount);
-    b_token_client.with_source_account(&samwise).approve(
+    b_token_client.with_source_account(&samwise).incr_allow(
         &Signature::Invoker,
         &0,
         &bombadil_id,
@@ -84,7 +84,7 @@ fn test_xfer_from_ed25519() {
         symbol!("approve"),
         (&samwise_id, &nonce, &samwise_id, &transfer_amount),
     );
-    b_token_client.with_source_account(&bombadil).approve(
+    b_token_client.with_source_account(&bombadil).incr_allow(
         &sig1,
         &nonce,
         &samwise_id,
@@ -190,7 +190,7 @@ fn test_negative_xfer_panics() {
     b_token_client
         .with_source_account(&bombadil)
         .mint(&samwise_id, &mint_amount);
-    b_token_client.with_source_account(&samwise).approve(
+    b_token_client.with_source_account(&samwise).incr_allow(
         &Signature::Invoker,
         &0,
         &bombadil_id,
@@ -240,7 +240,7 @@ fn test_insufficient_balance_panics() {
     b_token_client
         .with_source_account(&bombadil)
         .mint(&samwise_id, &mint_amount);
-    b_token_client.with_source_account(&samwise).approve(
+    b_token_client.with_source_account(&samwise).incr_allow(
         &Signature::Invoker,
         &0,
         &bombadil_id,
@@ -290,7 +290,7 @@ fn test_xfer_from_insufficient_allowance_panics() {
     b_token_client
         .with_source_account(&bombadil)
         .mint(&samwise_id, &mint_amount);
-    b_token_client.with_source_account(&samwise).approve(
+    b_token_client.with_source_account(&samwise).incr_allow(
         &Signature::Invoker,
         &0,
         &bombadil_id,

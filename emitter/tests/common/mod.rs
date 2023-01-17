@@ -5,7 +5,7 @@ use soroban_sdk::{BytesN, Env, IntoVal};
 // Generics
 
 mod token {
-    soroban_sdk::contractimport!(file = "../soroban_token_spec.wasm");
+    soroban_sdk::contractimport!(file = "../soroban_token_contract.wasm");
 }
 pub use token::Client as TokenClient;
 
@@ -23,17 +23,9 @@ pub fn generate_contract_id(e: &Env) -> BytesN<32> {
 
 pub fn create_token(e: &Env, admin: &Identifier) -> (BytesN<32>, TokenClient) {
     let contract_id = generate_contract_id(e);
-    e.register_contract_token(&contract_id);
+    e.register_contract_wasm(&contract_id, token::WASM);
     let client = TokenClient::new(e, contract_id.clone());
-    let _the_balance = client.balance(admin);
-    client.init(
-        &admin.clone(),
-        &token::TokenMetadata {
-            name: "unit".into_val(e),
-            symbol: "test".into_val(&e),
-            decimals: 7,
-        },
-    );
+    client.initialize(&admin, &7, &"unit".into_val(e), &"test".into_val(&e));
     (contract_id, client)
 }
 

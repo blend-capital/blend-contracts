@@ -3,6 +3,7 @@
 #[cfg(any(test, feature = "testutils"))]
 extern crate std;
 
+mod auction;
 mod errors;
 mod interest;
 mod pool;

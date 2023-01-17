@@ -8,7 +8,7 @@ use crate::{
     user_validator::validate_hf,
 };
 use soroban_auth::{Identifier, Signature};
-use soroban_sdk::{contractimpl, Address, BytesN, Env};
+use soroban_sdk::{contractimpl, BytesN, Env};
 
 /// ### Pool
 ///
@@ -285,52 +285,26 @@ impl PoolTrait for Pool {
     ) -> Result<u64, PoolError> {
         let storage = StorageManager::new(&e);
 
+        let invoker = e.invoker();
+        let invoker_id = Identifier::from(invoker);
+
         let mut reserve = Reserve::load(&e, asset.clone());
         reserve.update_rates(&e);
 
-        let invoker = e.invoker();
-        let invoker_id = Identifier::from(invoker);
-        let to_burn: u64;
-        let to_repay: u64;
-        let d_token_client = TokenClient::new(&e, reserve.config.d_token.clone());
-        if amount == u64::MAX {
-            // if they input u64::MAX as the repay amount, burn 100% of their holdings
-            to_burn = d_token_client.balance(&invoker_id) as u64;
-            to_repay = reserve.to_asset_from_d_token(&to_burn);
-        } else {
-            to_burn = reserve.to_d_token(&amount);
-            to_repay = amount;
-        }
-
-        d_token_client.burn(&Signature::Invoker, &0, &on_behalf_of, &(to_burn as i128));
-
-        TokenClient::new(&e, asset).xfer_from(
-            &Signature::Invoker,
-            &0,
-            &invoker_id,
-            &get_contract_id(&e),
-            &(to_repay as i128),
-        );
-
-        let mut user_config = UserConfig::new(storage.get_user_config(invoker_id.clone()));
-        if d_token_client.balance(&invoker_id) == 0 {
-            user_config.set_borrowing(reserve.config.index, false);
-            storage.set_user_config(invoker_id, user_config.config);
-        }
-
-        reserve.remove_liability(&to_burn);
-        reserve.set_data(&e);
-        Ok(to_burn)
+        Ok(execute_repay(
+            &e,
+            reserve,
+            amount,
+            invoker_id,
+            &on_behalf_of,
+            &storage,
+        ))
     }
 
     fn set_status(e: Env, pool_status: u32) -> Result<(), PoolError> {
         let storage = StorageManager::new(&e);
         let invoker = e.invoker();
-        let invoker_id;
-        match invoker {
-            Address::Account(account_id) => invoker_id = Identifier::Account(account_id),
-            Address::Contract(bytes) => invoker_id = Identifier::Ed25519(bytes),
-        }
+        let invoker_id = Identifier::from(invoker);
 
         if invoker_id != storage.get_admin() {
             return Err(PoolError::NotAuthorized);
@@ -348,6 +322,47 @@ impl PoolTrait for Pool {
 
 // ****** Helpers *****
 
-fn get_contract_id(e: &Env) -> Identifier {
+pub fn get_contract_id(e: &Env) -> Identifier {
     Identifier::Contract(e.current_contract())
+}
+
+pub fn execute_repay(
+    e: &Env,
+    mut reserve: Reserve,
+    amount: u64,
+    invoker_id: Identifier,
+    on_behalf_of: &Identifier,
+    storage: &StorageManager,
+) -> u64 {
+    let d_token_client = TokenClient::new(&e, reserve.config.d_token.clone());
+    let to_burn: u64;
+    let to_repay: u64;
+    if amount == u64::MAX {
+        // if they input u64::MAX as the repay amount, burn 100% of their holdings
+        to_burn = d_token_client.balance(&invoker_id) as u64;
+        to_repay = reserve.to_asset_from_d_token(&to_burn);
+    } else {
+        to_burn = reserve.to_d_token(&amount);
+        to_repay = amount;
+    }
+
+    d_token_client.burn(&Signature::Invoker, &0, &on_behalf_of, &(to_burn as i128));
+
+    TokenClient::new(&e, reserve.asset.clone()).xfer_from(
+        &Signature::Invoker,
+        &0,
+        &invoker_id,
+        &get_contract_id(&e),
+        &(to_repay as i128),
+    );
+
+    let mut user_config = UserConfig::new(storage.get_user_config(invoker_id.clone()));
+    if d_token_client.balance(&invoker_id) == 0 {
+        user_config.set_borrowing(reserve.config.index, false);
+        storage.set_user_config(invoker_id, user_config.config);
+    }
+
+    reserve.remove_liability(&to_burn);
+    reserve.set_data(&e);
+    return to_burn;
 }

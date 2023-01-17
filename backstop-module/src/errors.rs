@@ -8,4 +8,6 @@ pub enum BackstopError {
     InvalidBalance = 2,
     NotExpired = 3,
     InvalidRewardZoneEntry = 4,
+    NotAuthorized = 5,
+    InsufficientFunds = 6,
 }

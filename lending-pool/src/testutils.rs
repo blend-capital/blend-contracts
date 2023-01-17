@@ -1,9 +1,9 @@
 #![cfg(any(test, feature = "testutils"))]
 
-use crate::dependencies::{TokenClient, TokenMetadata};
+use crate::dependencies::{BackstopClient, TokenClient, TokenMetadata, BACKSTOP_WASM};
 use rand::{thread_rng, RngCore};
 use soroban_auth::Identifier;
-use soroban_sdk::{AccountId, BytesN, Env, IntoVal};
+use soroban_sdk::{BytesN, Env, IntoVal};
 // TODO: Avoid WASM-ing unit tests by adding conditional `rlib` for test builds
 //       -> https://rust-lang.github.io/rfcs/3180-cargo-cli-crate-type.html
 // use mock_blend_oracle::testutils::register_test_mock_oracle;
@@ -22,24 +22,45 @@ pub(crate) fn generate_contract_id(e: &Env) -> BytesN<32> {
     BytesN::from_array(e, &id)
 }
 
-pub(crate) fn create_token_contract(e: &Env, admin: &AccountId) -> (BytesN<32>, TokenClient) {
-    let contract_id = generate_contract_id(e);
-    e.register_contract_token(&contract_id);
-
-    let token = TokenClient::new(e, contract_id.clone());
-    token.init(
-        &Identifier::Account(admin.clone()),
-        &TokenMetadata {
-            name: "unit".into_val(e),
-            symbol: "test".into_val(e),
-            decimals: 7,
-        },
-    );
-    (contract_id, token)
-}
-
 pub(crate) fn create_mock_oracle(e: &Env) -> (BytesN<32>, MockOracleClient) {
     let contract_id = generate_contract_id(e);
     e.register_contract_wasm(&contract_id, mock_oracle::WASM);
     (contract_id.clone(), MockOracleClient::new(e, contract_id))
+}
+
+pub(crate) fn create_backstop(e: &Env) -> (BytesN<32>, BackstopClient) {
+    let contract_id = generate_contract_id(e);
+    e.register_contract_wasm(&contract_id, BACKSTOP_WASM);
+    (contract_id.clone(), BackstopClient::new(e, contract_id))
+}
+
+pub(crate) fn create_token(e: &Env, admin: &Identifier) -> (BytesN<32>, TokenClient) {
+    let contract_id = generate_contract_id(e);
+    e.register_contract_token(&contract_id);
+    let client = TokenClient::new(e, contract_id.clone());
+    let _the_balance = client.balance(admin);
+    client.init(
+        &admin.clone(),
+        &TokenMetadata {
+            name: "unit".into_val(e),
+            symbol: "test".into_val(&e),
+            decimals: 7,
+        },
+    );
+    (contract_id, client)
+}
+
+pub fn create_token_from_id(e: &Env, contract_id: &BytesN<32>, admin: &Identifier) -> TokenClient {
+    e.register_contract_token(contract_id);
+    let client = TokenClient::new(e, contract_id.clone());
+    let _the_balance = client.balance(admin);
+    client.init(
+        &admin.clone(),
+        &TokenMetadata {
+            name: "unit".into_val(e),
+            symbol: "test".into_val(&e),
+            decimals: 7,
+        },
+    );
+    client
 }

@@ -25,13 +25,26 @@ pub struct ReserveConfig {
 #[contracttype]
 pub struct ReserveData {
     // TODO: These rates are correlated and can be simplified if both the b/dTokens have a totalSupply
-    pub b_rate: u64, // the conversion rate from bToken to underlying
-    pub d_rate: u64, // the conversion rate from dToken to underlying
+    pub b_rate: u64, // the conversion rate from bToken to underlying - NOTE: stored as 9 decimals
+    pub d_rate: u64, // the conversion rate from dToken to underlying - NOTE: stored as 9 decimals
     pub ir_mod: u64, // the interest rate curve modifier
     // TODO: Remove or fix these once final choice on totalSupply for native or custom tokens added
     pub b_supply: u64, // the total supply of b tokens - TODO: File issue to support u128 (likely added on token update to u128)
     pub d_supply: u64, // the total supply of d tokens
     pub last_block: u32, // the last block the data was updated
+}
+
+/// The data for auctions
+#[derive(Clone)]
+#[contracttype]
+pub struct AuctionData {
+    pub strt_block: u32,          // the block the auction starts on
+    pub auct_type: u32,           // the type of auction
+    pub ask_count: u32, // the number of assets being sold by contract and purchased by user
+    pub ask_ids: Vec<BytesN<32>>, // a vector of ids for the assets being sold by contract and purchased by user
+    pub bid_count: u32, // the number of assets being purchased by contract and sold by user
+    pub bid_ids: Vec<BytesN<32>>, // a vector of ids for the assets being purchased by contract and sold by user
+    pub bid_ratio: u64,           // the ratio of user bad_debt to bid_amount
 }
 
 /********** Storage Key Types **********/
@@ -62,6 +75,8 @@ pub enum PoolDataKey {
     UserConfig(Identifier),
     // The status of the pool
     PoolStatus,
+    // A list of auctions and their associated data
+    AuctData(Identifier),
 }
 
 /********** Storage **********/
@@ -186,6 +201,30 @@ pub trait PoolDataStore {
     /// ### Arguments
     /// * 'pool_state' - The pool status
     fn set_pool_status(&self, pool_status: u32);
+
+    /******** Auction Data *********/
+
+    /// Fetch the data for an auction
+    ///
+    /// ### Arguments
+    /// * `auction_id` - The auction id
+    ///
+    /// Errors
+    /// If the auction does not exist
+    fn get_auction_data(&self, auction_id: Identifier) -> AuctionData;
+
+    /// Set the data for an auction
+    ///
+    /// ### Arguments
+    /// * `auction_id` - The auction id
+    /// * `data` - The auction data
+    fn set_auction_data(&self, auction_id: Identifier, data: AuctionData);
+
+    /// remove the data for an auction
+    ///
+    /// ### Arguments
+    /// * `auction_id` - The auction id
+    fn remove_auction_data(&self, auction_id: Identifier);
 }
 
 pub struct StorageManager(Env);
@@ -326,6 +365,26 @@ impl PoolDataStore for StorageManager {
     fn set_pool_status(&self, pool_status: u32) {
         let key = PoolDataKey::PoolStatus;
         self.env().data().set::<PoolDataKey, u32>(key, pool_status);
+    }
+
+    /********** Auctions ***********/
+    fn get_auction_data(&self, auction_id: Identifier) -> AuctionData {
+        let key = PoolDataKey::AuctData(auction_id);
+        self.env()
+            .data()
+            .get::<PoolDataKey, AuctionData>(key)
+            .unwrap()
+            .unwrap()
+    }
+
+    fn set_auction_data(&self, auction_id: Identifier, data: AuctionData) {
+        let key = PoolDataKey::AuctData(auction_id);
+        self.env().data().set::<PoolDataKey, AuctionData>(key, data);
+    }
+
+    fn remove_auction_data(&self, auction_id: Identifier) {
+        let key = PoolDataKey::AuctData(auction_id);
+        self.env().data().remove::<PoolDataKey>(key);
     }
 }
 

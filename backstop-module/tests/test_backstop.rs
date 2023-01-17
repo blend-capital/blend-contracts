@@ -3,11 +3,11 @@ use common::generate_contract_id;
 use soroban_auth::{Identifier, Signature};
 use soroban_sdk::{
     testutils::{Accounts, Ledger, LedgerInfo},
-    BytesN, Env,
+    BytesN, Env, Status,
 };
 
 mod common;
-use crate::common::{create_backstop_module, create_token_from_id};
+use crate::common::{create_backstop_module, create_token_from_id, BackstopError};
 
 // TODO: Investigate if mint / burn semantics will be better (operate in bTokens)
 #[test]

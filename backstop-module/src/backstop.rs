@@ -102,7 +102,7 @@ pub trait BackstopTrait {
     /// ### Errors
     /// If the pool has no emissions left to claim
     fn claim(e: Env, to: Identifier, amount: u64) -> Result<(), BackstopError>;
-    
+
     /********** Fund Management *********/
 
     /// Take BLND from a pools backstop and update share value

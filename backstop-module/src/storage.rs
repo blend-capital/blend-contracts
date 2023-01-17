@@ -204,22 +204,30 @@ impl BackstopDataStore for StorageManager {
 
     fn set_shares(&self, pool: BytesN<32>, user: Identifier, amount: u64) {
         let key = BackstopDataKey::Shares(PoolUserKey { pool, user });
-        self.env().storage().set::<BackstopDataKey, u64>(key, amount);
+        self.env()
+            .storage()
+            .set::<BackstopDataKey, u64>(key, amount);
     }
 
     fn set_pool_shares(&self, pool: BytesN<32>, amount: u64) {
         let key = BackstopDataKey::PoolShares(pool);
-        self.env().storage().set::<BackstopDataKey, u64>(key, amount);
+        self.env()
+            .storage()
+            .set::<BackstopDataKey, u64>(key, amount);
     }
 
     fn set_q4w(&self, pool: BytesN<32>, user: Identifier, q4w: Vec<Q4W>) {
         let key = BackstopDataKey::Q4W(PoolUserKey { pool, user });
-        self.env().storage().set::<BackstopDataKey, Vec<Q4W>>(key, q4w);
+        self.env()
+            .storage()
+            .set::<BackstopDataKey, Vec<Q4W>>(key, q4w);
     }
 
     fn set_pool_q4w(&self, pool: BytesN<32>, amount: u64) {
         let key = BackstopDataKey::PoolQ4W(pool);
-        self.env().storage().set::<BackstopDataKey, u64>(key, amount);
+        self.env()
+            .storage()
+            .set::<BackstopDataKey, u64>(key, amount);
     }
 
     /********** Tokens **********/
@@ -235,7 +243,9 @@ impl BackstopDataStore for StorageManager {
 
     fn set_pool_tokens(&self, pool: BytesN<32>, amount: u64) {
         let key = BackstopDataKey::PoolTkn(pool);
-        self.env().storage().set::<BackstopDataKey, u64>(key, amount);
+        self.env()
+            .storage()
+            .set::<BackstopDataKey, u64>(key, amount);
     }
 
     /********** Distribution / Reward Zone **********/
@@ -293,7 +303,9 @@ impl BackstopDataStore for StorageManager {
 
     fn set_pool_emis(&self, pool: BytesN<32>, amount: u64) {
         let key = BackstopDataKey::PoolEmis(pool);
-        self.env().storage().set::<BackstopDataKey, u64>(key, amount);
+        self.env()
+            .storage()
+            .set::<BackstopDataKey, u64>(key, amount);
     }
 }
 

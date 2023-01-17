@@ -482,11 +482,12 @@ fn get_ask_bid_modifier(block_dif: i128) -> (u64, u64) {
 mod tests {
 
     use crate::{
+        reserve_usage::ReserveUsage,
         storage::{ReserveConfig, ReserveData},
         testutils::{
             create_backstop, create_mock_oracle, create_token_contract, create_token_from_id,
             generate_contract_id,
-        }, reserve_usage::ReserveUsage,
+        },
     };
 
     use super::*;
@@ -1466,12 +1467,9 @@ mod tests {
             &samwise_id,
             &400_000_0000000, // total deposit amount
         );
-        backstop_token_client.with_source_account(&samwise).incr_allow(
-            &Signature::Invoker,
-            &0,
-            &backstop_id,
-            &(u64::MAX as i128),
-        );
+        backstop_token_client
+            .with_source_account(&samwise)
+            .incr_allow(&Signature::Invoker, &0, &backstop_id, &(u64::MAX as i128));
 
         // deposit into backstop module
         backstop_client
@@ -1880,12 +1878,9 @@ mod tests {
             &samwise_id,
             &4_000_0000000, // total deposit amount
         );
-        backstop_token_client.with_source_account(&samwise).incr_allow(
-            &Signature::Invoker,
-            &0,
-            &backstop_id,
-            &(u64::MAX as i128),
-        );
+        backstop_token_client
+            .with_source_account(&samwise)
+            .incr_allow(&Signature::Invoker, &0, &backstop_id, &(u64::MAX as i128));
 
         // setup user
         e.as_contract(&pool, || {

@@ -352,7 +352,10 @@ impl PoolDataStore for StorageManager {
     /********** Admin **********/
 
     fn get_admin(&self) -> Identifier {
-        self.env().storage().get_unchecked(PoolDataKey::Admin).unwrap()
+        self.env()
+            .storage()
+            .get_unchecked(PoolDataKey::Admin)
+            .unwrap()
     }
 
     fn set_admin(&self, new_admin: Identifier) {
@@ -429,7 +432,9 @@ impl PoolDataStore for StorageManager {
 
     fn set_res_data(&self, asset: BytesN<32>, data: ReserveData) {
         let key = PoolDataKey::ResData(asset);
-        self.env().storage().set::<PoolDataKey, ReserveData>(key, data);
+        self.env()
+            .storage()
+            .set::<PoolDataKey, ReserveData>(key, data);
     }
 
     /********** Reserve List (ResList) **********/
@@ -527,7 +532,10 @@ impl PoolDataStore for StorageManager {
             user,
             reserve_id: res_token_index,
         });
-        let result = self.env().storage().get::<PoolDataKey, UserEmissionData>(key);
+        let result = self
+            .env()
+            .storage()
+            .get::<PoolDataKey, UserEmissionData>(key);
         match result {
             Some(data) => Some(data.unwrap()),
             None => None,
@@ -557,7 +565,9 @@ impl PoolDataStore for StorageManager {
 
     fn set_pool_status(&self, pool_status: u32) {
         let key = PoolDataKey::PoolStatus;
-        self.env().storage().set::<PoolDataKey, u32>(key, pool_status);
+        self.env()
+            .storage()
+            .set::<PoolDataKey, u32>(key, pool_status);
     }
 
     /********** Pool Emissions **********/

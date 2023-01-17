@@ -104,6 +104,7 @@ impl MockOracle for MockBlendOracle {
 
     fn set_error(e: Env, to_error: bool) {
         let key = MockBlendOracleDataKey::ToError;
-        e.storage().set::<MockBlendOracleDataKey, bool>(key, to_error);
+        e.storage()
+            .set::<MockBlendOracleDataKey, bool>(key, to_error);
     }
 }

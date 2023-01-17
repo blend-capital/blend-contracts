@@ -25,12 +25,7 @@ pub fn generate_contract_id(e: &Env) -> BytesN<32> {
 pub fn create_token_from_id(e: &Env, contract_id: &BytesN<32>, admin: &Identifier) -> TokenClient {
     e.register_contract_wasm(contract_id, token::WASM);
     let client = TokenClient::new(e, contract_id.clone());
-    client.initialize(
-        &admin,
-        &7,
-        &"unit".into_val(e),
-        &"test".into_val(&e),
-    );
+    client.initialize(&admin, &7, &"unit".into_val(e), &"test".into_val(&e));
     client
 }
 

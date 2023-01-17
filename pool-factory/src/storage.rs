@@ -63,7 +63,9 @@ impl PoolFactoryStore for StorageManager {
 
     fn set_deployed(&self, contract_id: BytesN<32>) {
         let key = PoolFactoryDataKey::Contracts(contract_id);
-        self.env().storage().set::<PoolFactoryDataKey, bool>(key, true);
+        self.env()
+            .storage()
+            .set::<PoolFactoryDataKey, bool>(key, true);
     }
 }
 

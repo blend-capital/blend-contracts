@@ -74,7 +74,7 @@ fn test_pool_borrow_bad_hf_panics() {
         &sauron_id,
         &10_0000000,
     );
-    asset1_client.with_source_account(&sauron).approve(
+    asset1_client.with_source_account(&sauron).incr_allow(
         &Signature::Invoker,
         &0,
         &pool_id,
@@ -134,7 +134,7 @@ fn test_pool_borrow_good_hf_borrows() {
         &samwise_id,
         &10_0000000,
     );
-    asset1_client.with_source_account(&samwise).approve(
+    asset1_client.with_source_account(&samwise).incr_allow(
         &Signature::Invoker,
         &0,
         &pool_id,
@@ -191,7 +191,7 @@ fn test_pool_borrow_on_ice_panics() {
         &sauron_id,
         &10_0000000,
     );
-    asset1_client.with_source_account(&sauron).approve(
+    asset1_client.with_source_account(&sauron).incr_allow(
         &Signature::Invoker,
         &0,
         &pool_id,
@@ -250,7 +250,7 @@ fn test_pool_borrow_frozen_panics() {
         &sauron_id,
         &10_0000000,
     );
-    asset1_client.with_source_account(&sauron).approve(
+    asset1_client.with_source_account(&sauron).incr_allow(
         &Signature::Invoker,
         &0,
         &pool_id,

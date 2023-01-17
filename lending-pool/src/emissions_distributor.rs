@@ -24,7 +24,7 @@ pub fn update(
     user: Identifier,
 ) -> Result<(), PoolError> {
     if let Some(res_emis_data) = update_emission_data(e, reserve, res_token_type)? {
-        update_user_emissions(e, reserve, res_token_type, &res_emis_data, user, false);
+        update_user_emissions(e, reserve, res_token_type, &res_emis_data, user, false)?;
         Ok(())
     } else {
         // no emissions data for the reserve exists - nothing to update
@@ -257,7 +257,8 @@ mod tests {
         let samwise_id = Identifier::Account(samwise.clone());
 
         let bombadil = e.accounts().generate_and_create();
-        let (res_token_id, res_token_client) = create_token_contract(&e, &bombadil);
+        let bombadil_id = Identifier::Account(bombadil.clone());
+        let (res_token_id, res_token_client) = create_token_contract(&e, &bombadil_id);
         res_token_client.with_source_account(&bombadil).mint(
             &Signature::Invoker,
             &0,
@@ -326,7 +327,8 @@ mod tests {
         let samwise_id = Identifier::Account(samwise.clone());
 
         let bombadil = e.accounts().generate_and_create();
-        let (res_token_id, _) = create_token_contract(&e, &bombadil);
+        let bombadil_id = Identifier::Account(bombadil.clone());
+        let (res_token_id, _) = create_token_contract(&e, &bombadil_id);
 
         e.ledger().set(LedgerInfo {
             timestamp: 1501000000, // 10^6 seconds have passed
@@ -373,8 +375,9 @@ mod tests {
         let samwise_id = Identifier::Account(samwise.clone());
 
         let bombadil = e.accounts().generate_and_create();
-        let (res_token_id_0, res_token_client_0) = create_token_contract(&e, &bombadil);
-        let (res_token_id_1, res_token_client_1) = create_token_contract(&e, &bombadil);
+        let bombadil_id = Identifier::Account(bombadil.clone());
+        let (res_token_id_0, res_token_client_0) = create_token_contract(&e, &bombadil_id);
+        let (res_token_id_1, res_token_client_1) = create_token_contract(&e, &bombadil_id);
         res_token_client_0.with_source_account(&bombadil).mint(
             &Signature::Invoker,
             &0,
@@ -486,8 +489,9 @@ mod tests {
         let samwise_id = Identifier::Account(samwise.clone());
 
         let bombadil = e.accounts().generate_and_create();
-        let (res_token_id_0, res_token_client_0) = create_token_contract(&e, &bombadil);
-        let (res_token_id_1, res_token_client_1) = create_token_contract(&e, &bombadil);
+        let bombadil_id = Identifier::Account(bombadil.clone());
+        let (res_token_id_0, res_token_client_0) = create_token_contract(&e, &bombadil_id);
+        let (res_token_id_1, res_token_client_1) = create_token_contract(&e, &bombadil_id);
         res_token_client_0.with_source_account(&bombadil).mint(
             &Signature::Invoker,
             &0,
@@ -585,7 +589,8 @@ mod tests {
         let samwise_id = Identifier::Account(samwise.clone());
 
         let bombadil = e.accounts().generate_and_create();
-        let (res_token_id, res_token_client) = create_token_contract(&e, &bombadil);
+        let bombadil_id = Identifier::Account(bombadil.clone());
+        let (res_token_id, res_token_client) = create_token_contract(&e, &bombadil_id);
         res_token_client.with_source_account(&bombadil).mint(
             &Signature::Invoker,
             &0,
@@ -1011,7 +1016,8 @@ mod tests {
         let samwise_id = Identifier::Account(samwise.clone());
 
         let bombadil = e.accounts().generate_and_create();
-        let (res_token_id, _res_token_client) = create_token_contract(&e, &bombadil);
+        let bombadil_id = Identifier::Account(bombadil.clone());
+        let (res_token_id, _res_token_client) = create_token_contract(&e, &bombadil_id);
 
         e.ledger().set(LedgerInfo {
             timestamp: 1500000000,
@@ -1065,7 +1071,8 @@ mod tests {
         let samwise_id = Identifier::Account(samwise.clone());
 
         let bombadil = e.accounts().generate_and_create();
-        let (res_token_id, res_token_client) = create_token_contract(&e, &bombadil);
+        let bombadil_id = Identifier::Account(bombadil.clone());
+        let (res_token_id, res_token_client) = create_token_contract(&e, &bombadil_id);
         res_token_client.with_source_account(&bombadil).mint(
             &Signature::Invoker,
             &0,
@@ -1125,7 +1132,8 @@ mod tests {
         let samwise_id = Identifier::Account(samwise.clone());
 
         let bombadil = e.accounts().generate_and_create();
-        let (res_token_id, _res_token_client) = create_token_contract(&e, &bombadil);
+        let bombadil_id = Identifier::Account(bombadil.clone());
+        let (res_token_id, _res_token_client) = create_token_contract(&e, &bombadil_id);
 
         e.ledger().set(LedgerInfo {
             timestamp: 1500000000,
@@ -1185,7 +1193,8 @@ mod tests {
         let samwise_id = Identifier::Account(samwise.clone());
 
         let bombadil = e.accounts().generate_and_create();
-        let (res_token_id, res_token_client) = create_token_contract(&e, &bombadil);
+        let bombadil_id = Identifier::Account(bombadil.clone());
+        let (res_token_id, res_token_client) = create_token_contract(&e, &bombadil_id);
         res_token_client.with_source_account(&bombadil).mint(
             &Signature::Invoker,
             &0,
@@ -1255,7 +1264,8 @@ mod tests {
         let samwise_id = Identifier::Account(samwise.clone());
 
         let bombadil = e.accounts().generate_and_create();
-        let (res_token_id, res_token_client) = create_token_contract(&e, &bombadil);
+        let bombadil_id = Identifier::Account(bombadil.clone());
+        let (res_token_id, res_token_client) = create_token_contract(&e, &bombadil_id);
         res_token_client.with_source_account(&bombadil).mint(
             &Signature::Invoker,
             &0,
@@ -1325,7 +1335,8 @@ mod tests {
         let samwise_id = Identifier::Account(samwise.clone());
 
         let bombadil = e.accounts().generate_and_create();
-        let (res_token_id, res_token_client) = create_token_contract(&e, &bombadil);
+        let bombadil_id = Identifier::Account(bombadil.clone());
+        let (res_token_id, res_token_client) = create_token_contract(&e, &bombadil_id);
         res_token_client.with_source_account(&bombadil).mint(
             &Signature::Invoker,
             &0,
@@ -1396,7 +1407,8 @@ mod tests {
         let samwise_id = Identifier::Account(samwise.clone());
 
         let bombadil = e.accounts().generate_and_create();
-        let (res_token_id, res_token_client) = create_token_contract(&e, &bombadil);
+        let bombadil_id = Identifier::Account(bombadil.clone());
+        let (res_token_id, res_token_client) = create_token_contract(&e, &bombadil_id);
         res_token_client.with_source_account(&bombadil).mint(
             &Signature::Invoker,
             &0,

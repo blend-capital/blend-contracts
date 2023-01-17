@@ -313,36 +313,36 @@ impl PoolDataStore for StorageManager {
     /********** Admin **********/
 
     fn get_admin(&self) -> Identifier {
-        self.env().data().get_unchecked(PoolDataKey::Admin).unwrap()
+        self.env().storage().get_unchecked(PoolDataKey::Admin).unwrap()
     }
 
     fn set_admin(&self, new_admin: Identifier) {
         self.env()
-            .data()
+            .storage()
             .set::<PoolDataKey, Identifier>(PoolDataKey::Admin, new_admin);
     }
 
     fn has_admin(&self) -> bool {
-        self.env().data().has(PoolDataKey::Admin)
+        self.env().storage().has(PoolDataKey::Admin)
     }
 
     /********** Oracle **********/
 
     fn get_oracle(&self) -> BytesN<32> {
         self.env()
-            .data()
+            .storage()
             .get_unchecked(PoolDataKey::Oracle)
             .unwrap()
     }
 
     fn set_oracle(&self, new_oracle: BytesN<32>) {
         self.env()
-            .data()
+            .storage()
             .set::<PoolDataKey, BytesN<32>>(PoolDataKey::Oracle, new_oracle);
     }
 
     fn has_oracle(&self) -> bool {
-        self.env().data().has(PoolDataKey::Oracle)
+        self.env().storage().has(PoolDataKey::Oracle)
     }
 
     /********** Reserve Config (ResConfig) **********/
@@ -350,7 +350,7 @@ impl PoolDataStore for StorageManager {
     fn get_res_config(&self, asset: BytesN<32>) -> ReserveConfig {
         let key = PoolDataKey::ResConfig(asset);
         self.env()
-            .data()
+            .storage()
             .get::<PoolDataKey, ReserveConfig>(key)
             .unwrap()
             .unwrap()
@@ -362,19 +362,19 @@ impl PoolDataStore for StorageManager {
 
         // TODO: Might fit better in reserve module
         // add to reserve list if its new
-        if !self.env().data().has(key.clone()) {
+        if !self.env().storage().has(key.clone()) {
             let index = self.push_res_list(asset);
             indexed_config.index = index;
         }
 
         self.env()
-            .data()
+            .storage()
             .set::<PoolDataKey, ReserveConfig>(key, indexed_config);
     }
 
     fn has_res(&self, asset: BytesN<32>) -> bool {
         let key = PoolDataKey::ResConfig(asset);
-        self.env().data().has(key)
+        self.env().storage().has(key)
     }
 
     /********** Reserve Data (ResData) **********/
@@ -382,7 +382,7 @@ impl PoolDataStore for StorageManager {
     fn get_res_data(&self, asset: BytesN<32>) -> ReserveData {
         let key = PoolDataKey::ResData(asset);
         self.env()
-            .data()
+            .storage()
             .get::<PoolDataKey, ReserveData>(key)
             .unwrap()
             .unwrap()
@@ -390,14 +390,14 @@ impl PoolDataStore for StorageManager {
 
     fn set_res_data(&self, asset: BytesN<32>, data: ReserveData) {
         let key = PoolDataKey::ResData(asset);
-        self.env().data().set::<PoolDataKey, ReserveData>(key, data);
+        self.env().storage().set::<PoolDataKey, ReserveData>(key, data);
     }
 
     /********** Reserve List (ResList) **********/
 
     fn get_res_list(&self) -> Vec<BytesN<32>> {
         self.env()
-            .data()
+            .storage()
             .get::<PoolDataKey, Vec<BytesN<32>>>(PoolDataKey::ResList)
             .unwrap_or(Ok(vec![&self.env()])) // empty vec if nothing exists
             .unwrap()
@@ -411,7 +411,7 @@ impl PoolDataStore for StorageManager {
         res_list.push_back(asset);
         let new_index = res_list.len() - 1;
         self.env()
-            .data()
+            .storage()
             .set::<PoolDataKey, Vec<BytesN<32>>>(PoolDataKey::ResList, res_list);
         new_index
     }
@@ -422,7 +422,7 @@ impl PoolDataStore for StorageManager {
         let key = PoolDataKey::EmisConfig(res_token_index);
         let result = self
             .env()
-            .data()
+            .storage()
             .get::<PoolDataKey, ReserveEmissionsConfig>(key);
         match result {
             Some(data) => Some(data.unwrap()),
@@ -433,7 +433,7 @@ impl PoolDataStore for StorageManager {
     fn set_res_emis_config(&self, res_token_index: u32, res_emis_config: ReserveEmissionsConfig) {
         let key = PoolDataKey::EmisConfig(res_token_index);
         self.env()
-            .data()
+            .storage()
             .set::<PoolDataKey, ReserveEmissionsConfig>(key, res_emis_config);
     }
 
@@ -441,7 +441,7 @@ impl PoolDataStore for StorageManager {
         let key = PoolDataKey::EmisData(res_token_index);
         let result = self
             .env()
-            .data()
+            .storage()
             .get::<PoolDataKey, ReserveEmissionsData>(key);
         match result {
             Some(data) => Some(data.unwrap()),
@@ -451,13 +451,13 @@ impl PoolDataStore for StorageManager {
 
     fn has_res_emis_data(&self, res_token_index: u32) -> bool {
         let key = PoolDataKey::EmisData(res_token_index);
-        self.env().data().has(key)
+        self.env().storage().has(key)
     }
 
     fn set_res_emis_data(&self, res_token_index: u32, res_emis_data: ReserveEmissionsData) {
         let key = PoolDataKey::EmisData(res_token_index);
         self.env()
-            .data()
+            .storage()
             .set::<PoolDataKey, ReserveEmissionsData>(key, res_emis_data);
     }
 
@@ -466,7 +466,7 @@ impl PoolDataStore for StorageManager {
     fn get_user_config(&self, user: Identifier) -> u128 {
         let key = PoolDataKey::UserConfig(user);
         self.env()
-            .data()
+            .storage()
             .get::<PoolDataKey, u128>(key)
             .unwrap_or(Ok(0))
             .unwrap()
@@ -474,7 +474,7 @@ impl PoolDataStore for StorageManager {
 
     fn set_user_config(&self, user: Identifier, config: u128) {
         let key = PoolDataKey::UserConfig(user);
-        self.env().data().set::<PoolDataKey, u128>(key, config);
+        self.env().storage().set::<PoolDataKey, u128>(key, config);
     }
 
     /********** User Emissions **********/
@@ -488,7 +488,7 @@ impl PoolDataStore for StorageManager {
             user,
             reserve_id: res_token_index,
         });
-        let result = self.env().data().get::<PoolDataKey, UserEmissionData>(key);
+        let result = self.env().storage().get::<PoolDataKey, UserEmissionData>(key);
         match result {
             Some(data) => Some(data.unwrap()),
             None => None,
@@ -501,7 +501,7 @@ impl PoolDataStore for StorageManager {
             reserve_id: res_token_index,
         });
         self.env()
-            .data()
+            .storage()
             .set::<PoolDataKey, UserEmissionData>(key, data);
     }
 
@@ -510,7 +510,7 @@ impl PoolDataStore for StorageManager {
     fn get_pool_status(&self) -> u32 {
         let key = PoolDataKey::PoolStatus;
         self.env()
-            .data()
+            .storage()
             .get::<PoolDataKey, u32>(key)
             .unwrap()
             .unwrap()
@@ -518,7 +518,7 @@ impl PoolDataStore for StorageManager {
 
     fn set_pool_status(&self, pool_status: u32) {
         let key = PoolDataKey::PoolStatus;
-        self.env().data().set::<PoolDataKey, u32>(key, pool_status);
+        self.env().storage().set::<PoolDataKey, u32>(key, pool_status);
     }
 
     /********** Pool Emissions **********/
@@ -526,7 +526,7 @@ impl PoolDataStore for StorageManager {
     fn get_pool_emissions(&self) -> Map<u32, u64> {
         let key = PoolDataKey::PoolEmis;
         self.env()
-            .data()
+            .storage()
             .get::<PoolDataKey, Map<u32, u64>>(key)
             .unwrap()
             .unwrap()
@@ -535,14 +535,14 @@ impl PoolDataStore for StorageManager {
     fn set_pool_emissions(&self, emissions: Map<u32, u64>) {
         let key = PoolDataKey::PoolEmis;
         self.env()
-            .data()
+            .storage()
             .set::<PoolDataKey, Map<u32, u64>>(key, emissions);
     }
 
     fn get_pool_emission_config(&self) -> PoolEmissionConfig {
         let key = PoolDataKey::PEConfig;
         self.env()
-            .data()
+            .storage()
             .get::<PoolDataKey, PoolEmissionConfig>(key)
             .unwrap()
             .unwrap()
@@ -551,7 +551,7 @@ impl PoolDataStore for StorageManager {
     fn set_pool_emission_config(&self, config: PoolEmissionConfig) {
         let key = PoolDataKey::PEConfig;
         self.env()
-            .data()
+            .storage()
             .set::<PoolDataKey, PoolEmissionConfig>(key, config);
     }
 }

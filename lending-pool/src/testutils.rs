@@ -1,13 +1,9 @@
 #![cfg(any(test, feature = "testutils"))]
 
-use crate::{
-    dependencies::{BackstopClient, TokenClient, TokenMetadata, BACKSTOP_WASM},
-    storage::ReserveConfig,
-    PoolClient,
-};
+use crate::dependencies::{BackstopClient, TokenClient, TokenMetadata, BACKSTOP_WASM};
 use rand::{thread_rng, RngCore};
 use soroban_auth::Identifier;
-use soroban_sdk::{AccountId, BytesN, Env, IntoVal};
+use soroban_sdk::{BytesN, Env, IntoVal};
 // TODO: Avoid WASM-ing unit tests by adding conditional `rlib` for test builds
 //       -> https://rust-lang.github.io/rfcs/3180-cargo-cli-crate-type.html
 // use mock_blend_oracle::testutils::register_test_mock_oracle;

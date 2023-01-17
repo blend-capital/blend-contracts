@@ -9,6 +9,8 @@ test: build
 build:
 	rm -rf target/wasm32-unknown-unknown
 	cargo build --target wasm32-unknown-unknown --release -p oracle
+	cargo build --target wasm32-unknown-unknown --release -p emitter
+	cargo build --target wasm32-unknown-unknown --release -p backstop-module
 	cargo build --target wasm32-unknown-unknown --release -p lending-pool
 	cargo build --target wasm32-unknown-unknown --release
 	cd target/wasm32-unknown-unknown/release/ && \

@@ -15,10 +15,6 @@ use soroban_sdk::{vec, Env, Vec};
 pub struct Auction {
     pub auction_id: Identifier,    // the id of the auction
     pub auction_data: AuctionData, // the data for the auction
-    pub ask_modifier: u64,         // the modifier for the asks
-    pub bid_modifier: u64,         // the modifier for the bids
-    pub ask_amts: Vec<u64>,        // the amounts of the asks
-    pub bid_amts: Vec<u64>,        // the amounts of the bids
 }
 
 #[derive(Clone, PartialEq)]
@@ -38,192 +34,19 @@ impl Auction {
     ///
     /// ### Returns
     /// The Auction struct
-    pub fn load(e: &Env, auction_id: Identifier) -> Auction {
-        let auction_data = StorageManager::new(&e).get_auction_data(auction_id.clone());
+    pub fn load(e: &Env, auction_id: Identifier, storage: &StorageManager) -> Auction {
+        let auction_data = storage.get_auction_data(auction_id.clone());
 
-        let start_block = auction_data.strt_block;
-        let block_dif = (e.ledger().sequence() - start_block) as i128;
-        let bid_modifier: u64;
-        let ask_modifier: u64;
-        if block_dif > 200 {
-            bid_modifier = 1_000_0000;
-            ask_modifier = get_modifier(block_dif);
-        } else {
-            bid_modifier = get_modifier(block_dif);
-            ask_modifier = 1_000_0000;
-        };
-        let ask_amts: Vec<u64> = Vec::new(e);
-        let bid_amts: Vec<u64> = Vec::new(e);
-
-        let mut auct = Auction {
+        Auction {
             auction_id,
             auction_data,
-            ask_modifier,
-            bid_modifier,
-            ask_amts,
-            bid_amts,
-        };
-        auct.load_bid_ask_amts(e);
-        auct
-    }
-
-    fn load_bid_ask_amts(&mut self, e: &Env) {
-        //get ask/bid amounts
-        let (ask_amts, bid_amts) = self.get_ask_bid_amts(&e).unwrap();
-        self.ask_amts = ask_amts;
-        self.bid_amts = bid_amts;
-    }
-
-    fn get_ask_bid_amts(&self, e: &Env) -> Result<(Vec<u64>, Vec<u64>), PoolError> {
-        let storage = StorageManager::new(&e);
-        return match self.auction_data.auct_type {
-            //user liquidation
-            0 => Ok((
-                self.get_user_collateral(e, &storage),
-                self.get_target_liquidation_amts(e, &storage),
-            )),
-            //backstop liquidation or bad debt auction
-            1 | 2 => Ok((self.get_accrued_interest(e), self.get_bad_debt_amts(e))),
-            //accrued interest auction
-            3 => {
-                let ask_amts = self.get_accrued_interest(e);
-                Ok((
-                    ask_amts.clone(),
-                    self.get_target_accrued_interest_price(e, ask_amts, &storage),
-                ))
-            }
-            4_u32..=u32::MAX => Err(PoolError::InvalidAuctionType),
-        };
-    }
-
-    //*********** Ask Amount Fetchers **********/
-    fn get_user_collateral(&self, e: &Env, storage: &StorageManager) -> Vec<u64> {
-        let mut collateral_amounts: Vec<u64> = Vec::new(e);
-        let mut id_iter = self.auction_data.ask_ids.iter();
-        for _ in 0..self.auction_data.ask_count {
-            let asset_id = id_iter.next().unwrap().unwrap();
-            let res_config = storage.get_res_config(asset_id.clone());
-            //TODO: swap for b_token_client if we end up using a custom b_token
-            //TODO: we may want to store the b_token address in the auction data bid_ids, decide when we plug in the initiate_auction functions
-            let b_token_client = TokenClient::new(e, res_config.b_token.clone());
-            collateral_amounts.push_back(
-                //cast to u128 to avoid overflow
-                (b_token_client.balance(&self.auction_id) as u128 * self.ask_modifier as u128
-                    / 1_000_0000) as u64,
-            );
         }
-        return collateral_amounts;
-    }
-
-    fn get_accrued_interest(&self, e: &Env) -> Vec<u64> {
-        let mut accrued_interest_amts: Vec<u64> = Vec::new(e);
-        let mut id_iter = self.auction_data.ask_ids.iter();
-        for _ in 0..self.auction_data.ask_count {
-            let asset_id = id_iter.next().unwrap().unwrap();
-            let mut reserve = Reserve::load(e, asset_id.clone());
-            reserve.update_rates(e);
-            //TODO: get backstop interest accrued from this reserve - currently not implemented
-            let accrued_interest: u64 = 1_000_0000;
-            //ask modifier does not apply for backstop liquidations
-            let ask_mod = if self.auction_data.auct_type == AuctionType::BackstopLiquidation as u32
-            {
-                1
-            } else {
-                self.ask_modifier
-            };
-            //cast to u128 to avoid overflow
-            accrued_interest_amts
-                .push_back((accrued_interest as u128 * ask_mod as u128 / 1_000_0000) as u64);
-        }
-        return accrued_interest_amts;
-    }
-
-    //*********** Bid Amount Fetchers **********/
-    fn get_target_liquidation_amts(&self, e: &Env, storage: &StorageManager) -> Vec<u64> {
-        let user_action: UserAction = UserAction {
-            asset: self.auction_data.bid_ids.first().unwrap().unwrap(),
-            b_token_delta: 0,
-            d_token_delta: 0,
-        };
-        let user_data = UserData::load(&e, &self.auction_id, &user_action);
-        // cast to u128 to avoid overflow
-        let mut liq_amt = (user_data.e_liability_base as u128 * 1_020_0000 / 1_000_0000
-            - user_data.e_collateral_base as u128)
-            * self.auction_data.bid_ratio as u128
-            / 1_000_0000;
-        // check if liq amount is greater than the user's liability position
-        let asset = self.auction_data.bid_ids.first().unwrap().unwrap();
-        let liability = Reserve::load(e, asset.clone());
-        let d_token = TokenClient::new(e, liability.config.d_token.clone());
-        let d_token_balance = d_token.balance(&self.auction_id.clone()) as u64;
-        let balance = liability.to_asset_from_d_token(&d_token_balance);
-        let oracle_address = storage.get_oracle();
-        let oracle = OracleClient::new(e, oracle_address);
-        //cast to u128 to avoid overflow
-        let price = oracle.get_price(&asset) as u128;
-        let value = price * balance as u128 / 1_000_0000;
-        if liq_amt > value {
-            liq_amt = value;
-        }
-        liq_amt = liq_amt * self.bid_modifier as u128 / price;
-        vec![&e, liq_amt as u64]
-    }
-
-    fn get_target_accrued_interest_price(
-        &self,
-        e: &Env,
-        ask_amts: Vec<u64>,
-        storage: &StorageManager,
-    ) -> Vec<u64> {
-        let oracle_address = storage.get_oracle();
-        let oracle = OracleClient::new(e, oracle_address);
-        //cast to u128 to avoid overflow
-        let mut interest_value: u128 = 0;
-        let mut ask_id_iter = self.auction_data.ask_ids.iter();
-        let mut ask_amt_iter = ask_amts.iter();
-        for _ in 0..ask_id_iter.len() {
-            let asset_id = ask_id_iter.next().unwrap().unwrap();
-            //update rates to accrue interest
-            Reserve::load(e, asset_id.clone()).update_rates(e);
-            let accrued_interest: u64 = ask_amt_iter.next().unwrap().unwrap();
-            let interest_price = oracle.get_price(&asset_id);
-            //cast to u128 to avoid overflow
-            interest_value += (accrued_interest as u128 * interest_price as u128) / 1_000_0000;
-        }
-        //TODO: get backstop LP token client and value - currently not implemented
-        let lp_share_blnd_holdings: u64 = 8_000_0000;
-        let lp_share_usdc_holdings: u64 = 2_000_0000;
-        //TODO: get BLND token_id from somewhere - currently not implemented - then get blend price from oracle
-        let blnd_id = self.auction_data.bid_ids.first().unwrap().unwrap();
-        let blnd_value = oracle.get_price(&blnd_id);
-        // There's no need to get USDC price since USDC is the base asset for pricing
-        //cast to u128 to avoid overflow
-        let lp_share_value = lp_share_blnd_holdings as u128 * blnd_value as u128 / 1_000_0000
-            + lp_share_usdc_holdings as u128;
-        let target_price = 1_400_0000 * interest_value as u128 / lp_share_value;
-        vec![
-            &e,
-            (target_price * self.bid_modifier as u128 / 1_000_0000) as u64,
-        ]
-    }
-
-    fn get_bad_debt_amts(&self, e: &Env) -> Vec<u64> {
-        let mut bid_amts: Vec<u64> = Vec::new(e);
-        let mut bid_id_iter = self.auction_data.bid_ids.iter();
-        for _ in 0..self.auction_data.bid_count {
-            let asset_id = bid_id_iter.next().unwrap().unwrap();
-            // TODO: get debt bad debt for this reserve, however we end up storing that
-            let debt_amt: u64 = 1_000_0000;
-            // cast to u128 to avoid overflow
-            bid_amts.push_back((debt_amt as u128 * self.bid_modifier as u128 / 1_000_0000) as u64);
-        }
-        return bid_amts;
     }
 
     //*********** Settlement Functions **********/
-    fn settle_asks(&self, e: &Env, invoker_id: Identifier) {
+    fn settle_asks(&self, e: &Env, invoker_id: Identifier, ask_amts: Vec<u64>) {
         let mut id_iter = self.auction_data.ask_ids.iter();
-        let mut amt_iter = self.ask_amts.iter();
+        let mut amt_iter = ask_amts.iter();
         for _ in 0..self.auction_data.ask_count {
             let asset_id = id_iter.next().unwrap().unwrap();
             let amt = (amt_iter.next().unwrap().unwrap()) as i128;
@@ -232,9 +55,9 @@ impl Auction {
         }
     }
 
-    fn settle_bids(&self, e: &Env, from: Identifier, storage: &StorageManager) {
+    fn settle_bids(&self, e: &Env, from: Identifier, storage: &StorageManager, bid_amts: Vec<u64>) {
         let mut id_iter = self.auction_data.bid_ids.iter();
-        let mut amt_iter = self.bid_amts.iter();
+        let mut amt_iter = bid_amts.iter();
         for _ in 0..self.auction_data.bid_count {
             let asset_id = id_iter.next().unwrap().unwrap();
             let amt = amt_iter.next().unwrap().unwrap();
@@ -242,9 +65,15 @@ impl Auction {
             execute_repay(&e, reserve, amt, from.clone(), &self.auction_id, storage);
         }
     }
+
+    fn remove_auction(&self, storage: &StorageManager) {
+        storage.remove_auction_data(self.auction_id.clone());
+    }
 }
 
-pub trait AuctionSettlement {
+pub trait AuctionManagement {
+    fn load(e: &Env, auction_id: Identifier, storage: &StorageManager) -> Self;
+
     fn fill(
         &self,
         e: &Env,
@@ -254,8 +83,56 @@ pub trait AuctionSettlement {
 }
 pub struct UserLiquidationAuction {
     auction: Auction,
+    ask_amts: Vec<u64>,
+    bid_amts: Vec<u64>,
 }
-impl AuctionSettlement for UserLiquidationAuction {
+impl AuctionManagement for UserLiquidationAuction {
+    fn load(e: &Env, auction_id: Identifier, storage: &StorageManager) -> UserLiquidationAuction {
+        // load auction
+        let auction = Auction::load(e, auction_id, storage);
+
+        // get modifiers
+        let block_dif = (e.ledger().sequence() - auction.auction_data.strt_block.clone()) as i128;
+        let (ask_modifier, bid_modifier) = get_ask_bid_modifier(block_dif);
+
+        // get bid amounts
+        // cast to u128 to avoid overflow
+        let liq_amt = (get_target_liquidation_amt(
+            e,
+            auction.auction_data.clone(),
+            &storage,
+            auction.auction_id.clone(),
+        ) as u128
+            * bid_modifier as u128
+            / 1_000_0000) as u64;
+
+        //if liq amt is less than 0 the user is no longer liquidatable and we can remove the auction
+        if liq_amt <= 0 {
+            auction.remove_auction(&storage);
+            return UserLiquidationAuction {
+                auction,
+                ask_amts: vec![e],
+                bid_amts: vec![e],
+            };
+        }
+        let bid_amts = vec![e, liq_amt];
+
+        // get ask amounts
+        let ask_amts: Vec<u64> = get_user_collateral(
+            e,
+            auction.auction_data.clone(),
+            &storage,
+            ask_modifier,
+            auction.auction_id.clone(),
+        );
+
+        UserLiquidationAuction {
+            auction,
+            ask_amts,
+            bid_amts,
+        }
+    }
+
     fn fill(
         &self,
         e: &Env,
@@ -263,50 +140,117 @@ impl AuctionSettlement for UserLiquidationAuction {
         storage: StorageManager,
     ) -> Result<(), PoolError> {
         //perform bid token transfers
-        self.auction.settle_bids(e, invoker_id, &storage);
+        self.auction
+            .settle_bids(e, invoker_id, &storage, self.bid_amts.clone());
         //perform ask token transfers
         //if user liquidation auction we transfer b_tokens to the auction filler
         //TODO: implement once we decide whether to use custom b_tokens or not - either way we need a custom transfer mechanism
+        self.auction.remove_auction(&storage);
         Ok(())
     }
 }
+
+//*********** User Liquidation Auction Helpers **********/
+fn get_user_collateral(
+    e: &Env,
+    auction_data: AuctionData,
+    storage: &StorageManager,
+    ask_modifier: u64,
+    user_id: Identifier,
+) -> Vec<u64> {
+    let mut collateral_amounts: Vec<u64> = Vec::new(e);
+    let mut id_iter = auction_data.ask_ids.iter();
+    for _ in 0..auction_data.ask_count {
+        let asset_id = id_iter.next().unwrap().unwrap();
+        let res_config = storage.get_res_config(asset_id.clone());
+        //TODO: swap for b_token_client if we end up using a custom b_token
+        //TODO: we may want to store the b_token address in the auction data bid_ids, decide when we plug in the initiate_auction functions
+        let b_token_client = TokenClient::new(e, res_config.b_token.clone());
+        collateral_amounts.push_back(
+            //cast to u128 to avoid overflow
+            (b_token_client.balance(&user_id) as u128 * ask_modifier as u128 / 1_000_0000) as u64,
+        );
+    }
+    return collateral_amounts;
+}
+
+fn get_target_liquidation_amt(
+    e: &Env,
+    auction_data: AuctionData,
+    storage: &StorageManager,
+    user_id: Identifier,
+) -> u64 {
+    let asset = auction_data.bid_ids.first().unwrap().unwrap();
+    let user_action: UserAction = UserAction {
+        asset: asset.clone(),
+        b_token_delta: 0,
+        d_token_delta: 0,
+    };
+    let user_data = UserData::load(&e, &user_id, &user_action);
+    // cast to u128 to avoid overflow
+    let mut liq_amt = (user_data.e_liability_base as u128 * 1_020_0000 / 1_000_0000
+        - user_data.e_collateral_base as u128)
+        * auction_data.bid_ratio as u128
+        / 1_000_0000;
+    // check if liq amount is greater than the user's liability position
+    let liability = Reserve::load(e, asset.clone());
+    let d_token = TokenClient::new(e, liability.config.d_token.clone());
+    let d_token_balance = d_token.balance(&user_id.clone()) as u64;
+    let balance = liability.to_asset_from_d_token(&d_token_balance);
+    let oracle_address = storage.get_oracle();
+    let oracle = OracleClient::new(e, oracle_address);
+    //cast to u128 to avoid overflow
+    let price = oracle.get_price(&asset) as u128;
+    let value = price * balance as u128 / 1_000_0000;
+    if liq_amt > value {
+        liq_amt = value;
+    }
+    liq_amt = liq_amt * 1_000_0000 / price;
+    return liq_amt as u64;
+}
+
 pub struct BackstopLiquidationAuction {
     auction: Auction,
+    ask_amts: Vec<u64>,
+    bid_amts: Vec<u64>,
 }
-impl AuctionSettlement for BackstopLiquidationAuction {
-    fn fill(
-        &self,
+impl AuctionManagement for BackstopLiquidationAuction {
+    fn load(
         e: &Env,
-        invoker_id: Identifier,
-        storage: StorageManager,
-    ) -> Result<(), PoolError> {
-        //perform bid token transfers
-        self.auction.settle_bids(e, invoker_id.clone(), &storage);
+        auction_id: Identifier,
+        storage: &StorageManager,
+    ) -> BackstopLiquidationAuction {
+        // load auction
+        let auction = Auction::load(e, auction_id, storage);
 
+        // get modifiers
+        let block_dif = (e.ledger().sequence() - auction.auction_data.strt_block.clone()) as i128;
+        let (ask_modifier, bid_modifier) = get_ask_bid_modifier(block_dif);
+        let storage = StorageManager::new(&e);
+
+        // get ask amounts
         let pool = e.current_contract();
         let backstop_id = storage.get_oracle(); //TODO swap for function that gets backstop module id
         let backstop_client = BackstopClient::new(&e, backstop_id);
         let (backstop_pool_balance, _, _) = backstop_client.p_balance(&pool);
-        //cast to u128 to avoid overflow
-        backstop_client.draw(
-            &e.current_contract(),
-            &((backstop_pool_balance as u128 * self.auction.ask_modifier as u128 / 1_000_0000)
-                as u64),
-            &invoker_id.clone(),
-        );
+        // cast to u128 to avoid overflow
+        // in backstop liquidation auctions all accrued interest is auctioned, so the ask_modifier is always 1
+        let mut ask_amts =
+            get_modified_accrued_interest(e, auction.auction_data.clone(), 1_000_0000);
+        ask_amts.append(&vec![
+            &e,
+            ((backstop_pool_balance as u128 * ask_modifier as u128 / 1_000_0000) as u64),
+        ]);
 
-        //perform ask token transfers
-        self.auction.settle_asks(e, invoker_id);
-
-        Ok(())
+        // get bid amounts
+        let bid_amts =
+            get_modified_bad_debt_amts(e, auction.auction_data.clone(), bid_modifier, &storage);
+        BackstopLiquidationAuction {
+            auction,
+            ask_amts,
+            bid_amts,
+        }
     }
-}
-
-pub struct BadDebtAuction {
-    auction: Auction,
-}
-
-impl AuctionSettlement for BadDebtAuction {
     fn fill(
         &self,
         e: &Env,
@@ -314,19 +258,157 @@ impl AuctionSettlement for BadDebtAuction {
         storage: StorageManager,
     ) -> Result<(), PoolError> {
         //perform bid token transfers
-        self.auction.settle_bids(e, invoker_id.clone(), &storage);
+        self.auction
+            .settle_bids(e, invoker_id.clone(), &storage, self.bid_amts.clone());
 
         //perform ask token transfers
-        self.auction.settle_asks(e, invoker_id);
+        let backstop_id = storage.get_oracle(); //TODO swap for function that gets backstop module id
+        let backstop_client = BackstopClient::new(&e, backstop_id);
+        //we need to create a new ask_amt vec in order to make it mutable
+        let mut ask_amts = self.ask_amts.clone();
+        //cast to u128 to avoid overflow
+        //NOTE: think there's a bug with pop_back - TODO ask mootz
+        backstop_client.draw(
+            &e.current_contract(),
+            &ask_amts.pop_back().unwrap().unwrap(),
+            &invoker_id.clone(),
+        );
+        //TODO: decide whether these are bToken transfers or not
+
+        Ok(())
+    }
+}
+
+//************* Backstop Liquidation Auction Helpers **************/
+fn get_modified_accrued_interest(
+    e: &Env,
+    auction_data: AuctionData,
+    ask_modifier: u64,
+) -> Vec<u64> {
+    let mut accrued_interest_amts: Vec<u64> = Vec::new(e);
+    let mut id_iter = auction_data.ask_ids.iter();
+    for _ in 0..auction_data.ask_count {
+        let asset_id = id_iter.next().unwrap().unwrap();
+        //update reserve rate
+        let mut reserve = Reserve::load(e, asset_id.clone());
+        reserve.update_rates(e);
+        reserve.set_data(e);
+        //TODO: get backstop interest accrued from this reserve - currently not implemented
+        let accrued_interest: u64 = 1_000_0000;
+        //cast to u128 to avoid overflow
+        accrued_interest_amts
+            .push_back((accrued_interest as u128 * ask_modifier as u128 / 1_000_0000) as u64);
+    }
+    return accrued_interest_amts;
+}
+
+fn get_modified_bad_debt_amts(
+    e: &Env,
+    auction_data: AuctionData,
+    bid_modifier: u64,
+    storage: &StorageManager,
+) -> Vec<u64> {
+    let mut bid_amts: Vec<u64> = Vec::new(e);
+    let mut bid_id_iter = auction_data.bid_ids.iter();
+    let backstop = storage.get_oracle(); //TODO: replace with method to get backstop id
+    let backstop_id = Identifier::Contract(backstop);
+    for _ in 0..auction_data.bid_count {
+        let asset = bid_id_iter.next().unwrap().unwrap();
+        // update reserve rates
+        let mut reserve = Reserve::load(e, asset.clone());
+        reserve.update_rates(e);
+        reserve.set_data(e);
+        //TODO: update when we decide how to handle dTokens
+        let d_token_client = TokenClient::new(e, reserve.config.d_token.clone());
+        let d_tokens = d_token_client.balance(&backstop_id);
+        let underlying_debt = reserve.to_asset_from_d_token(&(d_tokens as u64));
+        // cast to u128 to avoid overflow
+        bid_amts.push_back((underlying_debt as u128 * bid_modifier as u128 / 1_000_0000) as u64);
+    }
+    return bid_amts;
+}
+
+pub struct BadDebtAuction {
+    auction: Auction,
+    ask_amts: Vec<u64>,
+    bid_amts: Vec<u64>,
+}
+
+impl AuctionManagement for BadDebtAuction {
+    fn load(e: &Env, auction_id: Identifier, storage: &StorageManager) -> BadDebtAuction {
+        //load auction
+        let auction = Auction::load(e, auction_id, storage);
+
+        //get modifiers
+        let block_dif = (e.ledger().sequence() - auction.auction_data.strt_block) as i128;
+        let (ask_modifier, bid_modifier) = get_ask_bid_modifier(block_dif);
+        let storage = StorageManager::new(&e);
+
+        //get ask amounts
+        let ask_amts: Vec<u64> =
+            get_modified_accrued_interest(e, auction.auction_data.clone(), ask_modifier);
+
+        //get bid amounts
+        let bid_amts =
+            get_modified_bad_debt_amts(e, auction.auction_data.clone(), bid_modifier, &storage);
+        BadDebtAuction {
+            auction,
+            ask_amts,
+            bid_amts,
+        }
+    }
+    fn fill(
+        &self,
+        e: &Env,
+        invoker_id: Identifier,
+        storage: StorageManager,
+    ) -> Result<(), PoolError> {
+        //perform bid token transfers
+        self.auction
+            .settle_bids(e, invoker_id.clone(), &storage, self.bid_amts.clone());
+
+        //perform ask token transfers
+        //TODO: decide whether these are b_token transfers or not
         Ok(())
     }
 }
 
 pub struct AccruedInterestAuction {
     auction: Auction,
+    ask_amts: Vec<u64>,
+    bid_amts: Vec<u64>,
 }
 
-impl AuctionSettlement for AccruedInterestAuction {
+impl AuctionManagement for AccruedInterestAuction {
+    fn load(e: &Env, auction_id: Identifier, storage: &StorageManager) -> AccruedInterestAuction {
+        // load auction
+        let auction = Auction::load(e, auction_id, storage);
+
+        // get modifiers
+        let block_dif = (e.ledger().sequence() - auction.auction_data.strt_block.clone()) as i128;
+        let (ask_modifier, bid_modifier) = get_ask_bid_modifier(block_dif);
+
+        // get ask amounts
+        let ask_amts: Vec<u64> =
+            get_modified_accrued_interest(e, auction.auction_data.clone(), ask_modifier);
+
+        // get bid amounts
+        // cast to u128 to avoid overflow
+        let accrued_interest_price = (get_target_accrued_interest_price(
+            e,
+            auction.auction_data.clone(),
+            ask_amts.clone(),
+            &storage,
+        ) as u128
+            * bid_modifier as u128
+            / 1_000_0000) as u64;
+        let bid_amts = vec![e, accrued_interest_price];
+        AccruedInterestAuction {
+            auction,
+            ask_amts,
+            bid_amts,
+        }
+    }
     fn fill(
         &self,
         e: &Env,
@@ -339,35 +421,65 @@ impl AuctionSettlement for AccruedInterestAuction {
         //cast to u128 to avoid overflow
         backstop_client.donate(
             &e.current_contract(),
-            &((self.auction.bid_amts.first().unwrap().unwrap() as u128
-                * self.auction.bid_modifier as u128
-                / 1_000_0000) as u64),
+            &self.bid_amts.first().unwrap().unwrap(),
             &invoker_id,
         );
 
         //perform ask token transfers
-        self.auction.settle_asks(e, invoker_id);
+        //TODO: decide whether we transfer these as b_tokens or not
         Ok(())
     }
 }
 
-// ****** Helpers *****
+// *********** Accrued Interest Auction Helpers ***********
+
+fn get_target_accrued_interest_price(
+    e: &Env,
+    auction_data: AuctionData,
+    ask_amts: Vec<u64>,
+    storage: &StorageManager,
+) -> u64 {
+    let oracle_address = storage.get_oracle();
+    let oracle = OracleClient::new(e, oracle_address);
+    //cast to u128 to avoid overflow
+    let mut interest_value: u128 = 0;
+    let mut ask_id_iter = auction_data.ask_ids.iter();
+    let mut ask_amt_iter = ask_amts.iter();
+    for _ in 0..ask_id_iter.len() {
+        let asset_id = ask_id_iter.next().unwrap().unwrap();
+
+        let accrued_interest: u64 = ask_amt_iter.next().unwrap().unwrap();
+        let interest_price = oracle.get_price(&asset_id);
+        //cast to u128 to avoid overflow
+        interest_value += (accrued_interest as u128 * interest_price as u128) / 1_000_0000;
+    }
+    let blnd_id = auction_data.bid_ids.first().unwrap().unwrap();
+    let blnd_value = oracle.get_price(&blnd_id);
+    //cast to u128 to avoid overflow
+    return (1_400_0000 * interest_value as u128 / blnd_value as u128) as u64;
+}
+
+// *********** Helpers ***********
 
 //TODO: fixed point math library
-fn get_modifier(block_dif: i128) -> u64 {
+fn get_ask_bid_modifier(block_dif: i128) -> (u64, u64) {
+    let ask_modifier: u64;
+    let bid_modifier: u64;
     if block_dif > 400 {
-        return 0;
+        ask_modifier = 1_000_0000;
+        bid_modifier = 0;
     } else if block_dif > 200 {
-        return (-block_dif / 2 * 1_0000000 / 100 + 2_0000000) as u64;
+        ask_modifier = 1_000_0000;
+        bid_modifier = (-block_dif / 2 * 1_0000000 / 100 + 2_0000000) as u64;
     } else {
-        return (block_dif / 2 * 1_0000000 / 100) as u64;
-    }
+        ask_modifier = (block_dif / 2 * 1_0000000 / 100) as u64;
+        bid_modifier = 1_000_0000;
+    };
+    (ask_modifier, bid_modifier)
 }
 
 #[cfg(test)]
 mod tests {
-
-    use std::println;
 
     use crate::{
         storage::{ReserveConfig, ReserveData},
@@ -502,7 +614,7 @@ mod tests {
         e.as_contract(&pool_id, || {
             storage.set_auction_data(samwise_id.clone(), data);
 
-            let auction = Auction::load(&e, samwise_id.clone());
+            let auction = Auction::load(&e, samwise_id.clone(), &storage);
 
             let auction_data = auction.auction_data;
             assert_eq!(auction_data.auct_type, 0);
@@ -512,62 +624,9 @@ mod tests {
             assert_eq!(auction_data.bid_count, 1);
             assert_eq!(auction_data.ask_count, 1);
             assert_eq!(auction_data.bid_ratio, 500_0000);
-            assert_eq!(auction.bid_modifier, 1_000_0000);
-            assert_eq!(auction.ask_modifier, 1_000_0000);
-            assert_eq!(auction.ask_amts, vec![&e, collateral_amount as u64]);
-            assert_eq!(auction.bid_amts, vec![&e, 5_200_0000]);
         });
     }
 
-    #[test]
-    fn test_get_ask_bid_invalid_auction_panics() {
-        let e = Env::default();
-        e.ledger().set(LedgerInfo {
-            timestamp: 12345,
-            protocol_version: 1,
-            sequence_number: 300,
-            network_passphrase: Default::default(),
-            base_reserve: 10,
-        });
-
-        //setup user and pool
-        let pool_id = generate_contract_id(&e);
-        let samwise = e.accounts().generate_and_create();
-        let samwise_id = Identifier::Account(samwise.clone());
-
-        //setup auction data
-        let ask_ids = vec![&e];
-        let bid_ids = vec![&e];
-        let bid_ratio: u64 = 500_0000;
-        let auction_data = AuctionData {
-            auct_type: 5,
-            ask_ids: ask_ids.clone(),
-            bid_ids: bid_ids.clone(),
-            strt_block: 100,
-            bid_count: 1,
-            ask_count: 1,
-            bid_ratio,
-        };
-
-        e.as_contract(&pool_id, || {
-            let auction = Auction {
-                auction_id: samwise_id.clone(),
-                auction_data,
-                ask_modifier: 1_000_0000,
-                bid_modifier: 1_000_0000,
-                ask_amts: vec![&e, 0],
-                bid_amts: vec![&e, 0],
-            };
-            let result = auction.get_ask_bid_amts(&e);
-            match result {
-                Ok(_) => assert!(false),
-                Err(err) => match err {
-                    PoolError::InvalidAuctionType => assert!(true),
-                    _ => assert!(false),
-                },
-            }
-        });
-    }
     #[test]
     fn test_get_user_multi_collateral() {
         let e = Env::default();
@@ -673,18 +732,12 @@ mod tests {
             ask_count: 2,
             bid_ratio,
         };
+        let ask_modifier = 500_0000;
 
         //initiate auction
         e.as_contract(&pool_id, || {
-            let auction = Auction {
-                auction_id: samwise_id.clone(),
-                auction_data,
-                bid_modifier: 1_000_0000,
-                ask_modifier: 500_0000,
-                bid_amts: vec![&e, 0],
-                ask_amts: vec![&e, 0],
-            };
-            let collateral_amts = auction.get_user_collateral(&e, &storage);
+            let collateral_amts =
+                get_user_collateral(&e, auction_data, &storage, ask_modifier, samwise_id.clone());
             assert_eq!(
                 collateral_amts,
                 vec![
@@ -815,22 +868,10 @@ mod tests {
 
         //initiate auction
         e.as_contract(&pool_id, || {
-            let auction = Auction {
-                auction_data: data.clone(),
-                auction_id: samwise_id.clone(),
-                bid_modifier: 250_0000,
-                ask_modifier: 1_000_0000,
-                ask_amts: vec![&e, collateral_amount as u64],
-                bid_amts: vec![&e, liability_amount as u64],
-            };
-
             //verify liquidation amount
-            let liq_amt = auction
-                .get_target_liquidation_amts(&e, &storage)
-                .first()
-                .unwrap()
-                .unwrap();
-            assert_eq!(liq_amt, 2_650_0000);
+            let liq_amt = get_target_liquidation_amt(&e, data.clone(), &storage, samwise_id);
+
+            assert_eq!(liq_amt, 10_600_0000);
         });
     }
 
@@ -946,8 +987,8 @@ mod tests {
             &liability_amount,
         );
         //setup auction data
-        let ask_ids = vec![&e, asset_id_0];
-        let bid_ids = vec![&e, asset_id_1];
+        let ask_ids = vec![&e, asset_id_0.clone()];
+        let bid_ids = vec![&e, asset_id_0];
         let bid_ratio: u64 = 500_0000;
         let data = AuctionData {
             auct_type: AuctionType::UserLiquidation as u32,
@@ -960,26 +1001,10 @@ mod tests {
         };
 
         e.as_contract(&pool_id, || {
-            let auction = Auction {
-                auction_data: data.clone(),
-                auction_id: samwise_id.clone(),
-                bid_modifier: 250_0000,
-                ask_modifier: 1_000_0000,
-                ask_amts: vec![&e, collateral_amount as u64],
-                bid_amts: vec![&e, liability_amount as u64],
-            };
-            let action: UserAction = UserAction {
-                asset: data.bid_ids.first().unwrap().unwrap(),
-                b_token_delta: 0,
-                d_token_delta: 0,
-            };
             //verify liquidation amount
-            let liq_amt = auction
-                .get_target_liquidation_amts(&e, &storage)
-                .first()
-                .unwrap()
-                .unwrap();
-            assert_eq!(liq_amt, 15_000_0000);
+            let liq_amt = get_target_liquidation_amt(&e, data, &storage, samwise_id);
+
+            assert_eq!(liq_amt, 20_000_0000);
         });
     }
 
@@ -1049,12 +1074,10 @@ mod tests {
             let auction = Auction {
                 auction_data: data.clone(),
                 auction_id: samwise_id.clone(),
-                bid_modifier: 250_0000,
-                ask_modifier: 1_000_0000,
-                ask_amts: vec![&e, collateral_amount as u64, (collateral_amount / 2) as u64],
-                bid_amts: vec![&e, collateral_amount as u64],
             };
-            auction.settle_asks(&e, samwise_id.clone());
+            let ask_amts = vec![&e, collateral_amount as u64, (collateral_amount / 2) as u64];
+
+            auction.settle_asks(&e, samwise_id.clone(), ask_amts.clone());
             assert_eq!(asset_0.balance(&samwise_id), collateral_amount);
             assert_eq!(asset_1.balance(&samwise_id), collateral_amount / 2);
         });
@@ -1214,17 +1237,15 @@ mod tests {
             let auction = Auction {
                 auction_data: data.clone(),
                 auction_id: samwise_id.clone(),
-                bid_modifier: 250_0000,
-                ask_modifier: 1_000_0000,
-                ask_amts: vec![&e],
-                bid_amts: vec![&e, liability_amount as u64, (liability_amount / 2) as u64],
             };
+            let bid_amts = vec![&e, liability_amount as u64, (liability_amount / 2) as u64];
+
             //verify user state pre settlement
             assert_eq!(d_token_0.balance(&samwise_id), liability_amount);
             assert_eq!(d_token_1.balance(&samwise_id), liability_amount / 2);
             assert_eq!(asset_0.balance(&samwise_id), liability_amount);
             assert_eq!(asset_1.balance(&samwise_id), liability_amount / 2);
-            auction.settle_bids(&e, samwise_id.clone(), &storage);
+            auction.settle_bids(&e, samwise_id.clone(), &storage, bid_amts);
             //verify user state post settlement
             assert_eq!(d_token_0.balance(&samwise_id), 0);
             assert_eq!(d_token_1.balance(&samwise_id), 0);
@@ -1235,12 +1256,12 @@ mod tests {
 
     #[test]
     fn test_modifier_calcs() {
-        let mut modifier = get_modifier(7);
-        assert_eq!(modifier, 0_030_0000);
-        modifier = get_modifier(250);
-        assert_eq!(modifier, 750_0000);
-        modifier = get_modifier(420);
-        assert_eq!(modifier, 0);
+        let mut modifier = get_ask_bid_modifier(7);
+        assert_eq!(modifier, (0_030_0000, 1_000_0000));
+        modifier = get_ask_bid_modifier(250);
+        assert_eq!(modifier, (1_000_0000, 750_0000));
+        modifier = get_ask_bid_modifier(420);
+        assert_eq!(modifier, (1_000_0000, 0));
     }
     #[test]
     fn test_fill_user_liquidation_auction() {
@@ -1392,12 +1413,12 @@ mod tests {
             let auction = Auction {
                 auction_data: data.clone(),
                 auction_id: samwise_id.clone(),
-                bid_modifier: 250_0000,
-                ask_modifier: 1_000_0000,
+            };
+            let user_liq_auction = UserLiquidationAuction {
+                auction,
                 ask_amts: vec![&e],
                 bid_amts: vec![&e, liability_amount as u64, (liability_amount / 2) as u64],
             };
-            let user_liq_auction = UserLiquidationAuction { auction };
             // verify user state pre fill
             assert_eq!(d_token_0.balance(&samwise_id), liability_amount);
             assert_eq!(d_token_1.balance(&samwise_id), liability_amount / 2);
@@ -1572,7 +1593,7 @@ mod tests {
             .set_admin(&Signature::Invoker, &0, &pool_id);
 
         // setup pool
-        let collateral_amount = 40_000_0000;
+        let collateral_amount = 60_000_0000;
         asset_0.with_source_account(&bombadil).mint(
             &Signature::Invoker,
             &0,
@@ -1606,12 +1627,17 @@ mod tests {
             let auction = Auction {
                 auction_data: data.clone(),
                 auction_id: samwise_id.clone(),
-                bid_modifier: 1_000_0000,
-                ask_modifier: 250_0000,
-                ask_amts: vec![&e, collateral_amount as u64, (collateral_amount / 2) as u64],
+            };
+            let backstop_liq_auction = BackstopLiquidationAuction {
+                auction,
+                ask_amts: vec![
+                    &e,
+                    collateral_amount as u64,
+                    (collateral_amount / 2) as u64,
+                    100_000_000_0000,
+                ],
                 bid_amts: vec![&e, liability_amount as u64, (liability_amount / 2) as u64],
             };
-            let backstop_liq_auction = BackstopLiquidationAuction { auction };
 
             //verify user and backstop state pre fill
             assert_eq!(d_token_0.balance(&samwise_id), liability_amount);
@@ -1627,8 +1653,9 @@ mod tests {
                 .unwrap();
             assert_eq!(d_token_0.balance(&samwise_id), 0);
             assert_eq!(d_token_1.balance(&samwise_id), 0);
-            assert_eq!(asset_0.balance(&samwise_id), collateral_amount);
-            assert_eq!(asset_1.balance(&samwise_id), collateral_amount / 2);
+            // add accrued interest asset transfer checks when they're implemented
+            // assert_eq!(asset_0.balance(&samwise_id), interest_amount);
+            // assert_eq!(asset_1.balance(&samwise_id), interest_amount / 2);
             let (backstop_balance, _, _) = backstop_client.p_balance(&pool);
             assert_eq!(backstop_balance, 300_000_000_0000);
             assert_eq!(backstop_token_client.balance(&samwise_id), 100_000_000_0000);
@@ -1799,12 +1826,12 @@ mod tests {
             let auction = Auction {
                 auction_data: data.clone(),
                 auction_id: samwise_id.clone(),
-                bid_modifier: 1_000_0000,
-                ask_modifier: 250_0000,
+            };
+            let bad_debt_auction = BadDebtAuction {
+                auction,
                 ask_amts: vec![&e, collateral_amount as u64, (collateral_amount / 2) as u64],
                 bid_amts: vec![&e, liability_amount as u64, (liability_amount / 2) as u64],
             };
-            let bad_debt_auction = BadDebtAuction { auction };
             //verify user state
             assert_eq!(d_token_0.balance(&samwise_id), liability_amount);
             assert_eq!(d_token_1.balance(&samwise_id), liability_amount / 2);
@@ -1816,8 +1843,9 @@ mod tests {
                 .unwrap();
             assert_eq!(d_token_0.balance(&samwise_id), 0);
             assert_eq!(d_token_1.balance(&samwise_id), 0);
-            assert_eq!(asset_0.balance(&samwise_id), collateral_amount);
-            assert_eq!(asset_1.balance(&samwise_id), collateral_amount / 2);
+            // TODO: verify collateral amount transfer once transfer is implemented
+            // assert_eq!(asset_0.balance(&samwise_id), collateral_amount);
+            // assert_eq!(asset_1.balance(&samwise_id), collateral_amount / 2);
         });
     }
     #[test]
@@ -1929,18 +1957,18 @@ mod tests {
         });
 
         // setup pool
-        let collateral_amount = 40_000_0000;
+        let interest_amount = 40_000_0000;
         asset_0.with_source_account(&bombadil).mint(
             &Signature::Invoker,
             &0,
             &pool_id,
-            &collateral_amount,
+            &interest_amount,
         );
         asset_1.with_source_account(&bombadil).mint(
             &Signature::Invoker,
             &0,
             &pool_id,
-            &(collateral_amount / 2),
+            &(interest_amount / 2),
         );
         let ask_ids = vec![&e, asset_id_0.clone(), asset_id_1.clone()];
         let bid_ids = vec![&e, backstop_token_id];
@@ -1956,17 +1984,18 @@ mod tests {
         };
 
         e.as_contract(&pool, || {
+            let bid_modifier = 750_0000;
             //set backstop as oracle for now - TODO:implement backstop address storage
             storage.set_oracle(backstop);
             let auction = Auction {
                 auction_data: data.clone(),
                 auction_id: samwise_id.clone(),
-                bid_modifier: 750_0000,
-                ask_modifier: 1_000_0000,
-                ask_amts: vec![&e, collateral_amount as u64, (collateral_amount / 2) as u64],
-                bid_amts: vec![&e, 4_000_000_0000],
             };
-            let accrued_int_auction = AccruedInterestAuction { auction };
+            let accrued_int_auction = AccruedInterestAuction {
+                auction,
+                ask_amts: vec![&e, interest_amount as u64, (interest_amount / 2) as u64],
+                bid_amts: vec![&e, 4_000_000_0000 * bid_modifier / 1_000_0000],
+            };
 
             //verify user and backstop state pre fill
             assert_eq!(backstop_token_client.balance(&samwise_id), 4_000_000_0000);
@@ -1977,8 +2006,9 @@ mod tests {
                 .unwrap();
 
             //verify state post fill
-            assert_eq!(asset_0.balance(&samwise_id), collateral_amount);
-            assert_eq!(asset_1.balance(&samwise_id), collateral_amount / 2);
+            //test collateral transfers when they are implemented
+            // assert_eq!(asset_0.balance(&samwise_id), collateral_amount);
+            // assert_eq!(asset_1.balance(&samwise_id), collateral_amount / 2);
             let (backstop_balance, _, _) = backstop_client.p_balance(&pool);
             assert_eq!(backstop_balance, 3_000_000_0000);
             assert_eq!(backstop_token_client.balance(&samwise_id), 1_000_000_0000);

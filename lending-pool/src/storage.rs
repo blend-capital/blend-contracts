@@ -219,6 +219,12 @@ pub trait PoolDataStore {
     /// * `auction_id` - The auction id
     /// * `data` - The auction data
     fn set_auction_data(&self, auction_id: Identifier, data: AuctionData);
+
+    /// remove the data for an auction
+    ///
+    /// ### Arguments
+    /// * `auction_id` - The auction id
+    fn remove_auction_data(&self, auction_id: Identifier);
 }
 
 pub struct StorageManager(Env);
@@ -374,6 +380,11 @@ impl PoolDataStore for StorageManager {
     fn set_auction_data(&self, auction_id: Identifier, data: AuctionData) {
         let key = PoolDataKey::AuctData(auction_id);
         self.env().data().set::<PoolDataKey, AuctionData>(key, data);
+    }
+
+    fn remove_auction_data(&self, auction_id: Identifier) {
+        let key = PoolDataKey::AuctData(auction_id);
+        self.env().data().remove::<PoolDataKey>(key);
     }
 }
 

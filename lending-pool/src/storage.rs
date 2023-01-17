@@ -608,7 +608,7 @@ impl PoolDataStore for StorageManager {
     fn get_auction_data(&self, auction_id: Identifier) -> AuctionData {
         let key = PoolDataKey::AuctData(auction_id);
         self.env()
-            .data()
+            .storage()
             .get::<PoolDataKey, AuctionData>(key)
             .unwrap()
             .unwrap()
@@ -616,12 +616,14 @@ impl PoolDataStore for StorageManager {
 
     fn set_auction_data(&self, auction_id: Identifier, data: AuctionData) {
         let key = PoolDataKey::AuctData(auction_id);
-        self.env().data().set::<PoolDataKey, AuctionData>(key, data);
+        self.env()
+            .storage()
+            .set::<PoolDataKey, AuctionData>(key, data);
     }
 
     fn remove_auction_data(&self, auction_id: Identifier) {
         let key = PoolDataKey::AuctData(auction_id);
-        self.env().data().remove::<PoolDataKey>(key);
+        self.env().storage().remove::<PoolDataKey>(key);
     }
 }
 

@@ -1,5 +1,5 @@
 use crate::{
-    base_auction::{
+    auctions::base_auction::{
         get_ask_bid_modifier, get_modified_accrued_interest, Auction, AuctionManagement,
     },
     dependencies::{BackstopClient, OracleClient},
@@ -79,15 +79,11 @@ fn get_target_accrued_interest_price(
     let oracle = OracleClient::new(e, oracle_address);
     //cast to u128 to avoid overflow
     let mut interest_value: u128 = 0;
-    let mut ask_id_iter = auction_data.ask_ids.iter();
-    let mut ask_amt_iter = ask_amts.iter();
-    for _ in 0..ask_id_iter.len() {
-        let asset_id = ask_id_iter.next().unwrap().unwrap();
-
-        let accrued_interest: u64 = ask_amt_iter.next().unwrap().unwrap();
-        let interest_price = oracle.get_price(&asset_id);
+    for i in 0..auction_data.ask_ids.len() {
+        let interest_asset_price = oracle.get_price(&auction_data.ask_ids.get(i).unwrap().unwrap());
         //cast to u128 to avoid overflow
-        interest_value += (accrued_interest as u128 * interest_price as u128) / 1_000_0000;
+        interest_value +=
+            (ask_amts.get(i).unwrap().unwrap() as u128 * interest_asset_price as u128) / 1_000_0000;
     }
     let blnd_id = auction_data.bid_ids.first().unwrap().unwrap();
     let blnd_value = oracle.get_price(&blnd_id);
@@ -99,7 +95,7 @@ fn get_target_accrued_interest_price(
 mod tests {
 
     use crate::{
-        base_auction::AuctionType,
+        auctions::base_auction::AuctionType,
         reserve_usage::ReserveUsage,
         storage::{AuctionData, PoolDataStore, ReserveConfig, ReserveData, StorageManager},
         testutils::{

@@ -6,7 +6,7 @@ use crate::{
     storage::{AuctionData, PoolDataStore, StorageManager},
 };
 use soroban_auth::{Identifier, Signature};
-use soroban_sdk::{Env, Vec};
+use soroban_sdk::{unwrap::UnwrapOptimized, Env, Vec};
 
 /// ### Auction
 ///
@@ -44,13 +44,15 @@ impl Auction {
 
     //*********** Settlement Functions **********/
     pub fn settle_asks(&self, e: &Env, invoker_id: Identifier, ask_amts: Vec<u64>) {
-        let mut id_iter = self.auction_data.ask_ids.iter();
-        let mut amt_iter = ask_amts.iter();
-        for _ in 0..self.auction_data.ask_count {
-            let asset_id = id_iter.next().unwrap().unwrap();
-            let amt = (amt_iter.next().unwrap().unwrap()) as i128;
-            let token_client = TokenClient::new(&e, asset_id);
-            token_client.xfer(&Signature::Invoker, &0, &invoker_id, &amt)
+        for i in 0..self.auction_data.ask_count {
+            let token_client =
+                TokenClient::new(&e, self.auction_data.ask_ids.get(i).unwrap().unwrap());
+            token_client.xfer(
+                &Signature::Invoker,
+                &0,
+                &invoker_id,
+                &(ask_amts.get(i).unwrap().unwrap() as i128),
+            )
         }
     }
 
@@ -61,13 +63,16 @@ impl Auction {
         storage: &StorageManager,
         bid_amts: Vec<u64>,
     ) {
-        let mut id_iter = self.auction_data.bid_ids.iter();
-        let mut amt_iter = bid_amts.iter();
-        for _ in 0..self.auction_data.bid_count {
-            let asset_id = id_iter.next().unwrap().unwrap();
-            let amt = amt_iter.next().unwrap().unwrap();
-            let reserve = Reserve::load(&e, asset_id.clone());
-            execute_repay(&e, reserve, amt, from.clone(), &self.auction_id, storage);
+        for i in 0..self.auction_data.bid_count {
+            let reserve = Reserve::load(&e, self.auction_data.bid_ids.get(i).unwrap().unwrap());
+            execute_repay(
+                &e,
+                reserve,
+                bid_amts.get(i).unwrap().unwrap(),
+                from.clone(),
+                &self.auction_id,
+                storage,
+            );
         }
     }
 
@@ -94,9 +99,8 @@ pub fn get_modified_accrued_interest(
     ask_modifier: u64,
 ) -> Vec<u64> {
     let mut accrued_interest_amts: Vec<u64> = Vec::new(e);
-    let mut id_iter = auction_data.ask_ids.iter();
-    for _ in 0..auction_data.ask_count {
-        let asset_id = id_iter.next().unwrap().unwrap();
+    for id in auction_data.ask_ids.iter() {
+        let asset_id = id.unwrap();
         //update reserve rate
         let mut reserve = Reserve::load(e, asset_id.clone());
         reserve.update_rates(e);
@@ -117,11 +121,10 @@ pub fn get_modified_bad_debt_amts(
     storage: &StorageManager,
 ) -> Vec<u64> {
     let mut bid_amts: Vec<u64> = Vec::new(e);
-    let mut bid_id_iter = auction_data.bid_ids.iter();
     let backstop = storage.get_oracle(); //TODO: replace with method to get backstop id
     let backstop_id = Identifier::Contract(backstop);
-    for _ in 0..auction_data.bid_count {
-        let asset = bid_id_iter.next().unwrap().unwrap();
+    for id in auction_data.bid_ids.iter() {
+        let asset = id.unwrap();
         // update reserve rates
         let mut reserve = Reserve::load(e, asset.clone());
         reserve.update_rates(e);

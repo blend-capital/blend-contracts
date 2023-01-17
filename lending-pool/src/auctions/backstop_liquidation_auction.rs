@@ -1,13 +1,14 @@
 use crate::{
-    base_auction::{get_modified_accrued_interest, get_modified_bad_debt_amts},
+    auctions::base_auction::{
+        get_ask_bid_modifier, get_modified_accrued_interest, get_modified_bad_debt_amts, Auction,
+        AuctionManagement,
+    },
     dependencies::BackstopClient,
     errors::PoolError,
     storage::{PoolDataStore, StorageManager},
 };
 use soroban_auth::Identifier;
 use soroban_sdk::{vec, Env, Vec};
-
-use crate::base_auction::{get_ask_bid_modifier, Auction, AuctionManagement};
 
 pub struct BackstopLiquidationAuction {
     auction: Auction,
@@ -82,7 +83,7 @@ impl AuctionManagement for BackstopLiquidationAuction {
 #[cfg(test)]
 mod tests {
     use crate::{
-        base_auction::AuctionType,
+        auctions::base_auction::AuctionType,
         reserve_usage::ReserveUsage,
         storage::{AuctionData, ReserveConfig, ReserveData},
         testutils::{

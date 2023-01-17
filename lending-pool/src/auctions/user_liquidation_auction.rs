@@ -1,6 +1,6 @@
 use soroban_sdk::{vec, Env, Vec};
 
-use crate::base_auction::{get_ask_bid_modifier, Auction, AuctionManagement};
+use crate::auctions::base_auction::{get_ask_bid_modifier, Auction, AuctionManagement};
 use crate::{
     dependencies::{OracleClient, TokenClient},
     errors::PoolError,
@@ -87,9 +87,8 @@ fn get_user_collateral(
     user_id: Identifier,
 ) -> Vec<u64> {
     let mut collateral_amounts: Vec<u64> = Vec::new(e);
-    let mut id_iter = auction_data.ask_ids.iter();
-    for _ in 0..auction_data.ask_count {
-        let asset_id = id_iter.next().unwrap().unwrap();
+    for id in auction_data.ask_ids.iter() {
+        let asset_id = id.unwrap();
         let res_config = storage.get_res_config(asset_id.clone());
         //TODO: swap for b_token_client if we end up using a custom b_token
         //TODO: we may want to store the b_token address in the auction data bid_ids, decide when we plug in the initiate_auction functions
@@ -143,7 +142,7 @@ mod tests {
     use std::println;
 
     use crate::{
-        base_auction::AuctionType,
+        auctions::base_auction::AuctionType,
         reserve_usage::ReserveUsage,
         storage::{ReserveConfig, ReserveData},
         testutils::{create_mock_oracle, create_token_contract, generate_contract_id},

@@ -1,12 +1,13 @@
 use crate::{
-    base_auction::{get_modified_accrued_interest, get_modified_bad_debt_amts},
+    auctions::base_auction::{
+        get_ask_bid_modifier, get_modified_accrued_interest, get_modified_bad_debt_amts, Auction,
+        AuctionManagement,
+    },
     errors::PoolError,
     storage::StorageManager,
 };
 use soroban_auth::Identifier;
 use soroban_sdk::{Env, Vec};
-
-use crate::base_auction::{get_ask_bid_modifier, Auction, AuctionManagement};
 
 pub struct BadDebtAuction {
     auction: Auction,
@@ -57,7 +58,7 @@ impl AuctionManagement for BadDebtAuction {
 mod tests {
 
     use crate::{
-        base_auction::AuctionType,
+        auctions::base_auction::AuctionType,
         reserve_usage::ReserveUsage,
         storage::{AuctionData, PoolDataStore, ReserveConfig, ReserveData, StorageManager},
         testutils::{create_token_contract, generate_contract_id},

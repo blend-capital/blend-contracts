@@ -1,5 +1,5 @@
 use crate::{
-    dependencies::TokenClient,
+    dependencies::{PoolFactoryClient, TokenClient},
     distributor::Distributor,
     errors::BackstopError,
     pool::Pool,
@@ -7,7 +7,7 @@ use crate::{
     user::User,
 };
 use soroban_auth::{Identifier, Signature};
-use soroban_sdk::{contractimpl, BytesN, Env, Vec};
+use soroban_sdk::{contractimpl, Address, BytesN, Env, Vec};
 
 /// ### Backstop Module
 ///
@@ -15,6 +15,7 @@ use soroban_sdk::{contractimpl, BytesN, Env, Vec};
 pub struct Backstop;
 
 const BLND_TOKEN: [u8; 32] = [222; 32]; // TODO: Use actual token bytes
+const POOL_FACTORY: [u8; 32] = [101; 32]; // TODO: Use the actual pool factory address
 
 pub trait BackstopTrait {
     /********** Core **********/
@@ -91,6 +92,16 @@ pub trait BackstopTrait {
 
     /// Fetch the EPS (emissions per second) for the current distribution window of a pool
     fn pool_eps(e: Env, pool_address: BytesN<32>) -> u64;
+
+    /// Allow a pool to claim emissions
+    ///
+    /// ### Arguments
+    /// * `to` - The identifier to send to emissions to
+    /// * `amount` - The amount of emissions to claim
+    ///
+    /// ### Errors
+    /// If the pool has no emissions left to claim
+    fn claim(e: Env, to: Identifier, amount: u64) -> Result<(), BackstopError>;
 }
 
 #[contractimpl]
@@ -213,6 +224,34 @@ impl BackstopTrait for Backstop {
 
     fn pool_eps(e: Env, pool_address: BytesN<32>) -> u64 {
         StorageManager::new(&e).get_pool_eps(pool_address)
+    }
+
+    // TODO: Add unit tests once support for emulated contract calls exists
+    fn claim(e: Env, to: Identifier, amount: u64) -> Result<(), BackstopError> {
+        let pool_factory_client =
+            PoolFactoryClient::new(&e, &BytesN::from_array(&e, &POOL_FACTORY));
+        let pool = match e.invoker() {
+            Address::Contract(invoker) => {
+                if !pool_factory_client.is_pool(&invoker) {
+                    return Err(BackstopError::NotPool);
+                }
+                invoker
+            }
+            _ => return Err(BackstopError::NotPool),
+        };
+
+        let storage = StorageManager::new(&e);
+        let mut pool_emis = storage.get_pool_emis(pool.clone());
+        if amount > pool_emis {
+            return Err(BackstopError::InvalidBalance);
+        }
+        pool_emis -= amount;
+        storage.set_pool_emis(pool, pool_emis);
+
+        let blnd_client = TokenClient::new(&e, BytesN::from_array(&e, &BLND_TOKEN));
+        blnd_client.xfer(&Signature::Invoker, &0, &to, &(amount as i128));
+
+        Ok(())
     }
 }
 

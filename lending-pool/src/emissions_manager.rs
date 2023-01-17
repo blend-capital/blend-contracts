@@ -21,13 +21,13 @@ pub struct ReserveEmissionMetadata {
 }
 
 /// Updates the pool's emissions for the next emission cycle
-/// 
+///
 /// Needs to be run each time a new emission cycle starts
-/// 
+///
 /// ### Arguments
 /// * `next_exp` - The next expiration time of the emission cycle
 /// * `pool_eps` - The total eps the pool is receiving from the backstop
-/// 
+///
 /// ### Errors
 /// If update has already been run for this emission cycle
 pub fn update_emissions(e: &Env, next_exp: u64, pool_eps: u64) -> Result<u64, PoolError> {
@@ -110,13 +110,13 @@ fn update_reserve_emission_config(
 }
 
 /// Set the pool emissions
-/// 
+///
 /// These will not be applied until the next `update_emissions` is run
-/// 
+///
 /// ### Arguments
 /// * `res_emission_metadata` - A vector of `ReserveEmissionMetadata` that details each reserve token's share
 ///                             if the total pool eps
-/// 
+///
 /// ### Errors
 /// If the total share of the pool eps from the reserves is over 1
 pub fn set_pool_emissions(

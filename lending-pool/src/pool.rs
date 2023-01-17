@@ -1,5 +1,6 @@
 use crate::{
     dependencies::{BackstopClient, EmitterClient, TokenClient},
+    emissions_distributor,
     emissions_manager::{self, ReserveEmissionMetadata},
     errors::PoolError,
     reserve::Reserve,
@@ -142,6 +143,13 @@ pub trait PoolTrait {
         res_emission_metadata: Vec<ReserveEmissionMetadata>,
     ) -> Result<(), PoolError>;
 
+    /// Claims outstanding emissions for the caller for the given reserve's
+    ///
+    /// ### Arguments
+    /// * `reserve_token_ids` - Vector of reserve token ids
+    /// * `to` - The Identifier to send the claimed tokens to
+    fn claim(e: Env, reserve_token_ids: Vec<u32>, to: Identifier) -> Result<(), PoolError>;
+
     /***** Reserve Emission Functions *****/
 
     /// Fetch the emission details for a given reserve token
@@ -267,7 +275,7 @@ impl PoolTrait for Pool {
             return Err(PoolError::InvalidHf);
         }
 
-        b_token_client.burn(&Signature::Invoker, &0, &invoker_id, &(to_burn as i128));
+        b_token_client.clawback(&Signature::Invoker, &0, &invoker_id, &(to_burn as i128));
 
         TokenClient::new(&e, asset).xfer(&Signature::Invoker, &0, &to, &(to_return as i128));
 
@@ -350,7 +358,7 @@ impl PoolTrait for Pool {
             to_repay = amount;
         }
 
-        d_token_client.burn(&Signature::Invoker, &0, &on_behalf_of, &(to_burn as i128));
+        d_token_client.clawback(&Signature::Invoker, &0, &on_behalf_of, &(to_burn as i128));
 
         TokenClient::new(&e, asset).xfer_from(
             &Signature::Invoker,
@@ -419,6 +427,21 @@ impl PoolTrait for Pool {
 
         emissions_manager::set_pool_emissions(&e, res_emission_metadata)
     }
+
+    fn claim(e: Env, reserve_token_ids: Vec<u32>, to: Identifier) -> Result<(), PoolError> {
+        let user = Identifier::from(e.invoker());
+        let to_claim = emissions_distributor::calc_claim(&e, user, reserve_token_ids)?;
+
+        if to_claim > 0 {
+            let bkstp_addr = EmitterClient::new(&e, BytesN::from_array(&e, &EMITTER)).get_bstop();
+            let backstop = BackstopClient::new(&e, &bkstp_addr);
+            backstop.claim(&to, &to_claim);
+        }
+
+        Ok(())
+    }
+
+    /***** Reserve Emission Functions *****/
 
     fn res_emis(
         e: Env,

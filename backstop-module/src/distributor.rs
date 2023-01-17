@@ -1,3 +1,4 @@
+use soroban_auth::Identifier;
 use soroban_sdk::{vec, BytesN, Env, Vec};
 
 use crate::{
@@ -87,9 +88,15 @@ impl Distributor {
             let cur_pool_tokens = rz_tokens.pop_front_unchecked().unwrap() as u128;
             let share = (cur_pool_tokens * 1_0000000) / total_tokens;
 
+            // store pool EPS and distribute pool's emissions
             let pool_eps = (share * 0_3000000) / 1_0000000;
             storage.set_pool_eps(rz_pool.clone(), pool_eps as u64);
+            storage.set_pool_emis(
+                rz_pool.clone(),
+                storage.get_pool_emis(rz_pool.clone()) + (pool_eps * 7 * 24 * 60 * 60) as u64,
+            );
 
+            // distribute backstop depositor emissions
             let pool_backstop_emissions = (share * backstop_emissions) / 1_0000000;
             storage.set_pool_tokens(rz_pool, (cur_pool_tokens + pool_backstop_emissions) as u64);
         }
@@ -460,6 +467,7 @@ mod tests {
             storage.set_pool_tokens(pool_1.clone(), 300_000_0000000);
             storage.set_pool_tokens(pool_2.clone(), 200_000_0000000);
             storage.set_pool_tokens(pool_3.clone(), 500_000_0000000);
+            storage.set_pool_emis(pool_1.clone(), 100_123_0000000);
 
             let result = Distributor::distribute(&e);
             match result {
@@ -468,9 +476,12 @@ mod tests {
                     assert_eq!(storage.get_pool_tokens(pool_1.clone()), 405_000_0000000);
                     assert_eq!(storage.get_pool_tokens(pool_2.clone()), 270_000_0000000);
                     assert_eq!(storage.get_pool_tokens(pool_3.clone()), 675_000_0000000);
-                    assert_eq!(storage.get_pool_eps(pool_1), 0_0900000);
-                    assert_eq!(storage.get_pool_eps(pool_2), 0_0600000);
-                    assert_eq!(storage.get_pool_eps(pool_3), 0_1500000);
+                    assert_eq!(storage.get_pool_eps(pool_1.clone()), 0_0900000);
+                    assert_eq!(storage.get_pool_eps(pool_2.clone()), 0_0600000);
+                    assert_eq!(storage.get_pool_eps(pool_3.clone()), 0_1500000);
+                    assert_eq!(storage.get_pool_emis(pool_1), 154_555_0000000);
+                    assert_eq!(storage.get_pool_emis(pool_2), 36_288_0000000);
+                    assert_eq!(storage.get_pool_emis(pool_3), 90_720_0000000);
                 }
                 Err(_) => assert!(false),
             }

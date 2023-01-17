@@ -50,7 +50,7 @@ fn test_pool_happy_path() {
         &user1_id,
         &(supply_amount as i128),
     );
-    asset1_client.with_source_account(&user1).approve(
+    asset1_client.with_source_account(&user1).incr_allow(
         &Signature::Invoker,
         &0,
         &pool_id,

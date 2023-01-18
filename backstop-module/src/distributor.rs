@@ -1,4 +1,3 @@
-use soroban_auth::Identifier;
 use soroban_sdk::{vec, BytesN, Env, Vec};
 
 use crate::{

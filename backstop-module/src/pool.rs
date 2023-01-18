@@ -1,7 +1,12 @@
 use soroban_auth::Identifier;
 use soroban_sdk::{BytesN, Env};
 
-use crate::storage::{BackstopDataStore, StorageManager};
+use crate::{
+    constants::POOL_FACTORY,
+    dependencies::PoolFactoryClient,
+    errors::BackstopError,
+    storage::{BackstopDataStore, StorageManager},
+};
 
 /// A user of the backstop module with respect to a given pool
 /// Data is lazy loaded as not all struct information is required for each action
@@ -11,6 +16,7 @@ pub struct Pool {
     shares: Option<u64>,
     tokens: Option<u64>,
     q4w: Option<u64>,
+    emissions: Option<u64>,
 }
 
 impl Pool {
@@ -21,7 +27,19 @@ impl Pool {
             shares: None,
             tokens: None,
             q4w: None,
+            emissions: None,
         }
+    }
+
+    /// Verify the pool address was deployed by the Pool Factory
+    ///
+    /// Returns a Result
+    pub fn verify_pool(&self, e: &Env) -> Result<(), BackstopError> {
+        let pool_factory_client = PoolFactoryClient::new(e, &BytesN::from_array(&e, &POOL_FACTORY));
+        if !pool_factory_client.is_pool(&self.address) {
+            return Err(BackstopError::NotPool);
+        }
+        Ok(())
     }
 
     /********** Setters / Lazy Getters / Storage **********/
@@ -110,6 +128,34 @@ impl Pool {
         }
     }
 
+    /// Get the pool's total emissions tokens from the cache or the ledger
+    pub fn get_emissions(&mut self, e: &Env) -> u64 {
+        match self.emissions {
+            Some(bal) => bal,
+            None => {
+                let bal = StorageManager::new(e).get_pool_emis(self.address.clone());
+                self.emissions = Some(bal);
+                bal
+            }
+        }
+    }
+
+    /// Set the pool's total emissions
+    ///
+    /// ### Arguments
+    /// * `amount` - The pool's emissions
+    pub fn set_emissions(&mut self, amount: u64) {
+        self.emissions = Some(amount)
+    }
+
+    /// Write the currently cached pool's total emissions to the ledger
+    pub fn write_emissions(&self, e: &Env) {
+        match self.emissions {
+            Some(bal) => StorageManager::new(e).set_pool_emis(self.address.clone(), bal),
+            None => panic!("nothing to write"),
+        }
+    }
+
     /********** Logic **********/
 
     /// Convert a token balance to a share balance based on the current pool state
@@ -164,13 +210,17 @@ impl Pool {
     /// ### Arguments
     /// * `tokens` - The amount of tokens to withdraw
     /// * `shares` - The amount of shares to withdraw
-    pub fn withdraw(&mut self, e: &Env, tokens: u64, shares: u64) {
+    pub fn withdraw(&mut self, e: &Env, tokens: u64, shares: u64) -> Result<(), BackstopError> {
         let cur_tokens = self.get_tokens(e);
         let cur_shares = self.get_shares(e);
         let cur_q4w = self.get_q4w(e);
+        if tokens > cur_tokens || shares > cur_shares || shares > cur_q4w {
+            return Err(BackstopError::InsufficientFunds);
+        }
         self.set_tokens(cur_tokens - tokens);
         self.set_shares(cur_shares - shares);
         self.set_q4w(cur_q4w - shares);
+        Ok(())
     }
 
     /// Queue withdraw for the pool
@@ -184,13 +234,72 @@ impl Pool {
         let cur_q4w = self.get_q4w(e);
         self.set_q4w(cur_q4w + shares);
     }
+
+    /// Claim emissions from the pool
+    ///
+    /// Updates cached values but does not write:
+    /// * emissions
+    ///
+    /// ### Arguments
+    /// * `amount` - The amount of emissions you are trying to claim
+    pub fn claim(&mut self, e: &Env, amount: u64) -> Result<(), BackstopError> {
+        let emissions = self.get_emissions(e);
+        if emissions < amount {
+            return Err(BackstopError::InsufficientFunds);
+        }
+        self.set_emissions(emissions - amount);
+        Ok(())
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::testutils::generate_contract_id;
+    use crate::testutils::{create_mock_pool_factory, generate_contract_id};
 
     use super::*;
+
+    /********** Verification **********/
+
+    #[test]
+    fn test_verify_pool_valid() {
+        let e = Env::default();
+
+        let pool_addr = generate_contract_id(&e);
+
+        let mock_pool_factory = create_mock_pool_factory(&e);
+        mock_pool_factory.set_pool(&pool_addr);
+
+        let pool = Pool::new(pool_addr.clone());
+        let result = pool.verify_pool(&e);
+
+        match result {
+            Ok(_) => {
+                assert!(true)
+            }
+            Err(_) => {
+                assert!(false)
+            }
+        }
+    }
+
+    #[test]
+    fn test_verify_pool_not_valid() {
+        let e = Env::default();
+
+        let pool_addr = generate_contract_id(&e);
+        let not_pool_addr = generate_contract_id(&e);
+
+        let mock_pool_factory = create_mock_pool_factory(&e);
+        mock_pool_factory.set_pool(&pool_addr);
+
+        let pool = Pool::new(not_pool_addr.clone());
+        let result = pool.verify_pool(&e);
+
+        match result {
+            Ok(_) => assert!(false),
+            Err(err) => assert_eq!(err, BackstopError::NotPool),
+        }
+    }
 
     /********** Cache / Getters / Setters **********/
 
@@ -299,6 +408,39 @@ mod tests {
         });
     }
 
+    #[test]
+    fn test_emission_cache() {
+        let e = Env::default();
+        let storage = StorageManager::new(&e);
+
+        let backstop_addr = generate_contract_id(&e);
+        let pool_addr = generate_contract_id(&e);
+        let mut pool = Pool::new(pool_addr.clone());
+
+        let first_amt = 100;
+        e.as_contract(&backstop_addr, || {
+            storage.set_pool_emis(pool_addr.clone(), first_amt.clone());
+            let first_result = pool.get_emissions(&e);
+            assert_eq!(first_result, first_amt);
+
+            // cached version returned
+            storage.set_pool_emis(pool_addr.clone(), 1);
+            let cached_result = pool.get_emissions(&e);
+            assert_eq!(cached_result, first_amt);
+
+            // new amount gets set and stored
+            let second_amt = 200;
+            pool.set_emissions(second_amt);
+            let second_result = pool.get_emissions(&e);
+            assert_eq!(second_result, second_amt);
+
+            // write stores to chain
+            pool.write_emissions(&e);
+            let chain_result = storage.get_pool_emis(pool_addr);
+            assert_eq!(chain_result, second_amt);
+        });
+    }
+
     /********** Logic **********/
 
     #[test]
@@ -311,6 +453,7 @@ mod tests {
             shares: Some(0),
             tokens: Some(0),
             q4w: Some(0),
+            emissions: Some(0),
         };
 
         let to_convert = 1234567;
@@ -328,6 +471,7 @@ mod tests {
             shares: Some(80321),
             tokens: Some(103302),
             q4w: Some(0),
+            emissions: Some(0),
         };
 
         let to_convert = 1234567;
@@ -345,6 +489,7 @@ mod tests {
             shares: Some(0),
             tokens: Some(0),
             q4w: Some(0),
+            emissions: Some(0),
         };
 
         let to_convert = 1234567;
@@ -362,6 +507,7 @@ mod tests {
             shares: Some(80321),
             tokens: Some(103302),
             q4w: Some(0),
+            emissions: Some(0),
         };
 
         let to_convert = 40000;
@@ -379,6 +525,7 @@ mod tests {
             shares: Some(100),
             tokens: Some(200),
             q4w: Some(25),
+            emissions: Some(0),
         };
 
         pool.deposit(&e, 50, 25);
@@ -398,13 +545,35 @@ mod tests {
             shares: Some(100),
             tokens: Some(200),
             q4w: Some(25),
+            emissions: Some(0),
         };
 
-        pool.withdraw(&e, 50, 25);
+        pool.withdraw(&e, 50, 25).unwrap();
 
         assert_eq!(pool.get_shares(&e), 75);
         assert_eq!(pool.get_tokens(&e), 150);
         assert_eq!(pool.get_q4w(&e), 0);
+    }
+
+    #[test]
+    fn test_withdraw_too_much() {
+        let e = Env::default();
+        let pool_addr = generate_contract_id(&e);
+        let mut pool = Pool {
+            address: pool_addr.clone(),
+            id: Identifier::Contract(pool_addr),
+            shares: Some(100),
+            tokens: Some(200),
+            q4w: Some(25),
+            emissions: Some(0),
+        };
+
+        let result = pool.withdraw(&e, 201, 25);
+
+        match result {
+            Ok(_) => assert!(false),
+            Err(err) => assert_eq!(err, BackstopError::InsufficientFunds),
+        }
     }
 
     #[test]
@@ -417,12 +586,50 @@ mod tests {
             shares: Some(100),
             tokens: Some(200),
             q4w: Some(25),
+            emissions: Some(0),
         };
 
-        pool.withdraw(&e, 50, 25);
+        pool.withdraw(&e, 50, 25).unwrap();
 
         assert_eq!(pool.get_shares(&e), 75);
         assert_eq!(pool.get_tokens(&e), 150);
         assert_eq!(pool.get_q4w(&e), 0);
+    }
+
+    #[test]
+    fn test_claim() {
+        let e = Env::default();
+        let pool_addr = generate_contract_id(&e);
+        let mut pool = Pool {
+            address: pool_addr.clone(),
+            id: Identifier::Contract(pool_addr),
+            shares: Some(100),
+            tokens: Some(200),
+            q4w: Some(25),
+            emissions: Some(123),
+        };
+
+        pool.claim(&e, 100).unwrap();
+        assert_eq!(pool.get_emissions(&e), 23);
+    }
+
+    #[test]
+    fn test_claim_too_much() {
+        let e = Env::default();
+        let pool_addr = generate_contract_id(&e);
+        let mut pool = Pool {
+            address: pool_addr.clone(),
+            id: Identifier::Contract(pool_addr),
+            shares: Some(100),
+            tokens: Some(200),
+            q4w: Some(25),
+            emissions: Some(123),
+        };
+
+        let result = pool.claim(&e, 124);
+        match result {
+            Ok(_) => assert!(false),
+            Err(err) => assert_eq!(err, BackstopError::InsufficientFunds),
+        }
     }
 }

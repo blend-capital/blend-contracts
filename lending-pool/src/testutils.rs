@@ -1,6 +1,9 @@
 #![cfg(any(test, feature = "testutils"))]
 
-use crate::dependencies::{BackstopClient, TokenClient, BACKSTOP_WASM, TOKEN_WASM};
+use crate::{
+    constants::POOL_FACTORY,
+    dependencies::{BackstopClient, TokenClient, BACKSTOP_WASM, TOKEN_WASM},
+};
 use rand::{thread_rng, RngCore};
 use soroban_auth::Identifier;
 use soroban_sdk::{BytesN, Env, IntoVal};
@@ -13,8 +16,14 @@ mod mock_oracle {
         file = "../target/wasm32-unknown-unknown/release/mock_blend_oracle.wasm"
     );
 }
-
 pub(crate) use mock_oracle::Client as MockOracleClient;
+
+mod mock_pool_factory {
+    soroban_sdk::contractimport!(
+        file = "../target/wasm32-unknown-unknown/release/mock_pool_factory.wasm"
+    );
+}
+pub use mock_pool_factory::Client as MockPoolFactoryClient;
 
 pub(crate) fn generate_contract_id(e: &Env) -> BytesN<32> {
     let mut id: [u8; 32] = Default::default();
@@ -47,4 +56,10 @@ pub fn create_token_from_id(e: &Env, contract_id: &BytesN<32>, admin: &Identifie
     let client = TokenClient::new(e, contract_id.clone());
     client.initialize(admin, &7, &"unit".into_val(e), &"test".into_val(&e));
     client
+}
+
+pub(crate) fn create_mock_pool_factory(e: &Env) -> MockPoolFactoryClient {
+    let contract_id = BytesN::from_array(&e, &POOL_FACTORY);
+    e.register_contract_wasm(&contract_id, mock_pool_factory::WASM);
+    MockPoolFactoryClient::new(e, contract_id)
 }

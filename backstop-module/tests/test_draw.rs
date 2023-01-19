@@ -5,6 +5,7 @@ use soroban_sdk::{
     testutils::{Accounts, Ledger, LedgerInfo},
     BytesN, Env,
 };
+use cast::i128;
 
 mod common;
 use crate::common::{
@@ -44,7 +45,7 @@ fn test_draw_happy_path() {
         &Signature::Invoker,
         &0,
         &backstop_id,
-        &(u64::MAX as i128),
+        &i128(u64::MAX),
     );
 
     e.ledger().set(LedgerInfo {
@@ -121,7 +122,7 @@ fn test_draw_not_pool() {
         &Signature::Invoker,
         &0,
         &backstop_id,
-        &(u64::MAX as i128),
+        &i128(u64::MAX),
     );
 
     e.ledger().set(LedgerInfo {

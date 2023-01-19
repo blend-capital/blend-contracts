@@ -5,6 +5,7 @@ use soroban_sdk::{
     testutils::{Accounts, Ledger, LedgerInfo},
     BytesN, Env,
 };
+use cast::i128;
 
 mod common;
 use crate::common::{
@@ -46,7 +47,7 @@ fn test_backstop_distribution_and_claim_happy_path() {
         &Signature::Invoker,
         &0,
         &backstop_id,
-        &(u64::MAX as i128),
+        &i128(u64::MAX),
     );
 
     e.ledger().set(LedgerInfo {

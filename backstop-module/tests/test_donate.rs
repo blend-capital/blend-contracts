@@ -5,6 +5,7 @@ use soroban_sdk::{
     testutils::{Accounts, Ledger, LedgerInfo},
     BytesN, Env,
 };
+use cast::i128;
 
 mod common;
 use crate::common::{create_backstop_module, create_token_from_id};
@@ -39,7 +40,7 @@ fn test_donate_happy_path() {
         &Signature::Invoker,
         &0,
         &backstop_id,
-        &(u64::MAX as i128),
+        &i128(u64::MAX),
     );
 
     e.ledger().set(LedgerInfo {
@@ -71,7 +72,7 @@ fn test_donate_happy_path() {
         &Signature::Invoker,
         &0,
         &pool_2_id,
-        &(u64::MAX as i128),
+        &i128(u64::MAX),
     );
 
     backstop_client

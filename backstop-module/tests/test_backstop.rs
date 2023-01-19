@@ -5,6 +5,7 @@ use soroban_sdk::{
     testutils::{Accounts, Ledger, LedgerInfo},
     BytesN, Env,
 };
+use cast::i128;
 
 mod common;
 use crate::common::{create_backstop_module, create_token_from_id};
@@ -42,13 +43,13 @@ fn test_backstop_happy_path() {
         &Signature::Invoker,
         &0,
         &samwise_id,
-        &(deposit_amount as i128),
+        &i128(deposit_amount),
     );
     token_client.with_source_account(&samwise).incr_allow(
         &Signature::Invoker,
         &0,
         &backstop_id,
-        &(u64::MAX as i128),
+        &i128(u64::MAX),
     );
 
     // deposit into backstop module
@@ -57,7 +58,7 @@ fn test_backstop_happy_path() {
         .deposit(&pool_addr, &deposit_amount);
 
     assert_eq!(token_client.balance(&samwise_id), 0);
-    assert_eq!(token_client.balance(&backstop_id), deposit_amount as i128);
+    assert_eq!(token_client.balance(&backstop_id), i128(deposit_amount));
     assert_eq!(
         backstop_client.balance(&pool_addr, &samwise_id),
         deposit_amount
@@ -74,7 +75,7 @@ fn test_backstop_happy_path() {
         .q_withdraw(&pool_addr, &shares_minted);
 
     assert_eq!(token_client.balance(&samwise_id), 0);
-    assert_eq!(token_client.balance(&backstop_id), deposit_amount as i128);
+    assert_eq!(token_client.balance(&backstop_id), i128(deposit_amount));
     assert_eq!(
         backstop_client.balance(&pool_addr, &samwise_id),
         deposit_amount
@@ -103,7 +104,7 @@ fn test_backstop_happy_path() {
         .with_source_account(&samwise)
         .withdraw(&pool_addr, &shares_minted);
 
-    assert_eq!(token_client.balance(&samwise_id), deposit_amount as i128);
+    assert_eq!(token_client.balance(&samwise_id), i128(deposit_amount));
     assert_eq!(token_client.balance(&backstop_id), 0);
     assert_eq!(backstop_client.balance(&pool_addr, &samwise_id), 0);
     assert_eq!(backstop_client.p_balance(&pool_addr), (0, 0, 0));
@@ -142,7 +143,7 @@ fn test_backstop_distribution_happy_path() {
         &Signature::Invoker,
         &0,
         &backstop_id,
-        &(u64::MAX as i128),
+        &i128(u64::MAX),
     );
 
     e.ledger().set(LedgerInfo {

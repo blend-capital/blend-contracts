@@ -1,3 +1,4 @@
+use fixed_point_math::FixedPoint;
 use soroban_auth::Identifier;
 use soroban_sdk::{BytesN, Env};
 
@@ -168,7 +169,7 @@ impl Pool {
             return tokens;
         }
 
-        (tokens * pool_shares) / self.get_tokens(e)
+        tokens.fixed_mul_floor(pool_shares, self.get_tokens(e)).unwrap()
     }
 
     /// Convert a pool share balance to a token balance based on the current pool state
@@ -181,7 +182,7 @@ impl Pool {
             return shares;
         }
 
-        (shares * self.get_tokens(e)) / pool_shares
+        shares.fixed_mul_floor(self.get_tokens(e), pool_shares).unwrap()
     }
 
     /// Deposit tokens and shares into the pool

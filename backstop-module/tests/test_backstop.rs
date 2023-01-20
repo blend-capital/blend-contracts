@@ -3,11 +3,11 @@ use common::generate_contract_id;
 use soroban_auth::{Identifier, Signature};
 use soroban_sdk::{
     testutils::{Accounts, Ledger, LedgerInfo},
-    BytesN, Env, Status,
+    BytesN, Env,
 };
 
 mod common;
-use crate::common::{create_backstop_module, create_token_from_id, BackstopError};
+use crate::common::{create_backstop_module, create_token_from_id};
 
 // TODO: Investigate if mint / burn semantics will be better (operate in bTokens)
 #[test]
@@ -116,32 +116,27 @@ fn test_backstop_happy_path() {
 fn test_backstop_distribution_happy_path() {
     let e = Env::default();
 
-    // create backstop module
     let (backstop_addr, backstop_client) = create_backstop_module(&e);
     let backstop_id = Identifier::Contract(backstop_addr.clone());
 
-    // create token
     let bombadil = e.accounts().generate_and_create();
     let bombadil_id = Identifier::Account(bombadil.clone());
 
     let token_id = BytesN::from_array(&e, &[222; 32]);
     let token_client = create_token_from_id(&e, &token_id, &bombadil_id);
 
-    // create pools
     let pool_1 = generate_contract_id(&e); // in reward zone
     let pool_2 = generate_contract_id(&e); // in reward zone
     let pool_3 = generate_contract_id(&e); // out of reward zone
 
-    // create user to deposit
     let samwise = e.accounts().generate_and_create();
     let samwise_id = Identifier::Account(samwise.clone());
 
-    // mint tokens to user and approve backstop
     token_client.with_source_account(&bombadil).mint(
         &Signature::Invoker,
         &0,
         &samwise_id,
-        &600_000_0000000, // total deposit amount
+        &600_000_0000000,
     );
     token_client.with_source_account(&samwise).incr_allow(
         &Signature::Invoker,
@@ -158,7 +153,6 @@ fn test_backstop_distribution_happy_path() {
         base_reserve: 10,
     });
 
-    // deposit into backstop module
     backstop_client
         .with_source_account(&samwise)
         .deposit(&pool_1, &300_000_0000000);

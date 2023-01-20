@@ -1,4 +1,5 @@
 use crate::{
+    constants::EMITTER,
     dependencies::{BackstopClient, EmitterClient, TokenClient},
     emissions_distributor,
     emissions_manager::{self, ReserveEmissionMetadata},
@@ -19,9 +20,6 @@ use soroban_sdk::{contractimpl, symbol, Address, BytesN, Env, Map, Vec};
 ///
 /// An isolated money market pool.
 pub struct Pool;
-
-// Constants
-const EMITTER: [u8; 32] = [100; 32]; // TODO: Use the emitter
 
 pub trait PoolTrait {
     /// Initialize the pool

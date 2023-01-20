@@ -2,12 +2,13 @@ use crate::{
     auctions::base_auction::{
         get_ask_bid_modifier, get_modified_accrued_interest, Auction, AuctionManagement,
     },
-    dependencies::{BackstopClient, OracleClient},
+    constants::BLND_TOKEN,
+    dependencies::{BackstopClient, OracleClient, TokenClient},
     errors::PoolError,
     storage::{AuctionData, PoolDataStore, StorageManager},
 };
-use soroban_auth::Identifier;
-use soroban_sdk::{vec, Env, Vec};
+use soroban_auth::{Identifier, Signature};
+use soroban_sdk::{vec, BytesN, Env, Vec};
 
 pub struct AccruedInterestAuction {
     auction: Auction,
@@ -45,24 +46,33 @@ impl AuctionManagement for AccruedInterestAuction {
             bid_amts,
         }
     }
+
     fn fill(
         &self,
         e: &Env,
         invoker_id: Identifier,
         storage: StorageManager,
     ) -> Result<(), PoolError> {
-        //perform bid token transfers
+        // perform bid token transfers
         let backstop_id = storage.get_oracle(); //TODO swap for function that gets backstop module id
         let backstop_client = BackstopClient::new(&e, backstop_id);
-        //cast to u128 to avoid overflow
-        backstop_client.donate(
-            &e.current_contract(),
-            &self.bid_amts.first().unwrap().unwrap(),
+
+        // TODO: Make more seamless with "auth-next" by pre-authorizing the transfer taking place
+        //       in the backstop client to avoid a double transfer.
+
+        let amount: i128 = self.bid_amts.first().unwrap().unwrap() as i128;
+        TokenClient::new(e, &BytesN::from_array(e, &BLND_TOKEN)).xfer_from(
+            &Signature::Invoker,
+            &0,
             &invoker_id,
+            &Identifier::Contract(e.current_contract()),
+            &amount,
         );
 
-        //perform ask token transfers
-        //TODO: decide whether we transfer these as b_tokens or not
+        backstop_client.donate(&e.current_contract(), &(amount as u64));
+
+        // perform ask token transfers
+        // TODO: decide whether we transfer these as b_tokens or not
         Ok(())
     }
 }
@@ -99,7 +109,7 @@ mod tests {
         reserve_usage::ReserveUsage,
         storage::{AuctionData, PoolDataStore, ReserveConfig, ReserveData, StorageManager},
         testutils::{
-            create_backstop, create_token_contract, create_token_from_id, generate_contract_id,
+            create_backstop, create_token_contract, create_token_from_id, generate_contract_id, create_mock_pool_factory,
         },
     };
 
@@ -133,8 +143,11 @@ mod tests {
         //setup backstop
         let (backstop, backstop_client) = create_backstop(&e);
         let backstop_id = Identifier::Contract(backstop.clone());
-        let backstop_token_id = BytesN::from_array(&e, &[222; 32]);
+        let backstop_token_id = BytesN::from_array(&e, &BLND_TOKEN);
         let backstop_token_client = create_token_from_id(&e, &backstop_token_id, &bombadil_id);
+
+        let mock_pool_factory = create_mock_pool_factory(&e);
+        mock_pool_factory.set_pool(&pool);
 
         // mint backstop tokens to user and approve pool
         backstop_token_client.with_source_account(&bombadil).mint(
@@ -145,7 +158,11 @@ mod tests {
         );
         backstop_token_client
             .with_source_account(&samwise)
-            .incr_allow(&Signature::Invoker, &0, &backstop_id, &(u64::MAX as i128));
+            .incr_allow(&Signature::Invoker, &0, &pool_id, &(u64::MAX as i128));
+        e.as_contract(&pool, || {
+            backstop_token_client
+                .incr_allow(&Signature::Invoker, &0, &backstop_id, &(u64::MAX as i128));
+        });
 
         // setup user
         e.as_contract(&pool, || {

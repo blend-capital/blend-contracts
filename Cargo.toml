@@ -6,6 +6,7 @@ members = [
     "emitter",
     "lending-pool",
     "mocks/mock-blend-oracle",
+    "mocks/mock-pool-factory",
     "oracle",
     "pool-factory",
 ]

@@ -1,5 +1,9 @@
+<<<<<<< HEAD
 use soroban_auth::Identifier;
 use soroban_sdk::{symbol, vec, BytesN, Env, Vec};
+=======
+use soroban_sdk::{vec, BytesN, Env, Vec};
+>>>>>>> origin
 
 use crate::{
     errors::BackstopError,

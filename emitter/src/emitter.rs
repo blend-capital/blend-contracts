@@ -5,7 +5,7 @@ use crate::{
     storage::{EmitterDataStore, StorageManager},
 };
 use soroban_auth::{Identifier, Signature};
-use soroban_sdk::{contractimpl, BytesN, Env};
+use soroban_sdk::{contractimpl, symbol, BytesN, Env};
 
 const SCALAR: u64 = 1_000_000_0;
 
@@ -78,6 +78,10 @@ impl EmitterTrait for Emitter {
             &backstop,
             &(distribution_amount as i128),
         );
+        e.events().publish(
+            (symbol!("Emitter"), symbol!("Distribute")),
+            (backstop, distribution_amount),
+        );
         Ok(distribution_amount)
     }
 
@@ -93,7 +97,7 @@ impl EmitterTrait for Emitter {
 
         let old_backstop = Identifier::Contract(storage.get_backstop());
         let old_backstop_blend_balance = blend_client.balance(&old_backstop);
-        let old_backstop_blend_lp_balance = get_lp_blend_holdings(&e, old_backstop);
+        let old_backstop_blend_lp_balance = get_lp_blend_holdings(&e, old_backstop.clone());
         let effective_old_backstop_blend =
             ((old_backstop_blend_balance / 4) as u64) + old_backstop_blend_lp_balance;
 
@@ -107,6 +111,10 @@ impl EmitterTrait for Emitter {
         }
 
         storage.set_backstop(new_backstop);
+        e.events().publish(
+            (symbol!("Emitter"), symbol!("Swap"), symbol!("Backstop")),
+            (new_backstop_id, old_backstop),
+        );
         Ok(())
     }
 }

@@ -7,7 +7,7 @@ use crate::{
     user::User,
 };
 use soroban_auth::{Identifier, Signature};
-use soroban_sdk::{contractimpl, Address, BytesN, Env, Vec};
+use soroban_sdk::{contractimpl, symbol, Address, BytesN, Env, Vec};
 
 /// ### Backstop Module
 ///
@@ -143,7 +143,7 @@ pub trait BackstopTrait {
 impl BackstopTrait for Backstop {
     fn deposit(e: Env, pool_address: BytesN<32>, amount: u64) -> Result<u64, BackstopError> {
         let mut user = User::new(pool_address.clone(), Identifier::from(e.invoker()));
-        let mut pool = Pool::new(pool_address);
+        let mut pool = Pool::new(pool_address.clone());
 
         // calculate share minting rate
         let to_mint = pool.convert_to_shares(&e, amount);
@@ -170,12 +170,16 @@ impl BackstopTrait for Backstop {
 
         // TODO: manage backstop state changes (bToken rates, emissions)
 
+        e.events().publish(
+            (symbol!("Backstop"), symbol!("Deposit")),
+            (pool_address, user.id, amount),
+        );
         Ok(to_mint)
     }
 
     fn q_withdraw(e: Env, pool_address: BytesN<32>, amount: u64) -> Result<Q4W, BackstopError> {
         let mut user = User::new(pool_address.clone(), Identifier::from(e.invoker()));
-        let mut pool = Pool::new(pool_address);
+        let mut pool = Pool::new(pool_address.clone());
 
         let new_q4w = match user.try_queue_shares_for_withdrawal(&e, amount) {
             Ok(q4w) => q4w,
@@ -188,12 +192,16 @@ impl BackstopTrait for Backstop {
 
         // TODO: manage backstop state changes (bToken rates)
 
+        e.events().publish(
+            (symbol!("Backstop"), symbol!("Queue"), symbol!("Withdraw")),
+            (pool_address, user.id, amount),
+        );
         Ok(new_q4w)
     }
 
     fn withdraw(e: Env, pool_address: BytesN<32>, amount: u64) -> Result<u64, BackstopError> {
         let mut user = User::new(pool_address.clone(), Identifier::from(e.invoker()));
-        let mut pool = Pool::new(pool_address);
+        let mut pool = Pool::new(pool_address.clone());
 
         match user.try_withdraw_shares(&e, amount) {
             Ok(_) => (),
@@ -218,6 +226,10 @@ impl BackstopTrait for Backstop {
         let blnd_client = TokenClient::new(&e, BytesN::from_array(&e, &BLND_TOKEN));
         blnd_client.xfer(&Signature::Invoker, &0, &user.id, &(to_return as i128));
 
+        e.events().publish(
+            (symbol!("Backstop"), symbol!("Withdraw")),
+            (pool_address, user.id, to_return),
+        );
         Ok(to_return)
     }
 

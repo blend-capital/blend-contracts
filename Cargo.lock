@@ -540,6 +540,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "mock-pool-factory"
+version = "0.0.0"
+dependencies = [
+ "rand 0.7.3",
+ "soroban-auth",
+ "soroban-sdk",
+]
+
+[[package]]
 name = "num-bigint"
 version = "0.4.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"

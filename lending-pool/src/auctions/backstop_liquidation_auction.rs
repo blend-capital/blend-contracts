@@ -52,6 +52,7 @@ impl AuctionManagement for BackstopLiquidationAuction {
             bid_amts,
         }
     }
+
     fn fill(
         &self,
         e: &Env,
@@ -67,13 +68,9 @@ impl AuctionManagement for BackstopLiquidationAuction {
         let backstop_client = BackstopClient::new(&e, backstop_id);
         //we need to create a new ask_amt vec in order to make it mutable
         let mut ask_amts = self.ask_amts.clone();
-        //cast to u128 to avoid overflow
+        // cast to u128 to avoid overflow
         //NOTE: think there's a bug with pop_back - TODO ask mootz
-        backstop_client.draw(
-            &e.current_contract(),
-            &ask_amts.pop_back().unwrap().unwrap(),
-            &invoker_id.clone(),
-        );
+        backstop_client.draw(&ask_amts.pop_back().unwrap().unwrap(), &invoker_id.clone());
         //TODO: decide whether these are bToken transfers or not
 
         Ok(())
@@ -82,12 +79,14 @@ impl AuctionManagement for BackstopLiquidationAuction {
 
 #[cfg(test)]
 mod tests {
+    use std::println;
+
     use crate::{
         auctions::base_auction::AuctionType,
         reserve_usage::ReserveUsage,
         storage::{AuctionData, ReserveConfig, ReserveData},
         testutils::{
-            create_backstop, create_token_contract, create_token_from_id, generate_contract_id,
+            create_backstop, create_token_contract, create_token_from_id, generate_contract_id, create_mock_pool_factory,
         },
     };
 
@@ -97,6 +96,7 @@ mod tests {
         testutils::{Accounts, Ledger, LedgerInfo},
         BytesN,
     };
+    
     #[test]
     fn test_fill_backstop_liquidation_auction() {
         let e = Env::default();
@@ -123,6 +123,9 @@ mod tests {
         let backstop_token_id = BytesN::from_array(&e, &[222; 32]);
         let backstop_token_client = create_token_from_id(&e, &backstop_token_id, &bombadil_id);
 
+        let mock_pool_factory = create_mock_pool_factory(&e);
+        mock_pool_factory.set_pool(&pool);
+
         // mint backstop tokens to user and approve backstop
         backstop_token_client.with_source_account(&bombadil).mint(
             &Signature::Invoker,
@@ -138,6 +141,8 @@ mod tests {
         backstop_client
             .with_source_account(&samwise)
             .deposit(&pool, &400_000_0000000);
+
+        e.budget().reset();
 
         // setup collateral and liabilities
         let liability_amount: i128 = 20_000_0000;

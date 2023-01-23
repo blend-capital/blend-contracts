@@ -1,5 +1,5 @@
 use soroban_auth::Identifier;
-use soroban_sdk::{BytesN, Env};
+use soroban_sdk::{symbol, BytesN, Env};
 
 use crate::{
     emissions_distributor,
@@ -82,6 +82,15 @@ impl Reserve {
         self.data.ir_mod = new_ir_mod;
 
         self.data.last_block = e.ledger().sequence();
+        e.events().publish(
+            (symbol!("Update"), symbol!("Reserve"), symbol!("Rates")),
+            (
+                &self.asset,
+                self.data.b_rate,
+                self.data.d_rate,
+                self.data.ir_mod,
+            ),
+        );
     }
 
     /// Adds tokens to the total b token supply

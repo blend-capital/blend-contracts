@@ -1,5 +1,5 @@
 use crate::storage::{PoolFactoryStore, StorageManager};
-use soroban_sdk::{contractimpl, BytesN, Env, RawVal, Symbol, Vec};
+use soroban_sdk::{contractimpl, symbol, BytesN, Env, RawVal, Symbol, Vec};
 
 pub struct PoolFactory;
 
@@ -51,6 +51,10 @@ impl PoolFactoryTrait for PoolFactory {
             .deploy(storage.get_wasm_hash());
         // e.invoke_contract::<RawVal>(&pool_address, &init_function, args);
         storage.set_deployed(pool_address.clone());
+        e.events().publish(
+            (symbol!("Pool"), symbol!("Factory"), symbol!("Deployed")),
+            pool_address.clone(),
+        );
         pool_address
     }
 

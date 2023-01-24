@@ -1,5 +1,5 @@
 use fixed_point_math::{FixedPoint, STROOP};
-use soroban_sdk::{vec, BytesN, Env, Vec};
+use soroban_sdk::{symbol, vec, BytesN, Env, Vec};
 use cast::{i128, u64};
 
 use crate::{
@@ -25,7 +25,7 @@ impl Distributor {
         if max_rz_len > reward_zone.len() as u64 {
             // there is room in the reward zone. Add whatever
             // TODO: Once there is a defined limit of "backstop minimum", ensure it is reached!
-            reward_zone.push_front(to_add);
+            reward_zone.push_front(to_add.clone());
         } else {
             // don't allow rz modifications within 48 hours of the last distribution
             // if pools don't adopt their distributions, the tokens will be lost
@@ -45,14 +45,22 @@ impl Distributor {
             let to_remove_index = reward_zone.first_index_of(to_remove.clone());
             match to_remove_index {
                 Some(idx) => {
-                    reward_zone.insert(idx, to_add);
-                    storage.set_pool_eps(to_remove, 0);
+                    reward_zone.insert(idx, to_add.clone());
+                    storage.set_pool_eps(to_remove.clone(), 0);
                 }
                 None => return Err(BackstopError::InvalidRewardZoneEntry),
             }
         }
 
         storage.set_reward_zone(reward_zone);
+        e.events().publish(
+            (
+                symbol!("Backstop"),
+                symbol!("RewardZone"),
+                symbol!("PoolAdded"),
+            ),
+            (to_add, to_remove),
+        );
         Ok(())
     }
 
@@ -90,15 +98,21 @@ impl Distributor {
 
             // store pool EPS and distribute pool's emissions
             let pool_eps = u64(share.fixed_mul_floor(0_3000000, i128(STROOP)).unwrap()).unwrap();
+            let pool_emissions = storage.get_pool_emis(rz_pool.clone()) + (pool_eps * 7 * 24 * 60 * 60);
             storage.set_pool_eps(rz_pool.clone(), pool_eps);
             storage.set_pool_emis(
                 rz_pool.clone(),
-                storage.get_pool_emis(rz_pool.clone()) + (pool_eps * 7 * 24 * 60 * 60),
+                pool_emissions,
             );
 
             // distribute backstop depositor emissions
             let pool_backstop_emissions = share.fixed_mul_floor(backstop_emissions, i128(STROOP)).unwrap();
-            storage.set_pool_tokens(rz_pool, (cur_pool_tokens + pool_backstop_emissions) as u64);
+            storage.set_pool_tokens(rz_pool.clone(), (cur_pool_tokens + pool_backstop_emissions) as u64);
+
+            e.events().publish(
+                (symbol!("Backstop"), symbol!("Distribute")),
+                (rz_pool, pool_eps, pool_emissions, pool_backstop_emissions),
+            )
         }
 
         storage.set_next_dist(e.ledger().timestamp() + 7 * 24 * 60 * 60);

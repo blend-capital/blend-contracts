@@ -8,7 +8,7 @@ use crate::{
         StorageManager,
     },
 };
-use soroban_sdk::{contracttype, map, BytesN, Env, Map, Vec};
+use soroban_sdk::{contracttype, map, symbol, BytesN, Env, Map, Vec};
 
 // Types
 
@@ -107,6 +107,15 @@ fn update_reserve_emission_config(
     };
 
     storage.set_res_emis_config(key, new_reserve_emis_config);
+    e.events().publish(
+        (
+            symbol!("Update"),
+            symbol!("Reserve"),
+            symbol!("Emission"),
+            symbol!("Config"),
+        ),
+        (key, new_res_eps, expiration),
+    )
 }
 
 /// Set the pool emissions

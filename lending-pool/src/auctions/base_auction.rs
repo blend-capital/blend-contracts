@@ -5,9 +5,9 @@ use crate::{
     reserve::Reserve,
     storage::{AuctionData, PoolDataStore, StorageManager},
 };
+use cast::i128;
 use soroban_auth::{Identifier, Signature};
 use soroban_sdk::{Env, Vec};
-use cast::i128;
 
 /// ### Auction
 ///

@@ -66,7 +66,7 @@ impl EmitterTrait for Emitter {
         if backstop != Identifier::from(e.invoker()) {
             return Err(EmitterError::NotAuthorized);
         }
-        
+
         let timestamp = e.ledger().timestamp();
         let seconds_since_last_distro = timestamp - storage.get_last_distro_time();
         // Blend tokens are distributed at a rate of 1 token per second

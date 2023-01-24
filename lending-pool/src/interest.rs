@@ -1,8 +1,11 @@
+use cast::i128;
 use fixed_point_math::{FixedPoint, STROOP};
 use soroban_sdk::Env;
-use cast::i128;
 
-use crate::{storage::ReserveConfig, constants::{SCALAR_9, BLOCKS_PER_YEAR}};
+use crate::{
+    constants::{BLOCKS_PER_YEAR, SCALAR_9},
+    storage::ReserveConfig,
+};
 
 /// Calculates the loan accrual ratio for the Reserve based on the current utilization and
 /// rate modifier for the reserve.
@@ -26,19 +29,34 @@ pub fn calc_accrual(
     let target_util: i128 = i128(config.util);
     if cur_util <= target_util {
         let util_scalar = cur_util.fixed_div_floor(target_util, i128(STROOP)).unwrap();
-        let base_rate = util_scalar.fixed_mul_floor(i128(config.r_one), i128(STROOP)).unwrap() + 0_0100000;
+        let base_rate = util_scalar
+            .fixed_mul_floor(i128(config.r_one), i128(STROOP))
+            .unwrap()
+            + 0_0100000;
 
         cur_ir = base_rate.fixed_mul_floor(ir_mod, SCALAR_9).unwrap();
     } else if cur_util <= 0_9500000 {
-        let util_scalar = (cur_util - target_util).fixed_div_floor(0_9500000 - target_util, i128(STROOP)).unwrap();
-        let base_rate = util_scalar.fixed_mul_floor(i128(config.r_two), i128(STROOP)).unwrap() + i128(config.r_one) + 0_0100000;
+        let util_scalar = (cur_util - target_util)
+            .fixed_div_floor(0_9500000 - target_util, i128(STROOP))
+            .unwrap();
+        let base_rate = util_scalar
+            .fixed_mul_floor(i128(config.r_two), i128(STROOP))
+            .unwrap()
+            + i128(config.r_one)
+            + 0_0100000;
 
         cur_ir = base_rate.fixed_mul_floor(ir_mod, SCALAR_9).unwrap();
     } else {
-        let util_scalar = (cur_util - 0_9500000).fixed_div_floor(0_0500000, i128(STROOP)).unwrap();
-        let extra_rate = util_scalar.fixed_mul_floor(i128(config.r_three), i128(STROOP)).unwrap();
+        let util_scalar = (cur_util - 0_9500000)
+            .fixed_div_floor(0_0500000, i128(STROOP))
+            .unwrap();
+        let extra_rate = util_scalar
+            .fixed_mul_floor(i128(config.r_three), i128(STROOP))
+            .unwrap();
 
-        let intersection = ir_mod.fixed_mul_floor(i128(config.r_two + config.r_one + 0_0100000), SCALAR_9).unwrap();
+        let intersection = ir_mod
+            .fixed_mul_floor(i128(config.r_two + config.r_one + 0_0100000), SCALAR_9)
+            .unwrap();
         cur_ir = extra_rate + intersection;
     }
 
@@ -49,8 +67,12 @@ pub fn calc_accrual(
     let new_ir_mod: i128;
     if util_dif_scaled >= 0 {
         // rate modifier increasing
-        let util_error = delta_blocks_scaled.fixed_mul_floor(util_dif_scaled, SCALAR_9).unwrap();
-        let rate_dif = util_error.fixed_mul_floor(i128(config.reactivity), SCALAR_9).unwrap();
+        let util_error = delta_blocks_scaled
+            .fixed_mul_floor(util_dif_scaled, SCALAR_9)
+            .unwrap();
+        let rate_dif = util_error
+            .fixed_mul_floor(i128(config.reactivity), SCALAR_9)
+            .unwrap();
         let next_ir_mod = ir_mod + rate_dif;
         if next_ir_mod > 10_000_000_000 {
             new_ir_mod = 10_000_000_000;
@@ -59,8 +81,12 @@ pub fn calc_accrual(
         }
     } else {
         // rate modifier decreasing
-        let util_error = delta_blocks_scaled.fixed_mul_ceil(util_dif_scaled, SCALAR_9).unwrap();
-        let rate_dif = util_error.fixed_mul_ceil(i128(config.reactivity), SCALAR_9).unwrap();
+        let util_error = delta_blocks_scaled
+            .fixed_mul_ceil(util_dif_scaled, SCALAR_9)
+            .unwrap();
+        let rate_dif = util_error
+            .fixed_mul_ceil(i128(config.reactivity), SCALAR_9)
+            .unwrap();
         let next_ir_mod = ir_mod + rate_dif;
         if next_ir_mod < 0_100_000_000 {
             new_ir_mod = 0_100_000_000;
@@ -337,8 +363,13 @@ mod tests {
             base_reserve: 10,
         });
 
-        let (accrual, ir_mod) =
-            calc_accrual(&e, &reserve.config, 0_0500000, i128(reserve.data.ir_mod), 99);
+        let (accrual, ir_mod) = calc_accrual(
+            &e,
+            &reserve.config,
+            0_0500000,
+            i128(reserve.data.ir_mod),
+            99,
+        );
 
         assert_eq!(accrual, 1_000_000_001);
         assert_eq!(ir_mod, 0_100_000_000);

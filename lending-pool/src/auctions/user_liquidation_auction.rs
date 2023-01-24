@@ -1,6 +1,6 @@
-use soroban_sdk::{vec, Env, Vec};
-use soroban_auth::Identifier;
 use cast::i128;
+use soroban_auth::Identifier;
+use soroban_sdk::{vec, Env, Vec};
 
 use crate::auctions::base_auction::{get_ask_bid_modifier, Auction, AuctionManagement};
 use crate::{

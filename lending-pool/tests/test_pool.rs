@@ -1,10 +1,10 @@
 #![cfg(test)]
+use cast::i128;
 use soroban_auth::{Identifier, Signature};
 use soroban_sdk::{
     testutils::{Accounts, Ledger, LedgerInfo},
     Env,
 };
-use cast::i128;
 
 mod common;
 use crate::common::{create_mock_oracle, create_wasm_lending_pool, pool_helper, TokenClient};

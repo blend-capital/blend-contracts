@@ -169,7 +169,9 @@ impl Pool {
             return tokens;
         }
 
-        tokens.fixed_mul_floor(pool_shares, self.get_tokens(e)).unwrap()
+        tokens
+            .fixed_mul_floor(pool_shares, self.get_tokens(e))
+            .unwrap()
     }
 
     /// Convert a pool share balance to a token balance based on the current pool state
@@ -182,7 +184,9 @@ impl Pool {
             return shares;
         }
 
-        shares.fixed_mul_floor(self.get_tokens(e), pool_shares).unwrap()
+        shares
+            .fixed_mul_floor(self.get_tokens(e), pool_shares)
+            .unwrap()
     }
 
     /// Deposit tokens and shares into the pool

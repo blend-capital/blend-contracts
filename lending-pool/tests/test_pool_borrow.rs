@@ -1,7 +1,10 @@
 #![cfg(test)]
-use soroban_auth::{Identifier, Signature};
-use soroban_sdk::{testutils::{Accounts, Ledger, LedgerInfo}, Env, Status};
 use cast::i128;
+use soroban_auth::{Identifier, Signature};
+use soroban_sdk::{
+    testutils::{Accounts, Ledger, LedgerInfo},
+    Env, Status,
+};
 
 mod common;
 use crate::common::{
@@ -346,11 +349,10 @@ fn test_pool_borrow_one_stroop() {
 
     // borrow 1 stroop
     let borrow_amount = 0_0000001;
-    let minted_dtokens_2 = pool_client.with_source_account(&samwise).borrow(
-        &asset1_id,
-        &borrow_amount,
-        &samwise_id,
-    );
+    let minted_dtokens_2 =
+        pool_client
+            .with_source_account(&samwise)
+            .borrow(&asset1_id, &borrow_amount, &samwise_id);
     assert_eq!(
         asset1_client.balance(&samwise_id),
         10_0000000 - 1_0000000 + 0_5355000 + 0_0000001
@@ -365,4 +367,3 @@ fn test_pool_borrow_one_stroop() {
     );
     assert_eq!(minted_dtokens_2, 1);
 }
-

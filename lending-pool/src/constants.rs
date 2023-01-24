@@ -7,7 +7,6 @@ pub const EMITTER: [u8; 32] = [100; 32];
 /// The address of the BLND token
 pub const BLND_TOKEN: [u8; 32] = [222; 32]; // TODO: Use actual token bytes
 
-
 /********** Numbers **********/
 
 /// Fixed-point scalar for 9 decimal numbers

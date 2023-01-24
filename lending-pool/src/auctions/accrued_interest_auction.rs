@@ -7,9 +7,9 @@ use crate::{
     errors::PoolError,
     storage::{AuctionData, PoolDataStore, StorageManager},
 };
+use cast::i128;
 use soroban_auth::{Identifier, Signature};
 use soroban_sdk::{vec, BytesN, Env, Vec};
-use cast::i128;
 
 pub struct AccruedInterestAuction {
     auction: Auction,
@@ -110,7 +110,8 @@ mod tests {
         reserve_usage::ReserveUsage,
         storage::{AuctionData, PoolDataStore, ReserveConfig, ReserveData, StorageManager},
         testutils::{
-            create_backstop, create_token_contract, create_token_from_id, generate_contract_id, create_mock_pool_factory,
+            create_backstop, create_mock_pool_factory, create_token_contract, create_token_from_id,
+            generate_contract_id,
         },
     };
 
@@ -161,8 +162,12 @@ mod tests {
             .with_source_account(&samwise)
             .incr_allow(&Signature::Invoker, &0, &pool_id, &(u64::MAX as i128));
         e.as_contract(&pool, || {
-            backstop_token_client
-                .incr_allow(&Signature::Invoker, &0, &backstop_id, &(u64::MAX as i128));
+            backstop_token_client.incr_allow(
+                &Signature::Invoker,
+                &0,
+                &backstop_id,
+                &(u64::MAX as i128),
+            );
         });
 
         // setup user

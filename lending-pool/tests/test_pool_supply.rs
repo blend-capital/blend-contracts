@@ -1,7 +1,7 @@
 #![cfg(test)]
+use cast::i128;
 use soroban_auth::{Identifier, Signature};
 use soroban_sdk::{testutils::Accounts, Env, Status};
-use cast::i128;
 
 mod common;
 use crate::common::{

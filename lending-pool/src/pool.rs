@@ -69,7 +69,8 @@ pub trait PoolTrait {
     ///
     /// ### Errors
     /// If the invoker does not have enough funds to burn
-    fn withdraw(e: Env, asset: BytesN<32>, amount: i128, to: Identifier) -> Result<i128, PoolError>;
+    fn withdraw(e: Env, asset: BytesN<32>, amount: i128, to: Identifier)
+        -> Result<i128, PoolError>;
 
     /// Borrow's `amount` of `asset` from the pool and sends it to the `to` address and credits a debt
     /// to the invoker
@@ -263,7 +264,12 @@ impl PoolTrait for Pool {
         Ok(to_mint)
     }
 
-    fn withdraw(e: Env, asset: BytesN<32>, amount: i128, to: Identifier) -> Result<i128, PoolError> {
+    fn withdraw(
+        e: Env,
+        asset: BytesN<32>,
+        amount: i128,
+        to: Identifier,
+    ) -> Result<i128, PoolError> {
         let storage = StorageManager::new(&e);
         let invoker = e.invoker();
         let invoker_id = Identifier::from(invoker);
@@ -280,7 +286,9 @@ impl PoolTrait for Pool {
             to_return = reserve.to_asset_from_b_token(to_burn);
         } else {
             to_burn = reserve.to_b_token(amount);
-            if to_burn == 0 { to_burn = 1 };
+            if to_burn == 0 {
+                to_burn = 1
+            };
             to_return = amount;
         }
 
@@ -329,7 +337,9 @@ impl PoolTrait for Pool {
         reserve.pre_action(&e, 0, invoker_id.clone())?;
 
         let mut to_mint = reserve.to_d_token(amount);
-        if to_mint == 0 { to_mint = 1 };
+        if to_mint == 0 {
+            to_mint = 1
+        };
         let user_action = UserAction {
             asset: asset.clone(),
             b_token_delta: 0,
@@ -399,7 +409,7 @@ impl PoolTrait for Pool {
 
         e.events()
             .publish((symbol!("PoolStatus"), symbol!("Updated")), pool_status);
-            
+
         Ok(())
     }
 

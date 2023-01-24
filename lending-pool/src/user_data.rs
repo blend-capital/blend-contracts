@@ -4,9 +4,11 @@ use soroban_auth::Identifier;
 use soroban_sdk::{BytesN, Env};
 
 use crate::{
+    constants::SCALAR_7,
     dependencies::{OracleClient, TokenClient},
+    reserve::Reserve,
     reserve_usage::ReserveUsage,
-    storage::{PoolDataStore, StorageManager}, reserve::Reserve, constants::SCALAR_7,
+    storage::{PoolDataStore, StorageManager},
 };
 
 /// A user's account data
@@ -47,7 +49,9 @@ impl UserData {
                 let b_token_client = TokenClient::new(e, reserve.config.b_token.clone());
                 let b_token_balance = b_token_client.balance(user);
                 let asset_collateral = reserve.to_effective_asset_from_b_token(b_token_balance);
-                collateral_base += asset_collateral.fixed_mul_floor(i128(asset_to_base), SCALAR_7).unwrap();
+                collateral_base += asset_collateral
+                    .fixed_mul_floor(i128(asset_to_base), SCALAR_7)
+                    .unwrap();
             }
 
             if user_config.is_liability(i) {
@@ -55,19 +59,27 @@ impl UserData {
                 let d_token_client = TokenClient::new(e, reserve.config.d_token.clone());
                 let d_token_balance = d_token_client.balance(user);
                 let asset_liability = reserve.to_effective_asset_from_d_token(d_token_balance);
-                liability_base += asset_liability.fixed_mul_floor(i128(asset_to_base), SCALAR_7).unwrap();
+                liability_base += asset_liability
+                    .fixed_mul_floor(i128(asset_to_base), SCALAR_7)
+                    .unwrap();
             }
 
             if res_asset_address == action.asset {
                 // user is making modifications to this asset, reflect them in the liability and/or collateral
                 if action.b_token_delta != 0 {
-                    let asset_collateral = reserve.to_effective_asset_from_b_token(action.b_token_delta);
-                    collateral_base += asset_collateral.fixed_mul_floor(i128(asset_to_base), SCALAR_7).unwrap();
+                    let asset_collateral =
+                        reserve.to_effective_asset_from_b_token(action.b_token_delta);
+                    collateral_base += asset_collateral
+                        .fixed_mul_floor(i128(asset_to_base), SCALAR_7)
+                        .unwrap();
                 }
 
                 if action.d_token_delta != 0 {
-                    let asset_liability = reserve.to_effective_asset_from_d_token(action.d_token_delta);
-                    liability_base += asset_liability.fixed_mul_floor(i128(asset_to_base), SCALAR_7).unwrap();
+                    let asset_liability =
+                        reserve.to_effective_asset_from_d_token(action.d_token_delta);
+                    liability_base += asset_liability
+                        .fixed_mul_floor(i128(asset_to_base), SCALAR_7)
+                        .unwrap();
                 }
             }
         }
@@ -90,7 +102,6 @@ mod tests {
     use super::*;
     use soroban_auth::Signature;
     use soroban_sdk::testutils::Accounts;
-
 
     #[test]
     fn test_load_user_only_collateral() {

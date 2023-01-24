@@ -1,6 +1,6 @@
+use cast::{i128, u64};
 use fixed_point_math::{FixedPoint, STROOP};
 use soroban_sdk::{symbol, vec, BytesN, Env, Vec};
-use cast::{i128, u64};
 
 use crate::{
     errors::BackstopError,
@@ -94,20 +94,25 @@ impl Distributor {
         for rz_pool_index in 0..rz_len {
             let rz_pool = reward_zone.get(rz_pool_index).unwrap().unwrap();
             let cur_pool_tokens = i128(rz_tokens.pop_front_unchecked().unwrap());
-            let share = cur_pool_tokens.fixed_div_floor(total_tokens, i128(STROOP)).unwrap();
+            let share = cur_pool_tokens
+                .fixed_div_floor(total_tokens, i128(STROOP))
+                .unwrap();
 
             // store pool EPS and distribute pool's emissions
             let pool_eps = u64(share.fixed_mul_floor(0_3000000, i128(STROOP)).unwrap()).unwrap();
-            let pool_emissions = storage.get_pool_emis(rz_pool.clone()) + (pool_eps * 7 * 24 * 60 * 60);
+            let pool_emissions =
+                storage.get_pool_emis(rz_pool.clone()) + (pool_eps * 7 * 24 * 60 * 60);
             storage.set_pool_eps(rz_pool.clone(), pool_eps);
-            storage.set_pool_emis(
-                rz_pool.clone(),
-                pool_emissions,
-            );
+            storage.set_pool_emis(rz_pool.clone(), pool_emissions);
 
             // distribute backstop depositor emissions
-            let pool_backstop_emissions = share.fixed_mul_floor(backstop_emissions, i128(STROOP)).unwrap();
-            storage.set_pool_tokens(rz_pool.clone(), (cur_pool_tokens + pool_backstop_emissions) as u64);
+            let pool_backstop_emissions = share
+                .fixed_mul_floor(backstop_emissions, i128(STROOP))
+                .unwrap();
+            storage.set_pool_tokens(
+                rz_pool.clone(),
+                (cur_pool_tokens + pool_backstop_emissions) as u64,
+            );
 
             e.events().publish(
                 (symbol!("Backstop"), symbol!("Distribute")),

@@ -28,34 +28,34 @@ pub fn calc_accrual(
     let cur_ir: i128;
     let target_util: i128 = i128(config.util);
     if cur_util <= target_util {
-        let util_scalar = cur_util.fixed_div_floor(target_util, i128(STROOP)).unwrap();
+        let util_scalar = cur_util.fixed_div_ceil(target_util, i128(STROOP)).unwrap();
         let base_rate = util_scalar
-            .fixed_mul_floor(i128(config.r_one), i128(STROOP))
+            .fixed_mul_ceil(i128(config.r_one), i128(STROOP))
             .unwrap()
             + 0_0100000;
 
-        cur_ir = base_rate.fixed_mul_floor(ir_mod, SCALAR_9).unwrap();
+        cur_ir = base_rate.fixed_mul_ceil(ir_mod, SCALAR_9).unwrap();
     } else if cur_util <= 0_9500000 {
         let util_scalar = (cur_util - target_util)
-            .fixed_div_floor(0_9500000 - target_util, i128(STROOP))
+            .fixed_div_ceil(0_9500000 - target_util, i128(STROOP))
             .unwrap();
         let base_rate = util_scalar
-            .fixed_mul_floor(i128(config.r_two), i128(STROOP))
+            .fixed_mul_ceil(i128(config.r_two), i128(STROOP))
             .unwrap()
             + i128(config.r_one)
             + 0_0100000;
 
-        cur_ir = base_rate.fixed_mul_floor(ir_mod, SCALAR_9).unwrap();
+        cur_ir = base_rate.fixed_mul_ceil(ir_mod, SCALAR_9).unwrap();
     } else {
         let util_scalar = (cur_util - 0_9500000)
-            .fixed_div_floor(0_0500000, i128(STROOP))
+            .fixed_div_ceil(0_0500000, i128(STROOP))
             .unwrap();
         let extra_rate = util_scalar
-            .fixed_mul_floor(i128(config.r_three), i128(STROOP))
+            .fixed_mul_ceil(i128(config.r_three), i128(STROOP))
             .unwrap();
 
         let intersection = ir_mod
-            .fixed_mul_floor(i128(config.r_two + config.r_one + 0_0100000), SCALAR_9)
+            .fixed_mul_ceil(i128(config.r_two + config.r_one + 0_0100000), SCALAR_9)
             .unwrap();
         cur_ir = extra_rate + intersection;
     }

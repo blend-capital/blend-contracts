@@ -490,6 +490,8 @@ dependencies = [
 name = "lending-pool"
 version = "0.0.0"
 dependencies = [
+ "cast",
+ "fixed-point-math",
  "rand 0.7.3",
  "soroban-auth",
  "soroban-sdk",

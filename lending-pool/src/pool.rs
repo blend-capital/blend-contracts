@@ -14,7 +14,7 @@ use crate::{
     user_validator::validate_hf,
 };
 use soroban_auth::{Identifier, Signature};
-use soroban_sdk::{contractimpl, Address, BytesN, Env, Map, Vec};
+use soroban_sdk::{contractimpl, BytesN, Env, Map, Vec};
 
 /// ### Pool
 ///
@@ -56,7 +56,7 @@ pub trait PoolTrait {
     /// ### Errors
     /// If the invoker has not approved the pool to transfer `asset` at least `amount` and has
     /// enough tokens to do so
-    fn supply(e: Env, asset: BytesN<32>, amount: u64) -> Result<u64, PoolError>;
+    fn supply(e: Env, asset: BytesN<32>, amount: i128) -> Result<i128, PoolError>;
 
     /// Withdraws `amount` of the `asset` from the invoker and returns it to the `to` Identifier
     ///
@@ -69,7 +69,7 @@ pub trait PoolTrait {
     ///
     /// ### Errors
     /// If the invoker does not have enough funds to burn
-    fn withdraw(e: Env, asset: BytesN<32>, amount: u64, to: Identifier) -> Result<u64, PoolError>;
+    fn withdraw(e: Env, asset: BytesN<32>, amount: i128, to: Identifier) -> Result<i128, PoolError>;
 
     /// Borrow's `amount` of `asset` from the pool and sends it to the `to` address and credits a debt
     /// to the invoker
@@ -80,7 +80,7 @@ pub trait PoolTrait {
     /// * `asset` - The contract address of the asset
     /// * `amount` - The amount of underlying `asset` tokens to borrow
     /// * `to` - The address receiving the funds
-    fn borrow(e: Env, asset: BytesN<32>, amount: u64, to: Identifier) -> Result<u64, PoolError>;
+    fn borrow(e: Env, asset: BytesN<32>, amount: i128, to: Identifier) -> Result<i128, PoolError>;
 
     /// Invoker repays the `amount` of debt for the `asset`, such that the debt is reduced for
     /// the address `on_behalf_of`
@@ -90,14 +90,14 @@ pub trait PoolTrait {
     /// ### Arguments
     /// * `asset` - The contract address of the asset
     /// * `amount` - The amount of underlying `asset` tokens to borrow
-    ///     * Sending u64.MAX will repay the full amount of the debt
+    ///     * Sending i128.MAX will repay the full amount of the debt
     /// * `on_behalf_of` - The address receiving the funds
     fn repay(
         e: Env,
         asset: BytesN<32>,
-        amount: u64,
+        amount: i128,
         on_behalf_of: Identifier,
-    ) -> Result<u64, PoolError>;
+    ) -> Result<i128, PoolError>;
 
     /// Pool status is changed to 'pool_status" if invoker is the admin
     /// * 0 = active
@@ -204,7 +204,7 @@ impl PoolTrait for Pool {
         storage.get_user_config(user)
     }
 
-    fn supply(e: Env, asset: BytesN<32>, amount: u64) -> Result<u64, PoolError> {
+    fn supply(e: Env, asset: BytesN<32>, amount: i128) -> Result<i128, PoolError> {
         let storage = StorageManager::new(&e);
         let invoker = e.invoker();
         let invoker_id = Identifier::from(invoker);
@@ -216,20 +216,20 @@ impl PoolTrait for Pool {
         let mut reserve = Reserve::load(&e, asset.clone());
         reserve.pre_action(&e, 1, invoker_id.clone())?;
 
-        let to_mint = reserve.to_b_token(&amount);
+        let to_mint = reserve.to_b_token(amount);
         TokenClient::new(&e, asset).xfer_from(
             &Signature::Invoker,
             &0,
             &invoker_id,
             &get_contract_id(&e),
-            &(amount as i128),
+            &amount,
         );
 
         TokenClient::new(&e, reserve.config.b_token.clone()).mint(
             &Signature::Invoker,
             &0,
             &invoker_id,
-            &(to_mint as i128),
+            &to_mint,
         );
 
         let mut user_config = ReserveUsage::new(storage.get_user_config(invoker_id.clone()));
@@ -240,10 +240,10 @@ impl PoolTrait for Pool {
 
         reserve.add_supply(&to_mint);
         reserve.set_data(&e);
-        Ok(to_mint as u64)
+        Ok(to_mint)
     }
 
-    fn withdraw(e: Env, asset: BytesN<32>, amount: u64, to: Identifier) -> Result<u64, PoolError> {
+    fn withdraw(e: Env, asset: BytesN<32>, amount: i128, to: Identifier) -> Result<i128, PoolError> {
         let storage = StorageManager::new(&e);
         let invoker = e.invoker();
         let invoker_id = Identifier::from(invoker);
@@ -251,21 +251,22 @@ impl PoolTrait for Pool {
         let mut reserve = Reserve::load(&e, asset.clone());
         reserve.pre_action(&e, 1, invoker_id.clone())?;
 
-        let to_burn: u64;
-        let to_return: u64;
+        let mut to_burn: i128;
+        let to_return: i128;
         let b_token_client = TokenClient::new(&e, reserve.config.b_token.clone());
-        if amount == u64::MAX {
-            // if they input u64::MAX as the burn amount, burn 100% of their holdings
-            to_burn = b_token_client.balance(&invoker_id) as u64;
-            to_return = reserve.to_asset_from_b_token(&to_burn);
+        if amount == i128::MAX {
+            // if they input i128::MAX as the burn amount, burn 100% of their holdings
+            to_burn = b_token_client.balance(&invoker_id);
+            to_return = reserve.to_asset_from_b_token(to_burn);
         } else {
-            to_burn = reserve.to_b_token(&amount);
+            to_burn = reserve.to_b_token(amount);
+            if to_burn == 0 { to_burn = 1 };
             to_return = amount;
         }
 
         let user_action = UserAction {
             asset: asset.clone(),
-            b_token_delta: -(to_burn as i64),
+            b_token_delta: -to_burn,
             d_token_delta: 0,
         };
         let is_healthy = validate_hf(&e, &invoker_id, &user_action);
@@ -273,9 +274,9 @@ impl PoolTrait for Pool {
             return Err(PoolError::InvalidHf);
         }
 
-        b_token_client.clawback(&Signature::Invoker, &0, &invoker_id, &(to_burn as i128));
+        b_token_client.clawback(&Signature::Invoker, &0, &invoker_id, &to_burn);
 
-        TokenClient::new(&e, asset).xfer(&Signature::Invoker, &0, &to, &(to_return as i128));
+        TokenClient::new(&e, asset).xfer(&Signature::Invoker, &0, &to, &to_return);
 
         let mut user_config = ReserveUsage::new(storage.get_user_config(invoker_id.clone()));
         if b_token_client.balance(&invoker_id) == 0 {
@@ -288,7 +289,7 @@ impl PoolTrait for Pool {
         Ok(to_burn)
     }
 
-    fn borrow(e: Env, asset: BytesN<32>, amount: u64, to: Identifier) -> Result<u64, PoolError> {
+    fn borrow(e: Env, asset: BytesN<32>, amount: i128, to: Identifier) -> Result<i128, PoolError> {
         let storage = StorageManager::new(&e);
         let invoker = e.invoker();
         let invoker_id = Identifier::from(invoker);
@@ -300,11 +301,12 @@ impl PoolTrait for Pool {
         let mut reserve = Reserve::load(&e, asset.clone());
         reserve.pre_action(&e, 0, invoker_id.clone())?;
 
-        let to_mint = reserve.to_d_token(&amount);
+        let mut to_mint = reserve.to_d_token(amount);
+        if to_mint == 0 { to_mint = 1 };
         let user_action = UserAction {
             asset: asset.clone(),
             b_token_delta: 0,
-            d_token_delta: to_mint as i64,
+            d_token_delta: to_mint,
         };
         let is_healthy = validate_hf(&e, &invoker_id, &user_action);
         if !is_healthy {
@@ -315,10 +317,10 @@ impl PoolTrait for Pool {
             &Signature::Invoker,
             &0,
             &invoker_id,
-            &(to_mint as i128),
+            &to_mint,
         );
 
-        TokenClient::new(&e, asset).xfer(&Signature::Invoker, &0, &to, &(amount as i128));
+        TokenClient::new(&e, asset).xfer(&Signature::Invoker, &0, &to, &amount);
 
         let mut user_config = ReserveUsage::new(storage.get_user_config(invoker_id.clone()));
         if !user_config.is_liability(reserve.config.index) {
@@ -334,9 +336,9 @@ impl PoolTrait for Pool {
     fn repay(
         e: Env,
         asset: BytesN<32>,
-        amount: u64,
+        amount: i128,
         on_behalf_of: Identifier,
-    ) -> Result<u64, PoolError> {
+    ) -> Result<i128, PoolError> {
         let storage = StorageManager::new(&e);
         let invoker = e.invoker();
         let invoker_id = Identifier::from(invoker);
@@ -449,31 +451,31 @@ pub fn get_contract_id(e: &Env) -> Identifier {
 pub fn execute_repay(
     e: &Env,
     mut reserve: Reserve,
-    amount: u64,
+    amount: i128,
     invoker_id: Identifier,
     on_behalf_of: &Identifier,
     storage: &StorageManager,
-) -> u64 {
+) -> i128 {
     let d_token_client = TokenClient::new(&e, reserve.config.d_token.clone());
-    let to_burn: u64;
-    let to_repay: u64;
-    if amount == u64::MAX {
-        // if they input u64::MAX as the repay amount, burn 100% of their holdings
-        to_burn = d_token_client.balance(&invoker_id) as u64;
-        to_repay = reserve.to_asset_from_d_token(&to_burn);
+    let to_burn: i128;
+    let to_repay: i128;
+    if amount == i128::MAX {
+        // if they input i128::MAX as the repay amount, burn 100% of their holdings
+        to_burn = d_token_client.balance(&invoker_id);
+        to_repay = reserve.to_asset_from_d_token(to_burn);
     } else {
-        to_burn = reserve.to_d_token(&amount);
+        to_burn = reserve.to_d_token(amount);
         to_repay = amount;
     }
 
-    d_token_client.clawback(&Signature::Invoker, &0, &on_behalf_of, &(to_burn as i128));
+    d_token_client.clawback(&Signature::Invoker, &0, &on_behalf_of, &to_burn);
 
     TokenClient::new(&e, reserve.asset.clone()).xfer_from(
         &Signature::Invoker,
         &0,
         &invoker_id,
         &get_contract_id(&e),
-        &(to_repay as i128),
+        &to_repay,
     );
 
     let mut user_config = ReserveUsage::new(storage.get_user_config(invoker_id.clone()));

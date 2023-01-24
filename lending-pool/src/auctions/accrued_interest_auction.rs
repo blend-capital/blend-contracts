@@ -9,6 +9,7 @@ use crate::{
 };
 use soroban_auth::{Identifier, Signature};
 use soroban_sdk::{vec, BytesN, Env, Vec};
+use cast::i128;
 
 pub struct AccruedInterestAuction {
     auction: Auction,
@@ -22,7 +23,7 @@ impl AuctionManagement for AccruedInterestAuction {
         let auction = Auction::load(e, auction_id, storage);
 
         // get modifiers
-        let block_dif = (e.ledger().sequence() - auction.auction_data.strt_block.clone()) as i128;
+        let block_dif = i128(e.ledger().sequence() - auction.auction_data.strt_block.clone());
         let (ask_modifier, bid_modifier) = get_ask_bid_modifier(block_dif);
 
         // get ask amounts
@@ -195,7 +196,7 @@ mod tests {
             d_rate: 1_000_000_000,
             ir_mod: 0,
             b_supply: 0,
-            d_supply: liability_amount as u64 * 4,
+            d_supply: liability_amount * 4,
             last_block: 0,
         };
 
@@ -221,7 +222,7 @@ mod tests {
             d_rate: 1_000_000_000,
             ir_mod: 0,
             b_supply: 0,
-            d_supply: liability_amount as u64 * 4,
+            d_supply: liability_amount * 4,
             last_block: 0,
         };
 

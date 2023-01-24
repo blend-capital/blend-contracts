@@ -1465,8 +1465,8 @@ mod tests {
         e: &Env,
         b_token_id: BytesN<32>,
         d_token_id: BytesN<32>,
-        b_supply: u64,
-        d_supply: u64,
+        b_supply: i128,
+        d_supply: i128,
     ) -> Reserve {
         let storage = StorageManager::new(e);
         let res_addr = generate_contract_id(&e);

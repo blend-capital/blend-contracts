@@ -6,7 +6,8 @@ use crate::{
     storage::{AuctionData, PoolDataStore, StorageManager},
 };
 use soroban_auth::{Identifier, Signature};
-use soroban_sdk::{unwrap::UnwrapOptimized, Env, Vec};
+use soroban_sdk::{Env, Vec};
+use cast::i128;
 
 /// ### Auction
 ///
@@ -51,7 +52,7 @@ impl Auction {
                 &Signature::Invoker,
                 &0,
                 &invoker_id,
-                &(ask_amts.get(i).unwrap().unwrap() as i128),
+                &i128(ask_amts.get(i).unwrap().unwrap()),
             )
         }
     }
@@ -68,7 +69,7 @@ impl Auction {
             execute_repay(
                 &e,
                 reserve,
-                bid_amts.get(i).unwrap().unwrap(),
+                i128(bid_amts.get(i).unwrap().unwrap()),
                 from.clone(),
                 &self.auction_id,
                 storage,
@@ -93,6 +94,7 @@ pub trait AuctionManagement {
 }
 
 // *********** Helpers ***********
+
 pub fn get_modified_accrued_interest(
     e: &Env,
     auction_data: AuctionData,
@@ -132,7 +134,7 @@ pub fn get_modified_bad_debt_amts(
         //TODO: update when we decide how to handle dTokens
         let d_token_client = TokenClient::new(e, reserve.config.d_token.clone());
         let d_tokens = d_token_client.balance(&backstop_id);
-        let underlying_debt = reserve.to_asset_from_d_token(&(d_tokens as u64));
+        let underlying_debt = reserve.to_asset_from_d_token(d_tokens);
         // cast to u128 to avoid overflow
         bid_amts.push_back((underlying_debt as u128 * bid_modifier as u128 / 1_000_0000) as u64);
     }
@@ -420,7 +422,7 @@ mod tests {
             d_rate: 1_000_000_000,
             ir_mod: 0,
             b_supply: 0,
-            d_supply: liability_amount as u64 * 4,
+            d_supply: liability_amount * 4,
             last_block: 0,
         };
 
@@ -446,7 +448,7 @@ mod tests {
             d_rate: 1_000_000_000,
             ir_mod: 0,
             b_supply: 0,
-            d_supply: liability_amount as u64 * 4,
+            d_supply: liability_amount * 4,
             last_block: 0,
         };
         // setup reserves

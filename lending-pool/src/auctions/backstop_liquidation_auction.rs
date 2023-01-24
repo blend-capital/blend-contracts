@@ -168,7 +168,7 @@ mod tests {
             d_rate: 1_000_000_000,
             ir_mod: 0,
             b_supply: 0,
-            d_supply: liability_amount as u64 * 4,
+            d_supply: liability_amount * 4,
             last_block: 0,
         };
 
@@ -194,7 +194,7 @@ mod tests {
             d_rate: 1_000_000_000,
             ir_mod: 0,
             b_supply: 0,
-            d_supply: liability_amount as u64 * 4,
+            d_supply: liability_amount * 4,
             last_block: 0,
         };
 

@@ -4,6 +4,7 @@ use soroban_sdk::{
     testutils::{Accounts, Ledger, LedgerInfo},
     Env,
 };
+use cast::i128;
 
 mod common;
 use crate::common::{create_mock_oracle, create_wasm_lending_pool, pool_helper, TokenClient};
@@ -43,20 +44,20 @@ fn test_pool_happy_path() {
 
     mock_oracle_client.set_price(&asset1_id, &2_0000000);
 
-    let supply_amount = 2_0000000u64;
+    let supply_amount: i128 = 2_0000000;
     asset1_client.with_source_account(&bombadil).mint(
         &Signature::Invoker,
         &0,
         &user1_id,
-        &(supply_amount as i128),
+        &supply_amount,
     );
     asset1_client.with_source_account(&user1).incr_allow(
         &Signature::Invoker,
         &0,
         &pool_id,
-        &(u64::MAX as i128),
+        &i128(u64::MAX),
     );
-    assert_eq!(asset1_client.balance(&user1_id), supply_amount as i128);
+    assert_eq!(asset1_client.balance(&user1_id), supply_amount);
 
     // supply
     let minted_btokens = pool_client
@@ -64,8 +65,8 @@ fn test_pool_happy_path() {
         .supply(&asset1_id, &supply_amount);
 
     assert_eq!(asset1_client.balance(&user1_id), 0);
-    assert_eq!(asset1_client.balance(&pool_id), supply_amount as i128);
-    assert_eq!(btoken1_id_client.balance(&user1_id), minted_btokens as i128);
+    assert_eq!(asset1_client.balance(&pool_id), supply_amount);
+    assert_eq!(btoken1_id_client.balance(&user1_id), minted_btokens);
     assert_eq!(minted_btokens, 2_0000000);
     assert_eq!(pool_client.config(&user1_id), 2);
     println!("supply successful");
@@ -77,13 +78,13 @@ fn test_pool_happy_path() {
             .with_source_account(&user1)
             .borrow(&asset1_id, &borrow_amount, &user1_id);
 
-    assert_eq!(asset1_client.balance(&user1_id), borrow_amount as i128);
+    assert_eq!(asset1_client.balance(&user1_id), borrow_amount);
     assert_eq!(
         asset1_client.balance(&pool_id),
-        (supply_amount - borrow_amount) as i128
+        (supply_amount - borrow_amount)
     );
-    assert_eq!(btoken1_id_client.balance(&user1_id), minted_btokens as i128);
-    assert_eq!(dtoken1_id_client.balance(&user1_id), minted_dtokens as i128);
+    assert_eq!(btoken1_id_client.balance(&user1_id), minted_btokens);
+    assert_eq!(dtoken1_id_client.balance(&user1_id), minted_dtokens);
     assert_eq!(minted_dtokens, 1_0000000);
     assert_eq!(pool_client.config(&user1_id), 3);
     println!("borrow successful");
@@ -105,8 +106,8 @@ fn test_pool_happy_path() {
             .repay(&asset1_id, &borrow_amount, &user1_id);
 
     assert_eq!(asset1_client.balance(&user1_id), 0);
-    assert_eq!(asset1_client.balance(&pool_id), supply_amount as i128);
-    assert_eq!(btoken1_id_client.balance(&user1_id), minted_btokens as i128);
+    assert_eq!(asset1_client.balance(&pool_id), supply_amount);
+    assert_eq!(btoken1_id_client.balance(&user1_id), minted_btokens);
     assert_eq!(dtoken1_id_client.balance(&user1_id), 566038);
     assert_eq!(burnt_dtokens, minted_dtokens - 566038);
     assert_eq!(pool_client.config(&user1_id), 3);
@@ -118,19 +119,19 @@ fn test_pool_happy_path() {
         &Signature::Invoker,
         &0,
         &user1_id,
-        &(interest_accrued as i128),
+        &(interest_accrued),
     );
     let burnt_dtokens_interest =
         pool_client
             .with_source_account(&user1)
-            .repay(&asset1_id, &u64::MAX, &user1_id);
+            .repay(&asset1_id, &i128::MAX, &user1_id);
 
     assert_eq!(asset1_client.balance(&user1_id), 0);
     assert_eq!(
         asset1_client.balance(&pool_id),
-        (supply_amount + interest_accrued) as i128
+        (supply_amount + interest_accrued)
     );
-    assert_eq!(btoken1_id_client.balance(&user1_id), minted_btokens as i128);
+    assert_eq!(btoken1_id_client.balance(&user1_id), minted_btokens);
     assert_eq!(dtoken1_id_client.balance(&user1_id), 0);
     assert_eq!(burnt_dtokens_interest, 566038);
     assert_eq!(pool_client.config(&user1_id), 2);
@@ -145,7 +146,7 @@ fn test_pool_happy_path() {
 
     assert_eq!(
         asset1_client.balance(&user1_id),
-        (supply_amount + interest_accrued) as i128
+        (supply_amount + interest_accrued)
     );
     assert_eq!(asset1_client.balance(&pool_id), 0);
     assert_eq!(btoken1_id_client.balance(&user1_id), 0);

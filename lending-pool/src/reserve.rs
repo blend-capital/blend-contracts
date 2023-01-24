@@ -1,11 +1,13 @@
+use fixed_point_math::FixedPoint;
 use soroban_auth::Identifier;
 use soroban_sdk::{BytesN, Env};
+use cast::{i128};
 
 use crate::{
     emissions_distributor,
     errors::PoolError,
     interest::calc_accrual,
-    storage::{PoolDataStore, ReserveConfig, ReserveData, StorageManager},
+    storage::{PoolDataStore, ReserveConfig, ReserveData, StorageManager}, constants::{SCALAR_9, SCALAR_7},
 };
 
 pub struct Reserve {
@@ -66,8 +68,7 @@ impl Reserve {
         }
 
         // accrue interest to current block
-        let cur_util = ((self.total_liabilities() as u128 * 1_0000000 as u128)
-            / self.total_supply() as u128) as u64;
+        let cur_util = self.total_liabilities().fixed_div_floor(self.total_supply(), SCALAR_7).unwrap();
         let (loan_accrual, new_ir_mod) = calc_accrual(
             e,
             &self.config,
@@ -75,10 +76,9 @@ impl Reserve {
             self.data.ir_mod,
             self.data.last_block,
         );
-        let b_rate_accrual =
-            ((loan_accrual - 1_000_000_000) * cur_util) / 1_0000000 + 1_000_000_000;
-        self.data.b_rate = (self.data.b_rate * b_rate_accrual) / 1_000_000_000; // TODO: Will overflow with u64 math past 18x
-        self.data.d_rate = (self.data.d_rate * loan_accrual) / 1_000_000_000;
+        let b_rate_accrual = (loan_accrual - SCALAR_9).fixed_mul_floor(i128(cur_util), SCALAR_7).unwrap() + SCALAR_9;
+        self.data.b_rate = b_rate_accrual.fixed_mul_floor(self.data.b_rate, SCALAR_9).unwrap();
+        self.data.d_rate = loan_accrual.fixed_mul_ceil(self.data.d_rate, SCALAR_9).unwrap();
         self.data.ir_mod = new_ir_mod;
 
         self.data.last_block = e.ledger().sequence();
@@ -88,7 +88,7 @@ impl Reserve {
     ///
     /// ### Arguments
     /// * `b_tokens` - The amount of b_tokens minted
-    pub fn add_supply(&mut self, b_tokens: &u64) {
+    pub fn add_supply(&mut self, b_tokens: &i128) {
         self.data.b_supply += b_tokens;
     }
 
@@ -96,7 +96,7 @@ impl Reserve {
     ///
     /// ### Arguments
     /// * `b_tokens` - The amount of b_tokens burnt
-    pub fn remove_supply(&mut self, b_tokens: &u64) {
+    pub fn remove_supply(&mut self, b_tokens: &i128) {
         // rust underflow protection will error if b_tokens is too large
         self.data.b_supply -= b_tokens;
     }
@@ -105,7 +105,7 @@ impl Reserve {
     ///
     /// ### Arguments
     /// * `d_tokens` - The amount of d_tokens minted
-    pub fn add_liability(&mut self, d_tokens: &u64) {
+    pub fn add_liability(&mut self, d_tokens: &i128) {
         self.data.d_supply += d_tokens;
     }
 
@@ -113,7 +113,7 @@ impl Reserve {
     ///
     /// ### Arguments
     /// * `d_tokens` - The amount of d_tokens burnt
-    pub fn remove_liability(&mut self, d_tokens: &u64) {
+    pub fn remove_liability(&mut self, d_tokens: &i128) {
         self.data.d_supply -= d_tokens;
     }
 
@@ -125,45 +125,66 @@ impl Reserve {
     // ***** Conversion functions *****
 
     /// Fetch the total liabilities for the reserve
-    pub fn total_liabilities(&self) -> u64 {
-        self.to_asset_from_d_token(&self.data.d_supply)
+    pub fn total_liabilities(&self) -> i128 {
+        self.to_asset_from_d_token(self.data.d_supply)
     }
 
     /// Fetch the total supply for the reserve
-    pub fn total_supply(&self) -> u64 {
-        self.to_asset_from_b_token(&self.data.b_supply)
+    pub fn total_supply(&self) -> i128 {
+        self.to_asset_from_b_token(self.data.b_supply)
     }
 
-    /// Convert d tokens to the corresponding asset value
+    /// Convert d_tokens to the corresponding asset value
     ///
     /// ### Arguments
     /// * `d_tokens` - The amount of tokens to convert
-    pub fn to_asset_from_d_token(&self, d_tokens: &u64) -> u64 {
-        (self.data.d_rate * d_tokens) / 1_000_000_000
+    pub fn to_asset_from_d_token(&self, d_tokens: i128) -> i128 {
+        self.data.d_rate.fixed_mul_floor(d_tokens, SCALAR_9).unwrap()
     }
 
-    /// Convert d tokens to the corresponding asset value
+    /// Convert b_tokens to the corresponding asset value
+    ///
+    /// ### Arguments
+    /// * `b_tokens` - The amount of tokens to convert
+    pub fn to_asset_from_b_token(&self, b_tokens: i128) -> i128 {
+        self.data.b_rate.fixed_mul_floor(b_tokens, SCALAR_9).unwrap()
+    }
+
+    /// Convert d_tokens to their corresponding effective asset value. This
+    /// takes into account the liability factor.
     ///
     /// ### Arguments
     /// * `d_tokens` - The amount of tokens to convert
-    pub fn to_asset_from_b_token(&self, b_tokens: &u64) -> u64 {
-        (self.data.b_rate * b_tokens) / 1_000_000_000
+    pub fn to_effective_asset_from_d_token(&self, d_tokens: i128) -> i128 {
+        let assets = self.to_asset_from_d_token(d_tokens);
+        assets.fixed_div_floor(i128(self.config.l_factor), SCALAR_7).unwrap()
     }
+
+    /// Convert b_tokens to the corresponding effective asset value. This
+    /// takes into account the collateral factor.
+    ///
+    /// ### Arguments
+    /// * `b_tokens` - The amount of tokens to convert
+    pub fn to_effective_asset_from_b_token(&self, b_tokens: i128) -> i128 {
+        let assets = self.to_asset_from_b_token(b_tokens);
+        assets.fixed_mul_floor(i128(self.config.c_factor), SCALAR_7).unwrap()
+    }
+
 
     /// Convert asset tokens to the corresponding d token value
     ///
     /// ### Arguments
     /// * `amount` - The amount of tokens to convert
-    pub fn to_d_token(&self, amount: &u64) -> u64 {
-        (amount * 1_000_000_000) / self.data.d_rate
+    pub fn to_d_token(&self, amount: i128) -> i128 {
+        amount.fixed_div_floor(self.data.d_rate, SCALAR_9).unwrap()
     }
 
     /// Convert asset tokens to the corresponding b token value
     ///
     /// ### Arguments
     /// * `amount` - The amount of tokens to convert
-    pub fn to_b_token(&self, amount: &u64) -> u64 {
-        (amount * 1_000_000_000) / self.data.b_rate
+    pub fn to_b_token(&self, amount: i128) -> i128 {
+        amount.fixed_div_floor(self.data.b_rate, SCALAR_9).unwrap()
     }
 }
 
@@ -225,6 +246,51 @@ mod tests {
     }
 
     #[test]
+    fn test_update_state_one_stroop_accrual() {
+        let e = Env::default();
+
+        let mut reserve = Reserve {
+            asset: generate_contract_id(&e),
+            config: ReserveConfig {
+                b_token: generate_contract_id(&e),
+                d_token: generate_contract_id(&e),
+                decimals: 7,
+                c_factor: 0,
+                l_factor: 0,
+                util: 0_7500000,
+                r_one: 0_0500000,
+                r_two: 0_5000000,
+                r_three: 1_5000000,
+                reactivity: 0_000_010_000, // 10e-5
+                index: 0,
+            },
+            data: ReserveData {
+                b_rate: 1_000_000_000,
+                d_rate: 1_000_000_000,
+                ir_mod: 0_100_000_000,
+                b_supply: 100_0000000,
+                d_supply: 5_0000000,
+                last_block: 99,
+            },
+        };
+
+        e.ledger().set(LedgerInfo {
+            timestamp: 12345,
+            protocol_version: 1,
+            sequence_number: 100,
+            network_passphrase: Default::default(),
+            base_reserve: 10,
+        });
+
+        reserve.update_rates(&e); // (accrual: 1_000_000_008, util: 0_6565656)
+
+        assert_eq!(reserve.data.b_rate, 1_000_000_000);
+        assert_eq!(reserve.data.d_rate, 1_000_000_001);
+        assert_eq!(reserve.data.ir_mod, 0_100_000_000);
+        assert_eq!(reserve.data.last_block, 100);
+    }
+
+    #[test]
     fn test_update_state_small_block_dif() {
         let e = Env::default();
 
@@ -263,8 +329,8 @@ mod tests {
 
         reserve.update_rates(&e); // (accrual: 1_000_000_852, util: 0_6565656)
 
-        assert_eq!(reserve.data.b_rate, 1_000_000_559);
-        assert_eq!(reserve.data.d_rate, 1_000_000_852);
+        assert_eq!(reserve.data.b_rate, 1_000_000_560);
+        assert_eq!(reserve.data.d_rate, 1_000_000_853);
         assert_eq!(reserve.data.ir_mod, 0_999_906_566);
         assert_eq!(reserve.data.last_block, 100);
     }
@@ -309,7 +375,7 @@ mod tests {
         reserve.update_rates(&e); // (accrual: 1_002_957_369, util: .786435)
 
         assert_eq!(reserve.data.b_rate, 1_126_069_701);
-        assert_eq!(reserve.data.d_rate, 1_349_657_789);
+        assert_eq!(reserve.data.d_rate, 1_349_657_792);
         assert_eq!(reserve.data.ir_mod, 1_044_981_440);
         assert_eq!(reserve.data.last_block, 123456);
     }
@@ -483,7 +549,7 @@ mod tests {
             },
         };
 
-        let result = reserve.to_asset_from_d_token(&1_1234567);
+        let result = reserve.to_asset_from_d_token(1_1234567);
 
         assert_eq!(result, 1_4850243);
     }
@@ -517,9 +583,77 @@ mod tests {
             },
         };
 
-        let result = reserve.to_asset_from_b_token(&1_1234567);
+        let result = reserve.to_asset_from_b_token(1_1234567);
 
         assert_eq!(result, 1_4850243);
+    }
+
+    #[test]
+    fn test_to_effective_asset_from_d_token() {
+        let e = Env::default();
+
+        let reserve = Reserve {
+            asset: generate_contract_id(&e),
+            config: ReserveConfig {
+                b_token: generate_contract_id(&e),
+                d_token: generate_contract_id(&e),
+                decimals: 7,
+                c_factor: 0,
+                l_factor: 1_1000000,
+                util: 0_7500000,
+                r_one: 0_0500000,
+                r_two: 0_5000000,
+                r_three: 1_5000000,
+                reactivity: 0_000_010_000, // 10e-5
+                index: 0,
+            },
+            data: ReserveData {
+                b_rate: 1_000_000_000,
+                d_rate: 1_321_834_961,
+                ir_mod: 1_000_000_000,
+                b_supply: 99_0000000,
+                d_supply: 65_0000000,
+                last_block: 123,
+            },
+        };
+
+        let result = reserve.to_effective_asset_from_d_token(1_1234567);
+
+        assert_eq!(result, 1_3500220);
+    }
+
+    #[test]
+    fn test_to_effective_asset_from_b_token() {
+        let e = Env::default();
+
+        let reserve = Reserve {
+            asset: generate_contract_id(&e),
+            config: ReserveConfig {
+                b_token: generate_contract_id(&e),
+                d_token: generate_contract_id(&e),
+                decimals: 7,
+                c_factor: 0_8500000,
+                l_factor: 0,
+                util: 0_7500000,
+                r_one: 0_0500000,
+                r_two: 0_5000000,
+                r_three: 1_5000000,
+                reactivity: 0_000_010_000, // 10e-5
+                index: 0,
+            },
+            data: ReserveData {
+                b_rate: 1_321_834_961,
+                d_rate: 1_000_000_000,
+                ir_mod: 1_000_000_000,
+                b_supply: 99_0000000,
+                d_supply: 65_0000000,
+                last_block: 123,
+            },
+        };
+
+        let result = reserve.to_effective_asset_from_b_token(1_1234567);
+
+        assert_eq!(result, 1_2622706);
     }
 
     #[test]
@@ -619,7 +753,7 @@ mod tests {
             },
         };
 
-        let result = reserve.to_d_token(&1_4850243);
+        let result = reserve.to_d_token(1_4850243);
 
         assert_eq!(result, 1_1234566);
     }
@@ -653,7 +787,7 @@ mod tests {
             },
         };
 
-        let result = reserve.to_b_token(&1_4850243);
+        let result = reserve.to_b_token(1_4850243);
 
         assert_eq!(result, 1_1234566);
     }

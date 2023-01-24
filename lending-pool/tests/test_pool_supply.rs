@@ -1,6 +1,7 @@
 #![cfg(test)]
 use soroban_auth::{Identifier, Signature};
 use soroban_sdk::{testutils::Accounts, Env, Status};
+use cast::i128;
 
 mod common;
 use crate::common::{
@@ -41,7 +42,7 @@ fn test_pool_supply_on_ice() {
         &Signature::Invoker,
         &0,
         &pool_id,
-        &(u64::MAX as i128),
+        &i128(u64::MAX),
     );
 
     let result = pool_client
@@ -88,7 +89,7 @@ fn test_pool_supply_frozen_panics() {
         &Signature::Invoker,
         &0,
         &pool_id,
-        &(u64::MAX as i128),
+        &i128(u64::MAX),
     );
 
     let result = pool_client

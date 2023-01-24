@@ -1,4 +1,6 @@
 use soroban_sdk::{vec, Env, Vec};
+use soroban_auth::Identifier;
+use cast::i128;
 
 use crate::auctions::base_auction::{get_ask_bid_modifier, Auction, AuctionManagement};
 use crate::{
@@ -8,7 +10,7 @@ use crate::{
     storage::{AuctionData, PoolDataStore, StorageManager},
     user_data::{UserAction, UserData},
 };
-use soroban_auth::Identifier;
+
 pub struct UserLiquidationAuction {
     auction: Auction,
     ask_amts: Vec<u64>,
@@ -115,20 +117,20 @@ fn get_target_liquidation_amt(
     };
     let user_data = UserData::load(&e, &user_id, &user_action);
     // cast to u128 to avoid overflow
-    let mut liq_amt = (user_data.e_liability_base as u128 * 1_020_0000 / 1_000_0000
-        - user_data.e_collateral_base as u128)
-        * auction_data.bid_ratio as u128
+    let mut liq_amt = (user_data.liability_base * 1_020_0000 / 1_000_0000
+        - user_data.collateral_base)
+        * i128(auction_data.bid_ratio)
         / 1_000_0000;
     // check if liq amount is greater than the user's liability position
     let liability = Reserve::load(e, asset.clone());
     let d_token = TokenClient::new(e, liability.config.d_token.clone());
-    let d_token_balance = d_token.balance(&user_id.clone()) as u64;
-    let balance = liability.to_asset_from_d_token(&d_token_balance);
+    let d_token_balance = d_token.balance(&user_id);
+    let balance = liability.to_asset_from_d_token(d_token_balance);
     let oracle_address = storage.get_oracle();
     let oracle = OracleClient::new(e, oracle_address);
     //cast to u128 to avoid overflow
-    let price = oracle.get_price(&asset) as u128;
-    let value = price * balance as u128 / 1_000_0000;
+    let price = i128(oracle.get_price(&asset));
+    let value = price * balance / 1_000_0000;
     if liq_amt > value {
         liq_amt = value;
     }
@@ -580,7 +582,7 @@ mod tests {
             d_rate: 1_000_000_000,
             ir_mod: 0,
             b_supply: 0,
-            d_supply: liability_amount as u64 * 4,
+            d_supply: liability_amount * 4,
             last_block: 0,
         };
 
@@ -606,7 +608,7 @@ mod tests {
             d_rate: 1_000_000_000,
             ir_mod: 0,
             b_supply: 0,
-            d_supply: liability_amount as u64 * 4,
+            d_supply: liability_amount * 4,
             last_block: 0,
         };
 

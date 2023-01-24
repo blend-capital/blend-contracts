@@ -25,12 +25,12 @@ pub struct ReserveConfig {
 #[contracttype]
 pub struct ReserveData {
     // TODO: These rates are correlated and can be simplified if both the b/dTokens have a totalSupply
-    pub b_rate: u64, // the conversion rate from bToken to underlying - NOTE: stored as 9 decimals
-    pub d_rate: u64, // the conversion rate from dToken to underlying - NOTE: stored as 9 decimals
-    pub ir_mod: u64, // the interest rate curve modifier
+    pub b_rate: i128, // the conversion rate from bToken to underlying - NOTE: stored as 9 decimals
+    pub d_rate: i128, // the conversion rate from dToken to underlying - NOTE: stored as 9 decimals
+    pub ir_mod: i128, // the interest rate curve modifier
     // TODO: Remove or fix these once final choice on totalSupply for native or custom tokens added
-    pub b_supply: u64, // the total supply of b tokens - TODO: File issue to support u128 (likely added on token update to u128)
-    pub d_supply: u64, // the total supply of d tokens
+    pub b_supply: i128, // the total supply of b tokens - TODO: File issue to support u128 (likely added on token update to u128)
+    pub d_supply: i128, // the total supply of d tokens
     pub last_block: u32, // the last block the data was updated
 }
 

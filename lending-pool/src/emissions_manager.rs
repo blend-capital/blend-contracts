@@ -8,7 +8,7 @@ use crate::{
         StorageManager,
     },
 };
-use soroban_sdk::{contracttype, map, symbol, vec, BytesN, Env, Map, Vec};
+use soroban_sdk::{contracttype, map, symbol, BytesN, Env, Map, Vec};
 
 // Types
 

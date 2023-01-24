@@ -36,6 +36,8 @@ checksum = "d468802bab17cbc0cc575e9b053f41e72aa36bfa6b7f55e3529ffa43161b97fa"
 name = "backstop-module"
 version = "0.0.0"
 dependencies = [
+ "cast",
+ "fixed-point-math",
  "rand 0.7.3",
  "soroban-auth",
  "soroban-sdk",
@@ -109,6 +111,12 @@ dependencies = [
  "quote",
  "syn",
 ]
+
+[[package]]
+name = "cast"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "37b2a672a2cb129a2e41c10b1224bb368f9f37a2b16b612598138befd7b37eb5"
 
 [[package]]
 name = "cc"
@@ -343,6 +351,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "fixed-point-math"
+version = "0.0.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7d8c494ccd0b270d97dc51d5f0de703b9d18a489c26f0328e409f6feba55a640"
+
+[[package]]
 name = "fnv"
 version = "1.0.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -476,6 +490,8 @@ dependencies = [
 name = "lending-pool"
 version = "0.0.0"
 dependencies = [
+ "cast",
+ "fixed-point-math",
  "rand 0.7.3",
  "soroban-auth",
  "soroban-sdk",

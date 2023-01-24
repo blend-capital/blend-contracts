@@ -86,7 +86,8 @@ mod tests {
         reserve_usage::ReserveUsage,
         storage::{AuctionData, ReserveConfig, ReserveData},
         testutils::{
-            create_backstop, create_token_contract, create_token_from_id, generate_contract_id, create_mock_pool_factory,
+            create_backstop, create_mock_pool_factory, create_token_contract, create_token_from_id,
+            generate_contract_id,
         },
     };
 
@@ -96,7 +97,7 @@ mod tests {
         testutils::{Accounts, Ledger, LedgerInfo},
         BytesN,
     };
-    
+
     #[test]
     fn test_fill_backstop_liquidation_auction() {
         let e = Env::default();
@@ -168,7 +169,7 @@ mod tests {
             d_rate: 1_000_000_000,
             ir_mod: 0,
             b_supply: 0,
-            d_supply: liability_amount as u64 * 4,
+            d_supply: liability_amount * 4,
             last_block: 0,
         };
 
@@ -194,7 +195,7 @@ mod tests {
             d_rate: 1_000_000_000,
             ir_mod: 0,
             b_supply: 0,
-            d_supply: liability_amount as u64 * 4,
+            d_supply: liability_amount * 4,
             last_block: 0,
         };
 

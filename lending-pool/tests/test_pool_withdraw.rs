@@ -1,6 +1,10 @@
 #![cfg(test)]
+use cast::i128;
 use soroban_auth::{Identifier, Signature};
-use soroban_sdk::{testutils::Accounts, Env, Status};
+use soroban_sdk::{
+    testutils::{Accounts, Ledger, LedgerInfo},
+    Env, Status,
+};
 
 mod common;
 use crate::common::{
@@ -36,7 +40,7 @@ fn test_pool_withdraw_no_supply_panics() {
     );
 
     // withdraw
-    let withdraw_amount = 0_0000006; // TODO: Update to one stroop with https://github.com/blend-capital/blend-contracts/issues/2
+    let withdraw_amount = 0_0000001;
     let result = pool_client.with_source_account(&sauron).try_withdraw(
         &asset1_id,
         &withdraw_amount,
@@ -90,20 +94,20 @@ fn test_pool_withdraw_bad_hf_panics() {
         &Signature::Invoker,
         &0,
         &pool_id,
-        &(u64::MAX as i128),
+        &i128(u64::MAX),
     );
 
     // supply
     let minted_btokens = pool_client
         .with_source_account(&sauron)
         .supply(&asset1_id, &1_0000000);
-    assert_eq!(b_token1_client.balance(&sauron_id), minted_btokens as i128);
+    assert_eq!(b_token1_client.balance(&sauron_id), minted_btokens);
 
     // borrow
     let minted_dtokens = pool_client
         .with_source_account(&sauron)
         .borrow(&asset1_id, &0_5357000, &sauron_id);
-    assert_eq!(d_token1_client.balance(&sauron_id), minted_dtokens as i128);
+    assert_eq!(d_token1_client.balance(&sauron_id), minted_dtokens);
 
     // withdraw
     let withdraw_amount = 0_0001000;
@@ -122,7 +126,7 @@ fn test_pool_withdraw_bad_hf_panics() {
 }
 
 #[test]
-fn test_pool_withdraw_good_hf_withdraws() {
+fn test_pool_withdraw_one_stroop() {
     let e = Env::default();
 
     let bombadil = e.accounts().generate_and_create();
@@ -156,24 +160,34 @@ fn test_pool_withdraw_good_hf_withdraws() {
         &Signature::Invoker,
         &0,
         &pool_id,
-        &(u64::MAX as i128),
+        &i128(u64::MAX),
     );
 
     // supply
     let minted_btokens = pool_client
         .with_source_account(&samwise)
         .supply(&asset1_id, &1_0000000);
-    assert_eq!(b_token1_client.balance(&samwise_id), minted_btokens as i128);
+    assert_eq!(b_token1_client.balance(&samwise_id), minted_btokens);
 
     // borrow
     let minted_dtokens =
         pool_client
             .with_source_account(&samwise)
             .borrow(&asset1_id, &0_5355000, &samwise_id);
-    assert_eq!(d_token1_client.balance(&samwise_id), minted_dtokens as i128);
+    assert_eq!(d_token1_client.balance(&samwise_id), minted_dtokens);
+
+    // allow interest to accumulate
+    // IR -> 6%
+    e.ledger().set(LedgerInfo {
+        timestamp: 12345,
+        protocol_version: 1,
+        sequence_number: 6307200, // 1 year
+        network_passphrase: Default::default(),
+        base_reserve: 10,
+    });
 
     // withdraw
-    let withdraw_amount = 0_0001000;
+    let withdraw_amount = 0_0000001;
     let burnt_btokens = pool_client.with_source_account(&samwise).withdraw(
         &asset1_id,
         &withdraw_amount,
@@ -181,15 +195,16 @@ fn test_pool_withdraw_good_hf_withdraws() {
     );
     assert_eq!(
         asset1_client.balance(&samwise_id),
-        10_0000000 - 1_0000000 + 0_5355000 + 0_0001000
+        10_0000000 - 1_0000000 + 0_5355000 + 0_0000001
     );
     assert_eq!(
         asset1_client.balance(&pool_id),
-        1_0000000 - 0_5355000 - 0_0001000
+        1_0000000 - 0_5355000 - 0_0000001
     );
     assert_eq!(
         b_token1_client.balance(&samwise_id),
-        (minted_btokens - burnt_btokens) as i128
+        (minted_btokens - burnt_btokens)
     );
-    assert_eq!(d_token1_client.balance(&samwise_id), minted_dtokens as i128);
+    assert_eq!(burnt_btokens, 1);
+    assert_eq!(d_token1_client.balance(&samwise_id), minted_dtokens);
 }

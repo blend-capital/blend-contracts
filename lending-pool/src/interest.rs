@@ -1,29 +1,11 @@
+use cast::i128;
+use fixed_point_math::{FixedPoint, STROOP};
 use soroban_sdk::Env;
 
-use crate::storage::ReserveConfig;
-
-// TODO: Fixed Point Math lib
-fn mul_7(a: &u64, b: &u64) -> u64 {
-    mul_div_u64(a, b, &1_0000000)
-}
-
-fn div_7(a: &u64, b: &u64) -> u64 {
-    mul_div_u64(a, &1_0000000, b)
-}
-
-fn mul_9(a: &u64, b: &u64) -> u64 {
-    mul_div_u64(a, b, &1_000_000_000)
-}
-
-fn _div_9(a: &u64, b: &u64) -> u64 {
-    mul_div_u64(a, &1_000_000_000, b)
-}
-
-fn mul_div_u64(a: &u64, b: &u64, scalar: &u64) -> u64 {
-    ((a.clone() as u128 * b.clone() as u128) / (scalar.clone() as u128)) as u64
-}
-
-const BLOCKS_PER_YEAR: u64 = 6307200;
+use crate::{
+    constants::{BLOCKS_PER_YEAR, SCALAR_9},
+    storage::ReserveConfig,
+};
 
 /// Calculates the loan accrual ratio for the Reserve based on the current utilization and
 /// rate modifier for the reserve.
@@ -35,49 +17,62 @@ const BLOCKS_PER_YEAR: u64 = 6307200;
 /// * `last_block` - The last block an accrual was performed
 ///
 /// ### Returns
-/// * (u64, u64) - (accrual amount scaled to 9 decimal places, new interest rate modifier scaled to 9 decimal places)
+/// * (i128, i128) - (accrual amount scaled to 9 decimal places, new interest rate modifier scaled to 9 decimal places)
 pub fn calc_accrual(
     e: &Env,
     config: &ReserveConfig,
-    cur_util: u64,
-    ir_mod: u64,
+    cur_util: i128,
+    ir_mod: i128,
     last_block: u32,
-) -> (u64, u64) {
-    let cur_ir: u64;
-    if cur_util <= config.util.clone().into() {
-        let base_rate =
-            mul_7(&div_7(&cur_util, &config.util.into()), &config.r_one.into()) + 0_0100000;
-        cur_ir = mul_9(&ir_mod, &base_rate);
-    } else if cur_util <= 0_9500000 {
-        let base_rate = mul_7(
-            &div_7(
-                &(cur_util - config.util as u64),
-                &(0_9500000 - config.util as u64),
-            ),
-            &config.r_two.into(),
-        ) + config.r_one as u64
+) -> (i128, i128) {
+    let cur_ir: i128;
+    let target_util: i128 = i128(config.util);
+    if cur_util <= target_util {
+        let util_scalar = cur_util.fixed_div_ceil(target_util, i128(STROOP)).unwrap();
+        let base_rate = util_scalar
+            .fixed_mul_ceil(i128(config.r_one), i128(STROOP))
+            .unwrap()
             + 0_0100000;
-        cur_ir = mul_9(&ir_mod, &base_rate);
+
+        cur_ir = base_rate.fixed_mul_ceil(ir_mod, SCALAR_9).unwrap();
+    } else if cur_util <= 0_9500000 {
+        let util_scalar = (cur_util - target_util)
+            .fixed_div_ceil(0_9500000 - target_util, i128(STROOP))
+            .unwrap();
+        let base_rate = util_scalar
+            .fixed_mul_ceil(i128(config.r_two), i128(STROOP))
+            .unwrap()
+            + i128(config.r_one)
+            + 0_0100000;
+
+        cur_ir = base_rate.fixed_mul_ceil(ir_mod, SCALAR_9).unwrap();
     } else {
-        let extra_rate = mul_7(
-            &div_7(&(cur_util - 0_9500000), &0_0500000),
-            &config.r_three.into(),
-        );
-        let intersection = mul_9(&ir_mod, &((config.r_two + config.r_one + 0_0100000) as u64));
+        let util_scalar = (cur_util - 0_9500000)
+            .fixed_div_ceil(0_0500000, i128(STROOP))
+            .unwrap();
+        let extra_rate = util_scalar
+            .fixed_mul_ceil(i128(config.r_three), i128(STROOP))
+            .unwrap();
+
+        let intersection = ir_mod
+            .fixed_mul_ceil(i128(config.r_two + config.r_one + 0_0100000), SCALAR_9)
+            .unwrap();
         cur_ir = extra_rate + intersection;
     }
 
     // update rate_modifier
-    let delta_blocks = (e.ledger().sequence() - last_block) as u64;
-    let target_util = config.util as u64;
-    let new_ir_mod: u64;
-    if cur_util >= target_util {
+    // scale delta blocks and util dif to 9 decimals
+    let delta_blocks_scaled = i128(e.ledger().sequence() - last_block) * SCALAR_9;
+    let util_dif_scaled = (cur_util - target_util) * 100;
+    let new_ir_mod: i128;
+    if util_dif_scaled >= 0 {
         // rate modifier increasing
-        let util_error = mul_9(
-            &(delta_blocks * 1_000_000_000),
-            &((cur_util - target_util) * 100),
-        );
-        let rate_dif = mul_9(&util_error, &(config.reactivity.into()));
+        let util_error = delta_blocks_scaled
+            .fixed_mul_floor(util_dif_scaled, SCALAR_9)
+            .unwrap();
+        let rate_dif = util_error
+            .fixed_mul_floor(i128(config.reactivity), SCALAR_9)
+            .unwrap();
         let next_ir_mod = ir_mod + rate_dif;
         if next_ir_mod > 10_000_000_000 {
             new_ir_mod = 10_000_000_000;
@@ -86,23 +81,24 @@ pub fn calc_accrual(
         }
     } else {
         // rate modifier decreasing
-        let util_error = mul_9(
-            &(delta_blocks * 1_000_000_000),
-            &((target_util - cur_util) * 100),
-        );
-        let rate_dif = mul_9(&util_error, &(config.reactivity.into()));
-        if ir_mod <= rate_dif + 0_100_000_000 {
+        let util_error = delta_blocks_scaled
+            .fixed_mul_ceil(util_dif_scaled, SCALAR_9)
+            .unwrap();
+        let rate_dif = util_error
+            .fixed_mul_ceil(i128(config.reactivity), SCALAR_9)
+            .unwrap();
+        let next_ir_mod = ir_mod + rate_dif;
+        if next_ir_mod < 0_100_000_000 {
             new_ir_mod = 0_100_000_000;
         } else {
-            new_ir_mod = ir_mod - rate_dif;
+            new_ir_mod = next_ir_mod;
         }
     }
 
     // calc accrual amount over blocks
-    // TODO: Check if decimals are enough - manually doing 9 decimal fixed point math
-    let block_weight = (delta_blocks * 1_000_000_000) / BLOCKS_PER_YEAR;
+    let block_weight = delta_blocks_scaled / BLOCKS_PER_YEAR;
     (
-        1_000_000_000 + (cur_ir * 100 * block_weight) / 1_000_000_000,
+        1_000_000_000 + block_weight.fixed_mul_ceil(cur_ir * 100, SCALAR_9).unwrap(),
         new_ir_mod,
     )
 }
@@ -155,9 +151,9 @@ mod tests {
         });
 
         let (accrual, ir_mod) =
-            calc_accrual(&e, &reserve.config, 0_6565656, reserve.data.ir_mod, 0);
+            calc_accrual(&e, &reserve.config, 0_6565656, i128(reserve.data.ir_mod), 0);
 
-        assert_eq!(accrual, 1_000_000_852);
+        assert_eq!(accrual, 1_000_000_853);
         assert_eq!(ir_mod, 0_999_906_566);
     }
 
@@ -198,9 +194,9 @@ mod tests {
         });
 
         let (accrual, ir_mod) =
-            calc_accrual(&e, &reserve.config, 0_7979797, reserve.data.ir_mod, 0);
+            calc_accrual(&e, &reserve.config, 0_7979797, i128(reserve.data.ir_mod), 0);
 
-        assert_eq!(accrual, 1_000_002_852);
+        assert_eq!(accrual, 1_000_002_853);
         assert_eq!(ir_mod, 1_000_047_979);
     }
 
@@ -241,9 +237,9 @@ mod tests {
         });
 
         let (accrual, ir_mod) =
-            calc_accrual(&e, &reserve.config, 0_9696969, reserve.data.ir_mod, 0);
+            calc_accrual(&e, &reserve.config, 0_9696969, i128(reserve.data.ir_mod), 0);
 
-        assert_eq!(accrual, 1_000_018_246);
+        assert_eq!(accrual, 1_000_018_247);
         assert_eq!(ir_mod, 1_000_219_696);
     }
 
@@ -284,7 +280,7 @@ mod tests {
         });
 
         let (_accrual, ir_mod) =
-            calc_accrual(&e, &reserve.config, 0_9696969, reserve.data.ir_mod, 0);
+            calc_accrual(&e, &reserve.config, 0_9696969, i128(reserve.data.ir_mod), 0);
 
         assert_eq!(ir_mod, 10_000_000_000);
     }
@@ -326,8 +322,56 @@ mod tests {
         });
 
         let (_accrual, ir_mod) =
-            calc_accrual(&e, &reserve.config, 0_2020202, reserve.data.ir_mod, 0);
+            calc_accrual(&e, &reserve.config, 0_2020202, i128(reserve.data.ir_mod), 0);
 
+        assert_eq!(ir_mod, 0_100_000_000);
+    }
+
+    #[test]
+    fn test_calc_accrual_rounds_up() {
+        let e = Env::default();
+        let reserve = Reserve {
+            asset: generate_contract_id(&e),
+            config: ReserveConfig {
+                b_token: generate_contract_id(&e),
+                d_token: generate_contract_id(&e),
+                decimals: 7,
+                c_factor: 0,
+                l_factor: 0,
+                util: 0_7500000,
+                r_one: 0_0500000,
+                r_two: 0_5000000,
+                r_three: 1_5000000,
+                reactivity: 0_000_010_000, // 10e-5
+                index: 0,
+            },
+            data: ReserveData {
+                b_rate: 1_100_000_000,
+                d_rate: 1_000_000_000,
+                ir_mod: 0_100_000_000,
+                b_supply: 100_0000000,
+                d_supply: 20_0000000,
+                last_block: 0,
+            },
+        };
+
+        e.ledger().set(LedgerInfo {
+            timestamp: 12345,
+            protocol_version: 1,
+            sequence_number: 100,
+            network_passphrase: Default::default(),
+            base_reserve: 10,
+        });
+
+        let (accrual, ir_mod) = calc_accrual(
+            &e,
+            &reserve.config,
+            0_0500000,
+            i128(reserve.data.ir_mod),
+            99,
+        );
+
+        assert_eq!(accrual, 1_000_000_001);
         assert_eq!(ir_mod, 0_100_000_000);
     }
 }

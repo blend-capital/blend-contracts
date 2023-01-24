@@ -7,6 +7,7 @@ use crate::{
     errors::PoolError,
     storage::{AuctionData, PoolDataStore, StorageManager},
 };
+use cast::i128;
 use soroban_auth::{Identifier, Signature};
 use soroban_sdk::{vec, BytesN, Env, Vec};
 
@@ -22,7 +23,7 @@ impl AuctionManagement for AccruedInterestAuction {
         let auction = Auction::load(e, auction_id, storage);
 
         // get modifiers
-        let block_dif = (e.ledger().sequence() - auction.auction_data.strt_block.clone()) as i128;
+        let block_dif = i128(e.ledger().sequence() - auction.auction_data.strt_block.clone());
         let (ask_modifier, bid_modifier) = get_ask_bid_modifier(block_dif);
 
         // get ask amounts
@@ -109,7 +110,8 @@ mod tests {
         reserve_usage::ReserveUsage,
         storage::{AuctionData, PoolDataStore, ReserveConfig, ReserveData, StorageManager},
         testutils::{
-            create_backstop, create_token_contract, create_token_from_id, generate_contract_id, create_mock_pool_factory,
+            create_backstop, create_mock_pool_factory, create_token_contract, create_token_from_id,
+            generate_contract_id,
         },
     };
 
@@ -160,8 +162,12 @@ mod tests {
             .with_source_account(&samwise)
             .incr_allow(&Signature::Invoker, &0, &pool_id, &(u64::MAX as i128));
         e.as_contract(&pool, || {
-            backstop_token_client
-                .incr_allow(&Signature::Invoker, &0, &backstop_id, &(u64::MAX as i128));
+            backstop_token_client.incr_allow(
+                &Signature::Invoker,
+                &0,
+                &backstop_id,
+                &(u64::MAX as i128),
+            );
         });
 
         // setup user
@@ -195,7 +201,7 @@ mod tests {
             d_rate: 1_000_000_000,
             ir_mod: 0,
             b_supply: 0,
-            d_supply: liability_amount as u64 * 4,
+            d_supply: liability_amount * 4,
             last_block: 0,
         };
 
@@ -221,7 +227,7 @@ mod tests {
             d_rate: 1_000_000_000,
             ir_mod: 0,
             b_supply: 0,
-            d_supply: liability_amount as u64 * 4,
+            d_supply: liability_amount * 4,
             last_block: 0,
         };
 

@@ -7,6 +7,7 @@ use crate::{
     storage::{BackstopDataStore, StorageManager, Q4W},
     user::User,
 };
+use cast::i128;
 use soroban_auth::{Identifier, Signature};
 use soroban_sdk::{contractimpl, symbol, Address, BytesN, Env, Vec};
 
@@ -141,7 +142,7 @@ impl BackstopTrait for Backstop {
             &0,
             &user.id,
             &get_contract_id(&e),
-            &(amount as i128),
+            &i128(amount),
         );
 
         // "mint" shares
@@ -165,10 +166,8 @@ impl BackstopTrait for Backstop {
         let mut user = User::new(pool_address.clone(), Identifier::from(e.invoker()));
         let mut pool = Pool::new(pool_address.clone());
 
-        let new_q4w = match user.try_queue_shares_for_withdrawal(&e, amount) {
-            Ok(q4w) => q4w,
-            Err(e) => return Err(e),
-        };
+        let new_q4w = user.try_queue_shares_for_withdrawal(&e, amount)?;
+
         user.write_q4w(&e);
 
         pool.queue_for_withdraw(&e, amount);
@@ -185,10 +184,7 @@ impl BackstopTrait for Backstop {
         let mut user = User::new(pool_address.clone(), Identifier::from(e.invoker()));
         let mut pool = Pool::new(pool_address.clone());
 
-        match user.try_withdraw_shares(&e, amount) {
-            Ok(_) => (),
-            Err(e) => return Err(e),
-        };
+        user.try_withdraw_shares(&e, amount)?;
 
         let to_return = pool.convert_to_tokens(&e, amount);
 
@@ -202,7 +198,7 @@ impl BackstopTrait for Backstop {
         user.write_shares(&e);
 
         let blnd_client = TokenClient::new(&e, BytesN::from_array(&e, &BLND_TOKEN));
-        blnd_client.xfer(&Signature::Invoker, &0, &user.id, &(to_return as i128));
+        blnd_client.xfer(&Signature::Invoker, &0, &user.id, &i128(to_return));
 
         e.events().publish(
             (symbol!("Backstop"), symbol!("Withdraw")),
@@ -261,7 +257,7 @@ impl BackstopTrait for Backstop {
         pool.write_emissions(&e);
 
         let blnd_client = TokenClient::new(&e, BytesN::from_array(&e, &BLND_TOKEN));
-        blnd_client.xfer(&Signature::Invoker, &0, &to, &(amount as i128));
+        blnd_client.xfer(&Signature::Invoker, &0, &to, &i128(amount));
 
         Ok(())
     }
@@ -279,7 +275,7 @@ impl BackstopTrait for Backstop {
         pool.write_tokens(&e);
 
         let blnd_client = TokenClient::new(&e, BytesN::from_array(&e, &BLND_TOKEN));
-        blnd_client.xfer(&Signature::Invoker, &0, &to, &(amount as i128));
+        blnd_client.xfer(&Signature::Invoker, &0, &to, &i128(amount));
 
         Ok(())
     }
@@ -293,7 +289,7 @@ impl BackstopTrait for Backstop {
             &0,
             &Identifier::from(e.invoker()),
             &get_contract_id(&e),
-            &(amount as i128),
+            &i128(amount),
         );
 
         pool.deposit(&e, amount, 0);

@@ -1,22 +1,28 @@
+use cast::i128;
+use fixed_point_math::FixedPoint;
 use soroban_auth::Identifier;
 use soroban_sdk::{BytesN, Env};
 
 use crate::{
+    constants::SCALAR_7,
     dependencies::{OracleClient, TokenClient},
+    reserve::Reserve,
     reserve_usage::ReserveUsage,
     storage::{PoolDataStore, StorageManager},
 };
 
 /// A user's account data
 pub struct UserData {
-    pub e_collateral_base: u64, // user's effective collateral denominated in the base asset
-    pub e_liability_base: u64,  // user's effective liability denominated in the base asset
+    /// The user's effective collateral balance denominated in the base asset
+    pub collateral_base: i128,
+    /// The user's effective liability balance denominated in the base asset
+    pub liability_base: i128,
 }
 
 pub struct UserAction {
     pub asset: BytesN<32>,
-    pub b_token_delta: i64, // take protocol tokens in the event a rounding change occurs
-    pub d_token_delta: i64,
+    pub b_token_delta: i128, // take protocol tokens in the event a rounding change occurs
+    pub d_token_delta: i128,
 }
 
 impl UserData {
@@ -27,95 +33,62 @@ impl UserData {
 
         let user_config = ReserveUsage::new(storage.get_user_config(user.clone()));
         let reserve_count = storage.get_res_list();
-        let mut e_collateral_base = 0;
-        let mut e_liability_base = 0;
+        let mut collateral_base = 0;
+        let mut liability_base = 0;
         for i in 0..reserve_count.len() {
             let res_asset_address = reserve_count.get_unchecked(i).unwrap();
             if !user_config.is_active_reserve(i) && res_asset_address != action.asset {
                 continue;
             }
 
-            let res_config = storage.get_res_config(res_asset_address.clone());
-            let res_data = storage.get_res_data(res_asset_address.clone());
+            let reserve = Reserve::load(&e, res_asset_address.clone());
             let asset_to_base = oracle_client.get_price(&res_asset_address);
 
             if user_config.is_collateral(i) {
-                // append users effective collateral (after collateral factor) to e_collateral_base
-                let b_token_client = TokenClient::new(e, res_config.b_token.clone());
+                // append users effective collateral to collateral_base
+                let b_token_client = TokenClient::new(e, reserve.config.b_token.clone());
                 let b_token_balance = b_token_client.balance(user);
-                e_collateral_base += to_effective_balance(
-                    b_token_balance as u64,
-                    res_data.b_rate,
-                    res_config.c_factor as u64,
-                    asset_to_base.clone(),
-                );
+                let asset_collateral = reserve.to_effective_asset_from_b_token(b_token_balance);
+                collateral_base += asset_collateral
+                    .fixed_mul_floor(i128(asset_to_base), SCALAR_7)
+                    .unwrap();
             }
 
             if user_config.is_liability(i) {
-                // append users effective liability (after liability factor) to e_liability_base
-                let d_token_client = TokenClient::new(e, res_config.d_token);
-                let d_token_liability = d_token_client.balance(user);
-                e_liability_base += to_effective_balance(
-                    d_token_liability as u64,
-                    res_data.d_rate,
-                    1_0000000_0000000 / (res_config.l_factor as u64),
-                    asset_to_base.clone(),
-                );
+                // append users effective liability to liability_base
+                let d_token_client = TokenClient::new(e, reserve.config.d_token.clone());
+                let d_token_balance = d_token_client.balance(user);
+                let asset_liability = reserve.to_effective_asset_from_d_token(d_token_balance);
+                liability_base += asset_liability
+                    .fixed_mul_floor(i128(asset_to_base), SCALAR_7)
+                    .unwrap();
             }
 
-            // TODO: Change to i128 to allow negative e_foo_base numbers (https://github.com/stellar/rs-soroban-env/pull/570)
-            //       Or find a way to support negative numbers
             if res_asset_address == action.asset {
                 // user is making modifications to this asset, reflect them in the liability and/or collateral
                 if action.b_token_delta != 0 {
-                    let abs_delta = action.b_token_delta.abs();
-                    let e_collateral_delta = to_effective_balance(
-                        abs_delta as u64,
-                        res_data.b_rate as u64,
-                        res_config.c_factor as u64,
-                        asset_to_base.clone(),
-                    );
-                    if action.b_token_delta > 0 {
-                        e_collateral_base += e_collateral_delta.clone();
-                    } else {
-                        e_collateral_base -= e_collateral_delta;
-                    }
+                    let asset_collateral =
+                        reserve.to_effective_asset_from_b_token(action.b_token_delta);
+                    collateral_base += asset_collateral
+                        .fixed_mul_floor(i128(asset_to_base), SCALAR_7)
+                        .unwrap();
                 }
 
                 if action.d_token_delta != 0 {
-                    let abs_delta = action.d_token_delta.abs();
-                    let e_liability_delta = to_effective_balance(
-                        abs_delta as u64,
-                        res_data.d_rate as u64,
-                        1_0000000_0000000 / (res_config.l_factor as u64),
-                        asset_to_base.clone(),
-                    );
-
-                    if action.d_token_delta > 0 {
-                        e_liability_base += e_liability_delta.clone();
-                    } else {
-                        e_liability_base -= e_liability_delta;
-                    }
+                    let asset_liability =
+                        reserve.to_effective_asset_from_d_token(action.d_token_delta);
+                    liability_base += asset_liability
+                        .fixed_mul_floor(i128(asset_to_base), SCALAR_7)
+                        .unwrap();
                 }
             }
         }
 
         UserData {
-            e_collateral_base,
-            e_liability_base,
+            collateral_base,
+            liability_base,
         }
     }
-}
-//TODO: Mootz update function to user Reserve functions for rate conversions
-fn to_effective_balance(
-    protocol_tokens: u64,
-    rate: u64,
-    ltv_factor: u64,
-    oracle_price: u64,
-) -> u64 {
-    let underlying = (protocol_tokens * rate) / 1_000_000_000;
-    let base = (underlying * oracle_price) / 1_000_0000;
-    (base * ltv_factor) / 1_000_0000
 }
 
 #[cfg(test)]
@@ -129,21 +102,6 @@ mod tests {
     use super::*;
     use soroban_auth::Signature;
     use soroban_sdk::testutils::Accounts;
-
-    // TODO: If moving from BigNum, add test for large nums
-    #[test]
-    fn test_to_effective_balance() {
-        let protocol_tokens = 1_000_000_0;
-        let rate = 1_234_567_800;
-        let ltv_factor = 0_777_777_7;
-        let oracle_price = 987_654_321_1;
-
-        let expected_e_balance = 948_364_7447;
-        assert_eq!(
-            to_effective_balance(protocol_tokens, rate, ltv_factor, oracle_price),
-            expected_e_balance
-        );
-    }
 
     #[test]
     fn test_load_user_only_collateral() {
@@ -242,8 +200,8 @@ mod tests {
         };
         e.as_contract(&pool_id, || {
             let user_data = UserData::load(&e, &user_id, &user_action);
-            assert_eq!(user_data.e_liability_base, 0);
-            assert_eq!(user_data.e_collateral_base, 38_5000000);
+            assert_eq!(user_data.liability_base, 0);
+            assert_eq!(user_data.collateral_base, 38_5000000);
         });
     }
 
@@ -345,8 +303,8 @@ mod tests {
         };
         e.as_contract(&pool_id, || {
             let user_data = UserData::load(&e, &user_id, &user_action);
-            assert_eq!(user_data.e_liability_base, 239_9999976); // TODO: Rounding loss due to 1/l_factor taking floor
-            assert_eq!(user_data.e_collateral_base, 0);
+            assert_eq!(user_data.liability_base, 240_0000000);
+            assert_eq!(user_data.collateral_base, 0);
         });
     }
 
@@ -440,8 +398,8 @@ mod tests {
         };
         e.as_contract(&pool_id, || {
             let user_data = UserData::load(&e, &user_id, &user_action);
-            assert_eq!(user_data.e_liability_base, 0);
-            assert_eq!(user_data.e_collateral_base, 22_5000000);
+            assert_eq!(user_data.liability_base, 0);
+            assert_eq!(user_data.collateral_base, 22_5000000);
         });
     }
 
@@ -552,8 +510,8 @@ mod tests {
         };
         e.as_contract(&pool_id, || {
             let user_data = UserData::load(&e, &user_id, &user_action);
-            assert_eq!(user_data.e_liability_base, 189_9999924); // TODO: same rounding loss as above
-            assert_eq!(user_data.e_collateral_base, 187_5000000);
+            assert_eq!(user_data.liability_base, 190_0000000);
+            assert_eq!(user_data.collateral_base, 187_5000000);
         });
     }
 }

@@ -1,4 +1,5 @@
 #![cfg(test)]
+use cast::i128;
 use common::generate_contract_id;
 use soroban_auth::{Identifier, Signature};
 use soroban_sdk::{
@@ -46,7 +47,7 @@ fn test_backstop_distribution_and_claim_happy_path() {
         &Signature::Invoker,
         &0,
         &backstop_id,
-        &(u64::MAX as i128),
+        &i128(u64::MAX),
     );
 
     e.ledger().set(LedgerInfo {

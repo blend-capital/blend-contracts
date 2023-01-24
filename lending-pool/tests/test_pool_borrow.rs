@@ -1,6 +1,10 @@
 #![cfg(test)]
+use cast::i128;
 use soroban_auth::{Identifier, Signature};
-use soroban_sdk::{testutils::Accounts, Env, Status};
+use soroban_sdk::{
+    testutils::{Accounts, Ledger, LedgerInfo},
+    Env, Status,
+};
 
 mod common;
 use crate::common::{
@@ -29,7 +33,7 @@ fn test_pool_borrow_no_collateral_panics() {
     mock_oracle_client.set_price(&asset1_id, &2_0000000);
 
     // borrow
-    let borrow_amount = 0_0000002; // TODO: Rounding to zero for 1 stroop - see issues/2
+    let borrow_amount = 0_0000001;
     let result =
         pool_client
             .with_source_account(&sauron)
@@ -278,4 +282,88 @@ fn test_pool_borrow_frozen_panics() {
             Err(s_error) => assert_eq!(s_error, Status::from_contract_error(4)),
         },
     }
+}
+
+// TODO: Unit test for issues/2
+// -> d_rate > 1, try and borrow one stroop
+#[test]
+fn test_pool_borrow_one_stroop() {
+    let e = Env::default();
+
+    let bombadil = e.accounts().generate_and_create();
+    let bombadil_id = Identifier::Account(bombadil.clone());
+
+    let samwise = e.accounts().generate_and_create();
+    let samwise_id = Identifier::Account(samwise.clone());
+
+    let (mock_oracle, mock_oracle_client) = create_mock_oracle(&e);
+
+    let (pool, pool_client) = create_wasm_lending_pool(&e);
+    let pool_id = Identifier::Contract(pool.clone());
+    pool_client.initialize(&bombadil_id, &mock_oracle);
+    pool_client.with_source_account(&bombadil).set_status(&0);
+
+    let (asset1_id, b_token1_id, d_token1_id) =
+        pool_helper::setup_reserve(&e, &pool_id, &pool_client, &bombadil);
+
+    mock_oracle_client.set_price(&asset1_id, &2_0000000);
+
+    let asset1_client = TokenClient::new(&e, asset1_id.clone());
+    let b_token1_client = TokenClient::new(&e, b_token1_id.clone());
+    let d_token1_client = TokenClient::new(&e, d_token1_id.clone());
+    asset1_client.with_source_account(&bombadil).mint(
+        &Signature::Invoker,
+        &0,
+        &samwise_id,
+        &10_0000000,
+    );
+    asset1_client.with_source_account(&samwise).incr_allow(
+        &Signature::Invoker,
+        &0,
+        &pool_id,
+        &i128(u64::MAX),
+    );
+
+    // supply
+    let minted_btokens = pool_client
+        .with_source_account(&samwise)
+        .supply(&asset1_id, &1_0000000);
+    assert_eq!(b_token1_client.balance(&samwise_id), minted_btokens);
+
+    // borrow
+    let minted_dtokens =
+        pool_client
+            .with_source_account(&samwise)
+            .borrow(&asset1_id, &0_5355000, &samwise_id);
+    assert_eq!(d_token1_client.balance(&samwise_id), minted_dtokens);
+
+    // allow interest to accumulate
+    // IR -> 6%
+    e.ledger().set(LedgerInfo {
+        timestamp: 12345,
+        protocol_version: 1,
+        sequence_number: 6307200, // 1 year
+        network_passphrase: Default::default(),
+        base_reserve: 10,
+    });
+
+    // borrow 1 stroop
+    let borrow_amount = 0_0000001;
+    let minted_dtokens_2 =
+        pool_client
+            .with_source_account(&samwise)
+            .borrow(&asset1_id, &borrow_amount, &samwise_id);
+    assert_eq!(
+        asset1_client.balance(&samwise_id),
+        10_0000000 - 1_0000000 + 0_5355000 + 0_0000001
+    );
+    assert_eq!(
+        asset1_client.balance(&pool_id),
+        1_0000000 - 0_5355000 - 0_0000001
+    );
+    assert_eq!(
+        d_token1_client.balance(&samwise_id),
+        (minted_dtokens + minted_dtokens_2)
+    );
+    assert_eq!(minted_dtokens_2, 1);
 }

@@ -7,7 +7,7 @@ use crate::{
 use soroban_auth::{Identifier, Signature};
 use soroban_sdk::{contractimpl, symbol, BytesN, Env};
 
-const SCALAR: u64 = 1_000_000_0;
+const STROOP: u64 = 1_0000000;
 
 /// ### Emitter
 ///
@@ -66,10 +66,11 @@ impl EmitterTrait for Emitter {
         if backstop != Identifier::from(e.invoker()) {
             return Err(EmitterError::NotAuthorized);
         }
+
         let timestamp = e.ledger().timestamp();
         let seconds_since_last_distro = timestamp - storage.get_last_distro_time();
         // Blend tokens are distributed at a rate of 1 token per second
-        let distribution_amount = seconds_since_last_distro * SCALAR;
+        let distribution_amount = seconds_since_last_distro * STROOP;
 
         let blend_client = get_blend_token_client(&e, &storage);
         blend_client.mint(
@@ -99,12 +100,12 @@ impl EmitterTrait for Emitter {
         let old_backstop_blend_balance = blend_client.balance(&old_backstop);
         let old_backstop_blend_lp_balance = get_lp_blend_holdings(&e, old_backstop.clone());
         let effective_old_backstop_blend =
-            ((old_backstop_blend_balance / 4) as u64) + old_backstop_blend_lp_balance;
+            (old_backstop_blend_balance / 4) + old_backstop_blend_lp_balance;
 
         let new_backstop_blend_balance = blend_client.balance(&new_backstop_id);
         let new_backstop_blend_lp_balance = get_lp_blend_holdings(&e, new_backstop_id.clone());
         let effective_new_backstop_blend =
-            ((new_backstop_blend_balance / 4) as u64) + new_backstop_blend_lp_balance;
+            (new_backstop_blend_balance / 4) + new_backstop_blend_lp_balance;
 
         if effective_new_backstop_blend <= effective_old_backstop_blend {
             return Err(EmitterError::InsufficientBLND);

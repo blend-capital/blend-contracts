@@ -1,13 +1,9 @@
 default: build
 
-all: build test
-
 test: build
-	cargo test
+	cargo test --all --tests
 
- # TODO: Determine why removal of wasm blobs required (tests likely cache?)
 build:
-	rm -rf target/wasm32-unknown-unknown
 	cargo build --target wasm32-unknown-unknown --release -p oracle
 	cargo build --target wasm32-unknown-unknown --release -p emitter
 	cargo build --target wasm32-unknown-unknown --release -p pool-factory

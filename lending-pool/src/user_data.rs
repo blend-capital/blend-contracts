@@ -26,9 +26,13 @@ pub struct UserAction {
 }
 
 impl UserData {
-    pub fn load(e: &Env, user: &Identifier, action: &UserAction) -> UserData {
+    pub fn load(
+        e: &Env,
+        oracle_address: &BytesN<32>,
+        user: &Identifier,
+        action: &UserAction,
+    ) -> UserData {
         let storage = StorageManager::new(e);
-        let oracle_address = storage.get_oracle();
         let oracle_client = OracleClient::new(e, oracle_address);
 
         let user_config = ReserveUsage::new(storage.get_user_config(user.clone()));
@@ -178,7 +182,6 @@ mod tests {
 
         // setup oracle
         let (oracle_id, oracle_client) = create_mock_oracle(&e);
-        e.as_contract(&pool_id, || storage.set_oracle(oracle_id));
         oracle_client.set_price(&asset_id_0, &1000000_0000000);
         oracle_client.set_price(&asset_id_1, &5_0000000);
 
@@ -199,7 +202,7 @@ mod tests {
             b_token_delta: 0,
         };
         e.as_contract(&pool_id, || {
-            let user_data = UserData::load(&e, &user_id, &user_action);
+            let user_data = UserData::load(&e, &oracle_id, &user_id, &user_action);
             assert_eq!(user_data.liability_base, 0);
             assert_eq!(user_data.collateral_base, 38_5000000);
         });
@@ -280,7 +283,6 @@ mod tests {
 
         // setup oracle
         let (oracle_id, oracle_client) = create_mock_oracle(&e);
-        e.as_contract(&pool_id, || storage.set_oracle(oracle_id));
         oracle_client.set_price(&asset_id_0, &10_0000000);
         oracle_client.set_price(&asset_id_1, &0_0000001);
 
@@ -302,7 +304,7 @@ mod tests {
             b_token_delta: 0,
         };
         e.as_contract(&pool_id, || {
-            let user_data = UserData::load(&e, &user_id, &user_action);
+            let user_data = UserData::load(&e, &oracle_id, &user_id, &user_action);
             assert_eq!(user_data.liability_base, 240_0000000);
             assert_eq!(user_data.collateral_base, 0);
         });
@@ -381,7 +383,6 @@ mod tests {
 
         // setup oracle
         let (oracle_id, oracle_client) = create_mock_oracle(&e);
-        e.as_contract(&pool_id, || storage.set_oracle(oracle_id));
         oracle_client.set_price(&asset_id_0, &10_0000000);
         oracle_client.set_price(&asset_id_1, &5_0000000);
 
@@ -397,7 +398,7 @@ mod tests {
             b_token_delta: 3_0000000,
         };
         e.as_contract(&pool_id, || {
-            let user_data = UserData::load(&e, &user_id, &user_action);
+            let user_data = UserData::load(&e, &oracle_id, &user_id, &user_action);
             assert_eq!(user_data.liability_base, 0);
             assert_eq!(user_data.collateral_base, 22_5000000);
         });
@@ -476,7 +477,6 @@ mod tests {
 
         // setup oracle
         let (oracle_id, oracle_client) = create_mock_oracle(&e);
-        e.as_contract(&pool_id, || storage.set_oracle(oracle_id));
         oracle_client.set_price(&asset_id_0, &10_0000000);
         oracle_client.set_price(&asset_id_1, &5_0000000);
 
@@ -509,7 +509,7 @@ mod tests {
             b_token_delta: 0,
         };
         e.as_contract(&pool_id, || {
-            let user_data = UserData::load(&e, &user_id, &user_action);
+            let user_data = UserData::load(&e, &oracle_id, &user_id, &user_action);
             assert_eq!(user_data.liability_base, 190_0000000);
             assert_eq!(user_data.collateral_base, 187_5000000);
         });

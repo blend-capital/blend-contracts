@@ -4,7 +4,7 @@ use crate::{
         AuctionManagement,
     },
     errors::PoolError,
-    storage::StorageManager,
+    storage::{PoolDataStore, StorageManager},
 };
 use soroban_auth::Identifier;
 use soroban_sdk::{Env, Vec};
@@ -16,37 +16,37 @@ pub struct BadDebtAuction {
 }
 
 impl AuctionManagement for BadDebtAuction {
-    fn load(e: &Env, auction_id: Identifier, storage: &StorageManager) -> BadDebtAuction {
-        //load auction
-        let auction = Auction::load(e, auction_id, storage);
+    fn load(e: &Env, auction_id: Identifier) -> BadDebtAuction {
+        let auction = Auction::load(e, auction_id);
+        let pool_config = StorageManager::new(e).get_pool_config();
 
-        //get modifiers
+        // get modifiers
         let block_dif = (e.ledger().sequence() - auction.auction_data.strt_block) as i128;
         let (ask_modifier, bid_modifier) = get_ask_bid_modifier(block_dif);
-        let storage = StorageManager::new(&e);
 
-        //get ask amounts
-        let ask_amts: Vec<u64> =
-            get_modified_accrued_interest(e, auction.auction_data.clone(), ask_modifier);
+        let ask_amts: Vec<u64> = get_modified_accrued_interest(
+            e,
+            pool_config.bstop_rate,
+            auction.auction_data.clone(),
+            ask_modifier,
+        );
+        let bid_amts = get_modified_bad_debt_amts(
+            e,
+            pool_config.bstop_rate,
+            auction.auction_data.clone(),
+            bid_modifier,
+        );
 
-        //get bid amounts
-        let bid_amts =
-            get_modified_bad_debt_amts(e, auction.auction_data.clone(), bid_modifier, &storage);
         BadDebtAuction {
             auction,
             ask_amts,
             bid_amts,
         }
     }
-    fn fill(
-        &self,
-        e: &Env,
-        invoker_id: Identifier,
-        storage: StorageManager,
-    ) -> Result<(), PoolError> {
-        //perform bid token transfers
+    fn fill(&self, e: &Env, invoker_id: Identifier) -> Result<(), PoolError> {
+        // perform bid token transfers
         self.auction
-            .settle_bids(e, invoker_id.clone(), &storage, self.bid_amts.clone());
+            .settle_bids(e, invoker_id.clone(), self.bid_amts.clone());
 
         //perform ask token transfers
         //TODO: decide whether these are b_token transfers or not
@@ -247,9 +247,7 @@ mod tests {
             assert_eq!(asset_0.balance(&samwise_id), liability_amount);
             assert_eq!(asset_1.balance(&samwise_id), liability_amount / 2);
             //verify liquidation amount
-            bad_debt_auction
-                .fill(&e, samwise_id.clone(), storage)
-                .unwrap();
+            bad_debt_auction.fill(&e, samwise_id.clone()).unwrap();
             assert_eq!(d_token_0.balance(&samwise_id), 0);
             assert_eq!(d_token_1.balance(&samwise_id), 0);
             // TODO: verify collateral amount transfer once transfer is implemented

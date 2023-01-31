@@ -7,7 +7,7 @@ use crate::{
 };
 use cast::i128;
 use soroban_auth::{Identifier, Signature};
-use soroban_sdk::{Env, Vec};
+use soroban_sdk::{BytesN, Env, Vec};
 
 /// ### Auction
 ///
@@ -34,7 +34,8 @@ impl Auction {
     ///
     /// ### Returns
     /// The Auction struct
-    pub fn load(e: &Env, auction_id: Identifier, storage: &StorageManager) -> Auction {
+    pub fn load(e: &Env, auction_id: Identifier) -> Auction {
+        let storage = StorageManager::new(e);
         let auction_data = storage.get_auction_data(auction_id.clone());
 
         Auction {
@@ -43,7 +44,8 @@ impl Auction {
         }
     }
 
-    //*********** Settlement Functions **********/
+    /*********** Settlement Functions **********/
+
     pub fn settle_asks(&self, e: &Env, invoker_id: Identifier, ask_amts: Vec<u64>) {
         for i in 0..self.auction_data.ask_count {
             let token_client =
@@ -57,13 +59,7 @@ impl Auction {
         }
     }
 
-    pub fn settle_bids(
-        &self,
-        e: &Env,
-        from: Identifier,
-        storage: &StorageManager,
-        bid_amts: Vec<u64>,
-    ) {
+    pub fn settle_bids(&self, e: &Env, from: Identifier, bid_amts: Vec<u64>) {
         for i in 0..self.auction_data.bid_count {
             let reserve = Reserve::load(&e, self.auction_data.bid_ids.get(i).unwrap().unwrap());
             execute_repay(
@@ -72,31 +68,26 @@ impl Auction {
                 i128(bid_amts.get(i).unwrap().unwrap()),
                 from.clone(),
                 &self.auction_id,
-                storage,
             );
         }
     }
 
-    pub fn remove_auction(&self, storage: &StorageManager) {
-        storage.remove_auction_data(self.auction_id.clone());
+    pub fn remove_auction(&self, e: &Env) {
+        StorageManager::new(e).remove_auction_data(self.auction_id.clone());
     }
 }
 
 pub trait AuctionManagement {
-    fn load(e: &Env, auction_id: Identifier, storage: &StorageManager) -> Self;
+    fn load(e: &Env, auction_id: Identifier) -> Self;
 
-    fn fill(
-        &self,
-        e: &Env,
-        invoker_id: Identifier,
-        storage: StorageManager,
-    ) -> Result<(), PoolError>;
+    fn fill(&self, e: &Env, invoker_id: Identifier) -> Result<(), PoolError>;
 }
 
 // *********** Helpers ***********
 
 pub fn get_modified_accrued_interest(
     e: &Env,
+    backstop_rate: u64,
     auction_data: AuctionData,
     ask_modifier: u64,
 ) -> Vec<u64> {
@@ -105,7 +96,7 @@ pub fn get_modified_accrued_interest(
         let asset_id = id.unwrap();
         //update reserve rate
         let mut reserve = Reserve::load(e, asset_id.clone());
-        reserve.update_rates(e);
+        reserve.update_rates(e, backstop_rate);
         reserve.set_data(e);
         //TODO: get backstop interest accrued from this reserve - currently not implemented
         let accrued_interest: u64 = 1_000_0000;
@@ -118,18 +109,18 @@ pub fn get_modified_accrued_interest(
 
 pub fn get_modified_bad_debt_amts(
     e: &Env,
+    backstop_rate: u64,
     auction_data: AuctionData,
     bid_modifier: u64,
-    storage: &StorageManager,
 ) -> Vec<u64> {
     let mut bid_amts: Vec<u64> = Vec::new(e);
-    let backstop = storage.get_oracle(); //TODO: replace with method to get backstop id
+    let backstop = StorageManager::new(e).get_backstop();
     let backstop_id = Identifier::Contract(backstop);
     for id in auction_data.bid_ids.iter() {
         let asset = id.unwrap();
         // update reserve rates
         let mut reserve = Reserve::load(e, asset.clone());
-        reserve.update_rates(e);
+        reserve.update_rates(e, backstop_rate);
         reserve.set_data(e);
         //TODO: update when we decide how to handle dTokens
         let d_token_client = TokenClient::new(e, reserve.config.d_token.clone());
@@ -252,7 +243,6 @@ mod tests {
 
         // setup oracle
         let (oracle_id, oracle_client) = create_mock_oracle(&e);
-        e.as_contract(&pool_id, || storage.set_oracle(oracle_id));
         oracle_client.set_price(&asset_id_0, &1_0000000);
         oracle_client.set_price(&asset_id_1, &1_0000000);
 
@@ -291,7 +281,7 @@ mod tests {
         e.as_contract(&pool_id, || {
             storage.set_auction_data(samwise_id.clone(), data);
 
-            let auction = Auction::load(&e, samwise_id.clone(), &storage);
+            let auction = Auction::load(&e, samwise_id.clone());
 
             let auction_data = auction.auction_data;
             assert_eq!(auction_data.auct_type, 0);
@@ -461,7 +451,6 @@ mod tests {
 
         // setup oracle
         let (oracle_id, oracle_client) = create_mock_oracle(&e);
-        e.as_contract(&pool, || storage.set_oracle(oracle_id));
         oracle_client.set_price(&asset_id_0, &2_000_0000);
         oracle_client.set_price(&asset_id_1, &500_0000);
 
@@ -541,7 +530,7 @@ mod tests {
             assert_eq!(d_token_1.balance(&samwise_id), liability_amount / 2);
             assert_eq!(asset_0.balance(&samwise_id), liability_amount);
             assert_eq!(asset_1.balance(&samwise_id), liability_amount / 2);
-            auction.settle_bids(&e, samwise_id.clone(), &storage, bid_amts);
+            auction.settle_bids(&e, samwise_id.clone(), bid_amts);
             //verify user state post settlement
             assert_eq!(d_token_0.balance(&samwise_id), 0);
             assert_eq!(d_token_1.balance(&samwise_id), 0);

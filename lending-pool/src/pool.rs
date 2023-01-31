@@ -7,8 +7,8 @@ use crate::{
     reserve::Reserve,
     reserve_usage::ReserveUsage,
     storage::{
-        PoolDataStore, ReserveConfig, ReserveData, ReserveEmissionsConfig, ReserveEmissionsData,
-        StorageManager,
+        PoolConfig, PoolDataStore, ReserveConfig, ReserveData, ReserveEmissionsConfig,
+        ReserveEmissionsData, StorageManager,
     },
     user_data::UserAction,
     user_validator::validate_hf,
@@ -27,7 +27,15 @@ pub trait PoolTrait {
     /// ### Arguments
     /// * `admin` - The identifier for the admin account
     /// * `oracle` - The contract address of the oracle
-    fn initialize(e: Env, admin: Identifier, oracle: BytesN<32>);
+    /// * `backstop` - The contract address of the pool's backstop module
+    /// * `bstop_rate` - The rate of interest shared with the backstop module
+    fn initialize(
+        e: Env,
+        admin: Identifier,
+        oracle: BytesN<32>,
+        backstop: BytesN<32>,
+        bstop_rate: u64,
+    );
 
     /// Initialize a reserve in the pool
     ///
@@ -165,15 +173,25 @@ pub trait PoolTrait {
 
 #[contractimpl]
 impl PoolTrait for Pool {
-    fn initialize(e: Env, admin: Identifier, oracle: BytesN<32>) {
+    fn initialize(
+        e: Env,
+        admin: Identifier,
+        oracle: BytesN<32>,
+        backstop: BytesN<32>,
+        bstop_rate: u64,
+    ) {
         let storage = StorageManager::new(&e);
         if storage.has_admin() {
             panic!("already initialized")
         }
 
         storage.set_admin(admin);
-        storage.set_oracle(oracle);
-        storage.set_pool_status(1);
+        storage.set_backstop(backstop);
+        storage.set_pool_config(PoolConfig {
+            oracle,
+            bstop_rate,
+            status: 1,
+        });
     }
 
     // @dev: This function will be reworked - used for testing purposes
@@ -225,13 +243,14 @@ impl PoolTrait for Pool {
         let storage = StorageManager::new(&e);
         let invoker = e.invoker();
         let invoker_id = Identifier::from(invoker);
+        let pool_config = storage.get_pool_config();
 
-        if storage.get_pool_status() == 2 {
+        if pool_config.status == 2 {
             return Err(PoolError::InvalidPoolStatus);
         }
 
         let mut reserve = Reserve::load(&e, asset.clone());
-        reserve.pre_action(&e, 1, invoker_id.clone())?;
+        reserve.pre_action(&e, &pool_config, 1, invoker_id.clone())?;
 
         let to_mint = reserve.to_b_token(amount);
         TokenClient::new(&e, asset.clone()).xfer_from(
@@ -273,9 +292,10 @@ impl PoolTrait for Pool {
         let storage = StorageManager::new(&e);
         let invoker = e.invoker();
         let invoker_id = Identifier::from(invoker);
+        let pool_config = storage.get_pool_config();
 
         let mut reserve = Reserve::load(&e, asset.clone());
-        reserve.pre_action(&e, 1, invoker_id.clone())?;
+        reserve.pre_action(&e, &pool_config, 1, invoker_id.clone())?;
 
         let mut to_burn: i128;
         let to_return: i128;
@@ -297,7 +317,7 @@ impl PoolTrait for Pool {
             b_token_delta: -to_burn,
             d_token_delta: 0,
         };
-        let is_healthy = validate_hf(&e, &invoker_id, &user_action);
+        let is_healthy = validate_hf(&e, &pool_config.oracle, &invoker_id, &user_action);
         if !is_healthy {
             return Err(PoolError::InvalidHf);
         }
@@ -328,13 +348,14 @@ impl PoolTrait for Pool {
         let storage = StorageManager::new(&e);
         let invoker = e.invoker();
         let invoker_id = Identifier::from(invoker);
+        let pool_config = storage.get_pool_config();
 
-        if storage.get_pool_status() > 0 {
+        if pool_config.status > 0 {
             return Err(PoolError::InvalidPoolStatus);
         }
 
         let mut reserve = Reserve::load(&e, asset.clone());
-        reserve.pre_action(&e, 0, invoker_id.clone())?;
+        reserve.pre_action(&e, &pool_config, 0, invoker_id.clone())?;
 
         let mut to_mint = reserve.to_d_token(amount);
         if to_mint == 0 {
@@ -345,7 +366,7 @@ impl PoolTrait for Pool {
             b_token_delta: 0,
             d_token_delta: to_mint,
         };
-        let is_healthy = validate_hf(&e, &invoker_id, &user_action);
+        let is_healthy = validate_hf(&e, &pool_config.oracle, &invoker_id, &user_action);
         if !is_healthy {
             return Err(PoolError::InvalidHf);
         }
@@ -382,18 +403,13 @@ impl PoolTrait for Pool {
         let storage = StorageManager::new(&e);
         let invoker = e.invoker();
         let invoker_id = Identifier::from(invoker);
+        let pool_config = storage.get_pool_config();
 
         let mut reserve = Reserve::load(&e, asset.clone());
-        reserve.pre_action(&e, 0, invoker_id.clone())?;
+        reserve.pre_action(&e, &pool_config, 0, invoker_id.clone())?;
+        let repay_result = execute_repay(&e, reserve, amount, invoker_id, &on_behalf_of);
 
-        Ok(execute_repay(
-            &e,
-            reserve,
-            amount,
-            invoker_id,
-            &on_behalf_of,
-            &storage,
-        ))
+        Ok(repay_result)
     }
 
     fn set_status(e: Env, pool_status: u32) -> Result<(), PoolError> {
@@ -405,7 +421,9 @@ impl PoolTrait for Pool {
             return Err(PoolError::NotAuthorized);
         }
 
-        storage.set_pool_status(pool_status);
+        let mut pool_config = storage.get_pool_config();
+        pool_config.status = pool_status;
+        storage.set_pool_config(pool_config);
 
         e.events()
             .publish((symbol!("PoolStatus"), symbol!("Updated")), pool_status);
@@ -415,7 +433,8 @@ impl PoolTrait for Pool {
 
     fn status(e: Env) -> u32 {
         let storage = StorageManager::new(&e);
-        storage.get_pool_status()
+        let pool_config = storage.get_pool_config();
+        pool_config.status
     }
 
     /********** Emissions **********/
@@ -499,8 +518,8 @@ pub fn execute_repay(
     amount: i128,
     invoker_id: Identifier,
     on_behalf_of: &Identifier,
-    storage: &StorageManager,
 ) -> i128 {
+    let storage = StorageManager::new(e);
     let d_token_client = TokenClient::new(&e, reserve.config.d_token.clone());
     let to_burn: i128;
     let to_repay: i128;

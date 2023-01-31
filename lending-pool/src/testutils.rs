@@ -51,7 +51,11 @@ pub(crate) fn create_backstop(e: &Env) -> (BytesN<32>, BackstopClient) {
     (contract_id.clone(), BackstopClient::new(e, contract_id))
 }
 
-pub fn create_token_from_id(e: &Env, contract_id: &BytesN<32>, admin: &Identifier) -> TokenClient {
+pub(crate) fn create_token_from_id(
+    e: &Env,
+    contract_id: &BytesN<32>,
+    admin: &Identifier,
+) -> TokenClient {
     e.register_contract_wasm(contract_id, TOKEN_WASM);
     let client = TokenClient::new(e, contract_id.clone());
     client.initialize(admin, &7, &"unit".into_val(e), &"test".into_val(&e));

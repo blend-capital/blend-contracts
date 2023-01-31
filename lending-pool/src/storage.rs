@@ -3,6 +3,23 @@ use soroban_sdk::{contracttype, vec, BytesN, Env, Map, Vec};
 
 /********** Storage Types **********/
 
+/// The pool's config
+#[derive(Clone)]
+#[contracttype]
+pub struct PoolConfig {
+    pub oracle: BytesN<32>,
+    pub bstop_rate: u64,
+    pub status: u32,
+}
+
+/// The pool's emission config
+#[derive(Clone)]
+#[contracttype]
+pub struct PoolEmissionConfig {
+    pub config: u128,
+    pub last_time: u64,
+}
+
 /// The configuration information about a reserve asset
 #[derive(Clone)]
 #[contracttype]
@@ -60,14 +77,6 @@ pub struct UserEmissionData {
     pub accrued: u64,
 }
 
-/// The pool's emission config
-#[derive(Clone)]
-#[contracttype]
-pub struct PoolEmissionConfig {
-    pub config: u128,
-    pub last_time: u64,
-}
-
 /// The data for auctions
 #[derive(Clone)]
 #[contracttype]
@@ -96,8 +105,14 @@ pub struct UserReserveKey {
 pub enum PoolDataKey {
     // The address that can manage the pool
     Admin,
-    // The address of the oracle contract
-    Oracle,
+    // The backstop address for the pool
+    Backstop,
+    // The config of the pool
+    PoolConfig,
+    // A list of the next reserve emission allocation percentages
+    PoolEmis,
+    // The reserve configuration for emissions
+    PEConfig,
     // A map of underlying asset's contract address to reserve config
     ResConfig(BytesN<32>),
     // A map of underlying asset's contract address to reserve data
@@ -113,12 +128,6 @@ pub enum PoolDataKey {
     UserConfig(Identifier),
     // The emission information for a reserve asset for a user
     UserEmis(UserReserveKey),
-    // The status of the pool
-    PoolStatus,
-    // A list of the next reserve emission allocation percentages
-    PoolEmis,
-    // The reserve configuration for emissions
-    PEConfig,
     // A list of auctions and their associated data
     AuctData(Identifier),
 }
@@ -145,22 +154,33 @@ pub trait PoolDataStore {
     /// Checks if an admin is set
     fn has_admin(&self) -> bool;
 
-    /********** Oracle **********/
+    /********** Backstop **********/
 
-    /// Fetch the current oracle address
+    /// Fetch the backstop for the pool
     ///
     /// ### Errors
-    /// If the oracle does not exist
-    fn get_oracle(&self) -> BytesN<32>;
+    /// If no backstop is set
+    fn get_backstop(&self) -> BytesN<32>;
 
-    /// Set a new oracle address
+    /// Set a new admin
     ///
     /// ### Arguments
-    /// * `new_oracle` - The contract address of the oracle
-    fn set_oracle(&self, new_oracle: BytesN<32>);
+    /// * `backstop` - The address of the backstop
+    fn set_backstop(&self, new_admin: BytesN<32>);
 
-    /// Checks if an oracle is set
-    fn has_oracle(&self) -> bool;
+    /********** Pool Config **********/
+
+    /// Fetch the pool configuration
+    ///
+    /// ### Errors
+    /// If the pool's config is not set
+    fn get_pool_config(&self) -> PoolConfig;
+
+    /// Set the pool configuration
+    ///
+    /// ### Arguments
+    /// * `config` - The contract address of the oracle
+    fn set_pool_config(&self, config: PoolConfig);
 
     /********** Reserve Config (ResConfig) **********/
 
@@ -290,17 +310,6 @@ pub trait PoolDataStore {
     /// * `data` - The new user emission d ata for the d/bToken
     fn set_user_emissions(&self, user: Identifier, res_token_index: u32, data: UserEmissionData);
 
-    /********** Pool Status **********/
-
-    /// Fetch the pool status
-    fn get_pool_status(&self) -> u32;
-
-    /// Set the pool status
-    ///
-    /// ### Arguments
-    /// * `pool_state` - The pool status
-    fn set_pool_status(&self, pool_status: u32);
-
     /********** Pool Emissions **********/
 
     /// Fetch the pool reserve emissions
@@ -368,23 +377,35 @@ impl PoolDataStore for StorageManager {
         self.env().storage().has(PoolDataKey::Admin)
     }
 
-    /********** Oracle **********/
+    /********** Backstop **********/
 
-    fn get_oracle(&self) -> BytesN<32> {
+    fn get_backstop(&self) -> BytesN<32> {
         self.env()
             .storage()
-            .get_unchecked(PoolDataKey::Oracle)
+            .get_unchecked(PoolDataKey::Backstop)
             .unwrap()
     }
 
-    fn set_oracle(&self, new_oracle: BytesN<32>) {
+    fn set_backstop(&self, backstop: BytesN<32>) {
         self.env()
             .storage()
-            .set::<PoolDataKey, BytesN<32>>(PoolDataKey::Oracle, new_oracle);
+            .set::<PoolDataKey, BytesN<32>>(PoolDataKey::Backstop, backstop);
     }
 
-    fn has_oracle(&self) -> bool {
-        self.env().storage().has(PoolDataKey::Oracle)
+    /********** Pool Config **********/
+
+    fn get_pool_config(&self) -> PoolConfig {
+        self.env()
+            .storage()
+            .get_unchecked(PoolDataKey::PoolConfig)
+            .unwrap()
+    }
+
+    fn set_pool_config(&self, config: PoolConfig) {
+        let key = PoolDataKey::PoolConfig;
+        self.env()
+            .storage()
+            .set::<PoolDataKey, PoolConfig>(key, config);
     }
 
     /********** Reserve Config (ResConfig) **********/
@@ -552,24 +573,6 @@ impl PoolDataStore for StorageManager {
             .set::<PoolDataKey, UserEmissionData>(key, data);
     }
 
-    /********** Pool Status **********/
-
-    fn get_pool_status(&self) -> u32 {
-        let key = PoolDataKey::PoolStatus;
-        self.env()
-            .storage()
-            .get::<PoolDataKey, u32>(key)
-            .unwrap()
-            .unwrap()
-    }
-
-    fn set_pool_status(&self, pool_status: u32) {
-        let key = PoolDataKey::PoolStatus;
-        self.env()
-            .storage()
-            .set::<PoolDataKey, u32>(key, pool_status);
-    }
-
     /********** Pool Emissions **********/
 
     fn get_pool_emissions(&self) -> Map<u32, u64> {
@@ -605,6 +608,7 @@ impl PoolDataStore for StorageManager {
     }
 
     /********** Auctions ***********/
+
     fn get_auction_data(&self, auction_id: Identifier) -> AuctionData {
         let key = PoolDataKey::AuctData(auction_id);
         self.env()

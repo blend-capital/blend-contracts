@@ -7,7 +7,9 @@ use soroban_sdk::{
 };
 
 mod common;
-use crate::common::{create_mock_oracle, create_wasm_lending_pool, pool_helper, TokenClient};
+use crate::common::{
+    create_mock_oracle, create_wasm_lending_pool, generate_contract_id, pool_helper, TokenClient,
+};
 
 // TODO: Investigate if mint / burn semantics will be better (operate in bTokens)
 #[test]
@@ -30,9 +32,15 @@ fn test_pool_happy_path() {
 
     let (mock_oracle, mock_oracle_client) = create_mock_oracle(&e);
 
+    let backstop_address = generate_contract_id(&e);
     let (pool, pool_client) = create_wasm_lending_pool(&e);
     let pool_id = Identifier::Contract(pool.clone());
-    pool_client.initialize(&bombadil_id, &mock_oracle);
+    pool_client.initialize(
+        &bombadil_id,
+        &mock_oracle,
+        &backstop_address,
+        &0_200_000_000,
+    );
     pool_client.with_source_account(&bombadil).set_status(&0);
 
     let (asset1_id, btoken1_id, dtoken1_id) =
@@ -138,17 +146,19 @@ fn test_pool_happy_path() {
     println!("full repay successful");
 
     // withdraw
+    let user_interest_accrued = 0_0480000;
     let burnt_btokens = pool_client.with_source_account(&user1).withdraw(
         &asset1_id,
-        &(supply_amount + interest_accrued),
+        &(supply_amount + user_interest_accrued),
         &user1_id,
     );
 
     assert_eq!(
         asset1_client.balance(&user1_id),
-        (supply_amount + interest_accrued)
+        (supply_amount + user_interest_accrued)
     );
-    assert_eq!(asset1_client.balance(&pool_id), 0);
+    // the remaining funds due to the backstop based on the 20% backstop_rate
+    assert_eq!(asset1_client.balance(&pool_id), 120000);
     assert_eq!(btoken1_id_client.balance(&user1_id), 0);
     assert_eq!(burnt_btokens, minted_btokens);
     assert_eq!(pool_client.config(&user1_id), 0);

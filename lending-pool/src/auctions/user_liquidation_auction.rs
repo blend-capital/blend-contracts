@@ -1,6 +1,6 @@
 use cast::i128;
 use soroban_auth::Identifier;
-use soroban_sdk::{vec, Env, Vec};
+use soroban_sdk::{vec, BytesN, Env, Vec};
 
 use crate::auctions::base_auction::{get_ask_bid_modifier, Auction, AuctionManagement};
 use crate::{
@@ -16,29 +16,28 @@ pub struct UserLiquidationAuction {
     ask_amts: Vec<u64>,
     bid_amts: Vec<u64>,
 }
+
 impl AuctionManagement for UserLiquidationAuction {
-    fn load(e: &Env, auction_id: Identifier, storage: &StorageManager) -> UserLiquidationAuction {
-        // load auction
-        let auction = Auction::load(e, auction_id, storage);
+    fn load(e: &Env, auction_id: Identifier) -> UserLiquidationAuction {
+        let auction = Auction::load(e, auction_id);
+        let pool_config = StorageManager::new(e).get_pool_config();
 
         // get modifiers
         let block_dif = (e.ledger().sequence() - auction.auction_data.strt_block.clone()) as i128;
         let (ask_modifier, bid_modifier) = get_ask_bid_modifier(block_dif);
 
-        // get bid amounts
-        // cast to u128 to avoid overflow
         let liq_amt = (get_target_liquidation_amt(
             e,
             auction.auction_data.clone(),
-            &storage,
             auction.auction_id.clone(),
+            &pool_config.oracle,
         ) as u128
             * bid_modifier as u128
             / 1_000_0000) as u64;
 
-        //if liq amt is less than 0 the user is no longer liquidatable and we can remove the auction
+        // if liq amt is less than 0 the user is no longer liquidatable and we can remove the auction
         if liq_amt <= 0 {
-            auction.remove_auction(&storage);
+            auction.remove_auction(e);
             return UserLiquidationAuction {
                 auction,
                 ask_amts: vec![e],
@@ -47,11 +46,9 @@ impl AuctionManagement for UserLiquidationAuction {
         }
         let bid_amts = vec![e, liq_amt];
 
-        // get ask amounts
         let ask_amts: Vec<u64> = get_user_collateral(
             e,
             auction.auction_data.clone(),
-            &storage,
             ask_modifier,
             auction.auction_id.clone(),
         );
@@ -63,31 +60,28 @@ impl AuctionManagement for UserLiquidationAuction {
         }
     }
 
-    fn fill(
-        &self,
-        e: &Env,
-        invoker_id: Identifier,
-        storage: StorageManager,
-    ) -> Result<(), PoolError> {
-        //perform bid token transfers
+    fn fill(&self, e: &Env, invoker_id: Identifier) -> Result<(), PoolError> {
+        // perform bid token transfers
         self.auction
-            .settle_bids(e, invoker_id, &storage, self.bid_amts.clone());
-        //perform ask token transfers
-        //if user liquidation auction we transfer b_tokens to the auction filler
-        //TODO: implement once we decide whether to use custom b_tokens or not - either way we need a custom transfer mechanism
-        self.auction.remove_auction(&storage);
+            .settle_bids(e, invoker_id, self.bid_amts.clone());
+
+        // perform ask token transfers
+        // if user liquidation auction we transfer b_tokens to the auction filler
+        // TODO: implement once we decide whether to use custom b_tokens or not - either way we need a custom transfer mechanism
+        self.auction.remove_auction(&e);
         Ok(())
     }
 }
 
-//*********** User Liquidation Auction Helpers **********/
+/*********** User Liquidation Auction Helpers **********/
+
 fn get_user_collateral(
     e: &Env,
     auction_data: AuctionData,
-    storage: &StorageManager,
     ask_modifier: u64,
     user_id: Identifier,
 ) -> Vec<u64> {
+    let storage = StorageManager::new(e);
     let mut collateral_amounts: Vec<u64> = Vec::new(e);
     for id in auction_data.ask_ids.iter() {
         let asset_id = id.unwrap();
@@ -106,8 +100,8 @@ fn get_user_collateral(
 fn get_target_liquidation_amt(
     e: &Env,
     auction_data: AuctionData,
-    storage: &StorageManager,
     user_id: Identifier,
+    oracle: &BytesN<32>,
 ) -> u64 {
     let asset = auction_data.bid_ids.first().unwrap().unwrap();
     let user_action: UserAction = UserAction {
@@ -115,7 +109,7 @@ fn get_target_liquidation_amt(
         b_token_delta: 0,
         d_token_delta: 0,
     };
-    let user_data = UserData::load(&e, &user_id, &user_action);
+    let user_data = UserData::load(&e, oracle, &user_id, &user_action);
     // cast to u128 to avoid overflow
     let mut liq_amt = (user_data.liability_base * 1_020_0000 / 1_000_0000
         - user_data.collateral_base)
@@ -126,8 +120,7 @@ fn get_target_liquidation_amt(
     let d_token = TokenClient::new(e, liability.config.d_token.clone());
     let d_token_balance = d_token.balance(&user_id);
     let balance = liability.to_asset_from_d_token(d_token_balance);
-    let oracle_address = storage.get_oracle();
-    let oracle = OracleClient::new(e, oracle_address);
+    let oracle = OracleClient::new(e, oracle);
     //cast to u128 to avoid overflow
     let price = i128(oracle.get_price(&asset));
     let value = price * balance / 1_000_0000;
@@ -140,13 +133,10 @@ fn get_target_liquidation_amt(
 
 #[cfg(test)]
 mod tests {
-
-    use std::println;
-
     use crate::{
         auctions::base_auction::AuctionType,
         reserve_usage::ReserveUsage,
-        storage::{ReserveConfig, ReserveData},
+        storage::{PoolConfig, ReserveConfig, ReserveData},
         testutils::{create_mock_oracle, create_token_contract, generate_contract_id},
     };
 
@@ -266,7 +256,7 @@ mod tests {
         //initiate auction
         e.as_contract(&pool_id, || {
             let collateral_amts =
-                get_user_collateral(&e, auction_data, &storage, ask_modifier, samwise_id.clone());
+                get_user_collateral(&e, auction_data, ask_modifier, samwise_id.clone());
             assert_eq!(
                 collateral_amts,
                 vec![
@@ -356,7 +346,13 @@ mod tests {
 
         // setup oracle
         let (oracle_id, oracle_client) = create_mock_oracle(&e);
-        e.as_contract(&pool_id, || storage.set_oracle(oracle_id));
+        e.as_contract(&pool_id, || {
+            storage.set_pool_config(PoolConfig {
+                oracle: oracle_id.clone(),
+                bstop_rate: 0_200_000_000,
+                status: 0,
+            })
+        });
         oracle_client.set_price(&asset_id_0, &2_000_0000);
         oracle_client.set_price(&asset_id_1, &500_0000);
 
@@ -400,7 +396,7 @@ mod tests {
         //initiate auction
         e.as_contract(&pool_id, || {
             //verify liquidation amount
-            let liq_amt = get_target_liquidation_amt(&e, data.clone(), &storage, samwise_id);
+            let liq_amt = get_target_liquidation_amt(&e, data.clone(), samwise_id, &oracle_id);
 
             assert_eq!(liq_amt, 10_600_0000);
         });
@@ -485,7 +481,13 @@ mod tests {
 
         // setup oracle
         let (oracle_id, oracle_client) = create_mock_oracle(&e);
-        e.as_contract(&pool_id, || storage.set_oracle(oracle_id));
+        e.as_contract(&pool_id, || {
+            storage.set_pool_config(PoolConfig {
+                oracle: oracle_id.clone(),
+                bstop_rate: 0_200_000_000,
+                status: 0,
+            })
+        });
         oracle_client.set_price(&asset_id_0, &2_000_0000);
         oracle_client.set_price(&asset_id_1, &500_0000);
 
@@ -533,7 +535,7 @@ mod tests {
 
         e.as_contract(&pool_id, || {
             //verify liquidation amount
-            let liq_amt = get_target_liquidation_amt(&e, data, &storage, samwise_id);
+            let liq_amt = get_target_liquidation_amt(&e, data, samwise_id, &oracle_id);
 
             assert_eq!(liq_amt, 20_000_0000);
         });
@@ -694,19 +696,16 @@ mod tests {
                 ask_amts: vec![&e],
                 bid_amts: vec![&e, liability_amount as u64, (liability_amount / 2) as u64],
             };
+
             // verify user state pre fill
             assert_eq!(d_token_0.balance(&samwise_id), liability_amount);
             assert_eq!(d_token_1.balance(&samwise_id), liability_amount / 2);
             assert_eq!(asset_0.balance(&samwise_id), liability_amount);
             assert_eq!(asset_1.balance(&samwise_id), liability_amount / 2);
+
+            user_liq_auction.fill(&e, samwise_id.clone()).unwrap();
+
             // verify user state post fill
-            println!("gas used: {}", e.budget());
-
-            user_liq_auction
-                .fill(&e, samwise_id.clone(), storage)
-                .unwrap();
-            println!("gas used: {}", e.budget());
-
             assert_eq!(d_token_0.balance(&samwise_id), 0);
             assert_eq!(d_token_1.balance(&samwise_id), 0);
             assert_eq!(asset_0.balance(&samwise_id), 0);

@@ -317,7 +317,7 @@ impl PoolTrait for Pool {
             b_token_delta: -to_burn,
             d_token_delta: 0,
         };
-        let is_healthy = validate_hf(&e, &pool_config.oracle, &invoker_id, &user_action);
+        let is_healthy = validate_hf(&e, &pool_config, &invoker_id, &user_action);
         if !is_healthy {
             return Err(PoolError::InvalidHf);
         }
@@ -366,7 +366,7 @@ impl PoolTrait for Pool {
             b_token_delta: 0,
             d_token_delta: to_mint,
         };
-        let is_healthy = validate_hf(&e, &pool_config.oracle, &invoker_id, &user_action);
+        let is_healthy = validate_hf(&e, &pool_config, &invoker_id, &user_action);
         if !is_healthy {
             return Err(PoolError::InvalidHf);
         }

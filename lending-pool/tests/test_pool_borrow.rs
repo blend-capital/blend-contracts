@@ -364,7 +364,7 @@ fn test_pool_borrow_one_stroop() {
     // supply
     let minted_btokens = pool_client
         .with_source_account(&samwise)
-        .supply(&asset1_id, &1_0000000);
+        .supply(&asset1_id, &2_0000000);
     assert_eq!(b_token1_client.balance(&samwise_id), minted_btokens);
 
     // borrow
@@ -392,11 +392,11 @@ fn test_pool_borrow_one_stroop() {
             .borrow(&asset1_id, &borrow_amount, &samwise_id);
     assert_eq!(
         asset1_client.balance(&samwise_id),
-        10_0000000 - 1_0000000 + 0_5355000 + 0_0000001
+        10_0000000 - 2_0000000 + 0_5355000 + 0_0000001
     );
     assert_eq!(
         asset1_client.balance(&pool_id),
-        1_0000000 - 0_5355000 - 0_0000001
+        2_0000000 - 0_5355000 - 0_0000001
     );
     assert_eq!(
         d_token1_client.balance(&samwise_id),

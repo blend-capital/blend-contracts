@@ -8,7 +8,7 @@ use crate::{
     dependencies::{OracleClient, TokenClient},
     reserve::Reserve,
     reserve_usage::ReserveUsage,
-    storage::{PoolDataStore, StorageManager},
+    storage::{PoolDataStore, StorageManager, PoolConfig},
 };
 
 /// A user's account data
@@ -28,12 +28,12 @@ pub struct UserAction {
 impl UserData {
     pub fn load(
         e: &Env,
-        oracle_address: &BytesN<32>,
+        pool_config: &PoolConfig,
         user: &Identifier,
         action: &UserAction,
     ) -> UserData {
         let storage = StorageManager::new(e);
-        let oracle_client = OracleClient::new(e, oracle_address);
+        let oracle_client = OracleClient::new(e, pool_config.oracle.clone());
 
         let user_config = ReserveUsage::new(storage.get_user_config(user.clone()));
         let reserve_count = storage.get_res_list();
@@ -45,7 +45,9 @@ impl UserData {
                 continue;
             }
 
-            let reserve = Reserve::load(&e, res_asset_address.clone());
+            let mut reserve = Reserve::load(&e, res_asset_address.clone());
+            // do not write rate information to chain
+            reserve.update_rates(e, pool_config.bstop_rate); 
             let asset_to_base = oracle_client.get_price(&res_asset_address);
 
             if user_config.is_collateral(i) {
@@ -99,13 +101,12 @@ impl UserData {
 mod tests {
 
     use crate::{
-        storage::{ReserveConfig, ReserveData},
-        testutils::{create_mock_oracle, create_token_contract, generate_contract_id},
+        testutils::{create_mock_oracle, generate_contract_id, create_reserve, setup_reserve},
     };
 
     use super::*;
     use soroban_auth::Signature;
-    use soroban_sdk::testutils::Accounts;
+    use soroban_sdk::testutils::{Accounts, LedgerInfo, Ledger};
 
     #[test]
     fn test_load_user_only_collateral() {
@@ -121,88 +122,50 @@ mod tests {
         let bombadil = e.accounts().generate_and_create();
         let bombadil_id = Identifier::Account(bombadil.clone());
 
-        // setup assets 0
-        let (asset_id_0, _asset_0) = create_token_contract(&e, &bombadil_id);
-        let (b_token_id_0, _b_token_0) = create_token_contract(&e, &bombadil_id);
-        let (d_token_id_0, _d_token_0) = create_token_contract(&e, &bombadil_id);
-        let reserve_config_0 = ReserveConfig {
-            b_token: b_token_id_0,
-            d_token: d_token_id_0,
-            decimals: 7,
-            c_factor: 0_7500000,
-            l_factor: 0_5000000,
-            util: 0_8000000,
-            r_one: 0,
-            r_two: 0,
-            r_three: 0,
-            reactivity: 100,
-            index: 0,
-        };
-        let reserve_data_0 = ReserveData {
-            b_rate: 1_000_000_000,
-            d_rate: 1_100_000_000,
-            ir_mod: 0,
-            b_supply: 0,
-            d_supply: 0,
-            last_block: 0,
-        };
+        let mut reserve_0 = create_reserve(&e);
+        reserve_0.config.c_factor = 0_7500000;
+        reserve_0.config.l_factor = 0_5000000;
+        reserve_0.data.b_rate = 1_000_000_000;
+        reserve_0.data.d_rate = 1_100_000_000;
+        setup_reserve(&e, &pool_id, &bombadil_id, &reserve_0);
 
-        // setup asset 1
-        let (asset_id_1, _asset_1) = create_token_contract(&e, &bombadil_id);
-        let (b_token_id_1, b_token_1) = create_token_contract(&e, &bombadil_id);
-        let (d_token_id_1, _d_token_1) = create_token_contract(&e, &bombadil_id);
-        let reserve_config_1 = ReserveConfig {
-            b_token: b_token_id_1,
-            d_token: d_token_id_1,
-            decimals: 7,
-            c_factor: 0_7000000,
-            l_factor: 0_6000000,
-            util: 0_7000000,
-            r_one: 0,
-            r_two: 0,
-            r_three: 0,
-            reactivity: 100,
-            index: 1,
-        };
-        let reserve_data_1 = ReserveData {
-            b_rate: 1_100_000_000,
-            d_rate: 1_200_000_000,
-            ir_mod: 0,
-            b_supply: 0,
-            d_supply: 0,
-            last_block: 0,
-        };
+        let mut reserve_1 = create_reserve(&e);
+        reserve_1.config.c_factor = 0_7000000;
+        reserve_1.config.l_factor = 0_6000000;
+        reserve_1.data.b_rate = 1_100_000_000;
+        reserve_1.data.d_rate = 1_200_000_000;
+        reserve_1.config.index = 1;
+        setup_reserve(&e, &pool_id, &bombadil_id, &reserve_1);
 
-        e.as_contract(&pool_id, || {
-            storage.set_res_config(asset_id_0.clone(), reserve_config_0);
-            storage.set_res_data(asset_id_0.clone(), reserve_data_0);
-            storage.set_res_config(asset_id_1.clone(), reserve_config_1);
-            storage.set_res_data(asset_id_1.clone(), reserve_data_1);
-        });
-
-        // setup oracle
         let (oracle_id, oracle_client) = create_mock_oracle(&e);
-        oracle_client.set_price(&asset_id_0, &1000000_0000000);
-        oracle_client.set_price(&asset_id_1, &5_0000000);
+        oracle_client.set_price(&reserve_0.asset, &1000000_0000000);
+        oracle_client.set_price(&reserve_1.asset, &5_0000000);
 
-        // setup user (only collateralize asset 1)
+        // setup user (only collateralize reserve 1)
         e.as_contract(&pool_id, || {
-            storage.set_user_config(user_id.clone(), 0x0000000000000010)
+            storage.set_user_config(user_id.clone(), 0x0000000000000010);
+
+            TokenClient::new(&e, &reserve_1.config.b_token).mint(
+                &Signature::Invoker,
+                &0,
+                &user_id,
+                &collateral_amount,
+            );
         });
-        b_token_1.with_source_account(&bombadil).mint(
-            &Signature::Invoker,
-            &0,
-            &user_id,
-            &collateral_amount,
-        );
-        // load user
+
+        let pool_config = PoolConfig {
+            oracle: oracle_id,
+            bstop_rate: 0_100_000_000,
+            status: 0
+        };
+        
         let user_action = UserAction {
             asset: BytesN::from_array(&e, &[0u8; 32]),
             d_token_delta: 0,
             b_token_delta: 0,
         };
         e.as_contract(&pool_id, || {
-            let user_data = UserData::load(&e, &oracle_id, &user_id, &user_action);
+            let user_data = UserData::load(&e, &pool_config, &user_id, &user_action);
             assert_eq!(user_data.liability_base, 0);
             assert_eq!(user_data.collateral_base, 38_5000000);
         });
@@ -222,89 +185,50 @@ mod tests {
         let bombadil = e.accounts().generate_and_create();
         let bombadil_id = Identifier::Account(bombadil.clone());
 
-        // setup assets 0
-        let (asset_id_0, _asset_0) = create_token_contract(&e, &bombadil_id);
-        let (b_token_id_0, _b_token_0) = create_token_contract(&e, &bombadil_id);
-        let (d_token_id_0, d_token_0) = create_token_contract(&e, &bombadil_id);
-        let reserve_config_0 = ReserveConfig {
-            b_token: b_token_id_0,
-            d_token: d_token_id_0,
-            decimals: 7,
-            c_factor: 0_7500000,
-            l_factor: 0_5500000,
-            util: 0_8000000,
-            r_one: 0,
-            r_two: 0,
-            r_three: 0,
-            reactivity: 100,
-            index: 0,
-        };
-        let reserve_data_0 = ReserveData {
-            b_rate: 1_000_000_000,
-            d_rate: 1_100_000_000,
-            ir_mod: 0,
-            b_supply: 0,
-            d_supply: 0,
-            last_block: 0,
-        };
+        let mut reserve_0 = create_reserve(&e);
+        reserve_0.config.c_factor = 0_7500000;
+        reserve_0.config.l_factor = 0_5500000;
+        reserve_0.data.b_rate = 1_000_000_000;
+        reserve_0.data.d_rate = 1_100_000_000;
+        setup_reserve(&e, &pool_id, &bombadil_id, &reserve_0);
 
-        // setup asset 1
-        let (asset_id_1, _asset_1) = create_token_contract(&e, &bombadil_id);
-        let (b_token_id_1, _b_token_1) = create_token_contract(&e, &bombadil_id);
-        let (d_token_id_1, _d_token_1) = create_token_contract(&e, &bombadil_id);
-        let reserve_config_1 = ReserveConfig {
-            b_token: b_token_id_1,
-            d_token: d_token_id_1,
-            decimals: 7,
-            c_factor: 0_7000000,
-            l_factor: 0_6000000,
-            util: 0_7000000,
-            r_one: 0,
-            r_two: 0,
-            r_three: 0,
-            reactivity: 100,
-            index: 1,
-        };
-        let reserve_data_1 = ReserveData {
-            b_rate: 1_100_000_000,
-            d_rate: 1_200_000_000,
-            ir_mod: 0,
-            b_supply: 0,
-            d_supply: 0,
-            last_block: 0,
-        };
+        let mut reserve_1 = create_reserve(&e);
+        reserve_1.config.c_factor = 0_7000000;
+        reserve_1.config.l_factor = 0_6000000;
+        reserve_1.data.b_rate = 1_100_000_000;
+        reserve_1.data.d_rate = 1_200_000_000;
+        reserve_1.config.index = 1;
+        setup_reserve(&e, &pool_id, &bombadil_id, &reserve_1);
 
-        e.as_contract(&pool_id, || {
-            storage.set_res_config(asset_id_0.clone(), reserve_config_0);
-            storage.set_res_data(asset_id_0.clone(), reserve_data_0);
-            storage.set_res_config(asset_id_1.clone(), reserve_config_1);
-            storage.set_res_data(asset_id_1.clone(), reserve_data_1);
-        });
-
-        // setup oracle
         let (oracle_id, oracle_client) = create_mock_oracle(&e);
-        oracle_client.set_price(&asset_id_0, &10_0000000);
-        oracle_client.set_price(&asset_id_1, &0_0000001);
+        oracle_client.set_price(&reserve_0.asset, &10_0000000);
+        oracle_client.set_price(&reserve_1.asset, &0_0000001);
 
-        // setup user (only liability asset 1)
+        // setup user (only liability reserve 0)
         e.as_contract(&pool_id, || {
-            storage.set_user_config(user_id.clone(), 0x0000000000000001)
-        });
-        d_token_0.with_source_account(&bombadil).mint(
-            &Signature::Invoker,
-            &0,
-            &user_id,
-            &liability_amount,
-        );
+            storage.set_user_config(user_id.clone(), 0x0000000000000001);
 
-        // load user
+            TokenClient::new(&e, &reserve_0.config.d_token).mint(
+                &Signature::Invoker,
+                &0,
+                &user_id,
+                &liability_amount,
+            );
+        });
+
+        let pool_config = PoolConfig {
+            oracle: oracle_id,
+            bstop_rate: 0_100_000_000,
+            status: 0
+        };
+
         let user_action = UserAction {
             asset: BytesN::from_array(&e, &[0u8; 32]),
             d_token_delta: 0,
             b_token_delta: 0,
         };
         e.as_contract(&pool_id, || {
-            let user_data = UserData::load(&e, &oracle_id, &user_id, &user_action);
+            let user_data = UserData::load(&e, &pool_config, &user_id, &user_action);
             assert_eq!(user_data.liability_base, 240_0000000);
             assert_eq!(user_data.collateral_base, 0);
         });
@@ -322,83 +246,43 @@ mod tests {
         let bombadil = e.accounts().generate_and_create();
         let bombadil_id = Identifier::Account(bombadil.clone());
 
-        // setup assets 0
-        let (asset_id_0, _asset_0) = create_token_contract(&e, &bombadil_id);
-        let (b_token_id_0, _b_token_0) = create_token_contract(&e, &bombadil_id);
-        let (d_token_id_0, _d_token_0) = create_token_contract(&e, &bombadil_id);
-        let reserve_config_0 = ReserveConfig {
-            b_token: b_token_id_0,
-            d_token: d_token_id_0,
-            decimals: 7,
-            c_factor: 0_7500000,
-            l_factor: 0_5500000,
-            util: 0_8000000,
-            r_one: 0,
-            r_two: 0,
-            r_three: 0,
-            reactivity: 100,
-            index: 0,
-        };
-        let reserve_data_0 = ReserveData {
-            b_rate: 1_000_000_000,
-            d_rate: 1_100_000_000,
-            ir_mod: 0,
-            b_supply: 0,
-            d_supply: 0,
-            last_block: 0,
-        };
+        let mut reserve_0 = create_reserve(&e);
+        reserve_0.config.c_factor = 0_7500000;
+        reserve_0.config.l_factor = 0_5500000;
+        reserve_0.data.b_rate = 1_000_000_000;
+        reserve_0.data.d_rate = 1_100_000_000;
+        setup_reserve(&e, &pool_id, &bombadil_id, &reserve_0);
 
-        // setup asset 1
-        let (asset_id_1, _asset_1) = create_token_contract(&e, &bombadil_id);
-        let (b_token_id_1, _b_token_1) = create_token_contract(&e, &bombadil_id);
-        let (d_token_id_1, _d_token_1) = create_token_contract(&e, &bombadil_id);
-        let reserve_config_1 = ReserveConfig {
-            b_token: b_token_id_1,
-            d_token: d_token_id_1,
-            decimals: 7,
-            c_factor: 0_7000000,
-            l_factor: 0_6000000,
-            util: 0_7000000,
-            r_one: 0,
-            r_two: 0,
-            r_three: 0,
-            reactivity: 100,
-            index: 1,
-        };
-        let reserve_data_1 = ReserveData {
-            b_rate: 1_100_000_000,
-            d_rate: 1_200_000_000,
-            ir_mod: 0,
-            b_supply: 0,
-            d_supply: 0,
-            last_block: 0,
-        };
+        let mut reserve_1 = create_reserve(&e);
+        reserve_1.config.c_factor = 0_7000000;
+        reserve_1.config.l_factor = 0_6000000;
+        reserve_1.data.b_rate = 1_100_000_000;
+        reserve_1.data.d_rate = 1_200_000_000;
+        reserve_1.config.index = 1;
+        setup_reserve(&e, &pool_id, &bombadil_id, &reserve_1);
 
-        e.as_contract(&pool_id, || {
-            storage.set_res_config(asset_id_0.clone(), reserve_config_0);
-            storage.set_res_data(asset_id_0.clone(), reserve_data_0);
-            storage.set_res_config(asset_id_1.clone(), reserve_config_1);
-            storage.set_res_data(asset_id_1.clone(), reserve_data_1);
-        });
-
-        // setup oracle
         let (oracle_id, oracle_client) = create_mock_oracle(&e);
-        oracle_client.set_price(&asset_id_0, &10_0000000);
-        oracle_client.set_price(&asset_id_1, &5_0000000);
+        oracle_client.set_price(&reserve_0.asset, &10_0000000);
+        oracle_client.set_price(&reserve_1.asset, &5_0000000);
 
-        // setup user
+        // setup user with no positions
         e.as_contract(&pool_id, || {
             storage.set_user_config(user_id.clone(), 0x0000000000000000)
         });
 
-        // load user
+        let pool_config = PoolConfig {
+            oracle: oracle_id,
+            bstop_rate: 0_100_000_000,
+            status: 0
+        };
+
         let user_action = UserAction {
-            asset: asset_id_0,
+            asset: reserve_0.asset.clone(),
             d_token_delta: 0,
             b_token_delta: 3_0000000,
         };
         e.as_contract(&pool_id, || {
-            let user_data = UserData::load(&e, &oracle_id, &user_id, &user_action);
+            let user_data = UserData::load(&e, &pool_config, &user_id, &user_action);
             assert_eq!(user_data.liability_base, 0);
             assert_eq!(user_data.collateral_base, 22_5000000);
         });
@@ -416,102 +300,141 @@ mod tests {
         let bombadil = e.accounts().generate_and_create();
         let bombadil_id = Identifier::Account(bombadil.clone());
 
-        // setup assets 0
-        let (asset_id_0, _asset_0) = create_token_contract(&e, &bombadil_id);
-        let (b_token_id_0, b_token_0) = create_token_contract(&e, &bombadil_id);
-        let (d_token_id_0, _d_token_0) = create_token_contract(&e, &bombadil_id);
-        let reserve_config_0 = ReserveConfig {
-            b_token: b_token_id_0,
-            d_token: d_token_id_0,
-            decimals: 7,
-            c_factor: 0_7500000,
-            l_factor: 0_5500000,
-            util: 0_8000000,
-            r_one: 0,
-            r_two: 0,
-            r_three: 0,
-            reactivity: 100,
-            index: 0,
-        };
-        let reserve_data_0 = ReserveData {
-            b_rate: 1_000_000_000,
-            d_rate: 1_100_000_000,
-            ir_mod: 0,
-            b_supply: 0,
-            d_supply: 0,
-            last_block: 0,
-        };
+        let mut reserve_0 = create_reserve(&e);
+        reserve_0.config.c_factor = 0_7500000;
+        reserve_0.config.l_factor = 0_5500000;
+        reserve_0.data.b_rate = 1_000_000_000;
+        reserve_0.data.d_rate = 1_100_000_000;
+        setup_reserve(&e, &pool_id, &bombadil_id, &reserve_0);
 
-        // setup asset 1
-        let (asset_id_1, _asset_1) = create_token_contract(&e, &bombadil_id);
-        let (b_token_id_1, _b_token_1) = create_token_contract(&e, &bombadil_id);
-        let (d_token_id_1, d_token_1) = create_token_contract(&e, &bombadil_id);
-        let reserve_config_1 = ReserveConfig {
-            b_token: b_token_id_1,
-            d_token: d_token_id_1,
-            decimals: 7,
-            c_factor: 0_7000000,
-            l_factor: 0_6000000,
-            util: 0_7000000,
-            r_one: 0,
-            r_two: 0,
-            r_three: 0,
-            reactivity: 100,
-            index: 1,
-        };
-        let reserve_data_1 = ReserveData {
-            b_rate: 1_100_000_000,
-            d_rate: 1_200_000_000,
-            ir_mod: 0,
-            b_supply: 0,
-            d_supply: 0,
-            last_block: 0,
-        };
+        let mut reserve_1 = create_reserve(&e);
+        reserve_1.config.c_factor = 0_7000000;
+        reserve_1.config.l_factor = 0_6000000;
+        reserve_1.data.b_rate = 1_100_000_000;
+        reserve_1.data.d_rate = 1_200_000_000;
+        reserve_1.config.index = 1;
+        setup_reserve(&e, &pool_id, &bombadil_id, &reserve_1);
 
-        e.as_contract(&pool_id, || {
-            storage.set_res_config(asset_id_0.clone(), reserve_config_0);
-            storage.set_res_data(asset_id_0.clone(), reserve_data_0);
-            storage.set_res_config(asset_id_1.clone(), reserve_config_1);
-            storage.set_res_data(asset_id_1.clone(), reserve_data_1);
-        });
-
-        // setup oracle
         let (oracle_id, oracle_client) = create_mock_oracle(&e);
-        oracle_client.set_price(&asset_id_0, &10_0000000);
-        oracle_client.set_price(&asset_id_1, &5_0000000);
+        oracle_client.set_price(&reserve_0.asset, &10_0000000);
+        oracle_client.set_price(&reserve_1.asset, &5_0000000);
 
-        // setup user
+        // setup user (collateralize reserve 0 and borrow reserve 1)
         let liability_amount = 24_0000000;
         let collateral_amount = 25_0000000;
         let additional_liability = -5_0000000;
 
-        // collateralize asset 0 and borrow asset 1
         e.as_contract(&pool_id, || {
-            storage.set_user_config(user_id.clone(), 0x000000000000000A)
-        }); // ...001_010
-        b_token_0.with_source_account(&bombadil).mint(
-            &Signature::Invoker,
-            &0,
-            &user_id,
-            &collateral_amount,
-        );
-        d_token_1.with_source_account(&bombadil).mint(
-            &Signature::Invoker,
-            &0,
-            &user_id,
-            &liability_amount,
-        );
+            storage.set_user_config(user_id.clone(), 0x000000000000000A);
 
-        // load user
+            TokenClient::new(&e, &reserve_0.config.b_token).mint(
+                &Signature::Invoker,
+                &0,
+                &user_id,
+                &collateral_amount,
+            );
+            TokenClient::new(&e, &reserve_1.config.d_token).mint(
+                &Signature::Invoker,
+                &0,
+                &user_id,
+                &liability_amount,
+            );
+        });
+
+        let pool_config = PoolConfig {
+            oracle: oracle_id,
+            bstop_rate: 0_100_000_000,
+            status: 0
+        };
+
         let user_action = UserAction {
-            asset: asset_id_1,
+            asset: reserve_1.asset.clone(),
             d_token_delta: additional_liability,
             b_token_delta: 0,
         };
         e.as_contract(&pool_id, || {
-            let user_data = UserData::load(&e, &oracle_id, &user_id, &user_action);
+            let user_data = UserData::load(&e, &pool_config, &user_id, &user_action);
             assert_eq!(user_data.liability_base, 190_0000000);
             assert_eq!(user_data.collateral_base, 187_5000000);
+        });
+    }
+
+    #[test]
+    fn test_load_user_updates_rates() {
+        let e = Env::default();
+        let storage = StorageManager::new(&e);
+        let pool_id = generate_contract_id(&e);
+
+        let user = e.accounts().generate_and_create();
+        let user_id = Identifier::Account(user.clone());
+
+        let bombadil = e.accounts().generate_and_create();
+        let bombadil_id = Identifier::Account(bombadil.clone());
+
+        let mut reserve_0 = create_reserve(&e);
+        reserve_0.config.c_factor = 0_7500000;
+        reserve_0.config.l_factor = 0_5500000;
+        reserve_0.data.b_rate = 1_000_000_000;
+        reserve_0.data.d_rate = 1_100_000_000;
+        setup_reserve(&e, &pool_id, &bombadil_id, &reserve_0);
+
+        let mut reserve_1 = create_reserve(&e);
+        reserve_1.config.c_factor = 0_7000000;
+        reserve_1.config.l_factor = 0_6000000;
+        reserve_1.data.b_rate = 1_100_000_000;
+        reserve_1.data.d_rate = 1_200_000_000;
+        reserve_1.config.index = 1;
+        setup_reserve(&e, &pool_id, &bombadil_id, &reserve_1);
+
+        let (oracle_id, oracle_client) = create_mock_oracle(&e);
+        oracle_client.set_price(&reserve_0.asset, &10_0000000);
+        oracle_client.set_price(&reserve_1.asset, &5_0000000);
+
+        // setup user (collateralize reserve 0 and borrow reserve 1)
+        let liability_amount = 24_0000000;
+        let collateral_amount = 25_0000000;
+        let additional_liability = -5_0000000;
+
+        e.as_contract(&pool_id, || {
+            storage.set_user_config(user_id.clone(), 0x000000000000000A);
+
+            TokenClient::new(&e, &reserve_0.config.b_token).mint(
+                &Signature::Invoker,
+                &0,
+                &user_id,
+                &collateral_amount,
+            );
+            TokenClient::new(&e, &reserve_1.config.d_token).mint(
+                &Signature::Invoker,
+                &0,
+                &user_id,
+                &liability_amount,
+            );
+        });
+
+        e.ledger().set(LedgerInfo {
+            timestamp: 12345,
+            protocol_version: 1,
+            sequence_number: 123456,
+            network_passphrase: Default::default(),
+            base_reserve: 10,
+        });
+        
+        let pool_config = PoolConfig {
+            oracle: oracle_id,
+            bstop_rate: 0_100_000_000,
+            status: 0
+        };
+
+        let user_action = UserAction {
+            asset: reserve_1.asset.clone(),
+            d_token_delta: additional_liability,
+            b_token_delta: 0,
+        };
+        e.as_contract(&pool_id, || {
+            let user_data = UserData::load(&e, &pool_config, &user_id, &user_action);
+            assert_eq!(user_data.liability_base, 190_8570655);
+            assert_eq!(user_data.collateral_base, 188_1744480);
         });
     }
 }

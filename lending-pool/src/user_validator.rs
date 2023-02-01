@@ -1,10 +1,11 @@
 use fixed_point_math::FixedPoint;
 use soroban_auth::Identifier;
-use soroban_sdk::{Env};
+use soroban_sdk::Env;
 
 use crate::{
     constants::SCALAR_7,
-    user_data::{UserAction, UserData}, storage::PoolConfig,
+    storage::PoolConfig,
+    user_data::{UserAction, UserData},
 };
 
 /// Validate if a user is currently healthy given an incoming actions.

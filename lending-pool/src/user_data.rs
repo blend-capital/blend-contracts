@@ -8,7 +8,7 @@ use crate::{
     dependencies::{OracleClient, TokenClient},
     reserve::Reserve,
     reserve_usage::ReserveUsage,
-    storage::{PoolDataStore, StorageManager, PoolConfig},
+    storage::{PoolConfig, PoolDataStore, StorageManager},
 };
 
 /// A user's account data
@@ -47,7 +47,7 @@ impl UserData {
 
             let mut reserve = Reserve::load(&e, res_asset_address.clone());
             // do not write rate information to chain
-            reserve.update_rates(e, pool_config.bstop_rate); 
+            reserve.update_rates(e, pool_config.bstop_rate);
             let asset_to_base = oracle_client.get_price(&res_asset_address);
 
             if user_config.is_collateral(i) {
@@ -99,14 +99,13 @@ impl UserData {
 
 #[cfg(test)]
 mod tests {
-
-    use crate::{
-        testutils::{create_mock_oracle, generate_contract_id, create_reserve, setup_reserve},
+    use crate::testutils::{
+        create_mock_oracle, create_reserve, generate_contract_id, setup_reserve,
     };
 
     use super::*;
     use soroban_auth::Signature;
-    use soroban_sdk::testutils::{Accounts, LedgerInfo, Ledger};
+    use soroban_sdk::testutils::{Accounts, Ledger, LedgerInfo};
 
     #[test]
     fn test_load_user_only_collateral() {
@@ -156,9 +155,9 @@ mod tests {
         let pool_config = PoolConfig {
             oracle: oracle_id,
             bstop_rate: 0_100_000_000,
-            status: 0
+            status: 0,
         };
-        
+
         let user_action = UserAction {
             asset: BytesN::from_array(&e, &[0u8; 32]),
             d_token_delta: 0,
@@ -219,7 +218,7 @@ mod tests {
         let pool_config = PoolConfig {
             oracle: oracle_id,
             bstop_rate: 0_100_000_000,
-            status: 0
+            status: 0,
         };
 
         let user_action = UserAction {
@@ -273,7 +272,7 @@ mod tests {
         let pool_config = PoolConfig {
             oracle: oracle_id,
             bstop_rate: 0_100_000_000,
-            status: 0
+            status: 0,
         };
 
         let user_action = UserAction {
@@ -344,7 +343,7 @@ mod tests {
         let pool_config = PoolConfig {
             oracle: oracle_id,
             bstop_rate: 0_100_000_000,
-            status: 0
+            status: 0,
         };
 
         let user_action = UserAction {
@@ -419,11 +418,11 @@ mod tests {
             network_passphrase: Default::default(),
             base_reserve: 10,
         });
-        
+
         let pool_config = PoolConfig {
             oracle: oracle_id,
             bstop_rate: 0_100_000_000,
-            status: 0
+            status: 0,
         };
 
         let user_action = UserAction {

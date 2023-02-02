@@ -75,7 +75,7 @@ impl Reserve {
 
     /// Update the reserve rates based on the current chain state
     ///
-    /// Returns the amount of b_tokens mint the backstop module
+    /// Returns the amount of b_tokens to mint to the backstop module
     ///
     /// Does not store reserve data back to ledger
     pub fn update_rates(&mut self, e: &Env, bstop_rate: u64) -> i128 {

@@ -20,7 +20,6 @@ impl AuctionManagement for BadDebtAuction {
         let auction = Auction::load(e, auction_id);
         let pool_config = StorageManager::new(e).get_pool_config();
 
-        // get modifiers
         let block_dif = (e.ledger().sequence() - auction.auction_data.strt_block) as i128;
         let (ask_modifier, bid_modifier) = get_ask_bid_modifier(block_dif);
 
@@ -44,19 +43,17 @@ impl AuctionManagement for BadDebtAuction {
         }
     }
     fn fill(&self, e: &Env, invoker_id: Identifier) -> Result<(), PoolError> {
-        // perform bid token transfers
         self.auction
             .settle_bids(e, invoker_id.clone(), self.bid_amts.clone());
 
-        //perform ask token transfers
-        //TODO: decide whether these are b_token transfers or not
+        // TODO: perform ask token transfers
+
         Ok(())
     }
 }
 
 #[cfg(test)]
 mod tests {
-
     use crate::{
         auctions::base_auction::AuctionType,
         reserve_usage::ReserveUsage,
@@ -70,6 +67,7 @@ mod tests {
         testutils::{Accounts, Ledger, LedgerInfo},
         vec,
     };
+
     #[test]
     fn test_fill_bad_debt_auction() {
         let e = Env::default();
@@ -82,7 +80,6 @@ mod tests {
             base_reserve: 10,
         });
 
-        //setup pool and users
         let pool = generate_contract_id(&e);
         let pool_id = Identifier::Contract(pool.clone());
         let samwise = e.accounts().generate_and_create();
@@ -90,7 +87,6 @@ mod tests {
         let bombadil = e.accounts().generate_and_create();
         let bombadil_id = Identifier::Account(bombadil.clone());
 
-        //setup collateral and liabilities
         let liability_amount: i128 = 20_000_0000;
         let (asset_id_0, asset_0) = create_token_contract(&e, &bombadil_id);
         let (b_token_id_0, _b_token_0) = create_token_contract(&e, &bombadil_id);
@@ -117,7 +113,6 @@ mod tests {
             last_block: 0,
         };
 
-        // setup asset 1
         let (asset_id_1, asset_1) = create_token_contract(&e, &bombadil_id);
         let (b_token_id_1, _b_token_1) = create_token_contract(&e, &bombadil_id);
         let (d_token_id_1, d_token_1) = create_token_contract(&e, &bombadil_id);
@@ -143,7 +138,6 @@ mod tests {
             last_block: 0,
         };
 
-        // setup pool reserves
         e.as_contract(&pool, || {
             storage.set_res_config(asset_id_0.clone(), reserve_config_0);
             storage.set_res_data(asset_id_0.clone(), reserve_data_0);
@@ -151,7 +145,6 @@ mod tests {
             storage.set_res_data(asset_id_1.clone(), reserve_data_1);
         });
 
-        // setup user
         e.as_contract(&pool, || {
             let mut user_config = ReserveUsage::new(0);
             user_config.set_liability(0, true);
@@ -236,20 +229,23 @@ mod tests {
                 auction_data: data.clone(),
                 auction_id: samwise_id.clone(),
             };
+
             let bad_debt_auction = BadDebtAuction {
                 auction,
                 ask_amts: vec![&e, collateral_amount as u64, (collateral_amount / 2) as u64],
                 bid_amts: vec![&e, liability_amount as u64, (liability_amount / 2) as u64],
             };
-            //verify user state
+
+            // verify user state
             assert_eq!(d_token_0.balance(&samwise_id), liability_amount);
             assert_eq!(d_token_1.balance(&samwise_id), liability_amount / 2);
             assert_eq!(asset_0.balance(&samwise_id), liability_amount);
             assert_eq!(asset_1.balance(&samwise_id), liability_amount / 2);
-            //verify liquidation amount
+            // verify liquidation amount
             bad_debt_auction.fill(&e, samwise_id.clone()).unwrap();
             assert_eq!(d_token_0.balance(&samwise_id), 0);
             assert_eq!(d_token_1.balance(&samwise_id), 0);
+
             // TODO: verify collateral amount transfer once transfer is implemented
             // assert_eq!(asset_0.balance(&samwise_id), collateral_amount);
             // assert_eq!(asset_1.balance(&samwise_id), collateral_amount / 2);

@@ -138,7 +138,10 @@ mod tests {
         auctions::base_auction::AuctionType,
         reserve_usage::ReserveUsage,
         storage::{PoolConfig, ReserveConfig, ReserveData},
-        testutils::{create_mock_oracle, create_token_contract, generate_contract_id, create_reserve, setup_reserve},
+        testutils::{
+            create_mock_oracle, create_reserve, create_token_contract, generate_contract_id,
+            setup_reserve,
+        },
     };
 
     use super::*;
@@ -419,12 +422,7 @@ mod tests {
             user_config.set_liability(1, true);
             storage.set_user_config(samwise_id.clone(), user_config.config);
 
-            d_token_0.mint(
-                &Signature::Invoker,
-                &0,
-                &samwise_id,
-                &liability_amount,
-            );
+            d_token_0.mint(&Signature::Invoker, &0, &samwise_id, &liability_amount);
             d_token_1.mint(
                 &Signature::Invoker,
                 &0,
@@ -432,7 +430,6 @@ mod tests {
                 &(liability_amount / 2),
             );
         });
-
 
         asset_0.with_source_account(&bombadil).mint(
             &Signature::Invoker,

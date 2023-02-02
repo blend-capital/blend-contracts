@@ -2,7 +2,9 @@
 
 use crate::{
     constants::POOL_FACTORY,
-    dependencies::{BackstopClient, TokenClient, BACKSTOP_WASM, TOKEN_WASM}, reserve::Reserve, storage::{ReserveConfig, ReserveData, StorageManager, PoolDataStore},
+    dependencies::{BackstopClient, TokenClient, BACKSTOP_WASM, TOKEN_WASM},
+    reserve::Reserve,
+    storage::{PoolDataStore, ReserveConfig, ReserveData, StorageManager},
 };
 use rand::{thread_rng, RngCore};
 use soroban_auth::Identifier;
@@ -70,7 +72,7 @@ pub(crate) fn create_mock_pool_factory(e: &Env) -> MockPoolFactoryClient {
     let contract_id = BytesN::from_array(&e, &POOL_FACTORY);
     e.register_contract_wasm(&contract_id, mock_pool_factory::WASM);
     MockPoolFactoryClient::new(e, contract_id)
-} 
+}
 
 //***** Backstop ******
 
@@ -113,7 +115,12 @@ pub(crate) fn create_reserve(e: &Env) -> Reserve {
     }
 }
 
-pub(crate) fn setup_reserve(e: &Env, pool_address: &BytesN<32>, admin: &Identifier, reserve: &Reserve) {
+pub(crate) fn setup_reserve(
+    e: &Env,
+    pool_address: &BytesN<32>,
+    admin: &Identifier,
+    reserve: &Reserve,
+) {
     let storage = StorageManager::new(e);
     e.as_contract(pool_address, || {
         storage.set_res_config(reserve.asset.clone(), reserve.config.clone());

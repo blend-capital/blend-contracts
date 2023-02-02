@@ -85,6 +85,28 @@ impl ReserveUsage {
         (self.config >> to_res_shift) & 0b100 != 0
     }
 
+    /// Checks if any reserves are used as a liability
+    pub fn has_liability(&self) -> bool {
+        // ...001 for 126 bits with the two MSB as zeros
+        self.config & 0x9249249249249249249249249249249 != 0
+    }
+
+    /// Checks if any supplied reserves are used as collateral
+    pub fn has_collateral(&self) -> bool {
+        let mut max_index = self.config / 3;
+        if max_index > 42 {
+            max_index = 42;
+        }
+        let mut mut_config = self.config;
+        for _ in 0..max_index {
+            if mut_config & 0b110 == 0b010 {
+                return true;
+            }
+            mut_config = mut_config >> 3
+        }
+        false
+    }
+
     /// Set the user config based on the new borrowing status of the reserve at the res_index
     ///
     /// ### Arguments
@@ -140,6 +162,28 @@ mod tests {
     use rand::{thread_rng, RngCore};
 
     #[test]
+    fn test_user_config_zero() {
+        let user_config: ReserveUsage = ReserveUsage::new(0x0);
+        let res_index = 12;
+
+        let is_using = user_config.is_active_reserve(res_index);
+        let is_collateral_disabled = user_config.is_collateral_disabled(res_index);
+        let is_borrowing = user_config.is_liability(res_index);
+        let is_supply = user_config.is_supply(res_index);
+        let is_collateral = user_config.is_collateral(res_index);
+        let has_liability = user_config.has_liability();
+        let has_collateral = user_config.has_collateral();
+
+        assert_eq!(is_using, false);
+        assert_eq!(is_collateral_disabled, false);
+        assert_eq!(is_borrowing, false);
+        assert_eq!(is_supply, false);
+        assert_eq!(is_collateral, false);
+        assert_eq!(has_liability, false);
+        assert_eq!(has_collateral, false);
+    }
+
+    #[test]
     fn test_user_config_not_using() {
         let user_config: ReserveUsage = ReserveUsage::new(0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFF1FF);
         let res_index = 3;
@@ -149,12 +193,16 @@ mod tests {
         let is_borrowing = user_config.is_liability(res_index);
         let is_supply = user_config.is_supply(res_index);
         let is_collateral = user_config.is_collateral(res_index);
+        let has_liability = user_config.has_liability();
+        let has_collateral = user_config.has_collateral();
 
         assert_eq!(is_using, false);
         assert_eq!(is_collateral_disabled, false);
         assert_eq!(is_borrowing, false);
         assert_eq!(is_supply, false);
         assert_eq!(is_collateral, false);
+        assert_eq!(has_liability, true);
+        assert_eq!(has_collateral, false);
     }
 
     #[test]
@@ -167,12 +215,16 @@ mod tests {
         let is_borrowing = user_config.is_liability(res_index);
         let is_supply = user_config.is_supply(res_index);
         let is_collateral = user_config.is_collateral(res_index);
+        let has_liability = user_config.has_liability();
+        let has_collateral = user_config.has_collateral();
 
         assert_eq!(is_using, true);
         assert_eq!(is_collateral_disabled, false);
         assert_eq!(is_borrowing, true);
         assert_eq!(is_supply, true);
         assert_eq!(is_collateral, true);
+        assert_eq!(has_liability, true);
+        assert_eq!(has_collateral, true);
     }
 
     #[test]
@@ -185,17 +237,21 @@ mod tests {
         let is_borrowing = user_config.is_liability(res_index);
         let is_supply = user_config.is_supply(res_index);
         let is_collateral = user_config.is_collateral(res_index);
+        let has_liability = user_config.has_liability();
+        let has_collateral = user_config.has_collateral();
 
         assert_eq!(is_using, true);
         assert_eq!(is_collateral_disabled, false);
         assert_eq!(is_borrowing, true);
         assert_eq!(is_supply, false);
         assert_eq!(is_collateral, false);
+        assert_eq!(has_liability, true);
+        assert_eq!(has_collateral, false);
     }
 
     #[test]
     fn test_user_config_only_supply_collateral_enabled() {
-        let user_config: ReserveUsage = ReserveUsage::new(0x100000000000000000000000C0000001);
+        let user_config: ReserveUsage = ReserveUsage::new(0x10000000000000000000000000000000);
         let res_index = 41;
 
         let is_using = user_config.is_active_reserve(res_index);
@@ -203,17 +259,21 @@ mod tests {
         let is_borrowing = user_config.is_liability(res_index);
         let is_supply = user_config.is_supply(res_index);
         let is_collateral = user_config.is_collateral(res_index);
+        let has_liability = user_config.has_liability();
+        let has_collateral = user_config.has_collateral();
 
         assert_eq!(is_using, true);
         assert_eq!(is_collateral_disabled, false);
         assert_eq!(is_borrowing, false);
         assert_eq!(is_supply, true);
         assert_eq!(is_collateral, true);
+        assert_eq!(has_liability, false);
+        assert_eq!(has_collateral, true);
     }
 
     #[test]
     fn test_user_config_only_supply_collateral_disabled() {
-        let user_config: ReserveUsage = ReserveUsage::new(0x300000000000000000000000C0000001);
+        let user_config: ReserveUsage = ReserveUsage::new(0x30000000000000000000000000000000);
         let res_index = 41;
 
         let is_using = user_config.is_active_reserve(res_index);
@@ -221,12 +281,16 @@ mod tests {
         let is_borrowing = user_config.is_liability(res_index);
         let is_supply = user_config.is_supply(res_index);
         let is_collateral = user_config.is_collateral(res_index);
+        let has_liability = user_config.has_liability();
+        let has_collateral = user_config.has_collateral();
 
         assert_eq!(is_using, false);
         assert_eq!(is_collateral_disabled, true);
         assert_eq!(is_borrowing, false);
         assert_eq!(is_supply, true);
         assert_eq!(is_collateral, false);
+        assert_eq!(has_liability, false);
+        assert_eq!(has_collateral, false);
     }
 
     #[test]

@@ -16,36 +16,38 @@ pub struct BackstopLiquidationAuction {
     bid_amts: Vec<u64>,
 }
 impl AuctionManagement for BackstopLiquidationAuction {
-    fn load(
-        e: &Env,
-        auction_id: Identifier,
-        storage: &StorageManager,
-    ) -> BackstopLiquidationAuction {
+    fn load(e: &Env, auction_id: Identifier) -> BackstopLiquidationAuction {
         // load auction
-        let auction = Auction::load(e, auction_id, storage);
+        let auction = Auction::load(e, auction_id);
+        let storage = StorageManager::new(e);
+        let pool_config = storage.get_pool_config();
 
-        // get modifiers
         let block_dif = (e.ledger().sequence() - auction.auction_data.strt_block.clone()) as i128;
         let (ask_modifier, bid_modifier) = get_ask_bid_modifier(block_dif);
-        let storage = StorageManager::new(&e);
 
-        // get ask amounts
         let pool = e.current_contract();
-        let backstop_id = storage.get_oracle(); //TODO swap for function that gets backstop module id
+        let backstop_id = storage.get_backstop();
         let backstop_client = BackstopClient::new(&e, backstop_id);
         let (backstop_pool_balance, _, _) = backstop_client.p_balance(&pool);
-        // cast to u128 to avoid overflow
         // in backstop liquidation auctions all accrued interest is auctioned, so the ask_modifier is always 1
-        let mut ask_amts =
-            get_modified_accrued_interest(e, auction.auction_data.clone(), 1_000_0000);
+        let mut ask_amts = get_modified_accrued_interest(
+            e,
+            pool_config.bstop_rate,
+            auction.auction_data.clone(),
+            1_000_0000,
+        );
         ask_amts.append(&vec![
             &e,
             ((backstop_pool_balance as u128 * ask_modifier as u128 / 1_000_0000) as u64),
         ]);
 
-        // get bid amounts
-        let bid_amts =
-            get_modified_bad_debt_amts(e, auction.auction_data.clone(), bid_modifier, &storage);
+        let bid_amts = get_modified_bad_debt_amts(
+            e,
+            pool_config.bstop_rate,
+            auction.auction_data.clone(),
+            bid_modifier,
+        );
+
         BackstopLiquidationAuction {
             auction,
             ask_amts,
@@ -53,34 +55,24 @@ impl AuctionManagement for BackstopLiquidationAuction {
         }
     }
 
-    fn fill(
-        &self,
-        e: &Env,
-        invoker_id: Identifier,
-        storage: StorageManager,
-    ) -> Result<(), PoolError> {
-        //perform bid token transfers
+    fn fill(&self, e: &Env, invoker_id: Identifier) -> Result<(), PoolError> {
+        // perform bid token transfers
         self.auction
-            .settle_bids(e, invoker_id.clone(), &storage, self.bid_amts.clone());
+            .settle_bids(e, invoker_id.clone(), self.bid_amts.clone());
 
-        //perform ask token transfers
-        let backstop_id = storage.get_oracle(); //TODO swap for function that gets backstop module id
+        // perform ask token transfers
+        let backstop_id = StorageManager::new(e).get_backstop();
         let backstop_client = BackstopClient::new(&e, backstop_id);
-        //we need to create a new ask_amt vec in order to make it mutable
         let mut ask_amts = self.ask_amts.clone();
-        // cast to u128 to avoid overflow
-        //NOTE: think there's a bug with pop_back - TODO ask mootz
         backstop_client.draw(&ask_amts.pop_back().unwrap().unwrap(), &invoker_id.clone());
-        //TODO: decide whether these are bToken transfers or not
 
+        // TODO: decide whether these are bToken transfers or not
         Ok(())
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use std::println;
-
     use crate::{
         auctions::base_auction::AuctionType,
         reserve_usage::ReserveUsage,
@@ -291,7 +283,7 @@ mod tests {
             //reset gas
             e.budget().reset();
             //set backstop as oracle for now - TODO:implement backstop address storage
-            storage.set_oracle(backstop);
+            storage.set_backstop(backstop);
             let auction = Auction {
                 auction_data: data.clone(),
                 auction_id: samwise_id.clone(),
@@ -318,9 +310,7 @@ mod tests {
             //reset gas
             e.budget().reset();
             //verify user and backstop state post fill
-            backstop_liq_auction
-                .fill(&e, samwise_id.clone(), storage)
-                .unwrap();
+            backstop_liq_auction.fill(&e, samwise_id.clone()).unwrap();
             assert_eq!(d_token_0.balance(&samwise_id), 0);
             assert_eq!(d_token_1.balance(&samwise_id), 0);
             // add accrued interest asset transfer checks when they're implemented

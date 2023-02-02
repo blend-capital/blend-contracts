@@ -8,7 +8,8 @@ use soroban_sdk::{
 
 mod common;
 use crate::common::{
-    create_mock_oracle, create_wasm_lending_pool, pool_helper, PoolError, TokenClient,
+    create_mock_oracle, create_wasm_lending_pool, generate_contract_id, pool_helper, PoolError,
+    TokenClient,
 };
 
 #[test]
@@ -23,9 +24,15 @@ fn test_pool_borrow_no_collateral_panics() {
 
     let (mock_oracle, mock_oracle_client) = create_mock_oracle(&e);
 
+    let backstop_address = generate_contract_id(&e);
     let (pool, pool_client) = create_wasm_lending_pool(&e);
     let pool_id = Identifier::Contract(pool.clone());
-    pool_client.initialize(&bombadil_id, &mock_oracle);
+    pool_client.initialize(
+        &bombadil_id,
+        &mock_oracle,
+        &backstop_address,
+        &0_200_000_000,
+    );
     pool_client.with_source_account(&bombadil).set_status(&0);
 
     let (asset1_id, _, _) = pool_helper::setup_reserve(&e, &pool_id, &pool_client, &bombadil);
@@ -60,9 +67,15 @@ fn test_pool_borrow_bad_hf_panics() {
 
     let (mock_oracle, mock_oracle_client) = create_mock_oracle(&e);
 
+    let backstop_address = generate_contract_id(&e);
     let (pool, pool_client) = create_wasm_lending_pool(&e);
     let pool_id = Identifier::Contract(pool.clone());
-    pool_client.initialize(&bombadil_id, &mock_oracle);
+    pool_client.initialize(
+        &bombadil_id,
+        &mock_oracle,
+        &backstop_address,
+        &0_200_000_000,
+    );
     pool_client.with_source_account(&bombadil).set_status(&0);
 
     let (asset1_id, b_token1_id, _) =
@@ -119,9 +132,15 @@ fn test_pool_borrow_good_hf_borrows() {
 
     let (mock_oracle, mock_oracle_client) = create_mock_oracle(&e);
 
+    let backstop_address = generate_contract_id(&e);
     let (pool, pool_client) = create_wasm_lending_pool(&e);
     let pool_id = Identifier::Contract(pool.clone());
-    pool_client.initialize(&bombadil_id, &mock_oracle);
+    pool_client.initialize(
+        &bombadil_id,
+        &mock_oracle,
+        &backstop_address,
+        &0_200_000_000,
+    );
     pool_client.with_source_account(&bombadil).set_status(&0);
 
     let (asset1_id, b_token1_id, d_token1_id) =
@@ -177,9 +196,15 @@ fn test_pool_borrow_on_ice_panics() {
 
     let (mock_oracle, mock_oracle_client) = create_mock_oracle(&e);
 
+    let backstop_address = generate_contract_id(&e);
     let (pool, pool_client) = create_wasm_lending_pool(&e);
     let pool_id = Identifier::Contract(pool.clone());
-    pool_client.initialize(&bombadil_id, &mock_oracle);
+    pool_client.initialize(
+        &bombadil_id,
+        &mock_oracle,
+        &backstop_address,
+        &0_200_000_000,
+    );
     pool_client.with_source_account(&bombadil).set_status(&1);
 
     let (asset1_id, b_token1_id, _) =
@@ -236,9 +261,15 @@ fn test_pool_borrow_frozen_panics() {
 
     let (mock_oracle, mock_oracle_client) = create_mock_oracle(&e);
 
+    let backstop_address = generate_contract_id(&e);
     let (pool, pool_client) = create_wasm_lending_pool(&e);
     let pool_id = Identifier::Contract(pool.clone());
-    pool_client.initialize(&bombadil_id, &mock_oracle);
+    pool_client.initialize(
+        &bombadil_id,
+        &mock_oracle,
+        &backstop_address,
+        &0_200_000_000,
+    );
     pool_client.with_source_account(&bombadil).set_status(&1);
 
     let (asset1_id, b_token1_id, _) =
@@ -298,9 +329,15 @@ fn test_pool_borrow_one_stroop() {
 
     let (mock_oracle, mock_oracle_client) = create_mock_oracle(&e);
 
+    let backstop_address = generate_contract_id(&e);
     let (pool, pool_client) = create_wasm_lending_pool(&e);
     let pool_id = Identifier::Contract(pool.clone());
-    pool_client.initialize(&bombadil_id, &mock_oracle);
+    pool_client.initialize(
+        &bombadil_id,
+        &mock_oracle,
+        &backstop_address,
+        &0_200_000_000,
+    );
     pool_client.with_source_account(&bombadil).set_status(&0);
 
     let (asset1_id, b_token1_id, d_token1_id) =
@@ -327,7 +364,7 @@ fn test_pool_borrow_one_stroop() {
     // supply
     let minted_btokens = pool_client
         .with_source_account(&samwise)
-        .supply(&asset1_id, &1_0000000);
+        .supply(&asset1_id, &2_0000000);
     assert_eq!(b_token1_client.balance(&samwise_id), minted_btokens);
 
     // borrow
@@ -355,11 +392,11 @@ fn test_pool_borrow_one_stroop() {
             .borrow(&asset1_id, &borrow_amount, &samwise_id);
     assert_eq!(
         asset1_client.balance(&samwise_id),
-        10_0000000 - 1_0000000 + 0_5355000 + 0_0000001
+        10_0000000 - 2_0000000 + 0_5355000 + 0_0000001
     );
     assert_eq!(
         asset1_client.balance(&pool_id),
-        1_0000000 - 0_5355000 - 0_0000001
+        2_0000000 - 0_5355000 - 0_0000001
     );
     assert_eq!(
         d_token1_client.balance(&samwise_id),

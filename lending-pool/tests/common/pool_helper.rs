@@ -1,4 +1,4 @@
-use crate::common::create_token;
+use crate::common::{create_token, generate_contract_id};
 use soroban_auth::Identifier;
 use soroban_sdk::{AccountId, BytesN, Env};
 

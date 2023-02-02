@@ -5,7 +5,7 @@ use crate::{
     constants::BLND_TOKEN,
     dependencies::{BackstopClient, OracleClient, TokenClient},
     errors::PoolError,
-    storage::{AuctionData, PoolDataStore, StorageManager},
+    storage::{AuctionData, PoolConfig, PoolDataStore, StorageManager},
 };
 use cast::i128;
 use soroban_auth::{Identifier, Signature};
@@ -18,25 +18,24 @@ pub struct AccruedInterestAuction {
 }
 
 impl AuctionManagement for AccruedInterestAuction {
-    fn load(e: &Env, auction_id: Identifier, storage: &StorageManager) -> AccruedInterestAuction {
-        // load auction
-        let auction = Auction::load(e, auction_id, storage);
+    fn load(e: &Env, auction_id: Identifier) -> AccruedInterestAuction {
+        let auction = Auction::load(e, auction_id);
+        let pool_config = StorageManager::new(e).get_pool_config();
 
-        // get modifiers
         let block_dif = i128(e.ledger().sequence() - auction.auction_data.strt_block.clone());
         let (ask_modifier, bid_modifier) = get_ask_bid_modifier(block_dif);
 
-        // get ask amounts
-        let ask_amts: Vec<u64> =
-            get_modified_accrued_interest(e, auction.auction_data.clone(), ask_modifier);
-
-        // get bid amounts
-        // cast to u128 to avoid overflow
+        let ask_amts: Vec<u64> = get_modified_accrued_interest(
+            e,
+            pool_config.bstop_rate,
+            auction.auction_data.clone(),
+            ask_modifier,
+        );
         let accrued_interest_price = (get_target_accrued_interest_price(
             e,
+            &pool_config.oracle,
             auction.auction_data.clone(),
             ask_amts.clone(),
-            &storage,
         ) as u128
             * bid_modifier as u128
             / 1_000_0000) as u64;
@@ -48,14 +47,9 @@ impl AuctionManagement for AccruedInterestAuction {
         }
     }
 
-    fn fill(
-        &self,
-        e: &Env,
-        invoker_id: Identifier,
-        storage: StorageManager,
-    ) -> Result<(), PoolError> {
+    fn fill(&self, e: &Env, invoker_id: Identifier) -> Result<(), PoolError> {
         // perform bid token transfers
-        let backstop_id = storage.get_oracle(); //TODO swap for function that gets backstop module id
+        let backstop_id = StorageManager::new(e).get_backstop();
         let backstop_client = BackstopClient::new(&e, backstop_id);
 
         // TODO: Make more seamless with "auth-next" by pre-authorizing the transfer taking place
@@ -82,13 +76,11 @@ impl AuctionManagement for AccruedInterestAuction {
 
 fn get_target_accrued_interest_price(
     e: &Env,
+    oracle_address: &BytesN<32>,
     auction_data: AuctionData,
     ask_amts: Vec<u64>,
-    storage: &StorageManager,
 ) -> u64 {
-    let oracle_address = storage.get_oracle();
     let oracle = OracleClient::new(e, oracle_address);
-    //cast to u128 to avoid overflow
     let mut interest_value: u128 = 0;
     for i in 0..auction_data.ask_ids.len() {
         let interest_asset_price = oracle.get_price(&auction_data.ask_ids.get(i).unwrap().unwrap());
@@ -268,7 +260,7 @@ mod tests {
         e.as_contract(&pool, || {
             let bid_modifier = 750_0000;
             //set backstop as oracle for now - TODO:implement backstop address storage
-            storage.set_oracle(backstop);
+            storage.set_backstop(backstop);
             let auction = Auction {
                 auction_data: data.clone(),
                 auction_id: samwise_id.clone(),
@@ -283,9 +275,7 @@ mod tests {
             assert_eq!(backstop_token_client.balance(&samwise_id), 4_000_000_0000);
             let (backstop_balance, _, _) = backstop_client.p_balance(&pool);
             assert_eq!(backstop_balance, 0);
-            accrued_int_auction
-                .fill(&e, samwise_id.clone(), storage)
-                .unwrap();
+            accrued_int_auction.fill(&e, samwise_id.clone()).unwrap();
 
             //verify state post fill
             //test collateral transfers when they are implemented

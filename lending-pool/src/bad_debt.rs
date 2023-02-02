@@ -46,6 +46,8 @@ pub fn transfer_bad_debt_to_backstop(e: &Env, user: &Identifier) -> Result<(), P
         let user_balance = d_token_client.balance(user);
         d_token_client.clawback(&Signature::Invoker, &0, &user, &user_balance);
         d_token_client.mint(&Signature::Invoker, &0, &backstop, &user_balance);
+
+        reserve.set_data(&e);
     }
 
     Ok(())
@@ -60,11 +62,20 @@ mod tests {
 
     use super::*;
     use soroban_auth::Signature;
-    use soroban_sdk::testutils::Accounts;
+    use soroban_sdk::testutils::{Accounts, Ledger, LedgerInfo};
 
     #[test]
     fn test_transfer_bad_debt_happy_path() {
         let e = Env::default();
+
+        e.ledger().set(LedgerInfo {
+            timestamp: 1500000000,
+            protocol_version: 1,
+            sequence_number: 123,
+            network_passphrase: Default::default(),
+            base_reserve: 10,
+        });
+
         let storage = StorageManager::new(&e);
         let pool_id = generate_contract_id(&e);
         let backstop = generate_contract_id(&e);
@@ -112,6 +123,11 @@ mod tests {
             assert_eq!(d_token_0.balance(&backstop_id), liability_amount_0);
             assert_eq!(d_token_1.balance(&user_id), 0);
             assert_eq!(d_token_1.balance(&backstop_id), liability_amount_1);
+
+            let reserve_0_data = storage.get_res_data(reserve_0.asset);
+            let reserve_1_data = storage.get_res_data(reserve_1.asset);
+            assert_eq!(reserve_0_data.last_block, 123);
+            assert_eq!(reserve_1_data.last_block, 123);
         });
     }
 

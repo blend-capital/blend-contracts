@@ -3,6 +3,7 @@
 #[cfg(any(test, feature = "testutils"))]
 extern crate std;
 
+mod bad_debt;
 mod constants;
 mod emissions_distributor;
 mod emissions_manager;

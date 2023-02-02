@@ -1,4 +1,5 @@
 use crate::{
+    bad_debt::transfer_bad_debt_to_backstop,
     constants::EMITTER,
     dependencies::{BackstopClient, EmitterClient, TokenClient},
     emissions_distributor,
@@ -108,7 +109,18 @@ pub trait PoolTrait {
         on_behalf_of: Identifier,
     ) -> Result<i128, PoolError>;
 
-    /// Pool status is changed to 'pool_status" if invoker is the admin
+    /// Transfer bad debt from a user to the backstop module. Debt is considered "bad" if the user
+    /// no longer has any collateral posted. All collateralized reserves for the user must be
+    /// liquidated before debt can be transferred to the backstop.
+    ///
+    /// ### Arguments
+    /// * `user` - The user who currently possesses bad debt
+    ///
+    /// ### Errors
+    /// If the user has collateral posted
+    fn xfer_bdebt(e: Env, user: Identifier) -> Result<(), PoolError>;
+
+    /// Pool status is changed to "pool_status" if invoker is the admin
     /// * 0 = active
     /// * 1 = on ice
     /// * 2 = frozen
@@ -317,7 +329,7 @@ impl PoolTrait for Pool {
             b_token_delta: -to_burn,
             d_token_delta: 0,
         };
-        let is_healthy = validate_hf(&e, &pool_config.oracle, &invoker_id, &user_action);
+        let is_healthy = validate_hf(&e, &pool_config, &invoker_id, &user_action);
         if !is_healthy {
             return Err(PoolError::InvalidHf);
         }
@@ -366,7 +378,7 @@ impl PoolTrait for Pool {
             b_token_delta: 0,
             d_token_delta: to_mint,
         };
-        let is_healthy = validate_hf(&e, &pool_config.oracle, &invoker_id, &user_action);
+        let is_healthy = validate_hf(&e, &pool_config, &invoker_id, &user_action);
         if !is_healthy {
             return Err(PoolError::InvalidHf);
         }
@@ -410,6 +422,10 @@ impl PoolTrait for Pool {
         let repay_result = execute_repay(&e, reserve, amount, invoker_id, &on_behalf_of);
 
         Ok(repay_result)
+    }
+
+    fn xfer_bdebt(e: Env, user: Identifier) -> Result<(), PoolError> {
+        transfer_bad_debt_to_backstop(&e, &user)
     }
 
     fn set_status(e: Env, pool_status: u32) -> Result<(), PoolError> {

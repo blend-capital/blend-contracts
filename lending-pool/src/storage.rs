@@ -99,6 +99,13 @@ pub struct UserReserveKey {
     reserve_id: u32,
 }
 
+#[derive(Clone)]
+#[contracttype]
+pub struct AuctionKey {
+    user: Identifier, // the Identifier whose assets are involved in the auction
+    auct_type: u32,   // the type of auction taking place
+}
+
 // TODO: See if we can avoid publishing this
 #[derive(Clone)]
 #[contracttype]
@@ -128,6 +135,8 @@ pub enum PoolDataKey {
     UserConfig(Identifier),
     // The emission information for a reserve asset for a user
     UserEmis(UserReserveKey),
+    // The auction's data
+    Auction(AuctionKey),
     // A list of auctions and their associated data
     AuctData(Identifier),
 }
@@ -330,7 +339,43 @@ pub trait PoolDataStore {
     /// * `config` - The pool's emission configuration
     fn set_pool_emission_config(&self, config: PoolEmissionConfig);
 
+    /******** Auction *********/
+
+    /// Fetch the starting block for an auction
+    ///
+    /// ### Arguments
+    /// * `auction_type` - The type of auction
+    /// * `user` - The user who is auctioning off assets
+    ///
+    /// ### Errors
+    /// If the auction does not exist
+    fn get_auction(&self, auction_type: u32, user: Identifier) -> u32;
+
+    /// Check if an auction exists for the given type and user
+    ///
+    /// ### Arguments
+    /// * `auction_type` - The type of auction
+    /// * `user` - The user who is auctioning off assets
+    fn has_auction(&self, auction_type: u32, user: Identifier) -> bool;
+
+    /// Set the the starting block for an auction
+    ///
+    /// ### Arguments
+    /// * `auction_type` - The type of auction
+    /// * `user` - The user who is auctioning off assets
+    /// * `start_block` - The starting block for the auction
+    fn set_auction(&self, auction_type: u32, user: Identifier, start_block: u32);
+
+    /// Remove an auction
+    ///
+    /// ### Arguments
+    /// * `auction_type` - The type of auction
+    /// * `user` - The user who is auctioning off assets
+    fn del_auction(&self, auction_type: u32, user: Identifier);
+
     /******** Auction Data *********/
+
+    // TODO: Remove once auction code has been ported
 
     /// Fetch the data for an auction
     ///
@@ -608,6 +653,46 @@ impl PoolDataStore for StorageManager {
     }
 
     /********** Auctions ***********/
+
+    fn get_auction(&self, auction_type: u32, user: Identifier) -> u32 {
+        let key = PoolDataKey::Auction(AuctionKey {
+            user,
+            auct_type: auction_type,
+        });
+        self.env()
+            .storage()
+            .get::<PoolDataKey, u32>(key)
+            .unwrap()
+            .unwrap()
+    }
+
+    fn has_auction(&self, auction_type: u32, user: Identifier) -> bool {
+        let key = PoolDataKey::Auction(AuctionKey {
+            user,
+            auct_type: auction_type,
+        });
+        self.env().storage().has(key)
+    }
+
+    fn set_auction(&self, auction_type: u32, user: Identifier, start_block: u32) {
+        let key = PoolDataKey::Auction(AuctionKey {
+            user,
+            auct_type: auction_type,
+        });
+        self.env()
+            .storage()
+            .set::<PoolDataKey, u32>(key, start_block)
+    }
+
+    fn del_auction(&self, auction_type: u32, user: Identifier) {
+        let key = PoolDataKey::Auction(AuctionKey {
+            user,
+            auct_type: auction_type,
+        });
+        self.env().storage().remove(key)
+    }
+
+    // TODO: Old
 
     fn get_auction_data(&self, auction_id: Identifier) -> AuctionData {
         let key = PoolDataKey::AuctData(auction_id);

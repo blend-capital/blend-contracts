@@ -12,6 +12,24 @@ use crate::{
     user_data::{UserAction, UserData},
 };
 
+use super::auction_v2::{AuctionQuote, AuctionV2};
+
+pub fn verify_create_user_liq_auction(e: &Env, auction: &AuctionV2) -> Result<(), PoolError> {
+    panic!("not impl");
+}
+
+pub fn calc_fill_user_liq_auction(e: &Env, auction: &AuctionV2, block: u32) -> AuctionQuote {
+    panic!("not impl");
+}
+
+pub fn fill_user_liq_auction(e: &Env, auction: &AuctionV2, filler: Identifier) -> AuctionQuote {
+    let auction_quote = calc_fill_user_liq_auction(e, auction, e.ledger().sequence());
+
+    panic!("not impl");
+}
+
+// TODO: Port code into verify, calc, and fill functions
+
 pub struct UserLiquidationAuction {
     auction: Auction,
     ask_amts: Vec<u64>,

@@ -1,4 +1,5 @@
 use crate::{
+    auctions::auction_v2::{AuctionQuote, AuctionV2},
     bad_debt::transfer_bad_debt_to_backstop,
     constants::EMITTER,
     dependencies::{BackstopClient, EmitterClient, TokenClient},
@@ -181,6 +182,61 @@ pub trait PoolTrait {
         asset: BytesN<32>,
         token_type: u32,
     ) -> Result<Option<(ReserveEmissionsConfig, ReserveEmissionsData)>, PoolError>;
+
+    /***** Auction / Liquidation Functions *****/
+
+    /// Fetch an auction from the ledger. Returns the starting block of the auction
+    /// if it exists and panics otherwise.
+    ///
+    /// ### Arguments
+    /// * `auction_type` - The type of auction
+    /// * `user` - The Identifier involved in the auction
+    ///
+    /// ### Errors
+    /// If the auction does not exist
+    fn get_auct(e: Env, auction_type: u32, user: Identifier) -> Result<u32, PoolError>;
+
+    /// Creates a new auction
+    ///
+    /// Returns the starting block for the auction
+    ///
+    /// ### Arguments
+    /// * `auction_type` - The type of auction
+    /// * `user` - The Identifier involved in the auction
+    ///
+    /// ### Errors
+    /// If the auction was unable to be created
+    fn new_auct(e: Env, auction_type: u32, user: Identifier) -> Result<u32, PoolError>;
+
+    /// Preview an auction fill action
+    ///
+    /// Returns the AuctionQuote
+    ///
+    /// ### Arguments
+    /// * `auction_type` - The type of auction
+    /// * `user` - The Identifier involved in the auction
+    /// * `block` - The block number to preview the  auction fill action at
+    ///
+    /// ### Errors
+    /// If the auction does not exist
+    fn prev_auct(
+        e: Env,
+        auction_type: u32,
+        user: Identifier,
+        block: u32,
+    ) -> Result<AuctionQuote, PoolError>;
+
+    /// Fill the auction from the invoker
+    ///
+    /// Returns the executed AuctionQuote
+    ///
+    /// ### Arguments
+    /// * `auction_type` - The type of auction
+    /// * `user` - The Identifier involved in the auction
+    ///
+    /// ### Errors
+    /// If the auction does not exist of if the fill action was not successful
+    fn fill_auct(e: Env, auction_type: u32, user: Identifier) -> Result<AuctionQuote, PoolError>;
 }
 
 #[contractimpl]
@@ -519,6 +575,34 @@ impl PoolTrait for Pool {
         }
 
         Err(PoolError::BadRequest)
+    }
+
+    /***** Auction/Liquidation Functions *****/
+
+    fn get_auct(e: Env, auction_type: u32, user: Identifier) -> Result<u32, PoolError> {
+        Ok(StorageManager::new(&e).get_auction(auction_type, user))
+    }
+
+    fn new_auct(e: Env, auction_type: u32, user: Identifier) -> Result<u32, PoolError> {
+        let auction = AuctionV2::create(&e, auction_type, user).unwrap();
+        Ok(auction.block)
+    }
+
+    fn prev_auct(
+        e: Env,
+        auction_type: u32,
+        user: Identifier,
+        block: u32,
+    ) -> Result<AuctionQuote, PoolError> {
+        let auction = AuctionV2::load(&e, auction_type, user);
+        Ok(auction.preview_fill(&e, block))
+    }
+
+    fn fill_auct(e: Env, auction_type: u32, user: Identifier) -> Result<AuctionQuote, PoolError> {
+        let auction = AuctionV2::load(&e, auction_type, user);
+        let invoker = e.invoker();
+        let invoker_id = Identifier::from(invoker);
+        auction.fill(&e, invoker_id)
     }
 }
 

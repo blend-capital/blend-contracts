@@ -9,6 +9,8 @@ use crate::{
 use soroban_auth::Identifier;
 use soroban_sdk::{Env, Vec};
 
+// TODO: Verify code is not required and remove if so
+
 pub struct BadDebtAuction {
     auction: Auction,
     ask_amts: Vec<u64>,

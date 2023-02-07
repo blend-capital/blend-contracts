@@ -4,11 +4,11 @@ use crate::{
 };
 use cast::i128;
 use fixed_point_math::FixedPoint;
-use soroban_auth::{Identifier};
+use soroban_auth::Identifier;
 use soroban_sdk::{contracttype, BytesN, Env, Vec};
 
 use super::{
-    accrued_interest_auction::{
+    backstop_interest_auction::{
         calc_fill_interest_auction, fill_interest_auction, verify_create_interest_auction,
     },
     backstop_liquidation_auction::{
@@ -42,8 +42,8 @@ impl AuctionType {
 #[derive(Clone)]
 #[contracttype]
 pub struct AuctionQuote {
-    send: Vec<(BytesN<32>, i128)>,
-    receive: Vec<(BytesN<32>, i128)>,
+    pub send: Vec<(BytesN<32>, i128)>,
+    pub receive: Vec<(BytesN<32>, i128)>,
 }
 
 // TODO: Rename symbol to Auction once auction functionality is fully ported
@@ -110,11 +110,11 @@ impl AuctionV2 {
     ///
     /// ### Errors
     /// If the auction does not exist
-    pub fn preview_fill(&self, e: &Env, block: u32) -> AuctionQuote {
+    pub fn preview_fill(&self, e: &Env) -> AuctionQuote {
         match self.auction_type {
-            AuctionType::UserLiquidation => calc_fill_user_liq_auction(e, &self, block),
-            AuctionType::BackstopLiquidation => calc_fill_backstop_liq_auction(e, &self, block),
-            AuctionType::InterestAuction => calc_fill_interest_auction(e, &self, block),
+            AuctionType::UserLiquidation => calc_fill_user_liq_auction(e, &self),
+            AuctionType::BackstopLiquidation => calc_fill_backstop_liq_auction(e, &self),
+            AuctionType::InterestAuction => calc_fill_interest_auction(e, &self),
         }
     }
 
@@ -139,7 +139,7 @@ impl AuctionV2 {
     }
 
     /// Get the current fill modifiers for the auction
-    /// 
+    ///
     /// Returns a tuple of i128's => (send to modifier, receive from modifier) scaled
     /// to 7 decimal places
     pub fn get_fill_modifiers(&self, e: &Env) -> (i128, i128) {
@@ -152,11 +152,16 @@ impl AuctionV2 {
             send_to_mod = 0;
             receive_from_mod = 1_0000000;
         } else if block_dif > 200_0000000 {
-            send_to_mod = 2_0000000 - block_dif.fixed_mul_floor(per_block_scalar, 1_0000000).unwrap();
+            send_to_mod = 2_0000000
+                - block_dif
+                    .fixed_mul_floor(per_block_scalar, 1_0000000)
+                    .unwrap();
             receive_from_mod = 1_0000000;
         } else {
             send_to_mod = 1_000_0000;
-            receive_from_mod = block_dif.fixed_mul_floor(per_block_scalar, 1_0000000).unwrap();
+            receive_from_mod = block_dif
+                .fixed_mul_floor(per_block_scalar, 1_0000000)
+                .unwrap();
         };
         (send_to_mod, receive_from_mod)
     }
@@ -167,7 +172,7 @@ mod tests {
     use crate::testutils::generate_contract_id;
 
     use super::*;
-    use soroban_sdk::testutils::{LedgerInfo, Ledger};
+    use soroban_sdk::testutils::{Ledger, LedgerInfo};
 
     #[test]
     fn test_get_fill_modifiers() {

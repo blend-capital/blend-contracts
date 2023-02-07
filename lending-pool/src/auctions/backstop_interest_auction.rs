@@ -57,8 +57,8 @@ pub fn calc_fill_interest_auction(e: &Env, auction: &AuctionV2) -> AuctionQuote 
         let b_token_client = TokenClient::new(e, reserve.config.b_token.clone());
         let b_token_balance = b_token_client.balance(&bkstp_id) + to_mint_bkstp;
         if b_token_balance > 0 {
-            let asset_collateral = reserve.to_effective_asset_from_b_token(b_token_balance);
-            interest_value += asset_collateral
+            let asset_balance = reserve.to_asset_from_b_token(b_token_balance);
+            interest_value += asset_balance
                 .fixed_mul_floor(i128(asset_to_base), SCALAR_7)
                 .unwrap();
             let receive_from_amount = receive_from_mod

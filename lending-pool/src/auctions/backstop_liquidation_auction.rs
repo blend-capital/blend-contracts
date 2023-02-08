@@ -12,7 +12,7 @@ use soroban_sdk::{vec, Env, Vec};
 
 use super::auction_v2::{AuctionQuote, AuctionV2};
 
-pub fn verify_create_backstop_liq_auction(e: &Env, auction: &AuctionV2) -> Result<(), PoolError> {
+pub fn create_backstop_liq_auction(e: &Env) -> Result<AuctionV2, PoolError> {
     panic!("not impl");
 }
 

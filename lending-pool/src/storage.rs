@@ -1,6 +1,8 @@
 use soroban_auth::Identifier;
 use soroban_sdk::{contracttype, vec, BytesN, Env, Map, Vec};
 
+use crate::auctions::auction_v2::AuctionDataV2;
+
 /********** Storage Types **********/
 
 /// The pool's config
@@ -341,7 +343,7 @@ pub trait PoolDataStore {
 
     /******** Auction *********/
 
-    /// Fetch the starting block for an auction
+    /// Fetch the auction data for an auction
     ///
     /// ### Arguments
     /// * `auction_type` - The type of auction
@@ -349,7 +351,7 @@ pub trait PoolDataStore {
     ///
     /// ### Errors
     /// If the auction does not exist
-    fn get_auction(&self, auction_type: u32, user: Identifier) -> u32;
+    fn get_auction(&self, auction_type: u32, user: Identifier) -> AuctionDataV2;
 
     /// Check if an auction exists for the given type and user
     ///
@@ -363,8 +365,8 @@ pub trait PoolDataStore {
     /// ### Arguments
     /// * `auction_type` - The type of auction
     /// * `user` - The user who is auctioning off assets
-    /// * `start_block` - The starting block for the auction
-    fn set_auction(&self, auction_type: u32, user: Identifier, start_block: u32);
+    /// * `auction_data` - The auction data
+    fn set_auction(&self, auction_type: u32, user: Identifier, auction_data: AuctionDataV2);
 
     /// Remove an auction
     ///
@@ -654,14 +656,14 @@ impl PoolDataStore for StorageManager {
 
     /********** Auctions ***********/
 
-    fn get_auction(&self, auction_type: u32, user: Identifier) -> u32 {
+    fn get_auction(&self, auction_type: u32, user: Identifier) -> AuctionDataV2 {
         let key = PoolDataKey::Auction(AuctionKey {
             user,
             auct_type: auction_type,
         });
         self.env()
             .storage()
-            .get::<PoolDataKey, u32>(key)
+            .get::<PoolDataKey, AuctionDataV2>(key)
             .unwrap()
             .unwrap()
     }
@@ -674,14 +676,14 @@ impl PoolDataStore for StorageManager {
         self.env().storage().has(key)
     }
 
-    fn set_auction(&self, auction_type: u32, user: Identifier, start_block: u32) {
+    fn set_auction(&self, auction_type: u32, user: Identifier, auction_data: AuctionDataV2) {
         let key = PoolDataKey::Auction(AuctionKey {
             user,
             auct_type: auction_type,
         });
         self.env()
             .storage()
-            .set::<PoolDataKey, u32>(key, start_block)
+            .set::<PoolDataKey, AuctionDataV2>(key, auction_data)
     }
 
     fn del_auction(&self, auction_type: u32, user: Identifier) {

@@ -10,19 +10,15 @@ use fixed_point_math::FixedPoint;
 use soroban_auth::{Identifier, Signature};
 use soroban_sdk::{vec, BytesN, Env};
 
-use super::auction_v2::{AuctionQuote, AuctionType, AuctionV2};
+use super::auction_v2::{AuctionDataV2, AuctionQuote, AuctionType, AuctionV2};
 
-pub fn verify_create_interest_auction(e: &Env, auction: &AuctionV2) -> Result<(), PoolError> {
+pub fn create_interest_auction(e: &Env) -> Result<AuctionV2, PoolError> {
+    panic!("not impl");
+
     let storage = StorageManager::new(e);
+    let backstop_id = Identifier::Contract(storage.get_backstop());
 
-    let backstop = storage.get_backstop();
-    if auction.user != Identifier::Contract(backstop)
-        || auction.auction_type != AuctionType::InterestAuction
-    {
-        return Err(PoolError::BadRequest);
-    }
-
-    if storage.has_auction(auction.auction_type.clone() as u32, auction.user.clone()) {
+    if storage.has_auction(AuctionType::InterestAuction as u32, backstop_id.clone()) {
         return Err(PoolError::AlreadyInProgress);
     }
 
@@ -30,18 +26,25 @@ pub fn verify_create_interest_auction(e: &Env, auction: &AuctionV2) -> Result<()
     //       It is currently guaranteed that if no auction is active, some interest
     //       will be generated.
 
-    Ok(())
+    let auction_data = AuctionDataV2 {
+        send_to: vec![e],
+        rec_from: vec![e],
+        block: e.ledger().sequence() + 1,
+    };
 }
 
 pub fn calc_fill_interest_auction(e: &Env, auction: &AuctionV2) -> AuctionQuote {
+    panic!("not impl");
+
     let storage = StorageManager::new(e);
     let pool_config = storage.get_pool_config();
     let bkstp_id = Identifier::Contract(storage.get_backstop());
     let oracle_client = OracleClient::new(e, pool_config.oracle.clone());
 
     let mut auction_quote = AuctionQuote {
-        send: vec![e],
-        receive: vec![e],
+        send_to: vec![e],
+        rec_from: vec![e],
+        block: e.ledger().sequence(),
     };
 
     let (send_to_mod, receive_from_mod) = auction.get_fill_modifiers(e);
@@ -65,7 +68,7 @@ pub fn calc_fill_interest_auction(e: &Env, auction: &AuctionV2) -> AuctionQuote 
                 .fixed_mul_floor(b_token_balance, SCALAR_7)
                 .unwrap();
             auction_quote
-                .receive
+                .rec_from
                 .push_back((reserve.config.b_token.clone(), receive_from_amount));
         }
     }
@@ -82,7 +85,7 @@ pub fn calc_fill_interest_auction(e: &Env, auction: &AuctionV2) -> AuctionQuote 
             .unwrap();
         if send_to_amount > 0 {
             auction_quote
-                .send
+                .send_to
                 .push_back((blnd_token.clone(), send_to_amount));
         }
     }
@@ -90,6 +93,8 @@ pub fn calc_fill_interest_auction(e: &Env, auction: &AuctionV2) -> AuctionQuote 
 }
 
 pub fn fill_interest_auction(e: &Env, auction: &AuctionV2, filler: Identifier) -> AuctionQuote {
+    panic!("not impl");
+
     // TODO: Determine if there is a way to reuse calc code. Currently, this would result in reloads of all
     //       reserves and the minting of tokens to the backstop during previews.
 
@@ -100,8 +105,9 @@ pub fn fill_interest_auction(e: &Env, auction: &AuctionV2, filler: Identifier) -
     let oracle_client = OracleClient::new(e, pool_config.oracle.clone());
 
     let mut auction_quote = AuctionQuote {
-        send: vec![e],
-        receive: vec![e],
+        send_to: vec![e],
+        rec_from: vec![e],
+        block: e.ledger().sequence(),
     };
 
     let (send_to_mod, receive_from_mod) = auction.get_fill_modifiers(e);
@@ -127,7 +133,7 @@ pub fn fill_interest_auction(e: &Env, auction: &AuctionV2, filler: Identifier) -
                 .fixed_mul_floor(b_token_balance, SCALAR_7)
                 .unwrap();
             auction_quote
-                .receive
+                .rec_from
                 .push_back((reserve.config.b_token.clone(), receive_from_amount));
             // TODO: Privileged xfer
             b_token_client.clawback(&Signature::Invoker, &0, &bkstp_id, &receive_from_amount);
@@ -150,7 +156,7 @@ pub fn fill_interest_auction(e: &Env, auction: &AuctionV2, filler: Identifier) -
 
         if send_to_amount > 0 {
             auction_quote
-                .send
+                .send_to
                 .push_back((blnd_token.clone(), send_to_amount));
 
             // TODO: Make more seamless with "auth-next" by pre-authorizing the transfer taking place
@@ -208,12 +214,16 @@ mod tests {
         let auction = AuctionV2 {
             auction_type: AuctionType::InterestAuction,
             user: backstop_id,
-            block: 101,
+            data: AuctionDataV2 {
+                send_to: vec![&e],
+                rec_from: vec![&e],
+                block: 101,
+            },
         };
         e.as_contract(&pool_id, || {
             storage.set_backstop(backstop.clone());
 
-            let result = verify_create_interest_auction(&e, &auction);
+            let result = create_interest_auction(&e);
 
             match result {
                 Ok(_) => assert!(true),
@@ -240,12 +250,16 @@ mod tests {
         let auction = AuctionV2 {
             auction_type: AuctionType::InterestAuction,
             user: Identifier::Contract(generate_contract_id(&e)),
-            block: 101,
+            data: AuctionDataV2 {
+                send_to: vec![&e],
+                rec_from: vec![&e],
+                block: 101,
+            },
         };
         e.as_contract(&pool_id, || {
             storage.set_backstop(backstop.clone());
 
-            let result = verify_create_interest_auction(&e, &auction);
+            let result = create_interest_auction(&e);
 
             match result {
                 Ok(_) => assert!(false),
@@ -270,16 +284,25 @@ mod tests {
             base_reserve: 10,
         });
 
+        let auction_data = AuctionDataV2 {
+            send_to: vec![&e],
+            rec_from: vec![&e],
+            block: 50,
+        };
         let auction = AuctionV2 {
             auction_type: AuctionType::InterestAuction,
             user: backstop_id.clone(),
-            block: 101,
+            data: auction_data.clone(),
         };
         e.as_contract(&pool_id, || {
             storage.set_backstop(backstop.clone());
-            storage.set_auction(AuctionType::InterestAuction as u32, backstop_id.clone(), 50);
+            storage.set_auction(
+                AuctionType::InterestAuction as u32,
+                backstop_id.clone(),
+                auction_data,
+            );
 
-            let result = verify_create_interest_auction(&e, &auction);
+            let result = create_interest_auction(&e);
 
             match result {
                 Ok(_) => assert!(false),
@@ -347,10 +370,15 @@ mod tests {
             bstop_rate: 0_100_000_000,
             status: 0,
         };
+        let auction_data = AuctionDataV2 {
+            send_to: vec![&e],
+            rec_from: vec![&e],
+            block: 50,
+        };
         let auction = AuctionV2 {
             auction_type: AuctionType::InterestAuction,
             user: backstop_id.clone(),
-            block: 50,
+            data: auction_data.clone(),
         };
         blnd_client.with_source_account(&bombadil).mint(
             &Signature::Invoker,
@@ -365,7 +393,11 @@ mod tests {
             &i128::MAX,
         );
         e.as_contract(&pool, || {
-            storage.set_auction(AuctionType::InterestAuction as u32, backstop_id.clone(), 50);
+            storage.set_auction(
+                AuctionType::InterestAuction as u32,
+                backstop_id.clone(),
+                auction_data,
+            );
             storage.set_pool_config(pool_config);
             storage.set_backstop(backstop.clone());
 
@@ -378,16 +410,19 @@ mod tests {
             let result = fill_interest_auction(&e, &auction, user_id.clone());
 
             assert_eq!(
-                result.receive.get_unchecked(0).unwrap(),
+                result.rec_from.get_unchecked(0).unwrap(),
                 (reserve_0.config.b_token, 10_0000000)
             );
             assert_eq!(
-                result.receive.get_unchecked(1).unwrap(),
+                result.rec_from.get_unchecked(1).unwrap(),
                 (reserve_1.config.b_token, 2_5000000)
             );
-            assert_eq!(result.receive.len(), 2);
-            assert_eq!(result.send.get_unchecked(0).unwrap(), (blnd_id, 95_2000000));
-            assert_eq!(result.send.len(), 1);
+            assert_eq!(result.rec_from.len(), 2);
+            assert_eq!(
+                result.send_to.get_unchecked(0).unwrap(),
+                (blnd_id, 95_2000000)
+            );
+            assert_eq!(result.send_to.len(), 1);
             assert_eq!(b_token_0.balance(&backstop_id), 0);
             assert_eq!(b_token_1.balance(&backstop_id), 0);
             assert_eq!(b_token_0.balance(&user_id), 10_0000000);

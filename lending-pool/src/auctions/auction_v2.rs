@@ -9,14 +9,13 @@ use soroban_sdk::{contracttype, BytesN, Env, Vec};
 
 use super::{
     backstop_interest_auction::{
-        calc_fill_interest_auction, fill_interest_auction, verify_create_interest_auction,
+        calc_fill_interest_auction, create_interest_auction, fill_interest_auction,
     },
     backstop_liquidation_auction::{
-        calc_fill_backstop_liq_auction, fill_backstop_liq_auction,
-        verify_create_backstop_liq_auction,
+        calc_fill_backstop_liq_auction, create_backstop_liq_auction, fill_backstop_liq_auction,
     },
     user_liquidation_auction::{
-        calc_fill_user_liq_auction, fill_user_liq_auction, verify_create_user_liq_auction,
+        calc_fill_user_liq_auction, create_user_liq_auction, fill_user_liq_auction,
     },
 };
 
@@ -42,8 +41,18 @@ impl AuctionType {
 #[derive(Clone)]
 #[contracttype]
 pub struct AuctionQuote {
-    pub send: Vec<(BytesN<32>, i128)>,
-    pub receive: Vec<(BytesN<32>, i128)>,
+    pub send_to: Vec<(BytesN<32>, i128)>,
+    pub rec_from: Vec<(BytesN<32>, i128)>,
+    pub block: u32,
+}
+
+// TODO: Rename symbol once auction code ported over
+#[derive(Clone)]
+#[contracttype]
+pub struct AuctionDataV2 {
+    pub send_to: Vec<(u32, i128)>,
+    pub rec_from: Vec<(u32, i128)>,
+    pub block: u32,
 }
 
 // TODO: Rename symbol to Auction once auction functionality is fully ported
@@ -55,7 +64,7 @@ pub struct AuctionQuote {
 pub struct AuctionV2 {
     pub auction_type: AuctionType, // the type of auction
     pub user: Identifier,          // the user whose assets are involved in the auction
-    pub block: u32,                // the start block of the auction
+    pub data: AuctionDataV2, // the data for an auction including assets, amounts, and starting block
 }
 
 impl AuctionV2 {
@@ -63,24 +72,28 @@ impl AuctionV2 {
     ///
     /// ### Arguments
     /// * `auction_type` - The type of auction being created
-    /// * `user` - The user whose assets are involved in the auction
-    pub fn create(e: &Env, auction_type: u32, user: Identifier) -> Result<Self, PoolError> {
+    /// * `user` - The user whose assets are involved in the auction. If the auction does not
+    ///            involve an external user (e.g. backstop auctions), this value is ignored.
+    ///
+    /// ### Errors
+    /// If the auction is unable to be created
+    pub fn create(e: &Env, auction_type: u32, user: Option<Identifier>) -> Result<Self, PoolError> {
         let storage = StorageManager::new(e);
 
         let auct_type = AuctionType::from_u32(auction_type);
-        let start_block = e.ledger().sequence() + 1;
-        let auction = AuctionV2 {
-            auction_type: auct_type.clone(),
-            user: user.clone(),
-            block: e.ledger().sequence() + 1,
-        };
-        match auct_type {
-            AuctionType::UserLiquidation => verify_create_user_liq_auction(e, &auction)?,
-            AuctionType::BackstopLiquidation => verify_create_backstop_liq_auction(e, &auction)?,
-            AuctionType::InterestAuction => verify_create_interest_auction(e, &auction)?,
-        };
+        let auction = match auct_type {
+            AuctionType::UserLiquidation => {
+                if let Some(liq_user) = user {
+                    create_user_liq_auction(e, &liq_user)
+                } else {
+                    return Err(PoolError::BadRequest);
+                }
+            }
+            AuctionType::BackstopLiquidation => create_backstop_liq_auction(e),
+            AuctionType::InterestAuction => create_interest_auction(e),
+        }?;
 
-        storage.set_auction(auction_type, user, start_block);
+        storage.set_auction(auction_type, auction.user.clone(), auction.data.clone());
 
         return Ok(auction);
     }
@@ -94,12 +107,12 @@ impl AuctionV2 {
     /// ### Errors
     /// If the auction does not exist
     pub fn load(e: &Env, auction_type: u32, user: Identifier) -> AuctionV2 {
-        let start_block = StorageManager::new(&e).get_auction(auction_type, user.clone());
+        let auction_data = StorageManager::new(&e).get_auction(auction_type, user.clone());
         let auct_type = AuctionType::from_u32(auction_type);
         AuctionV2 {
             auction_type: auct_type,
             user,
-            block: start_block,
+            data: auction_data,
         }
     }
 
@@ -143,7 +156,7 @@ impl AuctionV2 {
     /// Returns a tuple of i128's => (send to modifier, receive from modifier) scaled
     /// to 7 decimal places
     pub fn get_fill_modifiers(&self, e: &Env) -> (i128, i128) {
-        let block_dif = i128(e.ledger().sequence() - self.block) * 1_0000000;
+        let block_dif = i128(e.ledger().sequence() - self.data.block) * 1_0000000;
         let send_to_mod: i128;
         let receive_from_mod: i128;
         // increment the modifier 0.5% every block
@@ -172,7 +185,22 @@ mod tests {
     use crate::testutils::generate_contract_id;
 
     use super::*;
-    use soroban_sdk::testutils::{Ledger, LedgerInfo};
+    use soroban_sdk::{
+        testutils::{Ledger, LedgerInfo},
+        vec,
+    };
+
+    #[test]
+    fn test_create_user_auction_no_user_errors() {
+        let e = Env::default();
+
+        let result = AuctionV2::create(&e, AuctionType::UserLiquidation as u32, None);
+
+        match result {
+            Ok(_) => assert!(false),
+            Err(err) => assert_eq!(err, PoolError::BadRequest),
+        }
+    }
 
     #[test]
     fn test_get_fill_modifiers() {
@@ -181,7 +209,11 @@ mod tests {
         let auction = AuctionV2 {
             auction_type: AuctionType::UserLiquidation,
             user: Identifier::Contract(generate_contract_id(&e)),
-            block: 1000,
+            data: AuctionDataV2 {
+                send_to: vec![&e],
+                rec_from: vec![&e],
+                block: 1000,
+            },
         };
 
         let mut send_to_modifier: i128;

@@ -185,8 +185,7 @@ pub trait PoolTrait {
 
     /***** Auction / Liquidation Functions *****/
 
-    /// Fetch an auction from the ledger. Returns the starting block of the auction
-    /// if it exists and panics otherwise.
+    /// Fetch an auction from the ledger. Returns a quote from the auction based on the current block.
     ///
     /// ### Arguments
     /// * `auction_type` - The type of auction
@@ -194,11 +193,9 @@ pub trait PoolTrait {
     ///
     /// ### Errors
     /// If the auction does not exist
-    fn get_auct(e: Env, auction_type: u32, user: Identifier) -> Result<u32, PoolError>;
+    fn get_auct(e: Env, auction_type: u32, user: Identifier) -> Result<AuctionQuote, PoolError>;
 
     /// Creates a new auction
-    ///
-    /// Returns the starting block for the auction
     ///
     /// ### Arguments
     /// * `auction_type` - The type of auction
@@ -206,19 +203,7 @@ pub trait PoolTrait {
     ///
     /// ### Errors
     /// If the auction was unable to be created
-    fn new_auct(e: Env, auction_type: u32, user: Identifier) -> Result<u32, PoolError>;
-
-    /// Preview an auction fill action
-    ///
-    /// Returns the AuctionQuote
-    ///
-    /// ### Arguments
-    /// * `auction_type` - The type of auction
-    /// * `user` - The Identifier involved in the auction
-    ///
-    /// ### Errors
-    /// If the auction does not exist
-    fn prev_auct(e: Env, auction_type: u32, user: Identifier) -> Result<AuctionQuote, PoolError>;
+    fn new_auct(e: Env, auction_type: u32, user: Option<Identifier>) -> Result<(), PoolError>;
 
     /// Fill the auction from the invoker
     ///
@@ -573,18 +558,14 @@ impl PoolTrait for Pool {
 
     /***** Auction/Liquidation Functions *****/
 
-    fn get_auct(e: Env, auction_type: u32, user: Identifier) -> Result<u32, PoolError> {
-        Ok(StorageManager::new(&e).get_auction(auction_type, user))
-    }
-
-    fn new_auct(e: Env, auction_type: u32, user: Identifier) -> Result<u32, PoolError> {
-        let auction = AuctionV2::create(&e, auction_type, user).unwrap();
-        Ok(auction.block)
-    }
-
-    fn prev_auct(e: Env, auction_type: u32, user: Identifier) -> Result<AuctionQuote, PoolError> {
+    fn get_auct(e: Env, auction_type: u32, user: Identifier) -> Result<AuctionQuote, PoolError> {
         let auction = AuctionV2::load(&e, auction_type, user);
         Ok(auction.preview_fill(&e))
+    }
+
+    fn new_auct(e: Env, auction_type: u32, user: Option<Identifier>) -> Result<(), PoolError> {
+        AuctionV2::create(&e, auction_type, user).unwrap();
+        Ok(())
     }
 
     fn fill_auct(e: Env, auction_type: u32, user: Identifier) -> Result<AuctionQuote, PoolError> {

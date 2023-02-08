@@ -41,8 +41,8 @@ impl AuctionType {
 #[derive(Clone)]
 #[contracttype]
 pub struct AuctionQuote {
-    pub send_to: Vec<(BytesN<32>, i128)>,
-    pub rec_from: Vec<(BytesN<32>, i128)>,
+    pub bid: Vec<(BytesN<32>, i128)>,
+    pub lot: Vec<(BytesN<32>, i128)>,
     pub block: u32,
 }
 
@@ -50,8 +50,8 @@ pub struct AuctionQuote {
 #[derive(Clone)]
 #[contracttype]
 pub struct AuctionDataV2 {
-    pub send_to: Vec<(u32, i128)>,
-    pub rec_from: Vec<(u32, i128)>,
+    pub bid: Vec<(u32, i128)>,
+    pub lot: Vec<(u32, i128)>,
     pub block: u32,
 }
 
@@ -157,26 +157,26 @@ impl AuctionV2 {
     /// to 7 decimal places
     pub fn get_fill_modifiers(&self, e: &Env) -> (i128, i128) {
         let block_dif = i128(e.ledger().sequence() - self.data.block) * 1_0000000;
-        let send_to_mod: i128;
+        let bid_mod: i128;
         let receive_from_mod: i128;
         // increment the modifier 0.5% every block
         let per_block_scalar: i128 = 0_0050000;
         if block_dif > 400_0000000 {
-            send_to_mod = 0;
+            bid_mod = 0;
             receive_from_mod = 1_0000000;
         } else if block_dif > 200_0000000 {
-            send_to_mod = 2_0000000
+            bid_mod = 2_0000000
                 - block_dif
                     .fixed_mul_floor(per_block_scalar, 1_0000000)
                     .unwrap();
             receive_from_mod = 1_0000000;
         } else {
-            send_to_mod = 1_000_0000;
+            bid_mod = 1_000_0000;
             receive_from_mod = block_dif
                 .fixed_mul_floor(per_block_scalar, 1_0000000)
                 .unwrap();
         };
-        (send_to_mod, receive_from_mod)
+        (bid_mod, receive_from_mod)
     }
 }
 
@@ -210,13 +210,13 @@ mod tests {
             auction_type: AuctionType::UserLiquidation,
             user: Identifier::Contract(generate_contract_id(&e)),
             data: AuctionDataV2 {
-                send_to: vec![&e],
-                rec_from: vec![&e],
+                bid: vec![&e],
+                lot: vec![&e],
                 block: 1000,
             },
         };
 
-        let mut send_to_modifier: i128;
+        let mut bid_modifier: i128;
         let mut receive_from_modifier: i128;
 
         e.ledger().set(LedgerInfo {
@@ -226,8 +226,8 @@ mod tests {
             network_passphrase: Default::default(),
             base_reserve: 10,
         });
-        (send_to_modifier, receive_from_modifier) = auction.get_fill_modifiers(&e);
-        assert_eq!(send_to_modifier, 1_0000000);
+        (bid_modifier, receive_from_modifier) = auction.get_fill_modifiers(&e);
+        assert_eq!(bid_modifier, 1_0000000);
         assert_eq!(receive_from_modifier, 0);
 
         e.ledger().set(LedgerInfo {
@@ -237,8 +237,8 @@ mod tests {
             network_passphrase: Default::default(),
             base_reserve: 10,
         });
-        (send_to_modifier, receive_from_modifier) = auction.get_fill_modifiers(&e);
-        assert_eq!(send_to_modifier, 1_0000000);
+        (bid_modifier, receive_from_modifier) = auction.get_fill_modifiers(&e);
+        assert_eq!(bid_modifier, 1_0000000);
         assert_eq!(receive_from_modifier, 0_5000000);
 
         e.ledger().set(LedgerInfo {
@@ -248,8 +248,8 @@ mod tests {
             network_passphrase: Default::default(),
             base_reserve: 10,
         });
-        (send_to_modifier, receive_from_modifier) = auction.get_fill_modifiers(&e);
-        assert_eq!(send_to_modifier, 1_0000000);
+        (bid_modifier, receive_from_modifier) = auction.get_fill_modifiers(&e);
+        assert_eq!(bid_modifier, 1_0000000);
         assert_eq!(receive_from_modifier, 1_0000000);
 
         e.ledger().set(LedgerInfo {
@@ -259,8 +259,8 @@ mod tests {
             network_passphrase: Default::default(),
             base_reserve: 10,
         });
-        (send_to_modifier, receive_from_modifier) = auction.get_fill_modifiers(&e);
-        assert_eq!(send_to_modifier, 0_9950000);
+        (bid_modifier, receive_from_modifier) = auction.get_fill_modifiers(&e);
+        assert_eq!(bid_modifier, 0_9950000);
         assert_eq!(receive_from_modifier, 1_0000000);
 
         e.ledger().set(LedgerInfo {
@@ -270,8 +270,8 @@ mod tests {
             network_passphrase: Default::default(),
             base_reserve: 10,
         });
-        (send_to_modifier, receive_from_modifier) = auction.get_fill_modifiers(&e);
-        assert_eq!(send_to_modifier, 0_5000000);
+        (bid_modifier, receive_from_modifier) = auction.get_fill_modifiers(&e);
+        assert_eq!(bid_modifier, 0_5000000);
         assert_eq!(receive_from_modifier, 1_0000000);
 
         e.ledger().set(LedgerInfo {
@@ -281,8 +281,8 @@ mod tests {
             network_passphrase: Default::default(),
             base_reserve: 10,
         });
-        (send_to_modifier, receive_from_modifier) = auction.get_fill_modifiers(&e);
-        assert_eq!(send_to_modifier, 0);
+        (bid_modifier, receive_from_modifier) = auction.get_fill_modifiers(&e);
+        assert_eq!(bid_modifier, 0);
         assert_eq!(receive_from_modifier, 1_0000000);
     }
 }

@@ -153,30 +153,30 @@ impl AuctionV2 {
 
     /// Get the current fill modifiers for the auction
     ///
-    /// Returns a tuple of i128's => (send to modifier, receive from modifier) scaled
+    /// Returns a tuple of i128's => (bid modifier, lot modifier) scaled
     /// to 7 decimal places
     pub fn get_fill_modifiers(&self, e: &Env) -> (i128, i128) {
         let block_dif = i128(e.ledger().sequence() - self.data.block) * 1_0000000;
         let bid_mod: i128;
-        let receive_from_mod: i128;
+        let lot_mod: i128;
         // increment the modifier 0.5% every block
         let per_block_scalar: i128 = 0_0050000;
         if block_dif > 400_0000000 {
             bid_mod = 0;
-            receive_from_mod = 1_0000000;
+            lot_mod = 1_0000000;
         } else if block_dif > 200_0000000 {
             bid_mod = 2_0000000
                 - block_dif
                     .fixed_mul_floor(per_block_scalar, 1_0000000)
                     .unwrap();
-            receive_from_mod = 1_0000000;
+            lot_mod = 1_0000000;
         } else {
             bid_mod = 1_000_0000;
-            receive_from_mod = block_dif
+            lot_mod = block_dif
                 .fixed_mul_floor(per_block_scalar, 1_0000000)
                 .unwrap();
         };
-        (bid_mod, receive_from_mod)
+        (bid_mod, lot_mod)
     }
 }
 

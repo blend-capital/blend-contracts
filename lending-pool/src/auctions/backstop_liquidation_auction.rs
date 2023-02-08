@@ -16,12 +16,12 @@ pub fn verify_create_backstop_liq_auction(e: &Env, auction: &AuctionV2) -> Resul
     panic!("not impl");
 }
 
-pub fn calc_fill_backstop_liq_auction(e: &Env, auction: &AuctionV2, block: u32) -> AuctionQuote {
+pub fn calc_fill_backstop_liq_auction(e: &Env, auction: &AuctionV2) -> AuctionQuote {
     panic!("not impl");
 }
 
 pub fn fill_backstop_liq_auction(e: &Env, auction: &AuctionV2, filler: Identifier) -> AuctionQuote {
-    let auction_quote = calc_fill_backstop_liq_auction(e, auction, e.ledger().sequence());
+    let auction_quote = calc_fill_backstop_liq_auction(e, auction);
 
     panic!("not impl");
 }

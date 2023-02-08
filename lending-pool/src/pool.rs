@@ -215,16 +215,10 @@ pub trait PoolTrait {
     /// ### Arguments
     /// * `auction_type` - The type of auction
     /// * `user` - The Identifier involved in the auction
-    /// * `block` - The block number to preview the  auction fill action at
     ///
     /// ### Errors
     /// If the auction does not exist
-    fn prev_auct(
-        e: Env,
-        auction_type: u32,
-        user: Identifier,
-        block: u32,
-    ) -> Result<AuctionQuote, PoolError>;
+    fn prev_auct(e: Env, auction_type: u32, user: Identifier) -> Result<AuctionQuote, PoolError>;
 
     /// Fill the auction from the invoker
     ///
@@ -588,14 +582,9 @@ impl PoolTrait for Pool {
         Ok(auction.block)
     }
 
-    fn prev_auct(
-        e: Env,
-        auction_type: u32,
-        user: Identifier,
-        block: u32,
-    ) -> Result<AuctionQuote, PoolError> {
+    fn prev_auct(e: Env, auction_type: u32, user: Identifier) -> Result<AuctionQuote, PoolError> {
         let auction = AuctionV2::load(&e, auction_type, user);
-        Ok(auction.preview_fill(&e, block))
+        Ok(auction.preview_fill(&e))
     }
 
     fn fill_auct(e: Env, auction_type: u32, user: Identifier) -> Result<AuctionQuote, PoolError> {

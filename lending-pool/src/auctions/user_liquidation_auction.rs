@@ -14,7 +14,7 @@ use crate::{
 
 use super::auction_v2::{AuctionQuote, AuctionV2};
 
-pub fn verify_create_user_liq_auction(e: &Env, auction: &AuctionV2) -> Result<(), PoolError> {
+pub fn create_user_liq_auction(e: &Env, user: &Identifier) -> Result<AuctionV2, PoolError> {
     panic!("not impl");
 }
 

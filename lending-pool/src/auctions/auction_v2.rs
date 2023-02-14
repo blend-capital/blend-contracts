@@ -11,8 +11,8 @@ use super::{
     backstop_interest_auction::{
         calc_fill_interest_auction, create_interest_auction, fill_interest_auction,
     },
-    backstop_liquidation_auction::{
-        calc_fill_backstop_liq_auction, create_backstop_liq_auction, fill_backstop_liq_auction,
+    bad_debt_auction::{
+        calc_fill_bad_debt_auction, create_bad_debt_auction, fill_bad_debt_auction,
     },
     user_liquidation_auction::{
         calc_fill_user_liq_auction, create_user_liq_auction, fill_user_liq_auction,
@@ -23,7 +23,7 @@ use super::{
 #[repr(u32)]
 pub enum AuctionType {
     UserLiquidation = 0,
-    BackstopLiquidation = 1,
+    BadDebtAuction = 1,
     InterestAuction = 2,
 }
 
@@ -31,7 +31,7 @@ impl AuctionType {
     fn from_u32(value: u32) -> Self {
         match value {
             0 => AuctionType::UserLiquidation,
-            1 => AuctionType::BackstopLiquidation,
+            1 => AuctionType::BadDebtAuction,
             2 => AuctionType::InterestAuction,
             _ => panic!("internal error"),
         }
@@ -89,7 +89,7 @@ impl AuctionV2 {
                     return Err(PoolError::BadRequest);
                 }
             }
-            AuctionType::BackstopLiquidation => create_backstop_liq_auction(e),
+            AuctionType::BadDebtAuction => create_bad_debt_auction(e),
             AuctionType::InterestAuction => create_interest_auction(e),
         }?;
 
@@ -126,7 +126,7 @@ impl AuctionV2 {
     pub fn preview_fill(&self, e: &Env) -> AuctionQuote {
         match self.auction_type {
             AuctionType::UserLiquidation => calc_fill_user_liq_auction(e, &self),
-            AuctionType::BackstopLiquidation => calc_fill_backstop_liq_auction(e, &self),
+            AuctionType::BadDebtAuction => calc_fill_bad_debt_auction(e, &self),
             AuctionType::InterestAuction => calc_fill_interest_auction(e, &self),
         }
     }
@@ -145,7 +145,7 @@ impl AuctionV2 {
     pub fn fill(&self, e: &Env, filler: Identifier) -> Result<AuctionQuote, PoolError> {
         let quote = match self.auction_type {
             AuctionType::UserLiquidation => fill_user_liq_auction(e, &self, filler),
-            AuctionType::BackstopLiquidation => fill_backstop_liq_auction(e, &self, filler),
+            AuctionType::BadDebtAuction => fill_bad_debt_auction(e, &self, filler),
             AuctionType::InterestAuction => fill_interest_auction(e, &self, filler),
         };
         Ok(quote)

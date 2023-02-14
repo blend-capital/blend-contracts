@@ -126,8 +126,6 @@ pub fn fill_bad_debt_auction(e: &Env, auction: &AuctionV2, filler: Identifier) -
     // lot only contains the backstop token
     let (_, lot_amount) = auction_quote.lot.first().unwrap().unwrap();
 
-    // TODO: Make more seamless with "auth-next" by pre-authorizing the transfer taking place
-    //       in the backstop client to avoid a double transfer.
     let backstop_client = BackstopClient::new(&e, &bkstp);
     backstop_client.draw(&(lot_amount as u64), &filler);
 

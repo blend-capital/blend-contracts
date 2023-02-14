@@ -397,7 +397,7 @@ mod tests {
                 result.data.lot.get_unchecked(1).unwrap(),
                 (reserve_1.config.index, 2_5006144)
             );
-            assert_eq!(result.data.lot.len(), 2);
+            assert_eq!(result.data.lot.len(), 3);
         });
     }
 

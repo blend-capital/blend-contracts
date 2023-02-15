@@ -9,7 +9,7 @@ use crate::{
 use cast::i128;
 use fixed_point_math::FixedPoint;
 use soroban_auth::Identifier;
-use soroban_sdk::{vec, BytesN, Env};
+use soroban_sdk::{map, vec, BytesN, Env};
 
 use super::auction_v2::{AuctionDataV2, AuctionQuote, AuctionType, AuctionV2};
 
@@ -25,8 +25,8 @@ pub fn create_bad_debt_auction(e: &Env) -> Result<AuctionV2, PoolError> {
     let oracle_client = OracleClient::new(e, pool_config.oracle.clone());
 
     let mut auction_data = AuctionDataV2 {
-        bid: vec![e],
-        lot: vec![e],
+        bid: map![e],
+        lot: map![e],
         block: e.ledger().sequence() + 1,
     };
 
@@ -46,9 +46,7 @@ pub fn create_bad_debt_auction(e: &Env) -> Result<AuctionV2, PoolError> {
             debt_value += asset_balance
                 .fixed_mul_floor(i128(asset_to_base), SCALAR_7)
                 .unwrap();
-            auction_data
-                .bid
-                .push_back((reserve.config.index, asset_balance));
+            auction_data.bid.set(reserve.config.index, asset_balance);
         }
     }
     if auction_data.bid.len() == 0 || debt_value == 0 {
@@ -63,7 +61,7 @@ pub fn create_bad_debt_auction(e: &Env) -> Result<AuctionV2, PoolError> {
         .fixed_div_floor(i128(blnd_to_base), SCALAR_7)
         .unwrap();
     // u32::MAX is the key for the backstop token
-    auction_data.lot.push_back((u32::MAX, lot_amount));
+    auction_data.lot.set(u32::MAX, lot_amount);
 
     Ok(AuctionV2 {
         auction_type: AuctionType::BadDebtAuction,
@@ -94,7 +92,7 @@ pub fn calc_fill_bad_debt_auction(e: &Env, auction: &AuctionV2) -> AuctionQuote 
     }
 
     // lot only contains the backstop token
-    let (_, lot_amount) = auction.data.lot.first().unwrap().unwrap();
+    let lot_amount = auction.data.lot.get_unchecked(u32::MAX).unwrap();
     let lot_amount_modified = lot_amount.fixed_mul_floor(lot_modifier, SCALAR_7).unwrap();
     auction_quote
         .lot
@@ -167,8 +165,8 @@ mod tests {
         });
 
         let auction_data = AuctionDataV2 {
-            bid: vec![&e],
-            lot: vec![&e],
+            bid: map![&e],
+            lot: map![&e],
             block: 50,
         };
         e.as_contract(&pool_id, || {
@@ -261,18 +259,23 @@ mod tests {
             assert_eq!(result.user, backstop_id);
             assert_eq!(result.data.block, 51);
             assert_eq!(
-                result.data.bid.get_unchecked(0).unwrap(),
-                (reserve_0.config.index, 11_0000000)
+                result
+                    .data
+                    .bid
+                    .get_unchecked(reserve_0.config.index)
+                    .unwrap(),
+                11_0000000
             );
             assert_eq!(
-                result.data.bid.get_unchecked(1).unwrap(),
-                (reserve_1.config.index, 3_0000000)
+                result
+                    .data
+                    .bid
+                    .get_unchecked(reserve_1.config.index)
+                    .unwrap(),
+                3_0000000
             );
             assert_eq!(result.data.bid.len(), 2);
-            assert_eq!(
-                result.data.lot.get_unchecked(0).unwrap(),
-                (u32::MAX, 95_2000000)
-            );
+            assert_eq!(result.data.lot.get_unchecked(u32::MAX).unwrap(), 95_2000000);
             assert_eq!(result.data.lot.len(), 1);
         });
     }
@@ -350,18 +353,23 @@ mod tests {
             assert_eq!(result.user, backstop_id);
             assert_eq!(result.data.block, 151);
             assert_eq!(
-                result.data.bid.get_unchecked(0).unwrap(),
-                (reserve_0.config.index, 11_0000431)
+                result
+                    .data
+                    .bid
+                    .get_unchecked(reserve_0.config.index)
+                    .unwrap(),
+                11_0000431
             );
             assert_eq!(
-                result.data.bid.get_unchecked(1).unwrap(),
-                (reserve_1.config.index, 3_0000206)
+                result
+                    .data
+                    .bid
+                    .get_unchecked(reserve_1.config.index)
+                    .unwrap(),
+                3_0000206
             );
             assert_eq!(result.data.bid.len(), 2);
-            assert_eq!(
-                result.data.lot.get_unchecked(0).unwrap(),
-                (u32::MAX, 95_2004720)
-            );
+            assert_eq!(result.data.lot.get_unchecked(u32::MAX).unwrap(), 95_2004720);
             assert_eq!(result.data.lot.len(), 1);
         });
     }
@@ -441,8 +449,8 @@ mod tests {
             status: 0,
         };
         let auction_data = AuctionDataV2 {
-            bid: vec![&e, (0, 11_0000000), (1, 3_0000000)],
-            lot: vec![&e, (u32::MAX, 95_2000000)],
+            bid: map![&e, (0, 11_0000000), (1, 3_0000000)],
+            lot: map![&e, (u32::MAX, 95_2000000)],
             block: 51,
         };
         let auction = AuctionV2 {

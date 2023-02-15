@@ -8,7 +8,7 @@ use crate::{
 use cast::i128;
 use fixed_point_math::FixedPoint;
 use soroban_auth::{Identifier, Signature};
-use soroban_sdk::{vec, BytesN, Env};
+use soroban_sdk::{map, vec, BytesN, Env};
 
 use super::auction_v2::{AuctionDataV2, AuctionQuote, AuctionType, AuctionV2};
 
@@ -28,8 +28,8 @@ pub fn create_interest_auction(e: &Env) -> Result<AuctionV2, PoolError> {
     let oracle_client = OracleClient::new(e, pool_config.oracle.clone());
 
     let mut auction_data = AuctionDataV2 {
-        bid: vec![e],
-        lot: vec![e],
+        bid: map![e],
+        lot: map![e],
         block: e.ledger().sequence() + 1,
     };
 
@@ -49,9 +49,7 @@ pub fn create_interest_auction(e: &Env) -> Result<AuctionV2, PoolError> {
             interest_value += asset_balance
                 .fixed_mul_floor(i128(asset_to_base), SCALAR_7)
                 .unwrap();
-            auction_data
-                .lot
-                .push_back((reserve.config.index, b_token_balance));
+            auction_data.lot.set(reserve.config.index, b_token_balance);
         }
     }
 
@@ -67,7 +65,7 @@ pub fn create_interest_auction(e: &Env) -> Result<AuctionV2, PoolError> {
         .fixed_div_floor(i128(blnd_to_base), SCALAR_7)
         .unwrap();
     // u32::MAX is the key for the backstop token
-    auction_data.bid.push_back((u32::MAX, bid_amount));
+    auction_data.bid.set(u32::MAX, bid_amount);
 
     Ok(AuctionV2 {
         auction_type: AuctionType::InterestAuction,
@@ -90,7 +88,7 @@ pub fn calc_fill_interest_auction(e: &Env, auction: &AuctionV2) -> AuctionQuote 
     let (bid_modifier, lot_modifier) = auction.get_fill_modifiers(e);
 
     // bid only contains the backstop token
-    let (_, bid_amount) = auction.data.bid.first().unwrap().unwrap();
+    let bid_amount = auction.data.bid.get_unchecked(u32::MAX).unwrap();
     let bid_amount_modified = bid_amount.fixed_mul_floor(bid_modifier, SCALAR_7).unwrap();
     auction_quote
         .bid
@@ -128,7 +126,7 @@ pub fn fill_interest_auction(e: &Env, auction: &AuctionV2, filler: Identifier) -
 
     // bid only contains the backstop token
     let blnd_token = BytesN::from_array(e, &BLND_TOKEN);
-    let (_, bid_amount) = auction.data.bid.first().unwrap().unwrap();
+    let bid_amount = auction.data.bid.get_unchecked(u32::MAX).unwrap();
     let bid_amount_modified = bid_amount.fixed_mul_floor(bid_modifier, SCALAR_7).unwrap();
     auction_quote
         .bid
@@ -163,6 +161,7 @@ pub fn fill_interest_auction(e: &Env, auction: &AuctionV2, filler: Identifier) -
         let b_token_client = TokenClient::new(e, reserve.config.b_token.clone());
         b_token_client.clawback(&Signature::Invoker, &0, &bkstp_id, &lot_amount_modified);
         b_token_client.mint(&Signature::Invoker, &0, &filler, &lot_amount_modified);
+        reserve.set_data(e);
     }
     auction_quote
 }
@@ -202,8 +201,8 @@ mod tests {
         });
 
         let auction_data = AuctionDataV2 {
-            bid: vec![&e],
-            lot: vec![&e],
+            bid: map![&e],
+            lot: map![&e],
             block: 50,
         };
         e.as_contract(&pool_id, || {
@@ -295,18 +294,23 @@ mod tests {
             );
             assert_eq!(result.user, backstop_id);
             assert_eq!(result.data.block, 51);
-            assert_eq!(
-                result.data.bid.get_unchecked(0).unwrap(),
-                (u32::MAX, 95_2000000)
-            );
+            assert_eq!(result.data.bid.get_unchecked(u32::MAX).unwrap(), 95_2000000);
             assert_eq!(result.data.bid.len(), 1);
             assert_eq!(
-                result.data.lot.get_unchecked(0).unwrap(),
-                (reserve_0.config.index, 10_0000000)
+                result
+                    .data
+                    .lot
+                    .get_unchecked(reserve_0.config.index)
+                    .unwrap(),
+                10_0000000
             );
             assert_eq!(
-                result.data.lot.get_unchecked(1).unwrap(),
-                (reserve_1.config.index, 2_5000000)
+                result
+                    .data
+                    .lot
+                    .get_unchecked(reserve_1.config.index)
+                    .unwrap(),
+                2_5000000
             );
             assert_eq!(result.data.lot.len(), 2);
         });
@@ -384,20 +388,33 @@ mod tests {
             );
             assert_eq!(result.user, backstop_id);
             assert_eq!(result.data.block, 151);
-            assert_eq!(
-                result.data.bid.get_unchecked(0).unwrap(),
-                (u32::MAX, 95_4122842)
-            );
+            assert_eq!(result.data.bid.get_unchecked(u32::MAX).unwrap(), 95_4122842);
             assert_eq!(result.data.bid.len(), 1);
             assert_eq!(
-                result.data.lot.get_unchecked(0).unwrap(),
-                (reserve_0.config.index, 10_0006589)
+                result
+                    .data
+                    .lot
+                    .get_unchecked(reserve_0.config.index)
+                    .unwrap(),
+                10_0006589
             );
             assert_eq!(
-                result.data.lot.get_unchecked(1).unwrap(),
-                (reserve_1.config.index, 2_5006144)
+                result
+                    .data
+                    .lot
+                    .get_unchecked(reserve_1.config.index)
+                    .unwrap(),
+                2_5006144
             );
-            assert_eq!(result.data.lot.len(), 2);
+            assert_eq!(
+                result
+                    .data
+                    .lot
+                    .get_unchecked(reserve_2.config.index)
+                    .unwrap(),
+                7140
+            );
+            assert_eq!(result.data.lot.len(), 3);
         });
     }
 
@@ -455,8 +472,8 @@ mod tests {
             status: 0,
         };
         let auction_data = AuctionDataV2 {
-            bid: vec![&e, (u32::MAX, 95_2000000)],
-            lot: vec![&e, (0, 10_0000000), (1, 2_5000000)],
+            bid: map![&e, (u32::MAX, 95_2000000)],
+            lot: map![&e, (0, 10_0000000), (1, 2_5000000)],
             block: 51,
         };
         let auction = AuctionV2 {

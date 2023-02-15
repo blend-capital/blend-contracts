@@ -14,7 +14,8 @@ pub enum PoolError {
     // Emission Errors (20-29)
     EmissionFailure = 20,
     // Auction Errors (100-199)
-    InvalidAsks = 101,
+    InvalidLiquidation = 100,
+    InvalidAsks = 106,
     InvalidBids = 102,
     AlreadyInProgress = 103,
     InvalidAuctionType = 104,

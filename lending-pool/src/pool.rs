@@ -1,5 +1,5 @@
 use crate::{
-    auctions::auction_v2::{AuctionQuote, AuctionV2},
+    auctions::auction_v2::{AuctionQuote, AuctionV2, LiquidationMetadata},
     bad_debt::transfer_bad_debt_to_backstop,
     constants::EMITTER,
     dependencies::{BackstopClient, EmitterClient, TokenClient},
@@ -185,6 +185,16 @@ pub trait PoolTrait {
 
     /***** Auction / Liquidation Functions *****/
 
+    /// Creates a new user liquidation auction
+    ///
+    /// ### Arguments
+    /// * `user` - The user getting liquidated through the auction
+    /// * `data` - The metadata for the liquidation
+    ///
+    /// ### Errors
+    /// If the user liquidation auction was unable to be created
+    fn new_liq_a(e: Env, user: Identifier, data: LiquidationMetadata) -> Result<(), PoolError>;
+
     /// Fetch an auction from the ledger. Returns a quote from the auction based on the current block.
     ///
     /// ### Arguments
@@ -199,11 +209,10 @@ pub trait PoolTrait {
     ///
     /// ### Arguments
     /// * `auction_type` - The type of auction
-    /// * `user` - The Identifier involved in the auction
     ///
     /// ### Errors
     /// If the auction was unable to be created
-    fn new_auct(e: Env, auction_type: u32, user: Option<Identifier>) -> Result<(), PoolError>;
+    fn new_auct(e: Env, auction_type: u32) -> Result<(), PoolError>;
 
     /// Fill the auction from the invoker
     ///
@@ -558,13 +567,18 @@ impl PoolTrait for Pool {
 
     /***** Auction/Liquidation Functions *****/
 
+    fn new_liq_a(e: Env, user: Identifier, data: LiquidationMetadata) -> Result<(), PoolError> {
+        AuctionV2::create_liquidation(&e, user, data).unwrap();
+        Ok(())
+    }
+
     fn get_auct(e: Env, auction_type: u32, user: Identifier) -> Result<AuctionQuote, PoolError> {
         let auction = AuctionV2::load(&e, auction_type, user);
         Ok(auction.preview_fill(&e))
     }
 
-    fn new_auct(e: Env, auction_type: u32, user: Option<Identifier>) -> Result<(), PoolError> {
-        AuctionV2::create(&e, auction_type, user).unwrap();
+    fn new_auct(e: Env, auction_type: u32) -> Result<(), PoolError> {
+        AuctionV2::create(&e, auction_type).unwrap();
         Ok(())
     }
 

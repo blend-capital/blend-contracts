@@ -1,22 +1,21 @@
-use soroban_auth::Identifier;
-use soroban_sdk::{BytesN, Env, Vec};
+use soroban_sdk::{Address, BytesN, Env, Vec};
 
 use crate::{
     errors::BackstopError,
-    storage::{BackstopDataStore, StorageManager, Q4W},
+    storage::{self, Q4W},
 };
 
 /// A user of the backstop module with respect to a given pool
 /// Data is lazy loaded as not all struct information is required for each action
 pub struct User {
     pool: BytesN<32>,
-    pub id: Identifier,
-    shares: Option<u64>,
+    pub id: Address,
+    shares: Option<i128>,
     q4w: Option<Vec<Q4W>>,
 }
 
 impl User {
-    pub fn new(pool: BytesN<32>, id: Identifier) -> User {
+    pub fn new(pool: BytesN<32>, id: Address) -> User {
         User {
             pool,
             id,
@@ -28,11 +27,11 @@ impl User {
     /********** Setters / Lazy Getters / Storage **********/
 
     /// Fetch the user's shares from either the cache or the ledger
-    pub fn get_shares(&mut self, e: &Env) -> u64 {
+    pub fn get_shares(&mut self, e: &Env) -> i128 {
         match self.shares {
             Some(bal) => bal,
             None => {
-                let bal = StorageManager::new(e).get_shares(self.pool.clone(), self.id.clone());
+                let bal = storage::get_shares(&e, &self.pool, &self.id);
                 self.shares = Some(bal);
                 bal
             }
@@ -43,14 +42,14 @@ impl User {
     ///
     /// ### Arguments
     /// * `shares` - The user's shares
-    pub fn set_shares(&mut self, shares: u64) {
+    pub fn set_shares(&mut self, shares: i128) {
         self.shares = Some(shares)
     }
 
     /// Write the currently cached user's shares to the ledger
     pub fn write_shares(&self, e: &Env) {
         match self.shares {
-            Some(bal) => StorageManager::new(e).set_shares(self.pool.clone(), self.id.clone(), bal),
+            Some(bal) => storage::set_shares(&e, &self.pool, &self.id, &bal),
             None => panic!("nothing to write"),
         }
     }
@@ -60,7 +59,7 @@ impl User {
         match self.q4w.clone() {
             Some(q4w) => q4w,
             None => {
-                let q4w = StorageManager::new(e).get_q4w(self.pool.clone(), self.id.clone());
+                let q4w = storage::get_q4w(&e, &self.pool, &self.id);
                 self.q4w = Some(q4w.clone());
                 q4w
             }
@@ -78,7 +77,7 @@ impl User {
     /// Write the currently cached user's queued for withdraw to the ledger
     pub fn write_q4w(&self, e: &Env) {
         match self.q4w.clone() {
-            Some(q4w) => StorageManager::new(e).set_q4w(self.pool.clone(), self.id.clone(), q4w),
+            Some(q4w) => storage::set_q4w(&e, &self.pool, &self.id, &q4w),
             None => panic!("nothing to write"),
         }
     }
@@ -94,7 +93,7 @@ impl User {
     ///
     /// ### Arguments
     /// * `to_add` - The amount of new shares the user has
-    pub fn add_shares(&mut self, e: &Env, to_add: u64) {
+    pub fn add_shares(&mut self, e: &Env, to_add: i128) {
         let cur_bal = self.get_shares(e);
         self.set_shares(cur_bal + to_add);
     }
@@ -114,10 +113,10 @@ impl User {
     pub fn try_queue_shares_for_withdrawal(
         &mut self,
         e: &Env,
-        to_q: u64,
+        to_q: i128,
     ) -> Result<Q4W, BackstopError> {
         let mut user_q4w = self.get_q4w(e);
-        let mut q4w_amt: u64 = 0;
+        let mut q4w_amt: i128 = 0;
         for q4w in user_q4w.iter() {
             q4w_amt += q4w.unwrap().amount
         }
@@ -152,11 +151,11 @@ impl User {
     ///
     /// ### Errors
     /// If the amount to queue is greater than the available shares
-    pub fn try_withdraw_shares(&mut self, e: &Env, to_withdraw: u64) -> Result<(), BackstopError> {
+    pub fn try_withdraw_shares(&mut self, e: &Env, to_withdraw: i128) -> Result<(), BackstopError> {
         // validate the invoke has enough unlocked Q4W to claim
         // manage the q4w list while verifying
         let mut user_q4w = self.get_q4w(e);
-        let mut left_to_withdraw: u64 = to_withdraw;
+        let mut left_to_withdraw: i128 = to_withdraw;
         for _index in 0..user_q4w.len() {
             let mut cur_q4w = user_q4w.pop_front_unchecked().unwrap();
             if cur_q4w.exp <= e.ledger().timestamp() {
@@ -197,7 +196,7 @@ mod tests {
 
     use super::*;
     use soroban_sdk::{
-        testutils::{Accounts, Ledger, LedgerInfo},
+        testutils::{Address, Ledger, LedgerInfo},
         vec,
     };
 
@@ -206,25 +205,24 @@ mod tests {
     #[test]
     fn test_share_cache() {
         let e = Env::default();
-        let storage = StorageManager::new(&e);
 
         let backstop_addr = generate_contract_id(&e);
         let pool_addr = generate_contract_id(&e);
 
         let user_acct = e.accounts().generate_and_create();
-        let user_id = Identifier::Account(user_acct.clone());
-        let mut user = User::new(pool_addr.clone(), user_id.clone());
+        let user_id = Address::Account(user_acct.clone());
+        let mut user = User::new(pool_addr, user_id);
 
         let first_share_amt = 100;
         e.as_contract(&backstop_addr, || {
-            storage.set_shares(pool_addr.clone(), user_id.clone(), first_share_amt.clone());
+            storage::set_shares(&e, &pool_addr, &user_id, &first_share_amt);
             let first_result = user.get_shares(&e);
             assert_eq!(first_result, first_share_amt);
         });
 
         e.as_contract(&backstop_addr, || {
             // cached version returned
-            storage.set_shares(pool_addr.clone(), user_id.clone(), 1);
+            storage::set_shares(&e, &pool_addr, &user_id, &1);
             let cached_result = user.get_shares(&e);
             assert_eq!(cached_result, first_share_amt);
 
@@ -236,7 +234,7 @@ mod tests {
 
             // write stores to chain
             user.write_shares(&e);
-            let chain_result = storage.get_shares(pool_addr, user_id);
+            let chain_result = storage::get_shares(&e, &pool_addr, &user_id);
             assert_eq!(chain_result, second_share_amt);
         });
     }
@@ -244,14 +242,13 @@ mod tests {
     #[test]
     fn test_q4w_cache() {
         let e = Env::default();
-        let storage = StorageManager::new(&e);
 
         let backstop_addr = generate_contract_id(&e);
         let pool_addr = generate_contract_id(&e);
 
         let user_acct = e.accounts().generate_and_create();
-        let user_id = Identifier::Account(user_acct.clone());
-        let mut user = User::new(pool_addr.clone(), user_id.clone());
+        let user_id = Address::Account(user_acct.clone());
+        let mut user = User::new(pool_addr, user_id);
 
         let first_q4w = vec![
             &e,
@@ -261,14 +258,14 @@ mod tests {
             },
         ];
         e.as_contract(&backstop_addr, || {
-            storage.set_q4w(pool_addr.clone(), user_id.clone(), first_q4w.clone());
+            storage::set_q4w(&e, &pool_addr, &user_id, &first_q4w);
             let first_result = user.get_q4w(&e);
             assert_eq_vec_q4w(&first_q4w, &first_result);
         });
 
         e.as_contract(&backstop_addr, || {
             // cached version returned
-            storage.set_q4w(pool_addr.clone(), user_id.clone(), vec![&e]);
+            storage::set_q4w(&e, &pool_addr, &user_id, &vec![&e]);
             let cached_result = user.get_q4w(&e);
             assert_eq_vec_q4w(&first_q4w, &cached_result);
 
@@ -286,7 +283,7 @@ mod tests {
 
             // write stores to chain
             user.write_q4w(&e);
-            let chain_result = storage.get_q4w(pool_addr.clone(), user_id.clone());
+            let chain_result = storage::get_q4w(&e, &pool_addr, &user_id);
             assert_eq_vec_q4w(&second_q4w, &chain_result);
         });
     }
@@ -298,7 +295,7 @@ mod tests {
         let e = Env::default();
 
         let user_acct = e.accounts().generate_and_create();
-        let user_id = Identifier::Account(user_acct.clone());
+        let user_id = Address::Account(user_acct.clone());
 
         let mut user = User {
             pool: generate_contract_id(&e),
@@ -321,7 +318,7 @@ mod tests {
 
         let backstop_addr = generate_contract_id(&e);
         let user_acct = e.accounts().generate_and_create();
-        let user_id = Identifier::Account(user_acct.clone());
+        let user_id = Address::Account(user_acct.clone());
 
         let mut user = User {
             pool: generate_contract_id(&e),
@@ -334,7 +331,7 @@ mod tests {
             protocol_version: 1,
             sequence_number: 1,
             timestamp: 10000,
-            network_passphrase: Default::default(),
+            network_id: Default::default(),
             base_reserve: 10,
         });
 
@@ -361,7 +358,7 @@ mod tests {
 
         let backstop_addr = generate_contract_id(&e);
         let user_acct = e.accounts().generate_and_create();
-        let user_id = Identifier::Account(user_acct.clone());
+        let user_id = Address::Account(user_acct.clone());
 
         let mut cur_q4w = vec![
             &e,
@@ -381,7 +378,7 @@ mod tests {
             protocol_version: 1,
             sequence_number: 1,
             timestamp: 11000000,
-            network_passphrase: Default::default(),
+            network_id: Default::default(),
             base_reserve: 10,
         });
 
@@ -406,7 +403,7 @@ mod tests {
 
         let backstop_addr = generate_contract_id(&e);
         let user_acct = e.accounts().generate_and_create();
-        let user_id = Identifier::Account(user_acct.clone());
+        let user_id = Address::Account(user_acct.clone());
 
         let cur_q4w = vec![
             &e,
@@ -426,7 +423,7 @@ mod tests {
             protocol_version: 1,
             sequence_number: 1,
             timestamp: 11000000,
-            network_passphrase: Default::default(),
+            network_id: Default::default(),
             base_reserve: 10,
         });
 
@@ -449,7 +446,7 @@ mod tests {
 
         let backstop_addr = generate_contract_id(&e);
         let user_acct = e.accounts().generate_and_create();
-        let user_id = Identifier::Account(user_acct.clone());
+        let user_id = Address::Account(user_acct.clone());
 
         let mut user = User {
             pool: generate_contract_id(&e),
@@ -462,7 +459,7 @@ mod tests {
             protocol_version: 1,
             sequence_number: 1,
             timestamp: 11000000,
-            network_passphrase: Default::default(),
+            network_id: Default::default(),
             base_reserve: 10,
         });
 
@@ -485,7 +482,7 @@ mod tests {
 
         let backstop_addr = generate_contract_id(&e);
         let user_acct = e.accounts().generate_and_create();
-        let user_id = Identifier::Account(user_acct.clone());
+        let user_id = Address::Account(user_acct.clone());
 
         let cur_q4w = vec![
             &e,
@@ -505,7 +502,7 @@ mod tests {
             protocol_version: 1,
             sequence_number: 1,
             timestamp: 12592000,
-            network_passphrase: Default::default(),
+            network_id: Default::default(),
             base_reserve: 10,
         });
 
@@ -529,7 +526,7 @@ mod tests {
 
         let backstop_addr = generate_contract_id(&e);
         let user_acct = e.accounts().generate_and_create();
-        let user_id = Identifier::Account(user_acct.clone());
+        let user_id = Address::Account(user_acct.clone());
 
         let cur_q4w = vec![
             &e,
@@ -549,7 +546,7 @@ mod tests {
             protocol_version: 1,
             sequence_number: 1,
             timestamp: 12592000,
-            network_passphrase: Default::default(),
+            network_id: Default::default(),
             base_reserve: 10,
         });
 
@@ -580,7 +577,7 @@ mod tests {
 
         let backstop_addr = generate_contract_id(&e);
         let user_acct = e.accounts().generate_and_create();
-        let user_id = Identifier::Account(user_acct.clone());
+        let user_id = Address::Account(user_acct.clone());
 
         let cur_q4w = vec![
             &e,
@@ -608,7 +605,7 @@ mod tests {
             protocol_version: 1,
             sequence_number: 1,
             timestamp: 22592000,
-            network_passphrase: Default::default(),
+            network_id: Default::default(),
             base_reserve: 10,
         });
 
@@ -643,7 +640,7 @@ mod tests {
 
         let backstop_addr = generate_contract_id(&e);
         let user_acct = e.accounts().generate_and_create();
-        let user_id = Identifier::Account(user_acct.clone());
+        let user_id = Address::Account(user_acct.clone());
 
         let cur_q4w = vec![
             &e,
@@ -671,7 +668,7 @@ mod tests {
             protocol_version: 1,
             sequence_number: 1,
             timestamp: 11192000,
-            network_passphrase: Default::default(),
+            network_id: Default::default(),
             base_reserve: 10,
         });
 

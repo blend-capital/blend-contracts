@@ -1,7 +1,7 @@
 #![cfg(test)]
 use cast::i128;
 use common::generate_contract_id;
-use soroban_auth::{Identifier, Signature};
+use soroban_auth::{Address, Signature};
 use soroban_sdk::{
     testutils::{Accounts, Ledger, LedgerInfo},
     BytesN, Env,
@@ -17,10 +17,10 @@ fn test_backstop_distribution_and_claim_happy_path() {
     let e = Env::default();
 
     let (backstop_addr, backstop_client) = create_backstop_module(&e);
-    let backstop_id = Identifier::Contract(backstop_addr.clone());
+    let backstop_id = Address::Contract(backstop_addr.clone());
 
     let bombadil = e.accounts().generate_and_create();
-    let bombadil_id = Identifier::Account(bombadil.clone());
+    let bombadil_id = Address::Account(bombadil.clone());
 
     let token_id = BytesN::from_array(&e, &[222; 32]);
     let token_client = create_token_from_id(&e, &token_id, &bombadil_id);
@@ -35,7 +35,7 @@ fn test_backstop_distribution_and_claim_happy_path() {
     mock_pool_factory.set_pool(&pool_3);
 
     let samwise = e.accounts().generate_and_create();
-    let samwise_id = Identifier::Account(samwise.clone());
+    let samwise_id = Address::Account(samwise.clone());
 
     token_client.with_source_account(&bombadil).mint(
         &Signature::Invoker,
@@ -47,14 +47,14 @@ fn test_backstop_distribution_and_claim_happy_path() {
         &Signature::Invoker,
         &0,
         &backstop_id,
-        &i128(u64::MAX),
+        &i128(i128::MAX),
     );
 
     e.ledger().set(LedgerInfo {
         timestamp: 1441065600,
         protocol_version: 1,
         sequence_number: 0,
-        network_passphrase: Default::default(),
+        network_id: Default::default(),
         base_reserve: 10,
     });
 

@@ -1,5 +1,5 @@
 use rand::{thread_rng, RngCore};
-use soroban_auth::Identifier;
+use soroban_auth::Address;
 use soroban_sdk::{BytesN, Env, IntoVal};
 
 // Generics
@@ -29,7 +29,7 @@ pub fn generate_contract_id(e: &Env) -> BytesN<32> {
     BytesN::from_array(e, &id)
 }
 
-pub fn create_token_from_id(e: &Env, contract_id: &BytesN<32>, admin: &Identifier) -> TokenClient {
+pub fn create_token_from_id(e: &Env, contract_id: &BytesN<32>, admin: &Address) -> TokenClient {
     e.register_contract_wasm(contract_id, token::WASM);
     let client = TokenClient::new(e, contract_id.clone());
     client.initialize(&admin, &7, &"unit".into_val(e), &"test".into_val(&e));

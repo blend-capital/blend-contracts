@@ -1,30 +1,24 @@
 use fixed_point_math::FixedPoint;
-use soroban_auth::Identifier;
-use soroban_sdk::{BytesN, Env};
+use soroban_sdk::{Address, BytesN, Env};
 
 use crate::{
-    constants::POOL_FACTORY,
-    dependencies::PoolFactoryClient,
-    errors::BackstopError,
-    storage::{BackstopDataStore, StorageManager},
+    constants::POOL_FACTORY, dependencies::PoolFactoryClient, errors::BackstopError, storage,
 };
 
 /// A user of the backstop module with respect to a given pool
 /// Data is lazy loaded as not all struct information is required for each action
 pub struct Pool {
-    pub address: BytesN<32>,
-    pub id: Identifier,
-    shares: Option<u64>,
-    tokens: Option<u64>,
-    q4w: Option<u64>,
-    emissions: Option<u64>,
+    pub contract_id: BytesN<32>,
+    shares: Option<i128>,
+    tokens: Option<i128>,
+    q4w: Option<i128>,
+    emissions: Option<i128>,
 }
 
 impl Pool {
-    pub fn new(address: BytesN<32>) -> Pool {
+    pub fn new(e: &Env, contract_id: BytesN<32>) -> Pool {
         Pool {
-            address: address.clone(),
-            id: Identifier::Contract(address),
+            contract_id: contract_id.clone(),
             shares: None,
             tokens: None,
             q4w: None,
@@ -37,7 +31,7 @@ impl Pool {
     /// Returns a Result
     pub fn verify_pool(&self, e: &Env) -> Result<(), BackstopError> {
         let pool_factory_client = PoolFactoryClient::new(e, &BytesN::from_array(&e, &POOL_FACTORY));
-        if !pool_factory_client.is_pool(&self.address) {
+        if !pool_factory_client.is_pool(&self.contract_id) {
             return Err(BackstopError::NotPool);
         }
         Ok(())
@@ -46,11 +40,11 @@ impl Pool {
     /********** Setters / Lazy Getters / Storage **********/
 
     /// Get the pool's total issued shares from the cache or the ledger
-    pub fn get_shares(&mut self, e: &Env) -> u64 {
+    pub fn get_shares(&mut self, e: &Env) -> i128 {
         match self.shares {
             Some(bal) => bal,
             None => {
-                let bal = StorageManager::new(e).get_pool_shares(self.address.clone());
+                let bal = storage::get_pool_shares(e, &self.contract_id);
                 self.shares = Some(bal);
                 bal
             }
@@ -61,24 +55,24 @@ impl Pool {
     ///
     /// ### Arguments
     /// * `shares` - The pool's total issued shares
-    pub fn set_shares(&mut self, shares: u64) {
+    pub fn set_shares(&mut self, shares: i128) {
         self.shares = Some(shares)
     }
 
     /// Write the currently cached pool's total issued shares to the ledger
     pub fn write_shares(&self, e: &Env) {
         match self.shares {
-            Some(bal) => StorageManager::new(e).set_pool_shares(self.address.clone(), bal),
+            Some(bal) => storage::set_pool_shares(e, &self.contract_id, &bal),
             None => panic!("nothing to write"),
         }
     }
 
     /// Get the pool's total queued for withdraw from the cache or the ledger
-    pub fn get_q4w(&mut self, e: &Env) -> u64 {
+    pub fn get_q4w(&mut self, e: &Env) -> i128 {
         match self.q4w.clone() {
             Some(q4w) => q4w,
             None => {
-                let q4w = StorageManager::new(e).get_pool_q4w(self.address.clone());
+                let q4w = storage::get_pool_q4w(e, &self.contract_id);
                 self.q4w = Some(q4w);
                 q4w
             }
@@ -89,24 +83,24 @@ impl Pool {
     ///
     /// ### Arguments
     /// * `q4w` - The pool's total queued for withdraw
-    pub fn set_q4w(&mut self, q4w: u64) {
+    pub fn set_q4w(&mut self, q4w: i128) {
         self.q4w = Some(q4w)
     }
 
     /// Write the currently cached pool's total queued for withdraw to the ledger
     pub fn write_q4w(&self, e: &Env) {
         match self.q4w {
-            Some(q4w) => StorageManager::new(e).set_pool_q4w(self.address.clone(), q4w),
+            Some(q4w) => storage::set_pool_q4w(e, &self.contract_id, &q4w),
             None => panic!("nothing to write"),
         }
     }
 
     /// Get the pool's total backstop tokens from the cache or the ledger
-    pub fn get_tokens(&mut self, e: &Env) -> u64 {
+    pub fn get_tokens(&mut self, e: &Env) -> i128 {
         match self.tokens {
             Some(bal) => bal,
             None => {
-                let bal = StorageManager::new(e).get_pool_tokens(self.address.clone());
+                let bal = storage::get_pool_tokens(e, &self.contract_id);
                 self.tokens = Some(bal);
                 bal
             }
@@ -117,24 +111,24 @@ impl Pool {
     ///
     /// ### Arguments
     /// * `tokens` - The pool's backstop tokens
-    pub fn set_tokens(&mut self, tokens: u64) {
+    pub fn set_tokens(&mut self, tokens: i128) {
         self.tokens = Some(tokens)
     }
 
     /// Write the currently cached pool's total backstop tokens to the ledger
     pub fn write_tokens(&self, e: &Env) {
         match self.tokens {
-            Some(bal) => StorageManager::new(e).set_pool_tokens(self.address.clone(), bal),
+            Some(bal) => storage::set_pool_tokens(e, &self.contract_id, &bal),
             None => panic!("nothing to write"),
         }
     }
 
     /// Get the pool's total emissions tokens from the cache or the ledger
-    pub fn get_emissions(&mut self, e: &Env) -> u64 {
+    pub fn get_emissions(&mut self, e: &Env) -> i128 {
         match self.emissions {
             Some(bal) => bal,
             None => {
-                let bal = StorageManager::new(e).get_pool_emis(self.address.clone());
+                let bal = storage::get_pool_emis(e, &self.contract_id);
                 self.emissions = Some(bal);
                 bal
             }
@@ -145,14 +139,14 @@ impl Pool {
     ///
     /// ### Arguments
     /// * `amount` - The pool's emissions
-    pub fn set_emissions(&mut self, amount: u64) {
+    pub fn set_emissions(&mut self, amount: i128) {
         self.emissions = Some(amount)
     }
 
     /// Write the currently cached pool's total emissions to the ledger
     pub fn write_emissions(&self, e: &Env) {
         match self.emissions {
-            Some(bal) => StorageManager::new(e).set_pool_emis(self.address.clone(), bal),
+            Some(bal) => storage::set_pool_emis(e, &self.contract_id, &bal),
             None => panic!("nothing to write"),
         }
     }
@@ -163,7 +157,7 @@ impl Pool {
     ///
     /// ### Arguments
     /// * `tokens` - the token balance to convert
-    pub fn convert_to_shares(&mut self, e: &Env, tokens: u64) -> u64 {
+    pub fn convert_to_shares(&mut self, e: &Env, tokens: i128) -> i128 {
         let pool_shares = self.get_shares(e);
         if pool_shares == 0 {
             return tokens;
@@ -178,7 +172,7 @@ impl Pool {
     ///
     /// ### Arguments
     /// * `shares` - the pool share balance to convert
-    pub fn convert_to_tokens(&mut self, e: &Env, shares: u64) -> u64 {
+    pub fn convert_to_tokens(&mut self, e: &Env, shares: i128) -> i128 {
         let pool_shares = self.get_shares(e);
         if pool_shares == 0 {
             return shares;
@@ -198,7 +192,7 @@ impl Pool {
     /// ### Arguments
     /// * `tokens` - The amount of tokens to add
     /// * `shares` - The amount of shares to add
-    pub fn deposit(&mut self, e: &Env, tokens: u64, shares: u64) {
+    pub fn deposit(&mut self, e: &Env, tokens: i128, shares: i128) {
         let cur_tokens = self.get_tokens(e);
         let cur_shares = self.get_shares(e);
         self.set_tokens(cur_tokens + tokens);
@@ -215,7 +209,7 @@ impl Pool {
     /// ### Arguments
     /// * `tokens` - The amount of tokens to withdraw
     /// * `shares` - The amount of shares to withdraw
-    pub fn withdraw(&mut self, e: &Env, tokens: u64, shares: u64) -> Result<(), BackstopError> {
+    pub fn withdraw(&mut self, e: &Env, tokens: i128, shares: i128) -> Result<(), BackstopError> {
         let cur_tokens = self.get_tokens(e);
         let cur_shares = self.get_shares(e);
         let cur_q4w = self.get_q4w(e);
@@ -235,7 +229,7 @@ impl Pool {
     ///
     /// ### Arguments
     /// * `shares` - The amount of shares to queue for withdraw
-    pub fn queue_for_withdraw(&mut self, e: &Env, shares: u64) {
+    pub fn queue_for_withdraw(&mut self, e: &Env, shares: i128) {
         let cur_q4w = self.get_q4w(e);
         self.set_q4w(cur_q4w + shares);
     }
@@ -247,7 +241,7 @@ impl Pool {
     ///
     /// ### Arguments
     /// * `amount` - The amount of emissions you are trying to claim
-    pub fn claim(&mut self, e: &Env, amount: u64) -> Result<(), BackstopError> {
+    pub fn claim(&mut self, e: &Env, amount: i128) -> Result<(), BackstopError> {
         let emissions = self.get_emissions(e);
         if emissions < amount {
             return Err(BackstopError::InsufficientFunds);
@@ -274,7 +268,7 @@ mod tests {
         let mock_pool_factory = create_mock_pool_factory(&e);
         mock_pool_factory.set_pool(&pool_addr);
 
-        let pool = Pool::new(pool_addr.clone());
+        let pool = Pool::new(&e, pool_addr.clone());
         let result = pool.verify_pool(&e);
 
         match result {
@@ -297,7 +291,7 @@ mod tests {
         let mock_pool_factory = create_mock_pool_factory(&e);
         mock_pool_factory.set_pool(&pool_addr);
 
-        let pool = Pool::new(not_pool_addr.clone());
+        let pool = Pool::new(&e, not_pool_addr.clone());
         let result = pool.verify_pool(&e);
 
         match result {
@@ -311,22 +305,21 @@ mod tests {
     #[test]
     fn test_share_cache() {
         let e = Env::default();
-        let storage = StorageManager::new(&e);
 
         let backstop_addr = generate_contract_id(&e);
         let pool_addr = generate_contract_id(&e);
-        let mut pool = Pool::new(pool_addr.clone());
+        let mut pool = Pool::new(&e, pool_addr.clone());
 
         let first_share_amt = 100;
         e.as_contract(&backstop_addr, || {
-            storage.set_pool_shares(pool_addr.clone(), first_share_amt.clone());
+            storage::set_pool_shares(&e, &pool_addr, &first_share_amt);
             let first_result = pool.get_shares(&e);
             assert_eq!(first_result, first_share_amt);
         });
 
         e.as_contract(&backstop_addr, || {
             // cached version returned
-            storage.set_pool_shares(pool_addr.clone(), 1);
+            storage::set_pool_shares(&e, &pool_addr, &1);
             let cached_result = pool.get_shares(&e);
             assert_eq!(cached_result, first_share_amt);
 
@@ -338,7 +331,7 @@ mod tests {
 
             // write stores to chain
             pool.write_shares(&e);
-            let chain_result = storage.get_pool_shares(pool_addr);
+            let chain_result = storage::get_pool_shares(&e, &pool_addr);
             assert_eq!(chain_result, second_share_amt);
         });
     }
@@ -346,22 +339,21 @@ mod tests {
     #[test]
     fn test_q4w_cache() {
         let e = Env::default();
-        let storage = StorageManager::new(&e);
 
         let backstop_addr = generate_contract_id(&e);
         let pool_addr = generate_contract_id(&e);
-        let mut pool = Pool::new(pool_addr.clone());
+        let mut pool = Pool::new(&e, pool_addr.clone());
 
         let first_q4w_amt = 100;
         e.as_contract(&backstop_addr, || {
-            storage.set_pool_q4w(pool_addr.clone(), first_q4w_amt.clone());
+            storage::set_pool_q4w(&e, &pool_addr, &first_q4w_amt);
             let first_result = pool.get_q4w(&e);
             assert_eq!(first_result, first_q4w_amt);
         });
 
         e.as_contract(&backstop_addr, || {
             // cached version returned
-            storage.set_pool_q4w(pool_addr.clone(), 1);
+            storage::set_pool_q4w(&e, &pool_addr, &1);
             let cached_result = pool.get_q4w(&e);
             assert_eq!(cached_result, first_q4w_amt);
 
@@ -373,7 +365,7 @@ mod tests {
 
             // write stores to chain
             pool.write_q4w(&e);
-            let chain_result = storage.get_pool_q4w(pool_addr);
+            let chain_result = storage::get_pool_q4w(&e, &pool_addr);
             assert_eq!(chain_result, second_q4w_amt);
         });
     }
@@ -381,22 +373,21 @@ mod tests {
     #[test]
     fn test_token_cache() {
         let e = Env::default();
-        let storage = StorageManager::new(&e);
 
         let backstop_addr = generate_contract_id(&e);
         let pool_addr = generate_contract_id(&e);
-        let mut pool = Pool::new(pool_addr.clone());
+        let mut pool = Pool::new(&e, pool_addr.clone());
 
         let first_token_amt = 100;
         e.as_contract(&backstop_addr, || {
-            storage.set_pool_tokens(pool_addr.clone(), first_token_amt.clone());
+            storage::set_pool_tokens(&e, &pool_addr, &first_token_amt);
             let first_result = pool.get_tokens(&e);
             assert_eq!(first_result, first_token_amt);
         });
 
         e.as_contract(&backstop_addr, || {
             // cached version returned
-            storage.set_pool_tokens(pool_addr.clone(), 1);
+            storage::set_pool_tokens(&e, &pool_addr, &1);
             let cached_result = pool.get_tokens(&e);
             assert_eq!(cached_result, first_token_amt);
 
@@ -408,7 +399,7 @@ mod tests {
 
             // write stores to chain
             pool.write_tokens(&e);
-            let chain_result = storage.get_pool_tokens(pool_addr);
+            let chain_result = storage::get_pool_tokens(&e, &pool_addr);
             assert_eq!(chain_result, second_token_amt);
         });
     }
@@ -416,20 +407,19 @@ mod tests {
     #[test]
     fn test_emission_cache() {
         let e = Env::default();
-        let storage = StorageManager::new(&e);
 
         let backstop_addr = generate_contract_id(&e);
         let pool_addr = generate_contract_id(&e);
-        let mut pool = Pool::new(pool_addr.clone());
+        let mut pool = Pool::new(&e, pool_addr.clone());
 
         let first_amt = 100;
         e.as_contract(&backstop_addr, || {
-            storage.set_pool_emis(pool_addr.clone(), first_amt.clone());
+            storage::set_pool_emis(&e, &pool_addr, &first_amt);
             let first_result = pool.get_emissions(&e);
             assert_eq!(first_result, first_amt);
 
             // cached version returned
-            storage.set_pool_emis(pool_addr.clone(), 1);
+            storage::set_pool_emis(&e, &pool_addr, &1);
             let cached_result = pool.get_emissions(&e);
             assert_eq!(cached_result, first_amt);
 
@@ -441,7 +431,7 @@ mod tests {
 
             // write stores to chain
             pool.write_emissions(&e);
-            let chain_result = storage.get_pool_emis(pool_addr);
+            let chain_result = storage::get_pool_emis(&e, &pool_addr);
             assert_eq!(chain_result, second_amt);
         });
     }
@@ -453,8 +443,7 @@ mod tests {
         let e = Env::default();
         let pool_addr = generate_contract_id(&e);
         let mut pool = Pool {
-            address: pool_addr.clone(),
-            id: Identifier::Contract(pool_addr),
+            contract_id: pool_addr.clone(),
             shares: Some(0),
             tokens: Some(0),
             q4w: Some(0),
@@ -471,8 +460,7 @@ mod tests {
         let e = Env::default();
         let pool_addr = generate_contract_id(&e);
         let mut pool = Pool {
-            address: pool_addr.clone(),
-            id: Identifier::Contract(pool_addr),
+            contract_id: pool_addr.clone(),
             shares: Some(80321),
             tokens: Some(103302),
             q4w: Some(0),
@@ -489,8 +477,7 @@ mod tests {
         let e = Env::default();
         let pool_addr = generate_contract_id(&e);
         let mut pool = Pool {
-            address: pool_addr.clone(),
-            id: Identifier::Contract(pool_addr),
+            contract_id: pool_addr.clone(),
             shares: Some(0),
             tokens: Some(0),
             q4w: Some(0),
@@ -507,8 +494,7 @@ mod tests {
         let e = Env::default();
         let pool_addr = generate_contract_id(&e);
         let mut pool = Pool {
-            address: pool_addr.clone(),
-            id: Identifier::Contract(pool_addr),
+            contract_id: pool_addr.clone(),
             shares: Some(80321),
             tokens: Some(103302),
             q4w: Some(0),
@@ -525,8 +511,7 @@ mod tests {
         let e = Env::default();
         let pool_addr = generate_contract_id(&e);
         let mut pool = Pool {
-            address: pool_addr.clone(),
-            id: Identifier::Contract(pool_addr),
+            contract_id: pool_addr.clone(),
             shares: Some(100),
             tokens: Some(200),
             q4w: Some(25),
@@ -545,8 +530,7 @@ mod tests {
         let e = Env::default();
         let pool_addr = generate_contract_id(&e);
         let mut pool = Pool {
-            address: pool_addr.clone(),
-            id: Identifier::Contract(pool_addr),
+            contract_id: pool_addr.clone(),
             shares: Some(100),
             tokens: Some(200),
             q4w: Some(25),
@@ -565,8 +549,7 @@ mod tests {
         let e = Env::default();
         let pool_addr = generate_contract_id(&e);
         let mut pool = Pool {
-            address: pool_addr.clone(),
-            id: Identifier::Contract(pool_addr),
+            contract_id: pool_addr.clone(),
             shares: Some(100),
             tokens: Some(200),
             q4w: Some(25),
@@ -586,8 +569,7 @@ mod tests {
         let e = Env::default();
         let pool_addr = generate_contract_id(&e);
         let mut pool = Pool {
-            address: pool_addr.clone(),
-            id: Identifier::Contract(pool_addr),
+            contract_id: pool_addr.clone(),
             shares: Some(100),
             tokens: Some(200),
             q4w: Some(25),
@@ -606,8 +588,7 @@ mod tests {
         let e = Env::default();
         let pool_addr = generate_contract_id(&e);
         let mut pool = Pool {
-            address: pool_addr.clone(),
-            id: Identifier::Contract(pool_addr),
+            contract_id: pool_addr.clone(),
             shares: Some(100),
             tokens: Some(200),
             q4w: Some(25),
@@ -623,8 +604,7 @@ mod tests {
         let e = Env::default();
         let pool_addr = generate_contract_id(&e);
         let mut pool = Pool {
-            address: pool_addr.clone(),
-            id: Identifier::Contract(pool_addr),
+            contract_id: pool_addr.clone(),
             shares: Some(100),
             tokens: Some(200),
             q4w: Some(25),

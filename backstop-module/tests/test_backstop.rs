@@ -1,7 +1,7 @@
 #![cfg(test)]
 use cast::i128;
 use common::generate_contract_id;
-use soroban_auth::{Identifier, Signature};
+use soroban_auth::{Address, Signature};
 use soroban_sdk::{
     testutils::{Accounts, Ledger, LedgerInfo},
     BytesN, Env,
@@ -16,16 +16,16 @@ fn test_backstop_happy_path() {
     let e = Env::default();
 
     let bombadil = e.accounts().generate_and_create();
-    let bombadil_id = Identifier::Account(bombadil.clone());
+    let bombadil_id = Address::Account(bombadil.clone());
 
     let samwise = e.accounts().generate_and_create();
-    let samwise_id = Identifier::Account(samwise.clone());
+    let samwise_id = Address::Account(samwise.clone());
 
     let pool_addr = generate_contract_id(&e);
 
     // create backstop module
     let (backstop_addr, backstop_client) = create_backstop_module(&e);
-    let backstop_id = Identifier::Contract(backstop_addr);
+    let backstop_id = Address::Contract(backstop_addr);
     let token_id = BytesN::from_array(&e, &[222; 32]);
     let token_client = create_token_from_id(&e, &token_id, &bombadil_id);
 
@@ -33,12 +33,12 @@ fn test_backstop_happy_path() {
         timestamp: 0,
         protocol_version: 1,
         sequence_number: 0,
-        network_passphrase: Default::default(),
+        network_id: Default::default(),
         base_reserve: 10,
     });
 
     // mint tokens to user and approve backstop
-    let deposit_amount: u64 = 10_0000000;
+    let deposit_amount: i128 = 10_0000000;
     token_client.with_source_account(&bombadil).mint(
         &Signature::Invoker,
         &0,
@@ -49,7 +49,7 @@ fn test_backstop_happy_path() {
         &Signature::Invoker,
         &0,
         &backstop_id,
-        &i128(u64::MAX),
+        &i128(i128::MAX),
     );
 
     // deposit into backstop module
@@ -95,7 +95,7 @@ fn test_backstop_happy_path() {
         timestamp: 30 * 24 * 60 * 60,
         protocol_version: 1,
         sequence_number: 10,
-        network_passphrase: Default::default(),
+        network_id: Default::default(),
         base_reserve: 10,
     });
 
@@ -118,10 +118,10 @@ fn test_backstop_distribution_happy_path() {
     let e = Env::default();
 
     let (backstop_addr, backstop_client) = create_backstop_module(&e);
-    let backstop_id = Identifier::Contract(backstop_addr.clone());
+    let backstop_id = Address::Contract(backstop_addr.clone());
 
     let bombadil = e.accounts().generate_and_create();
-    let bombadil_id = Identifier::Account(bombadil.clone());
+    let bombadil_id = Address::Account(bombadil.clone());
 
     let token_id = BytesN::from_array(&e, &[222; 32]);
     let token_client = create_token_from_id(&e, &token_id, &bombadil_id);
@@ -131,7 +131,7 @@ fn test_backstop_distribution_happy_path() {
     let pool_3 = generate_contract_id(&e); // out of reward zone
 
     let samwise = e.accounts().generate_and_create();
-    let samwise_id = Identifier::Account(samwise.clone());
+    let samwise_id = Address::Account(samwise.clone());
 
     token_client.with_source_account(&bombadil).mint(
         &Signature::Invoker,
@@ -143,14 +143,14 @@ fn test_backstop_distribution_happy_path() {
         &Signature::Invoker,
         &0,
         &backstop_id,
-        &i128(u64::MAX),
+        &i128(i128::MAX),
     );
 
     e.ledger().set(LedgerInfo {
         timestamp: 1441065600,
         protocol_version: 1,
         sequence_number: 0,
-        network_passphrase: Default::default(),
+        network_id: Default::default(),
         base_reserve: 10,
     });
 

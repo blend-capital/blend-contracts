@@ -1,5 +1,5 @@
-use crate::storage::{self, PoolFactoryStore, StorageManager};
-use soroban_sdk::{contractimpl, BytesN, Env, RawVal, Symbol, Vec};
+use crate::storage;
+use soroban_sdk::{contractimpl, BytesN, Env};
 
 pub struct MockPoolFactory;
 
@@ -22,12 +22,10 @@ pub trait MockPoolFactoryTrait {
 #[contractimpl]
 impl MockPoolFactoryTrait for MockPoolFactory {
     fn is_pool(e: Env, pool_address: BytesN<32>) -> bool {
-        let storage = StorageManager::new(&e);
-        storage.is_deployed(pool_address)
+        storage::is_deployed(&e, &pool_address)
     }
 
     fn set_pool(e: Env, pool_address: BytesN<32>) {
-        let storage = StorageManager::new(&e);
-        storage.set_deployed(pool_address);
+        storage::set_deployed(&e, &pool_address);
     }
 }

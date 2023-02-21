@@ -1,11 +1,8 @@
 use crate::{
     backstop, distributor,
     errors::BackstopError,
-    pool::Pool,
     storage::{self, Q4W},
-    user::User,
 };
-use cast::i128;
 use soroban_sdk::{contractimpl, symbol, Address, BytesN, Env, Vec};
 
 /// ### Backstop Module
@@ -116,7 +113,14 @@ pub trait BackstopModuleContractTrait {
     ///
     /// ### Errors
     /// If the pool has no emissions left to claim
-    fn claim(e: Env, from: Address, to: Address, amount: i128) -> Result<(), BackstopError>;
+    /// TODO: Require from == pool_address once sdk issue resolved: https://github.com/stellar/rs-soroban-sdk/issues/868
+    fn claim(
+        e: Env,
+        from: Address,
+        pool_address: BytesN<32>,
+        to: Address,
+        amount: i128,
+    ) -> Result<(), BackstopError>;
 
     /********** Fund Management *********/
 
@@ -130,7 +134,7 @@ pub trait BackstopModuleContractTrait {
     ///
     /// ### Errors
     /// If the pool does not have enough backstop tokens
-    /// TODO: Require from == pool_address once sdk issue resolved:
+    /// TODO: Require from == pool_address once sdk issue resolved: https://github.com/stellar/rs-soroban-sdk/issues/868
     fn draw(
         e: Env,
         from: Address,
@@ -173,7 +177,7 @@ impl BackstopModuleContractTrait for BackstopModuleContract {
     ) -> Result<i128, BackstopError> {
         from.require_auth();
 
-        let to_mint = backstop::execute_deposit(&e, from, pool_address, amount)?;
+        let to_mint = backstop::execute_deposit(&e, from.clone(), pool_address.clone(), amount)?;
 
         e.events()
             .publish((symbol!("deposit"), pool_address), (from, amount, to_mint));
@@ -188,7 +192,8 @@ impl BackstopModuleContractTrait for BackstopModuleContract {
     ) -> Result<Q4W, BackstopError> {
         from.require_auth();
 
-        let to_queue = backstop::execute_q_withdraw(&e, from, pool_address, amount)?;
+        let to_queue =
+            backstop::execute_q_withdraw(&e, from.clone(), pool_address.clone(), amount)?;
 
         e.events().publish(
             (symbol!("q_withdraw"), pool_address),
@@ -205,7 +210,8 @@ impl BackstopModuleContractTrait for BackstopModuleContract {
     ) -> Result<i128, BackstopError> {
         from.require_auth();
 
-        let to_withdraw = backstop::execute_withdraw(&e, from, pool_address, amount)?;
+        let to_withdraw =
+            backstop::execute_withdraw(&e, from.clone(), pool_address.clone(), amount)?;
 
         e.events().publish(
             (symbol!("withdraw"), pool_address),
@@ -243,7 +249,7 @@ impl BackstopModuleContractTrait for BackstopModuleContract {
     }
 
     fn add_reward(e: Env, to_add: BytesN<32>, to_remove: BytesN<32>) -> Result<(), BackstopError> {
-        distributor::add_to_reward_zone(&e, to_add, to_remove)?;
+        distributor::add_to_reward_zone(&e, to_add.clone(), to_remove.clone())?;
 
         e.events()
             .publish((symbol!("rw_zone"),), (to_add, to_remove));
@@ -258,12 +264,19 @@ impl BackstopModuleContractTrait for BackstopModuleContract {
         storage::get_pool_eps(&e, &pool_address)
     }
 
-    fn claim(e: Env, from: Address, to: Address, amount: i128) -> Result<(), BackstopError> {
+    fn claim(
+        e: Env,
+        from: Address,
+        pool_address: BytesN<32>,
+        to: Address,
+        amount: i128,
+    ) -> Result<(), BackstopError> {
         from.require_auth();
 
-        backstop::execute_claim(&e, from, to, amount)?;
+        backstop::execute_claim(&e, pool_address.clone(), to.clone(), amount)?;
 
-        e.events().publish((symbol!("claim"), from), (to, amount));
+        e.events()
+            .publish((symbol!("claim"), pool_address), (to, amount));
         Ok(())
     }
 
@@ -278,7 +291,7 @@ impl BackstopModuleContractTrait for BackstopModuleContract {
     ) -> Result<(), BackstopError> {
         from.require_auth();
 
-        backstop::execute_draw(&e, pool_address, amount, to)?;
+        backstop::execute_draw(&e, pool_address.clone(), amount, to.clone())?;
 
         e.events()
             .publish((symbol!("draw"), pool_address), (to, amount));
@@ -293,7 +306,7 @@ impl BackstopModuleContractTrait for BackstopModuleContract {
     ) -> Result<(), BackstopError> {
         from.require_auth();
 
-        backstop::execute_donate(&e, from, pool_address, amount)?;
+        backstop::execute_donate(&e, from.clone(), pool_address.clone(), amount)?;
         e.events()
             .publish((symbol!("donate"), pool_address), (from, amount));
         Ok(())

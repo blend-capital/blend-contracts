@@ -1,6 +1,6 @@
 use cast::i128;
-use fixed_point_math::{FixedPoint, STROOP};
-use soroban_sdk::{symbol, vec, BytesN, Env, Vec};
+use fixed_point_math::FixedPoint;
+use soroban_sdk::{vec, BytesN, Env, Vec};
 
 use crate::{constants::SCALAR_7, errors::BackstopError, storage};
 
@@ -36,7 +36,7 @@ pub fn add_to_reward_zone(
         let to_remove_index = reward_zone.first_index_of(to_remove.clone());
         match to_remove_index {
             Some(idx) => {
-                reward_zone.insert(idx, to_add.clone());
+                reward_zone.set(idx, to_add.clone());
                 storage::set_pool_eps(&e, &to_remove, &0);
             }
             None => return Err(BackstopError::InvalidRewardZoneEntry),
@@ -97,6 +97,7 @@ pub fn distribute(e: &Env) -> Result<(), BackstopError> {
 
 #[cfg(test)]
 mod tests {
+
     use crate::testutils::generate_contract_id;
 
     use super::*;
@@ -253,11 +254,12 @@ mod tests {
             let result = add_to_reward_zone(&e, to_add.clone(), to_remove.clone());
             match result {
                 Ok(_) => {
-                    let actual_rz = storage::get_reward_zone(&e);
-                    reward_zone.set(7, to_add);
-                    assert_eq!(actual_rz, reward_zone);
                     let remove_eps = storage::get_pool_eps(&e, &to_remove);
                     assert_eq!(remove_eps, 0);
+                    let actual_rz = storage::get_reward_zone(&e);
+                    assert_eq!(actual_rz.len(), 10);
+                    reward_zone.set(7, to_add);
+                    assert_eq!(actual_rz, reward_zone);
                 }
                 Err(_) => assert!(false),
             }
@@ -429,7 +431,7 @@ mod tests {
             storage::set_pool_tokens(&e, &pool_3, &500_000_0000000);
             storage::set_pool_emis(&e, &pool_1, &100_123_0000000);
 
-            let result = Distributor::distribute(&e);
+            let result = distribute(&e);
             match result {
                 Ok(_) => {
                     assert_eq!(

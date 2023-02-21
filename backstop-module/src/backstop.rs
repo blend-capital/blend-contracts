@@ -2,8 +2,7 @@ use crate::{
     constants::BACKSTOP_TOKEN, dependencies::TokenClient, errors::BackstopError, pool::Pool,
     storage, user::User,
 };
-use cast::i128;
-use soroban_sdk::{contractimpl, symbol, Address, BytesN, Env, IntoVal, Vec};
+use soroban_sdk::{Address, BytesN, Env};
 
 /// Perform a deposit into the backstop module
 pub fn execute_deposit(
@@ -12,7 +11,7 @@ pub fn execute_deposit(
     pool_address: BytesN<32>,
     amount: i128,
 ) -> Result<i128, BackstopError> {
-    let mut user = User::new(pool_address.clone(), from);
+    let mut user = User::new(pool_address.clone(), from.clone());
     let mut pool = Pool::new(e, pool_address.clone());
 
     let to_mint = pool.convert_to_shares(e, amount);
@@ -62,7 +61,7 @@ pub fn execute_withdraw(
     pool_address: BytesN<32>,
     amount: i128,
 ) -> Result<i128, BackstopError> {
-    let mut user = User::new(pool_address.clone(), from);
+    let mut user = User::new(pool_address.clone(), from.clone());
     let mut pool = Pool::new(e, pool_address.clone());
 
     user.try_withdraw_shares(e, amount)?;
@@ -89,11 +88,11 @@ pub fn execute_withdraw(
 /// Perform a claim by a pool from the backstop module
 pub fn execute_claim(
     e: &Env,
-    from: Address,
+    pool_address: BytesN<32>,
     to: Address,
     amount: i128,
 ) -> Result<(), BackstopError> {
-    let pool = Pool::new(e, BytesN::from_array(e, &BACKSTOP_TOKEN)); // TODO: Fix
+    let mut pool = Pool::new(e, pool_address);
     pool.verify_pool(&e)?;
     pool.claim(e, amount)?;
     pool.write_emissions(&e);
@@ -113,7 +112,7 @@ pub fn execute_draw(
     amount: i128,
     to: Address,
 ) -> Result<(), BackstopError> {
-    let pool = Pool::new(e, pool_address); // TODO: Fix
+    let mut pool = Pool::new(e, pool_address); // TODO: Fix
     pool.verify_pool(&e)?;
 
     pool.withdraw(e, amount, 0)?;

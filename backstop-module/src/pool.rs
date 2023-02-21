@@ -1,5 +1,5 @@
 use fixed_point_math::FixedPoint;
-use soroban_sdk::{Address, BytesN, Env};
+use soroban_sdk::{BytesN, Env};
 
 use crate::{
     constants::POOL_FACTORY, dependencies::PoolFactoryClient, errors::BackstopError, storage,
@@ -16,7 +16,7 @@ pub struct Pool {
 }
 
 impl Pool {
-    pub fn new(e: &Env, contract_id: BytesN<32>) -> Pool {
+    pub fn new(_e: &Env, contract_id: BytesN<32>) -> Pool {
         Pool {
             contract_id: contract_id.clone(),
             shares: None,

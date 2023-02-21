@@ -196,8 +196,8 @@ mod tests {
 
     use super::*;
     use soroban_sdk::{
-        testutils::{Address, Ledger, LedgerInfo},
-        vec,
+        testutils::{Address as AddressTestTrait, Ledger, LedgerInfo},
+        vec, Address,
     };
 
     /********** Cache / Getters / Setters **********/
@@ -209,20 +209,19 @@ mod tests {
         let backstop_addr = generate_contract_id(&e);
         let pool_addr = generate_contract_id(&e);
 
-        let user_acct = e.accounts().generate_and_create();
-        let user_id = Address::Account(user_acct.clone());
-        let mut user = User::new(pool_addr, user_id);
+        let samwise = Address::random(&e);
+        let mut user = User::new(pool_addr.clone(), samwise.clone());
 
         let first_share_amt = 100;
         e.as_contract(&backstop_addr, || {
-            storage::set_shares(&e, &pool_addr, &user_id, &first_share_amt);
+            storage::set_shares(&e, &pool_addr, &samwise, &first_share_amt);
             let first_result = user.get_shares(&e);
             assert_eq!(first_result, first_share_amt);
         });
 
         e.as_contract(&backstop_addr, || {
             // cached version returned
-            storage::set_shares(&e, &pool_addr, &user_id, &1);
+            storage::set_shares(&e, &pool_addr, &samwise, &1);
             let cached_result = user.get_shares(&e);
             assert_eq!(cached_result, first_share_amt);
 
@@ -234,7 +233,7 @@ mod tests {
 
             // write stores to chain
             user.write_shares(&e);
-            let chain_result = storage::get_shares(&e, &pool_addr, &user_id);
+            let chain_result = storage::get_shares(&e, &pool_addr, &samwise);
             assert_eq!(chain_result, second_share_amt);
         });
     }
@@ -246,9 +245,8 @@ mod tests {
         let backstop_addr = generate_contract_id(&e);
         let pool_addr = generate_contract_id(&e);
 
-        let user_acct = e.accounts().generate_and_create();
-        let user_id = Address::Account(user_acct.clone());
-        let mut user = User::new(pool_addr, user_id);
+        let samwise = Address::random(&e);
+        let mut user = User::new(pool_addr.clone(), samwise.clone());
 
         let first_q4w = vec![
             &e,
@@ -258,14 +256,14 @@ mod tests {
             },
         ];
         e.as_contract(&backstop_addr, || {
-            storage::set_q4w(&e, &pool_addr, &user_id, &first_q4w);
+            storage::set_q4w(&e, &pool_addr, &samwise, &first_q4w);
             let first_result = user.get_q4w(&e);
             assert_eq_vec_q4w(&first_q4w, &first_result);
         });
 
         e.as_contract(&backstop_addr, || {
             // cached version returned
-            storage::set_q4w(&e, &pool_addr, &user_id, &vec![&e]);
+            storage::set_q4w(&e, &pool_addr, &samwise, &vec![&e]);
             let cached_result = user.get_q4w(&e);
             assert_eq_vec_q4w(&first_q4w, &cached_result);
 
@@ -283,7 +281,7 @@ mod tests {
 
             // write stores to chain
             user.write_q4w(&e);
-            let chain_result = storage::get_q4w(&e, &pool_addr, &user_id);
+            let chain_result = storage::get_q4w(&e, &pool_addr, &samwise);
             assert_eq_vec_q4w(&second_q4w, &chain_result);
         });
     }
@@ -294,12 +292,9 @@ mod tests {
     fn test_add_shares() {
         let e = Env::default();
 
-        let user_acct = e.accounts().generate_and_create();
-        let user_id = Address::Account(user_acct.clone());
-
         let mut user = User {
             pool: generate_contract_id(&e),
-            id: user_id,
+            id: Address::random(&e),
             shares: Some(100),
             q4w: None,
         };
@@ -317,12 +312,10 @@ mod tests {
         let e = Env::default();
 
         let backstop_addr = generate_contract_id(&e);
-        let user_acct = e.accounts().generate_and_create();
-        let user_id = Address::Account(user_acct.clone());
 
         let mut user = User {
             pool: generate_contract_id(&e),
-            id: user_id,
+            id: Address::random(&e),
             shares: Some(1000),
             q4w: None,
         };
@@ -357,8 +350,6 @@ mod tests {
         let e = Env::default();
 
         let backstop_addr = generate_contract_id(&e);
-        let user_acct = e.accounts().generate_and_create();
-        let user_id = Address::Account(user_acct.clone());
 
         let mut cur_q4w = vec![
             &e,
@@ -369,7 +360,7 @@ mod tests {
         ];
         let mut user = User {
             pool: generate_contract_id(&e),
-            id: user_id,
+            id: Address::random(&e),
             shares: Some(1000),
             q4w: Some(cur_q4w.clone()),
         };
@@ -402,8 +393,6 @@ mod tests {
         let e = Env::default();
 
         let backstop_addr = generate_contract_id(&e);
-        let user_acct = e.accounts().generate_and_create();
-        let user_id = Address::Account(user_acct.clone());
 
         let cur_q4w = vec![
             &e,
@@ -414,7 +403,7 @@ mod tests {
         ];
         let mut user = User {
             pool: generate_contract_id(&e),
-            id: user_id,
+            id: Address::random(&e),
             shares: Some(1000),
             q4w: Some(cur_q4w),
         };
@@ -445,12 +434,10 @@ mod tests {
         let e = Env::default();
 
         let backstop_addr = generate_contract_id(&e);
-        let user_acct = e.accounts().generate_and_create();
-        let user_id = Address::Account(user_acct.clone());
 
         let mut user = User {
             pool: generate_contract_id(&e),
-            id: user_id,
+            id: Address::random(&e),
             shares: Some(1000),
             q4w: None,
         };
@@ -481,8 +468,6 @@ mod tests {
         let e = Env::default();
 
         let backstop_addr = generate_contract_id(&e);
-        let user_acct = e.accounts().generate_and_create();
-        let user_id = Address::Account(user_acct.clone());
 
         let cur_q4w = vec![
             &e,
@@ -493,7 +478,7 @@ mod tests {
         ];
         let mut user = User {
             pool: generate_contract_id(&e),
-            id: user_id,
+            id: Address::random(&e),
             shares: Some(1000),
             q4w: Some(cur_q4w),
         };
@@ -525,8 +510,6 @@ mod tests {
         let e = Env::default();
 
         let backstop_addr = generate_contract_id(&e);
-        let user_acct = e.accounts().generate_and_create();
-        let user_id = Address::Account(user_acct.clone());
 
         let cur_q4w = vec![
             &e,
@@ -537,7 +520,7 @@ mod tests {
         ];
         let mut user = User {
             pool: generate_contract_id(&e),
-            id: user_id,
+            id: Address::random(&e),
             shares: Some(1000),
             q4w: Some(cur_q4w),
         };
@@ -576,8 +559,6 @@ mod tests {
         let e = Env::default();
 
         let backstop_addr = generate_contract_id(&e);
-        let user_acct = e.accounts().generate_and_create();
-        let user_id = Address::Account(user_acct.clone());
 
         let cur_q4w = vec![
             &e,
@@ -596,7 +577,7 @@ mod tests {
         ];
         let mut user = User {
             pool: generate_contract_id(&e),
-            id: user_id,
+            id: Address::random(&e),
             shares: Some(1000),
             q4w: Some(cur_q4w),
         };
@@ -639,8 +620,6 @@ mod tests {
         let e = Env::default();
 
         let backstop_addr = generate_contract_id(&e);
-        let user_acct = e.accounts().generate_and_create();
-        let user_id = Address::Account(user_acct.clone());
 
         let cur_q4w = vec![
             &e,
@@ -659,7 +638,7 @@ mod tests {
         ];
         let mut user = User {
             pool: generate_contract_id(&e),
-            id: user_id,
+            id: Address::random(&e),
             shares: Some(1000),
             q4w: Some(cur_q4w.clone()),
         };

@@ -5,7 +5,7 @@ use crate::{
 use cast::i128;
 use fixed_point_math::FixedPoint;
 use soroban_auth::Identifier;
-use soroban_sdk::{contracttype, BytesN, Env, Vec};
+use soroban_sdk::{contracttype, BytesN, Env, Map, Vec};
 
 use super::{
     backstop_interest_auction::{
@@ -40,6 +40,13 @@ impl AuctionType {
 
 #[derive(Clone)]
 #[contracttype]
+pub struct LiquidationMetadata {
+    pub collateral: Map<BytesN<32>, i128>,
+    pub liability: Map<BytesN<32>, i128>,
+}
+
+#[derive(Clone)]
+#[contracttype]
 pub struct AuctionQuote {
     pub bid: Vec<(BytesN<32>, i128)>,
     pub lot: Vec<(BytesN<32>, i128)>,
@@ -50,8 +57,8 @@ pub struct AuctionQuote {
 #[derive(Clone)]
 #[contracttype]
 pub struct AuctionDataV2 {
-    pub bid: Vec<(u32, i128)>,
-    pub lot: Vec<(u32, i128)>,
+    pub bid: Map<u32, i128>,
+    pub lot: Map<u32, i128>,
     pub block: u32,
 }
 
@@ -72,28 +79,40 @@ impl AuctionV2 {
     ///
     /// ### Arguments
     /// * `auction_type` - The type of auction being created
-    /// * `user` - The user whose assets are involved in the auction. If the auction does not
-    ///            involve an external user (e.g. backstop auctions), this value is ignored.
     ///
     /// ### Errors
     /// If the auction is unable to be created
-    pub fn create(e: &Env, auction_type: u32, user: Option<Identifier>) -> Result<Self, PoolError> {
+    pub fn create(e: &Env, auction_type: u32) -> Result<Self, PoolError> {
         let storage = StorageManager::new(e);
 
         let auct_type = AuctionType::from_u32(auction_type);
         let auction = match auct_type {
             AuctionType::UserLiquidation => {
-                if let Some(liq_user) = user {
-                    create_user_liq_auction(e, &liq_user)
-                } else {
-                    return Err(PoolError::BadRequest);
-                }
+                return Err(PoolError::BadRequest);
             }
             AuctionType::BadDebtAuction => create_bad_debt_auction(e),
             AuctionType::InterestAuction => create_interest_auction(e),
         }?;
 
         storage.set_auction(auction_type, auction.user.clone(), auction.data.clone());
+
+        return Ok(auction);
+    }
+
+    pub fn create_liquidation(
+        e: &Env,
+        user: Identifier,
+        liq_data: LiquidationMetadata,
+    ) -> Result<Self, PoolError> {
+        let storage = StorageManager::new(e);
+
+        let auction = create_user_liq_auction(e, &user, liq_data)?;
+
+        storage.set_auction(
+            auction.auction_type.clone() as u32,
+            auction.user.clone(),
+            auction.data.clone(),
+        );
 
         return Ok(auction);
     }
@@ -186,6 +205,7 @@ mod tests {
 
     use super::*;
     use soroban_sdk::{
+        map,
         testutils::{Ledger, LedgerInfo},
         vec,
     };
@@ -194,7 +214,7 @@ mod tests {
     fn test_create_user_auction_no_user_errors() {
         let e = Env::default();
 
-        let result = AuctionV2::create(&e, AuctionType::UserLiquidation as u32, None);
+        let result = AuctionV2::create(&e, AuctionType::UserLiquidation as u32);
 
         match result {
             Ok(_) => assert!(false),
@@ -210,8 +230,8 @@ mod tests {
             auction_type: AuctionType::UserLiquidation,
             user: Identifier::Contract(generate_contract_id(&e)),
             data: AuctionDataV2 {
-                bid: vec![&e],
-                lot: vec![&e],
+                bid: map![&e],
+                lot: map![&e],
                 block: 1000,
             },
         };

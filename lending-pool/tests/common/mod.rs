@@ -1,6 +1,5 @@
 use rand::{thread_rng, RngCore};
-use soroban_auth::Identifier;
-use soroban_sdk::{BytesN, Env, IntoVal};
+use soroban_sdk::{Address, BytesN, Env, IntoVal};
 
 // Generics
 
@@ -29,24 +28,37 @@ pub fn generate_contract_id(e: &Env) -> BytesN<32> {
     BytesN::from_array(e, &id)
 }
 
-pub fn create_token(e: &Env, admin: &Identifier) -> (BytesN<32>, TokenClient) {
+pub fn create_stellar_token(e: &Env, admin: &Address) -> (BytesN<32>, TokenClient) {
+    let contract_id = e.register_stellar_asset_contract(admin.clone());
+    let client = TokenClient::new(e, &contract_id);
+    (contract_id, client)
+}
+
+pub fn create_token(e: &Env, admin: &Address) -> (BytesN<32>, TokenClient) {
     let contract_id = generate_contract_id(e);
     e.register_contract_wasm(&contract_id, token::WASM);
-    let client = TokenClient::new(e, contract_id.clone());
-    client.initialize(&admin, &7, &"unit".into_val(e), &"test".into_val(&e));
+    let client = TokenClient::new(e, &contract_id);
+    client.initialize(&admin, &7, &"unit".into_val(e), &"test".into_val(e));
     (contract_id, client)
+}
+
+pub fn create_token_from_id(e: &Env, contract_id: &BytesN<32>, admin: &Address) -> TokenClient {
+    e.register_contract_wasm(contract_id, token::WASM);
+    let client = TokenClient::new(e, contract_id);
+    client.initialize(&admin, &7, &"unit".into_val(e), &"test".into_val(e));
+    client
 }
 
 pub fn create_wasm_lending_pool(e: &Env) -> (BytesN<32>, PoolClient) {
     let contract_id = generate_contract_id(e);
     e.register_contract_wasm(&contract_id, pool::WASM);
-    (contract_id.clone(), PoolClient::new(e, contract_id))
+    (contract_id.clone(), PoolClient::new(e, &contract_id))
 }
 
 pub fn create_mock_oracle(e: &Env) -> (BytesN<32>, MockOracleClient) {
     let contract_id = generate_contract_id(e);
     e.register_contract_wasm(&contract_id, mock_blend_oracle::WASM);
-    (contract_id.clone(), MockOracleClient::new(e, contract_id))
+    (contract_id.clone(), MockOracleClient::new(e, &contract_id))
 }
 
 // Contract specific test functions

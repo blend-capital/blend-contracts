@@ -3,20 +3,16 @@ use crate::{
     dependencies::{BackstopClient, OracleClient, TokenClient},
     errors::PoolError,
     reserve::Reserve,
-    storage::{PoolDataStore, StorageManager},
+    storage,
 };
 use cast::i128;
 use fixed_point_math::FixedPoint;
-use soroban_auth::{Identifier, Signature};
-use soroban_sdk::{map, vec, BytesN, Env};
+use soroban_sdk::{map, vec, Address, BytesN, Env};
 
-use super::auction_v2::{AuctionDataV2, AuctionQuote, AuctionType, AuctionV2};
+use super::{get_fill_modifiers, AuctionData, AuctionQuote, AuctionType};
 
-pub fn create_interest_auction(e: &Env) -> Result<AuctionV2, PoolError> {
-    let storage = StorageManager::new(e);
-    let bkstp_id = Identifier::Contract(storage.get_backstop());
-
-    if storage.has_auction(AuctionType::InterestAuction as u32, bkstp_id.clone()) {
+pub fn create_interest_auction_data(e: &Env, backstop: &Address) -> Result<AuctionData, PoolError> {
+    if storage::has_auction(e, &(AuctionType::InterestAuction as u32), backstop) {
         return Err(PoolError::AlreadyInProgress);
     }
 
@@ -24,16 +20,16 @@ pub fn create_interest_auction(e: &Env) -> Result<AuctionV2, PoolError> {
     //       It is currently guaranteed that if no auction is active, some interest
     //       will be generated.
 
-    let pool_config = storage.get_pool_config();
-    let oracle_client = OracleClient::new(e, pool_config.oracle.clone());
+    let pool_config = storage::get_pool_config(e);
+    let oracle_client = OracleClient::new(e, &pool_config.oracle);
 
-    let mut auction_data = AuctionDataV2 {
+    let mut auction_data = AuctionData {
         bid: map![e],
         lot: map![e],
         block: e.ledger().sequence() + 1,
     };
 
-    let reserve_count = storage.get_res_list();
+    let reserve_count = storage::get_res_list(e);
     let mut interest_value = 0;
     for i in 0..reserve_count.len() {
         let res_asset_address = reserve_count.get_unchecked(i).unwrap();
@@ -41,8 +37,8 @@ pub fn create_interest_auction(e: &Env) -> Result<AuctionV2, PoolError> {
         let mut reserve = Reserve::load(&e, res_asset_address.clone());
         let to_mint_bkstp = reserve.update_rates(e, pool_config.bstop_rate);
 
-        let b_token_client = TokenClient::new(e, reserve.config.b_token.clone());
-        let b_token_balance = b_token_client.balance(&bkstp_id) + to_mint_bkstp;
+        let b_token_client = TokenClient::new(e, &reserve.config.b_token);
+        let b_token_balance = b_token_client.balance(&backstop) + to_mint_bkstp;
         if b_token_balance > 0 {
             let asset_to_base = oracle_client.get_price(&res_asset_address);
             let asset_balance = reserve.to_asset_from_b_token(b_token_balance);
@@ -67,38 +63,32 @@ pub fn create_interest_auction(e: &Env) -> Result<AuctionV2, PoolError> {
     // u32::MAX is the key for the backstop token
     auction_data.bid.set(u32::MAX, bid_amount);
 
-    Ok(AuctionV2 {
-        auction_type: AuctionType::InterestAuction,
-        user: bkstp_id,
-        data: auction_data,
-    })
+    Ok(auction_data)
 }
 
 /// NOTE: This function is for viewing purposes only and should not be called by functions
 ///       that modify state
-pub fn calc_fill_interest_auction(e: &Env, auction: &AuctionV2) -> AuctionQuote {
-    let storage = StorageManager::new(e);
-
+pub fn calc_fill_interest_auction(e: &Env, auction_data: &AuctionData) -> AuctionQuote {
     let mut auction_quote = AuctionQuote {
         bid: vec![e],
         lot: vec![e],
         block: e.ledger().sequence(),
     };
 
-    let (bid_modifier, lot_modifier) = auction.get_fill_modifiers(e);
+    let (bid_modifier, lot_modifier) = get_fill_modifiers(e, auction_data);
 
     // bid only contains the backstop token
-    let bid_amount = auction.data.bid.get_unchecked(u32::MAX).unwrap();
+    let bid_amount = auction_data.bid.get_unchecked(u32::MAX).unwrap();
     let bid_amount_modified = bid_amount.fixed_mul_floor(bid_modifier, SCALAR_7).unwrap();
     auction_quote
         .bid
         .push_back((BytesN::from_array(e, &BLND_TOKEN), bid_amount_modified));
 
     // lot only contains b_token reserves
-    let reserve_list = storage.get_res_list();
-    for (res_id, amount) in auction.data.lot.iter_unchecked() {
+    let reserve_list = storage::get_res_list(e);
+    for (res_id, amount) in auction_data.lot.iter_unchecked() {
         let res_asset_address = reserve_list.get_unchecked(res_id).unwrap();
-        let reserve_config = storage.get_res_config(res_asset_address);
+        let reserve_config = storage::get_res_config(e, &res_asset_address);
         let amount_modified = amount.fixed_mul_floor(lot_modifier, SCALAR_7).unwrap();
         auction_quote
             .lot
@@ -108,13 +98,16 @@ pub fn calc_fill_interest_auction(e: &Env, auction: &AuctionV2) -> AuctionQuote 
     auction_quote
 }
 
-pub fn fill_interest_auction(e: &Env, auction: &AuctionV2, filler: Identifier) -> AuctionQuote {
+pub fn fill_interest_auction(
+    e: &Env,
+    auction_data: &AuctionData,
+    filler: &Address,
+) -> AuctionQuote {
     // TODO: Determine if there is a way to reuse calc code. Currently, this would result in reloads of all
     //       reserves and the minting of tokens to the backstop during previews.
-    let storage = StorageManager::new(e);
-    let pool_config = storage.get_pool_config();
-    let bkstp = storage.get_backstop();
-    let bkstp_id = Identifier::Contract(bkstp.clone());
+    let pool_config = storage::get_pool_config(e);
+    let backstop_id = storage::get_backstop(e);
+    let backstop = storage::get_backstop_address(e);
 
     let mut auction_quote = AuctionQuote {
         bid: vec![e],
@@ -122,35 +115,26 @@ pub fn fill_interest_auction(e: &Env, auction: &AuctionV2, filler: Identifier) -
         block: e.ledger().sequence(),
     };
 
-    let (bid_modifier, lot_modifier) = auction.get_fill_modifiers(e);
+    let (bid_modifier, lot_modifier) = get_fill_modifiers(e, auction_data);
 
     // bid only contains the backstop token
     let blnd_token = BytesN::from_array(e, &BLND_TOKEN);
-    let bid_amount = auction.data.bid.get_unchecked(u32::MAX).unwrap();
+    let bid_amount = auction_data.bid.get_unchecked(u32::MAX).unwrap();
     let bid_amount_modified = bid_amount.fixed_mul_floor(bid_modifier, SCALAR_7).unwrap();
     auction_quote
         .bid
         .push_back((blnd_token.clone(), bid_amount_modified));
 
-    // TODO: Make more seamless with "auth-next" by pre-authorizing the transfer taking place
-    //       in the backstop client to avoid a double transfer.
-    let backstop_client = BackstopClient::new(&e, &bkstp);
-    TokenClient::new(e, &blnd_token).xfer_from(
-        &Signature::Invoker,
-        &0,
-        &filler,
-        &Identifier::Contract(e.current_contract()),
-        &bid_amount_modified,
-    );
-    backstop_client.donate(&e.current_contract(), &(bid_amount_modified as u64));
+    let backstop_client = BackstopClient::new(&e, &backstop_id);
+    backstop_client.donate(&filler, &e.current_contract_id(), &bid_amount_modified);
 
     // lot only contains b_token reserves
-    let reserve_list = storage.get_res_list();
-    for (res_id, lot_amount) in auction.data.lot.iter_unchecked() {
+    let reserve_list = storage::get_res_list(e);
+    for (res_id, lot_amount) in auction_data.lot.iter_unchecked() {
         let res_asset_address = reserve_list.get_unchecked(res_id).unwrap();
         let mut reserve = Reserve::load(&e, res_asset_address.clone());
         reserve
-            .pre_action(e, &pool_config, 1, bkstp_id.clone())
+            .pre_action(e, &pool_config, 1, backstop.clone())
             .unwrap();
         let lot_amount_modified = lot_amount.fixed_mul_floor(lot_modifier, SCALAR_7).unwrap();
         auction_quote
@@ -158,9 +142,13 @@ pub fn fill_interest_auction(e: &Env, auction: &AuctionV2, filler: Identifier) -
             .push_back((reserve.config.b_token.clone(), lot_amount_modified));
 
         // TODO: Privileged xfer
-        let b_token_client = TokenClient::new(e, reserve.config.b_token.clone());
-        b_token_client.clawback(&Signature::Invoker, &0, &bkstp_id, &lot_amount_modified);
-        b_token_client.mint(&Signature::Invoker, &0, &filler, &lot_amount_modified);
+        let b_token_client = TokenClient::new(e, &reserve.config.b_token);
+        b_token_client.clawback(
+            &e.current_contract_address(),
+            &backstop,
+            &lot_amount_modified,
+        );
+        b_token_client.mint(&e.current_contract_address(), &filler, &lot_amount_modified);
         reserve.set_data(e);
     }
     auction_quote
@@ -169,8 +157,8 @@ pub fn fill_interest_auction(e: &Env, auction: &AuctionV2, filler: Identifier) -
 #[cfg(test)]
 mod tests {
     use crate::{
-        auctions::auction_v2::AuctionType,
-        storage::{PoolConfig, PoolDataStore, StorageManager},
+        auctions::auction::AuctionType,
+        storage::{self, PoolConfig},
         testutils::{
             create_backstop, create_mock_oracle, create_mock_pool_factory, create_reserve,
             create_token_from_id, generate_contract_id, setup_reserve,
@@ -178,42 +166,43 @@ mod tests {
     };
 
     use super::*;
-    use soroban_auth::Signature;
     use soroban_sdk::{
-        testutils::{Accounts, Ledger, LedgerInfo},
-        BytesN,
+        testutils::{Address as AddressTestTrait, Ledger, LedgerInfo},
+        Address, BytesN,
     };
 
     #[test]
     fn test_create_interest_auction_already_in_progress() {
         let e = Env::default();
-        let storage = StorageManager::new(&e);
+
         let pool_id = generate_contract_id(&e);
-        let backstop = generate_contract_id(&e);
-        let backstop_id = Identifier::Contract(backstop.clone());
+        let backstop_id = generate_contract_id(&e);
+        let backstop = Address::from_contract_id(&e, &backstop_id);
 
         e.ledger().set(LedgerInfo {
             timestamp: 12345,
             protocol_version: 1,
             sequence_number: 100,
-            network_passphrase: Default::default(),
+            network_id: Default::default(),
             base_reserve: 10,
         });
 
-        let auction_data = AuctionDataV2 {
+        let auction_data = AuctionData {
             bid: map![&e],
             lot: map![&e],
             block: 50,
         };
         e.as_contract(&pool_id, || {
-            storage.set_backstop(backstop.clone());
-            storage.set_auction(
-                AuctionType::InterestAuction as u32,
-                backstop_id.clone(),
-                auction_data,
+            storage::set_backstop(&e, &backstop_id);
+            storage::set_backstop_address(&e, &backstop);
+            storage::set_auction(
+                &e,
+                &(AuctionType::InterestAuction as u32),
+                &backstop,
+                &auction_data,
             );
 
-            let result = create_interest_auction(&e);
+            let result = create_interest_auction_data(&e, &backstop);
 
             match result {
                 Ok(_) => assert!(false),
@@ -225,26 +214,25 @@ mod tests {
     #[test]
     fn test_create_interest_auction() {
         let e = Env::default();
-        let storage = StorageManager::new(&e);
         let blnd_id = BytesN::from_array(&e, &BLND_TOKEN);
 
         e.ledger().set(LedgerInfo {
             timestamp: 12345,
             protocol_version: 1,
             sequence_number: 50,
-            network_passphrase: Default::default(),
+            network_id: Default::default(),
             base_reserve: 10,
         });
 
-        let bombadil = e.accounts().generate_and_create();
-        let bombadil_id = Identifier::Account(bombadil.clone());
+        let bombadil = Address::random(&e);
 
-        let pool = generate_contract_id(&e);
-        let (backstop, _backstop_client) = create_backstop(&e);
-        let backstop_id = Identifier::Contract(backstop.clone());
+        let pool_id = generate_contract_id(&e);
+        let pool = Address::from_contract_id(&e, &pool_id);
+        let (backstop_id, _backstop_client) = create_backstop(&e);
+        let backstop = Address::from_contract_id(&e, &backstop_id);
         let mock_pool_factory = create_mock_pool_factory(&e);
-        mock_pool_factory.set_pool(&pool);
-        let (oracle, oracle_client) = create_mock_oracle(&e);
+        mock_pool_factory.set_pool(&pool_id);
+        let (oracle_id, oracle_client) = create_mock_oracle(&e);
 
         // creating reserves for a pool exhausts the budget
         e.budget().reset();
@@ -252,20 +240,20 @@ mod tests {
         reserve_0.data.b_rate = 1_100_000_000;
         reserve_0.data.last_block = 50;
         reserve_0.config.index = 0;
-        setup_reserve(&e, &pool, &bombadil_id, &reserve_0);
+        setup_reserve(&e, &pool_id, &bombadil, &reserve_0);
         let b_token_0 = TokenClient::new(&e, &reserve_0.config.b_token);
 
         let mut reserve_1 = create_reserve(&e);
         reserve_1.data.b_rate = 1_200_000_000;
         reserve_1.data.last_block = 50;
         reserve_1.config.index = 1;
-        setup_reserve(&e, &pool, &bombadil_id, &reserve_1);
+        setup_reserve(&e, &pool_id, &bombadil, &reserve_1);
         let b_token_1 = TokenClient::new(&e, &reserve_1.config.b_token);
 
         let mut reserve_2 = create_reserve(&e);
         reserve_2.data.last_block = 50;
         reserve_2.config.index = 2;
-        setup_reserve(&e, &pool, &bombadil_id, &reserve_2);
+        setup_reserve(&e, &pool_id, &bombadil, &reserve_2);
         e.budget().reset();
 
         oracle_client.set_price(&reserve_0.asset, &2_0000000);
@@ -274,71 +262,58 @@ mod tests {
         oracle_client.set_price(&blnd_id, &0_5000000);
 
         let pool_config = PoolConfig {
-            oracle,
+            oracle: oracle_id,
             bstop_rate: 0_100_000_000,
             status: 0,
         };
-        e.as_contract(&pool, || {
-            storage.set_pool_config(pool_config);
-            storage.set_backstop(backstop.clone());
+        e.as_contract(&pool_id, || {
+            storage::set_pool_config(&e, &pool_config);
+            storage::set_backstop(&e, &backstop_id);
+            storage::set_backstop_address(&e, &backstop);
 
-            b_token_0.mint(&Signature::Invoker, &0, &backstop_id, &10_0000000);
-            b_token_1.mint(&Signature::Invoker, &0, &backstop_id, &2_5000000);
+            b_token_0.mint(&pool, &backstop, &10_0000000);
+            b_token_1.mint(&pool, &backstop, &2_5000000);
 
             e.budget().reset();
-            let result = create_interest_auction(&e).unwrap();
+            let result = create_interest_auction_data(&e, &backstop).unwrap();
 
+            assert_eq!(result.block, 51);
+            assert_eq!(result.bid.get_unchecked(u32::MAX).unwrap(), 95_2000000);
+            assert_eq!(result.bid.len(), 1);
             assert_eq!(
-                result.auction_type as u32,
-                AuctionType::InterestAuction as u32
-            );
-            assert_eq!(result.user, backstop_id);
-            assert_eq!(result.data.block, 51);
-            assert_eq!(result.data.bid.get_unchecked(u32::MAX).unwrap(), 95_2000000);
-            assert_eq!(result.data.bid.len(), 1);
-            assert_eq!(
-                result
-                    .data
-                    .lot
-                    .get_unchecked(reserve_0.config.index)
-                    .unwrap(),
+                result.lot.get_unchecked(reserve_0.config.index).unwrap(),
                 10_0000000
             );
             assert_eq!(
-                result
-                    .data
-                    .lot
-                    .get_unchecked(reserve_1.config.index)
-                    .unwrap(),
+                result.lot.get_unchecked(reserve_1.config.index).unwrap(),
                 2_5000000
             );
-            assert_eq!(result.data.lot.len(), 2);
+            assert_eq!(result.lot.len(), 2);
         });
     }
 
     #[test]
     fn test_create_interest_auction_applies_interest() {
         let e = Env::default();
-        let storage = StorageManager::new(&e);
         let blnd_id = BytesN::from_array(&e, &BLND_TOKEN);
 
         e.ledger().set(LedgerInfo {
             timestamp: 12345,
             protocol_version: 1,
             sequence_number: 150,
-            network_passphrase: Default::default(),
+            network_id: Default::default(),
             base_reserve: 10,
         });
 
-        let bombadil = e.accounts().generate_and_create();
-        let bombadil_id = Identifier::Account(bombadil.clone());
+        let bombadil = Address::random(&e);
 
-        let pool = generate_contract_id(&e);
-        let (backstop, _backstop_client) = create_backstop(&e);
-        let backstop_id = Identifier::Contract(backstop.clone());
+        let pool_id = generate_contract_id(&e);
+        let pool = Address::from_contract_id(&e, &pool_id);
+        let (backstop_id, _backstop_client) = create_backstop(&e);
+        let backstop = Address::from_contract_id(&e, &backstop_id);
         let mock_pool_factory = create_mock_pool_factory(&e);
-        mock_pool_factory.set_pool(&pool);
-        let (oracle, oracle_client) = create_mock_oracle(&e);
+        mock_pool_factory.set_pool(&pool_id);
+        let (oracle_id, oracle_client) = create_mock_oracle(&e);
 
         // creating reserves for a pool exhausts the budget
         e.budget().reset();
@@ -346,20 +321,20 @@ mod tests {
         reserve_0.data.b_rate = 1_100_000_000;
         reserve_0.data.last_block = 50;
         reserve_0.config.index = 0;
-        setup_reserve(&e, &pool, &bombadil_id, &reserve_0);
+        setup_reserve(&e, &pool_id, &bombadil, &reserve_0);
         let b_token_0 = TokenClient::new(&e, &reserve_0.config.b_token);
 
         let mut reserve_1 = create_reserve(&e);
         reserve_1.data.b_rate = 1_200_000_000;
         reserve_1.data.last_block = 50;
         reserve_1.config.index = 1;
-        setup_reserve(&e, &pool, &bombadil_id, &reserve_1);
+        setup_reserve(&e, &pool_id, &bombadil, &reserve_1);
         let b_token_1 = TokenClient::new(&e, &reserve_1.config.b_token);
 
         let mut reserve_2 = create_reserve(&e);
         reserve_2.data.last_block = 50;
         reserve_2.config.index = 2;
-        setup_reserve(&e, &pool, &bombadil_id, &reserve_2);
+        setup_reserve(&e, &pool_id, &bombadil, &reserve_2);
         e.budget().reset();
 
         oracle_client.set_price(&reserve_0.asset, &2_0000000);
@@ -368,81 +343,63 @@ mod tests {
         oracle_client.set_price(&blnd_id, &0_5000000);
 
         let pool_config = PoolConfig {
-            oracle,
+            oracle: oracle_id,
             bstop_rate: 0_100_000_000,
             status: 0,
         };
-        e.as_contract(&pool, || {
-            storage.set_pool_config(pool_config);
-            storage.set_backstop(backstop.clone());
+        e.as_contract(&pool_id, || {
+            storage::set_pool_config(&e, &pool_config);
+            storage::set_backstop(&e, &backstop_id);
+            storage::set_backstop_address(&e, &backstop);
 
-            b_token_0.mint(&Signature::Invoker, &0, &backstop_id, &10_0000000);
-            b_token_1.mint(&Signature::Invoker, &0, &backstop_id, &2_5000000);
+            b_token_0.mint(&pool, &backstop, &10_0000000);
+            b_token_1.mint(&pool, &backstop, &2_5000000);
 
             e.budget().reset();
-            let result = create_interest_auction(&e).unwrap();
+            let result = create_interest_auction_data(&e, &backstop).unwrap();
 
+            assert_eq!(result.block, 151);
+            assert_eq!(result.bid.get_unchecked(u32::MAX).unwrap(), 95_4122842);
+            assert_eq!(result.bid.len(), 1);
             assert_eq!(
-                result.auction_type as u32,
-                AuctionType::InterestAuction as u32
-            );
-            assert_eq!(result.user, backstop_id);
-            assert_eq!(result.data.block, 151);
-            assert_eq!(result.data.bid.get_unchecked(u32::MAX).unwrap(), 95_4122842);
-            assert_eq!(result.data.bid.len(), 1);
-            assert_eq!(
-                result
-                    .data
-                    .lot
-                    .get_unchecked(reserve_0.config.index)
-                    .unwrap(),
+                result.lot.get_unchecked(reserve_0.config.index).unwrap(),
                 10_0006589
             );
             assert_eq!(
-                result
-                    .data
-                    .lot
-                    .get_unchecked(reserve_1.config.index)
-                    .unwrap(),
+                result.lot.get_unchecked(reserve_1.config.index).unwrap(),
                 2_5006144
             );
             assert_eq!(
-                result
-                    .data
-                    .lot
-                    .get_unchecked(reserve_2.config.index)
-                    .unwrap(),
+                result.lot.get_unchecked(reserve_2.config.index).unwrap(),
                 7140
             );
-            assert_eq!(result.data.lot.len(), 3);
+            assert_eq!(result.lot.len(), 3);
         });
     }
 
     #[test]
     fn test_fill_interest_auction() {
         let e = Env::default();
-        let storage = StorageManager::new(&e);
         let blnd_id = BytesN::from_array(&e, &BLND_TOKEN);
 
         e.ledger().set(LedgerInfo {
             timestamp: 12345,
             protocol_version: 1,
             sequence_number: 301, // 75% bid, 100% lot
-            network_passphrase: Default::default(),
+            network_id: Default::default(),
             base_reserve: 10,
         });
 
-        let user = e.accounts().generate_and_create();
-        let user_id = Identifier::Account(user.clone());
-        let bombadil = e.accounts().generate_and_create();
-        let bombadil_id = Identifier::Account(bombadil.clone());
+        let bombadil = Address::random(&e);
+        let samwise = Address::random(&e);
 
-        let pool = generate_contract_id(&e);
-        let (backstop, _backstop_client) = create_backstop(&e);
-        let backstop_id = Identifier::Contract(backstop.clone());
+        let pool_id = generate_contract_id(&e);
+        let pool = Address::from_contract_id(&e, &pool_id);
+        let (backstop_id, _backstop_client) = create_backstop(&e);
+        let backstop = Address::from_contract_id(&e, &backstop_id);
         let mock_pool_factory = create_mock_pool_factory(&e);
-        mock_pool_factory.set_pool(&pool);
-        let blnd_client = create_token_from_id(&e, &blnd_id, &bombadil_id);
+        mock_pool_factory.set_pool(&pool_id);
+        let blnd_client = create_token_from_id(&e, &blnd_id, &bombadil);
 
         // creating reserves for a pool exhausts the budget
         e.budget().reset();
@@ -450,20 +407,20 @@ mod tests {
         reserve_0.data.b_rate = 1_100_000_000;
         reserve_0.data.last_block = 301;
         reserve_0.config.index = 0;
-        setup_reserve(&e, &pool, &bombadil_id, &reserve_0);
+        setup_reserve(&e, &pool_id, &bombadil, &reserve_0);
         let b_token_0 = TokenClient::new(&e, &reserve_0.config.b_token);
 
         let mut reserve_1 = create_reserve(&e);
         reserve_1.data.b_rate = 1_200_000_000;
         reserve_1.data.last_block = 301;
         reserve_1.config.index = 1;
-        setup_reserve(&e, &pool, &bombadil_id, &reserve_1);
+        setup_reserve(&e, &pool_id, &bombadil, &reserve_1);
         let b_token_1 = TokenClient::new(&e, &reserve_1.config.b_token);
 
         let mut reserve_2 = create_reserve(&e);
         reserve_2.data.last_block = 301;
         reserve_2.config.index = 2;
-        setup_reserve(&e, &pool, &bombadil_id, &reserve_2);
+        setup_reserve(&e, &pool_id, &bombadil, &reserve_2);
         e.budget().reset();
 
         let pool_config = PoolConfig {
@@ -471,44 +428,31 @@ mod tests {
             bstop_rate: 0_100_000_000,
             status: 0,
         };
-        let auction_data = AuctionDataV2 {
+        let auction_data = AuctionData {
             bid: map![&e, (u32::MAX, 95_2000000)],
             lot: map![&e, (0, 10_0000000), (1, 2_5000000)],
             block: 51,
         };
-        let auction = AuctionV2 {
-            auction_type: AuctionType::InterestAuction,
-            user: backstop_id.clone(),
-            data: auction_data.clone(),
-        };
-        blnd_client.with_source_account(&bombadil).mint(
-            &Signature::Invoker,
-            &0,
-            &user_id,
-            &95_2000000,
-        );
-        blnd_client.with_source_account(&user).incr_allow(
-            &Signature::Invoker,
-            &0,
-            &Identifier::Contract(pool.clone()),
-            &i128::MAX,
-        );
-        e.as_contract(&pool, || {
-            storage.set_auction(
-                AuctionType::InterestAuction as u32,
-                backstop_id.clone(),
-                auction_data,
+        blnd_client.mint(&bombadil, &samwise, &95_2000000);
+        blnd_client.incr_allow(&samwise, &pool, &i128::MAX);
+        e.as_contract(&pool_id, || {
+            storage::set_auction(
+                &e,
+                &(AuctionType::InterestAuction as u32),
+                &backstop,
+                &auction_data,
             );
-            storage.set_pool_config(pool_config);
-            storage.set_backstop(backstop.clone());
+            storage::set_pool_config(&e, &pool_config);
+            storage::set_backstop(&e, &backstop_id);
+            storage::set_backstop_address(&e, &backstop);
 
-            blnd_client.incr_allow(&Signature::Invoker, &0, &backstop_id, &(u64::MAX as i128));
+            blnd_client.incr_allow(&pool, &backstop, &(u64::MAX as i128));
 
-            b_token_0.mint(&Signature::Invoker, &0, &backstop_id, &10_0000000);
-            b_token_1.mint(&Signature::Invoker, &0, &backstop_id, &2_5000000);
+            b_token_0.mint(&pool, &backstop, &10_0000000);
+            b_token_1.mint(&pool, &backstop, &2_5000000);
 
             e.budget().reset();
-            let result = fill_interest_auction(&e, &auction, user_id.clone());
+            let result = fill_interest_auction(&e, &auction_data, &samwise);
             // let result = calc_fill_interest_auction(&e, &auction);
 
             assert_eq!(result.bid.get_unchecked(0).unwrap(), (blnd_id, 71_4000000));
@@ -522,12 +466,12 @@ mod tests {
                 (reserve_1.config.b_token, 2_5000000)
             );
             assert_eq!(result.lot.len(), 2);
-            assert_eq!(blnd_client.balance(&user_id), 23_8000000);
-            assert_eq!(blnd_client.balance(&backstop_id), 71_4000000);
-            assert_eq!(b_token_0.balance(&backstop_id), 0);
-            assert_eq!(b_token_1.balance(&backstop_id), 0);
-            assert_eq!(b_token_0.balance(&user_id), 10_0000000);
-            assert_eq!(b_token_1.balance(&user_id), 2_5000000);
+            assert_eq!(blnd_client.balance(&samwise), 23_8000000);
+            assert_eq!(blnd_client.balance(&backstop), 71_4000000);
+            assert_eq!(b_token_0.balance(&backstop), 0);
+            assert_eq!(b_token_1.balance(&backstop), 0);
+            assert_eq!(b_token_0.balance(&samwise), 10_0000000);
+            assert_eq!(b_token_1.balance(&samwise), 2_5000000);
         });
     }
 }

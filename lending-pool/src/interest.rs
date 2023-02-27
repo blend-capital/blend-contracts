@@ -146,7 +146,7 @@ mod tests {
             timestamp: 12345,
             protocol_version: 1,
             sequence_number: 100,
-            network_passphrase: Default::default(),
+            network_id: Default::default(),
             base_reserve: 10,
         });
 
@@ -189,7 +189,7 @@ mod tests {
             timestamp: 12345,
             protocol_version: 1,
             sequence_number: 100,
-            network_passphrase: Default::default(),
+            network_id: Default::default(),
             base_reserve: 10,
         });
 
@@ -232,7 +232,7 @@ mod tests {
             timestamp: 12345,
             protocol_version: 1,
             sequence_number: 100,
-            network_passphrase: Default::default(),
+            network_id: Default::default(),
             base_reserve: 10,
         });
 
@@ -275,7 +275,7 @@ mod tests {
             timestamp: 12345,
             protocol_version: 1,
             sequence_number: 10000,
-            network_passphrase: Default::default(),
+            network_id: Default::default(),
             base_reserve: 10,
         });
 
@@ -317,7 +317,7 @@ mod tests {
             timestamp: 12345,
             protocol_version: 1,
             sequence_number: 10000,
-            network_passphrase: Default::default(),
+            network_id: Default::default(),
             base_reserve: 10,
         });
 
@@ -359,7 +359,7 @@ mod tests {
             timestamp: 12345,
             protocol_version: 1,
             sequence_number: 100,
-            network_passphrase: Default::default(),
+            network_id: Default::default(),
             base_reserve: 10,
         });
 

@@ -1,6 +1,5 @@
 #![cfg(test)]
-use soroban_auth::Identifier;
-use soroban_sdk::{testutils::Accounts, Env, Status};
+use soroban_sdk::{testutils::Address as AddressTestTrait, Address, Env, Status};
 
 mod common;
 use crate::common::{
@@ -11,27 +10,27 @@ use crate::common::{
 fn test_set_status() {
     let e = Env::default();
 
-    let bombadil = e.accounts().generate_and_create();
-    let bombadil_id = Identifier::Account(bombadil.clone());
+    let bombadil = Address::random(&e);
 
     let (mock_oracle, _mock_oracle_client) = create_mock_oracle(&e);
 
-    let backstop_address = generate_contract_id(&e);
-    let (pool, pool_client) = create_wasm_lending_pool(&e);
-    let _pool_id = Identifier::Contract(pool.clone());
+    let backstop_id = generate_contract_id(&e);
+    let backstop = Address::from_contract_id(&e, &backstop_id);
+    let (pool_id, pool_client) = create_wasm_lending_pool(&e);
     pool_client.initialize(
-        &bombadil_id,
+        &bombadil,
         &mock_oracle,
-        &backstop_address,
+        &backstop_id,
+        &backstop,
         &0_200_000_000,
     );
-    pool_client.with_source_account(&bombadil).set_status(&0);
+    pool_client.set_status(&bombadil, &0);
     assert_eq!(pool_client.status(), 0);
 
-    pool_client.with_source_account(&bombadil).set_status(&2);
+    pool_client.set_status(&bombadil, &2);
     assert_eq!(pool_client.status(), 2);
 
-    pool_client.with_source_account(&bombadil).set_status(&1);
+    pool_client.set_status(&bombadil, &1);
     assert_eq!(pool_client.status(), 1);
 }
 
@@ -39,23 +38,23 @@ fn test_set_status() {
 fn test_set_status_not_admin_panic() {
     let e = Env::default();
 
-    let bombadil = e.accounts().generate_and_create();
-    let bombadil_id = Identifier::Account(bombadil.clone());
+    let bombadil = Address::random(&e);
 
-    let sauron = e.accounts().generate_and_create();
+    let sauron = Address::random(&e);
 
     let (mock_oracle, _mock_oracle_client) = create_mock_oracle(&e);
 
-    let backstop_address = generate_contract_id(&e);
-    let (pool, pool_client) = create_wasm_lending_pool(&e);
-    let _pool_id = Identifier::Contract(pool.clone());
+    let backstop_id = generate_contract_id(&e);
+    let backstop = Address::from_contract_id(&e, &backstop_id);
+    let (pool_id, pool_client) = create_wasm_lending_pool(&e);
     pool_client.initialize(
-        &bombadil_id,
+        &bombadil,
         &mock_oracle,
-        &backstop_address,
+        &backstop_id,
+        &backstop,
         &0_200_000_000,
     );
-    let result = pool_client.with_source_account(&sauron).try_set_status(&0);
+    let result = pool_client.try_set_status(&sauron, &0);
 
     match result {
         Ok(_) => {

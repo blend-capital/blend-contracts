@@ -1,18 +1,16 @@
-use crate::common::{create_token, generate_contract_id};
-use soroban_auth::Identifier;
-use soroban_sdk::{AccountId, BytesN, Env};
+use crate::common::create_token;
+use soroban_sdk::{Address, BytesN, Env};
 
 use super::{PoolClient, ReserveConfig};
 
 /// Uses default configuration
 pub fn setup_reserve(
     e: &Env,
-    pool: &Identifier,
+    pool: &Address,
     pool_client: &PoolClient,
-    admin: &AccountId,
+    admin: &Address,
 ) -> (BytesN<32>, BytesN<32>, BytesN<32>) {
-    let admin_id = Identifier::Account(admin.to_owned());
-    let (underlying_id, _) = create_token(e, &admin_id);
+    let (underlying_id, _) = create_token(e, &admin);
     let (b_token_id, _) = create_token(e, &pool);
     let (d_token_id, _) = create_token(e, &pool);
 
@@ -30,9 +28,7 @@ pub fn setup_reserve(
         index: 0,
     };
 
-    pool_client
-        .with_source_account(&admin)
-        .init_res(&underlying_id, &config);
+    pool_client.init_res(&admin, &underlying_id, &config);
 
     return (underlying_id, b_token_id, d_token_id);
 }

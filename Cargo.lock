@@ -39,7 +39,6 @@ dependencies = [
  "cast",
  "fixed-point-math",
  "rand 0.7.3",
- "soroban-auth",
  "soroban-sdk",
 ]
 
@@ -346,7 +345,6 @@ name = "emitter"
 version = "0.0.0"
 dependencies = [
  "rand 0.7.3",
- "soroban-auth",
  "soroban-sdk",
 ]
 
@@ -493,7 +491,6 @@ dependencies = [
  "cast",
  "fixed-point-math",
  "rand 0.7.3",
- "soroban-auth",
  "soroban-sdk",
 ]
 
@@ -560,7 +557,6 @@ name = "mock-pool-factory"
 version = "0.0.0"
 dependencies = [
  "rand 0.7.3",
- "soroban-auth",
  "soroban-sdk",
 ]
 
@@ -650,7 +646,6 @@ name = "pool-factory"
 version = "0.0.0"
 dependencies = [
  "rand 0.7.3",
- "soroban-auth",
  "soroban-sdk",
 ]
 
@@ -865,15 +860,6 @@ name = "signature"
 version = "1.6.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "74233d3b3b2f6d4b006dc19dee745e73e2a6bfb6f93607cd3b02bd5b00797d7c"
-
-[[package]]
-name = "soroban-auth"
-version = "0.6.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "529bd1407a86919323d2c879241bf80e97b7961f5b7d4dcc765ba03c6f8644d7"
-dependencies = [
- "soroban-sdk",
-]
 
 [[package]]
 name = "soroban-env-common"

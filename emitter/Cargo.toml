@@ -15,7 +15,6 @@ testutils = ["soroban-sdk/testutils"]
 
 [dependencies]
 soroban-sdk = "0.6.0"
-soroban-auth = "0.6.0"
 
 [dev_dependencies]
 soroban-sdk = { version = "0.6.0", features = ["testutils"] }

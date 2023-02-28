@@ -23,5 +23,5 @@ pub fn generate_contract_id(e: &Env) -> BytesN<32> {
 pub fn create_wasm_pool_factory(e: &Env) -> (BytesN<32>, PoolFactoryClient) {
     let contract_id = generate_contract_id(e);
     e.register_contract_wasm(&contract_id, pool_factory::WASM);
-    (contract_id.clone(), PoolFactoryClient::new(e, contract_id))
+    (contract_id.clone(), PoolFactoryClient::new(e, &contract_id))
 }

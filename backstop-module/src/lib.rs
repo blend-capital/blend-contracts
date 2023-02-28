@@ -5,6 +5,7 @@ extern crate std;
 
 mod backstop;
 mod constants;
+mod contract;
 mod dependencies;
 mod distributor;
 mod errors;
@@ -13,4 +14,4 @@ mod storage;
 mod testutils;
 mod user;
 
-pub use crate::backstop::Backstop;
+pub use crate::contract::BackstopModuleContract;

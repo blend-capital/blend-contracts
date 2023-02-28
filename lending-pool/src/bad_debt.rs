@@ -1,12 +1,8 @@
-use soroban_auth::{Identifier, Signature};
-use soroban_sdk::Env;
+use soroban_sdk::{symbol, Address, Env};
 
 use crate::{
-    dependencies::TokenClient,
-    errors::PoolError,
-    reserve::Reserve,
-    reserve_usage::ReserveUsage,
-    storage::{PoolDataStore, StorageManager},
+    dependencies::TokenClient, errors::PoolError, reserve::Reserve, reserve_usage::ReserveUsage,
+    storage,
 };
 
 /// Transfer bad debt from a user to the backstop. Validates that the user does hold bad debt
@@ -17,9 +13,8 @@ use crate::{
 ///
 /// ### Errors
 /// If the user does not have bad debt
-pub fn transfer_bad_debt_to_backstop(e: &Env, user: &Identifier) -> Result<(), PoolError> {
-    let storage = StorageManager::new(&e);
-    let user_res_config = ReserveUsage::new(storage.get_user_config(user.clone()));
+pub fn transfer_bad_debt_to_backstop(e: &Env, user: &Address) -> Result<(), PoolError> {
+    let user_res_config = ReserveUsage::new(storage::get_user_config(e, &user));
     let has_collateral = user_res_config.has_collateral();
     let has_liability = user_res_config.has_liability();
 
@@ -30,9 +25,9 @@ pub fn transfer_bad_debt_to_backstop(e: &Env, user: &Identifier) -> Result<(), P
     // the user does not have collateral and currently holds a liability meaning they hold bad debt
     // transfer all of the user's debt to the backstop
 
-    let pool_config = storage.get_pool_config();
-    let backstop = Identifier::Contract(storage.get_backstop());
-    let reserve_count = storage.get_res_list();
+    let pool_config = storage::get_pool_config(e);
+    let backstop = storage::get_backstop_address(e); // TODO: rs-soroban-sdk/issues/868
+    let reserve_count = storage::get_res_list(e);
     for i in 0..reserve_count.len() {
         if !user_res_config.is_liability(i) {
             continue;
@@ -44,10 +39,15 @@ pub fn transfer_bad_debt_to_backstop(e: &Env, user: &Identifier) -> Result<(), P
 
         let d_token_client = TokenClient::new(&e, &reserve.config.d_token);
         let user_balance = d_token_client.balance(user);
-        d_token_client.clawback(&Signature::Invoker, &0, &user, &user_balance);
-        d_token_client.mint(&Signature::Invoker, &0, &backstop, &user_balance);
+        d_token_client.clawback(&e.current_contract_address(), &user, &user_balance);
+        d_token_client.mint(&e.current_contract_address(), &backstop, &user_balance);
 
         reserve.set_data(&e);
+
+        e.events().publish(
+            (symbol!("bad_debt"), user),
+            (res_asset_address, user_balance),
+        );
     }
 
     Ok(())
@@ -61,8 +61,7 @@ mod tests {
     };
 
     use super::*;
-    use soroban_auth::Signature;
-    use soroban_sdk::testutils::{Accounts, Ledger, LedgerInfo};
+    use soroban_sdk::testutils::{Address as AddressTestTrait, Ledger, LedgerInfo};
 
     #[test]
     fn test_transfer_bad_debt_happy_path() {
@@ -72,27 +71,23 @@ mod tests {
             timestamp: 1500000000,
             protocol_version: 1,
             sequence_number: 123,
-            network_passphrase: Default::default(),
+            network_id: Default::default(),
             base_reserve: 10,
         });
 
-        let storage = StorageManager::new(&e);
         let pool_id = generate_contract_id(&e);
-        let backstop = generate_contract_id(&e);
-        let backstop_id = Identifier::Contract(backstop.clone());
+        let backstop_id = generate_contract_id(&e);
+        let backstop = Address::from_contract_id(&e, &backstop_id);
 
-        let user = e.accounts().generate_and_create();
-        let user_id = Identifier::Account(user.clone());
-
-        let bombadil = e.accounts().generate_and_create();
-        let bombadil_id = Identifier::Account(bombadil.clone());
+        let samwise = Address::random(&e);
+        let bombadil = Address::random(&e);
 
         let reserve_0 = create_reserve(&e);
-        setup_reserve(&e, &pool_id, &bombadil_id, &reserve_0);
+        setup_reserve(&e, &pool_id, &bombadil, &reserve_0);
 
         let mut reserve_1 = create_reserve(&e);
         reserve_1.config.index = 1;
-        setup_reserve(&e, &pool_id, &bombadil_id, &reserve_1);
+        setup_reserve(&e, &pool_id, &bombadil, &reserve_1);
 
         let pool_config = PoolConfig {
             oracle: generate_contract_id(&e),
@@ -105,27 +100,28 @@ mod tests {
         let liability_amount_1 = 25_0000000;
 
         e.as_contract(&pool_id, || {
-            storage.set_pool_config(pool_config);
-            storage.set_backstop(backstop);
+            storage::set_pool_config(&e, &pool_config);
+            storage::set_backstop(&e, &backstop_id);
+            storage::set_backstop_address(&e, &backstop);
             let mut user_config = ReserveUsage::new(0);
             user_config.set_liability(0, true);
             user_config.set_liability(1, true);
-            storage.set_user_config(user_id.clone(), user_config.config);
+            storage::set_user_config(&e, &samwise, &user_config.config);
 
             let d_token_0 = TokenClient::new(&e, &reserve_0.config.d_token);
-            d_token_0.mint(&Signature::Invoker, &0, &user_id, &liability_amount_0);
+            d_token_0.mint(&e.current_contract_address(), &samwise, &liability_amount_0);
             let d_token_1 = TokenClient::new(&e, &reserve_1.config.d_token);
-            d_token_1.mint(&Signature::Invoker, &0, &user_id, &liability_amount_1);
+            d_token_1.mint(&e.current_contract_address(), &samwise, &liability_amount_1);
 
-            transfer_bad_debt_to_backstop(&e, &user_id).unwrap();
+            transfer_bad_debt_to_backstop(&e, &samwise).unwrap();
 
-            assert_eq!(d_token_0.balance(&user_id), 0);
-            assert_eq!(d_token_0.balance(&backstop_id), liability_amount_0);
-            assert_eq!(d_token_1.balance(&user_id), 0);
-            assert_eq!(d_token_1.balance(&backstop_id), liability_amount_1);
+            assert_eq!(d_token_0.balance(&samwise), 0);
+            assert_eq!(d_token_0.balance(&backstop), liability_amount_0);
+            assert_eq!(d_token_1.balance(&samwise), 0);
+            assert_eq!(d_token_1.balance(&backstop), liability_amount_1);
 
-            let reserve_0_data = storage.get_res_data(reserve_0.asset);
-            let reserve_1_data = storage.get_res_data(reserve_1.asset);
+            let reserve_0_data = storage::get_res_data(&e, &reserve_0.asset);
+            let reserve_1_data = storage::get_res_data(&e, &reserve_1.asset);
             assert_eq!(reserve_0_data.last_block, 123);
             assert_eq!(reserve_1_data.last_block, 123);
         });
@@ -134,22 +130,20 @@ mod tests {
     #[test]
     fn test_transfer_bad_debt_with_collateral_errors() {
         let e = Env::default();
-        let storage = StorageManager::new(&e);
+
         let pool_id = generate_contract_id(&e);
-        let backstop = generate_contract_id(&e);
+        let backstop_id = generate_contract_id(&e);
+        let backstop = Address::from_contract_id(&e, &backstop_id);
 
-        let user = e.accounts().generate_and_create();
-        let user_id = Identifier::Account(user.clone());
-
-        let bombadil = e.accounts().generate_and_create();
-        let bombadil_id = Identifier::Account(bombadil.clone());
+        let samwise = Address::random(&e);
+        let bombadil = Address::random(&e);
 
         let reserve_0 = create_reserve(&e);
-        setup_reserve(&e, &pool_id, &bombadil_id, &reserve_0);
+        setup_reserve(&e, &pool_id, &bombadil, &reserve_0);
 
         let mut reserve_1 = create_reserve(&e);
         reserve_1.config.index = 1;
-        setup_reserve(&e, &pool_id, &bombadil_id, &reserve_1);
+        setup_reserve(&e, &pool_id, &bombadil, &reserve_1);
 
         let pool_config = PoolConfig {
             oracle: generate_contract_id(&e),
@@ -158,15 +152,16 @@ mod tests {
         };
 
         e.as_contract(&pool_id, || {
-            storage.set_pool_config(pool_config);
-            storage.set_backstop(backstop);
+            storage::set_pool_config(&e, &pool_config);
+            storage::set_backstop(&e, &backstop_id);
+            storage::set_backstop_address(&e, &backstop);
             let mut user_config = ReserveUsage::new(0);
             user_config.set_liability(0, true);
             user_config.set_liability(1, true);
             user_config.set_supply(1, true);
-            storage.set_user_config(user_id.clone(), user_config.config);
+            storage::set_user_config(&e, &samwise, &user_config.config);
 
-            let result = transfer_bad_debt_to_backstop(&e, &user_id);
+            let result = transfer_bad_debt_to_backstop(&e, &samwise);
 
             match result {
                 Ok(_) => assert!(false),
@@ -178,22 +173,20 @@ mod tests {
     #[test]
     fn test_transfer_bad_debt_without_liability_errors() {
         let e = Env::default();
-        let storage = StorageManager::new(&e);
+
         let pool_id = generate_contract_id(&e);
-        let backstop = generate_contract_id(&e);
+        let backstop_id = generate_contract_id(&e);
+        let backstop = Address::from_contract_id(&e, &backstop_id);
 
-        let user = e.accounts().generate_and_create();
-        let user_id = Identifier::Account(user.clone());
-
-        let bombadil = e.accounts().generate_and_create();
-        let bombadil_id = Identifier::Account(bombadil.clone());
+        let samwise = Address::random(&e);
+        let bombadil = Address::random(&e);
 
         let reserve_0 = create_reserve(&e);
-        setup_reserve(&e, &pool_id, &bombadil_id, &reserve_0);
+        setup_reserve(&e, &pool_id, &bombadil, &reserve_0);
 
         let mut reserve_1 = create_reserve(&e);
         reserve_1.config.index = 1;
-        setup_reserve(&e, &pool_id, &bombadil_id, &reserve_1);
+        setup_reserve(&e, &pool_id, &bombadil, &reserve_1);
 
         let pool_config = PoolConfig {
             oracle: generate_contract_id(&e),
@@ -202,13 +195,14 @@ mod tests {
         };
 
         e.as_contract(&pool_id, || {
-            storage.set_pool_config(pool_config);
-            storage.set_backstop(backstop);
+            storage::set_pool_config(&e, &pool_config);
+            storage::set_backstop(&e, &backstop_id);
+            storage::set_backstop_address(&e, &backstop);
             let mut user_config = ReserveUsage::new(0);
             user_config.set_supply(1, true);
-            storage.set_user_config(user_id.clone(), user_config.config);
+            storage::set_user_config(&e, &samwise, &user_config.config);
 
-            let result = transfer_bad_debt_to_backstop(&e, &user_id);
+            let result = transfer_bad_debt_to_backstop(&e, &samwise);
 
             match result {
                 Ok(_) => assert!(false),

@@ -1,14 +1,13 @@
 use crate::{
-    emissions_distributor,
     errors::PoolError,
     reserve::Reserve,
     reserve_usage::ReserveUsage,
-    storage::{
-        PoolDataStore, PoolEmissionConfig, ReserveEmissionsConfig, ReserveEmissionsData,
-        StorageManager,
-    },
+    storage::{self, PoolEmissionConfig, ReserveEmissionsConfig, ReserveEmissionsData},
 };
+use fixed_point_math::FixedPoint;
 use soroban_sdk::{contracttype, map, symbol, BytesN, Env, Map, Vec};
+
+use super::distributor;
 
 // Types
 
@@ -20,28 +19,47 @@ pub struct ReserveEmissionMetadata {
     share: u64,
 }
 
+/// Get emissions information for a reserve
+pub fn get_reserve_emissions(
+    e: &Env,
+    asset: &BytesN<32>,
+    token_type: u32,
+) -> Result<Option<(ReserveEmissionsConfig, ReserveEmissionsData)>, PoolError> {
+    if token_type > 1 {
+        return Err(PoolError::BadRequest);
+    }
+
+    let res_list = storage::get_res_list(e);
+    if let Some(res_index) = res_list.first_index_of(asset) {
+        let res_token_index = res_index * 3 + token_type;
+        if storage::has_res_emis_data(e, &res_token_index) {
+            return Ok(Some((
+                storage::get_res_emis_config(e, &res_token_index).unwrap(),
+                storage::get_res_emis_data(e, &res_token_index).unwrap(),
+            )));
+        }
+        return Ok(None);
+    }
+
+    Err(PoolError::BadRequest)
+}
+
 /// Updates the pool's emissions for the next emission cycle
 ///
 /// Needs to be run each time a new emission cycle starts
 ///
-/// ### Arguments
-/// * `next_exp` - The next expiration time of the emission cycle
-/// * `pool_eps` - The total eps the pool is receiving from the backstop
-///
 /// ### Errors
 /// If update has already been run for this emission cycle
 pub fn update_emissions(e: &Env, next_exp: u64, pool_eps: u64) -> Result<u64, PoolError> {
-    let storage = StorageManager::new(&e);
-
-    let mut pool_config = storage.get_pool_emission_config();
+    let mut pool_config = storage::get_pool_emission_config(e);
     if next_exp <= pool_config.last_time {
         return Err(PoolError::BadRequest);
     }
 
     let pool_reserve_usage = ReserveUsage::new(pool_config.config);
 
-    let pool_emissions = storage.get_pool_emissions();
-    let reserve_count = storage.get_res_list();
+    let pool_emissions = storage::get_pool_emissions(e);
+    let reserve_count = storage::get_res_list(e);
     for i in 0..reserve_count.len() {
         let res_asset_address = reserve_count.get_unchecked(i).unwrap();
         if pool_reserve_usage.is_liability(i) {
@@ -61,7 +79,7 @@ pub fn update_emissions(e: &Env, next_exp: u64, pool_eps: u64) -> Result<u64, Po
     }
 
     pool_config.last_time = next_exp;
-    storage.set_pool_emission_config(pool_config);
+    storage::set_pool_emission_config(e, &pool_config);
     Ok(next_exp)
 }
 
@@ -71,18 +89,17 @@ fn update_reserve_emission_data(
     res_type: u32,
     res_token_id: u32,
 ) -> Result<(), PoolError> {
-    let storage = StorageManager::new(&e);
-
-    if storage.has_res_emis_data(res_token_id) {
+    if storage::has_res_emis_data(e, &res_token_id) {
         // data exists - update it with old config
         let reserve = Reserve::load(&e, res_asset_address);
-        emissions_distributor::update_emission_data(&e, &reserve, res_type)?;
+        distributor::update_emission_data(&e, &reserve, res_type)?;
         Ok(())
     } else {
         // no data exists yet - first time this reserve token will get emission
-        storage.set_res_emis_data(
-            res_token_id,
-            ReserveEmissionsData {
+        storage::set_res_emis_data(
+            e,
+            &res_token_id,
+            &ReserveEmissionsData {
                 index: 0,
                 last_time: e.ledger().timestamp(),
             },
@@ -98,24 +115,15 @@ fn update_reserve_emission_config(
     pool_eps: u64,
     eps_share: u64,
 ) {
-    let storage = StorageManager::new(&e);
-
-    let new_res_eps = (eps_share * pool_eps) / 1_0000000;
+    let new_res_eps = eps_share.fixed_mul_floor(pool_eps, 1_0000000).unwrap();
     let new_reserve_emis_config = ReserveEmissionsConfig {
         expiration,
         eps: new_res_eps,
     };
 
-    storage.set_res_emis_config(key, new_reserve_emis_config);
-    e.events().publish(
-        (
-            symbol!("Update"),
-            symbol!("Reserve"),
-            symbol!("Emission"),
-            symbol!("Config"),
-        ),
-        (key, new_res_eps, expiration),
-    )
+    storage::set_res_emis_config(e, &key, &new_reserve_emis_config);
+    e.events()
+        .publish((symbol!("e_config"),), (key, new_res_eps, expiration))
 }
 
 /// Set the pool emissions
@@ -132,8 +140,7 @@ pub fn set_pool_emissions(
     e: &Env,
     res_emission_metadata: Vec<ReserveEmissionMetadata>,
 ) -> Result<(), PoolError> {
-    let storage = StorageManager::new(&e);
-    let cur_pool_emis_config = storage.get_pool_emission_config();
+    let cur_pool_emis_config = storage::get_pool_emission_config(e);
 
     let mut pool_config: ReserveUsage = ReserveUsage { config: 0 };
     let mut pool_emissions: Map<u32, u64> = map![&e];
@@ -157,11 +164,14 @@ pub fn set_pool_emissions(
         return Err(PoolError::BadRequest);
     }
 
-    storage.set_pool_emission_config(PoolEmissionConfig {
-        config: pool_config.config,
-        last_time: cur_pool_emis_config.last_time,
-    });
-    storage.set_pool_emissions(pool_emissions);
+    storage::set_pool_emission_config(
+        e,
+        &PoolEmissionConfig {
+            config: pool_config.config,
+            last_time: cur_pool_emis_config.last_time,
+        },
+    );
+    storage::set_pool_emissions(e, &pool_emissions);
     Ok(())
 }
 
@@ -187,11 +197,10 @@ mod tests {
             timestamp: 1500000000,
             protocol_version: 1,
             sequence_number: 20100,
-            network_passphrase: Default::default(),
+            network_id: Default::default(),
             base_reserve: 10,
         });
 
-        let storage = StorageManager::new(&e);
         let pool_id = generate_contract_id(&e);
 
         let next_exp = 1500604800;
@@ -203,28 +212,20 @@ mod tests {
         let pool_emissions: Map<u32, u64> = map![&e];
 
         e.as_contract(&pool_id, || {
-            storage.push_res_list(setup_reserve(&e));
-            storage.push_res_list(setup_reserve(&e));
-            storage.set_pool_emission_config(pool_emission_config);
-            storage.set_pool_emissions(pool_emissions);
+            storage::push_res_list(&e, &(setup_reserve(&e)));
+            storage::push_res_list(&e, &(setup_reserve(&e)));
+            storage::set_pool_emission_config(&e, &pool_emission_config);
+            storage::set_pool_emissions(&e, &pool_emissions);
 
             update_emissions(&e, next_exp, pool_eps).unwrap();
 
-            let new_config = storage.get_pool_emission_config();
+            let new_config = storage::get_pool_emission_config(&e);
             assert_eq!(new_config.last_time, next_exp);
 
-            assert!(storage
-                .get_res_emis_config(ReserveUsage::liability_key(0))
-                .is_none());
-            assert!(storage
-                .get_res_emis_config(ReserveUsage::supply_key(0))
-                .is_none());
-            assert!(storage
-                .get_res_emis_config(ReserveUsage::liability_key(1))
-                .is_none());
-            assert!(storage
-                .get_res_emis_config(ReserveUsage::supply_key(1))
-                .is_none());
+            assert!(storage::get_res_emis_config(&e, &ReserveUsage::liability_key(0)).is_none());
+            assert!(storage::get_res_emis_config(&e, &ReserveUsage::supply_key(0)).is_none());
+            assert!(storage::get_res_emis_config(&e, &ReserveUsage::liability_key(1)).is_none());
+            assert!(storage::get_res_emis_config(&e, &ReserveUsage::supply_key(1)).is_none());
         });
     }
 
@@ -235,10 +236,10 @@ mod tests {
             timestamp: 1500000000,
             protocol_version: 1,
             sequence_number: 20100,
-            network_passphrase: Default::default(),
+            network_id: Default::default(),
             base_reserve: 10,
         });
-        let storage = StorageManager::new(&e);
+
         let pool_id = generate_contract_id(&e);
 
         let next_exp = 1500604800;
@@ -257,46 +258,33 @@ mod tests {
             setup_reserve(&e);
             setup_reserve(&e);
             setup_reserve(&e);
-            storage.set_pool_emission_config(pool_emission_config);
-            storage.set_pool_emissions(pool_emissions);
+            storage::set_pool_emission_config(&e, &pool_emission_config);
+            storage::set_pool_emissions(&e, &pool_emissions);
 
             let result = update_emissions(&e, next_exp, pool_eps).unwrap();
 
-            let new_config = storage.get_pool_emission_config();
+            let new_config = storage::get_pool_emission_config(&e);
             assert_eq!(new_config.last_time, next_exp);
             assert_eq!(result, next_exp);
 
-            assert!(storage
-                .get_res_emis_config(ReserveUsage::liability_key(0))
-                .is_none());
-            assert!(storage
-                .get_res_emis_config(ReserveUsage::supply_key(0))
-                .is_none());
-            assert!(storage
-                .get_res_emis_config(ReserveUsage::liability_key(2))
-                .is_none());
-            assert!(storage
-                .get_res_emis_config(ReserveUsage::supply_key(2))
-                .is_none());
+            assert!(storage::get_res_emis_config(&e, &ReserveUsage::liability_key(0)).is_none());
+            assert!(storage::get_res_emis_config(&e, &ReserveUsage::supply_key(0)).is_none());
+            assert!(storage::get_res_emis_config(&e, &ReserveUsage::liability_key(2)).is_none());
+            assert!(storage::get_res_emis_config(&e, &ReserveUsage::supply_key(2)).is_none());
 
-            let r_1_l_config = storage
-                .get_res_emis_config(ReserveUsage::liability_key(1))
-                .unwrap();
-            let r_1_s_config = storage
-                .get_res_emis_config(ReserveUsage::supply_key(1))
-                .unwrap();
+            let r_1_l_config =
+                storage::get_res_emis_config(&e, &ReserveUsage::liability_key(1)).unwrap();
+            let r_1_s_config =
+                storage::get_res_emis_config(&e, &ReserveUsage::supply_key(1)).unwrap();
             assert_eq!(r_1_l_config.expiration, next_exp);
             assert_eq!(r_1_l_config.eps, 0_3750000);
             assert_eq!(r_1_s_config.expiration, next_exp);
             assert_eq!(r_1_s_config.eps, 0_1250000);
 
             // verify empty data was created for both
-            let r_1_l_data = storage
-                .get_res_emis_data(ReserveUsage::liability_key(1))
-                .unwrap();
-            let r_1_s_data = storage
-                .get_res_emis_data(ReserveUsage::supply_key(1))
-                .unwrap();
+            let r_1_l_data =
+                storage::get_res_emis_data(&e, &ReserveUsage::liability_key(1)).unwrap();
+            let r_1_s_data = storage::get_res_emis_data(&e, &ReserveUsage::supply_key(1)).unwrap();
             assert_eq!(r_1_l_data.index, 0);
             assert_eq!(r_1_l_data.last_time, 1500000000);
             assert_eq!(r_1_s_data.index, 0);
@@ -307,14 +295,14 @@ mod tests {
     #[test]
     fn test_update_emissions_sets_reserve_emission_config_and_data() {
         let e = Env::default();
-        let storage = StorageManager::new(&e);
+
         let pool_id = generate_contract_id(&e);
 
         e.ledger().set(LedgerInfo {
             timestamp: 1500000000,
             protocol_version: 1,
             sequence_number: 20100,
-            network_passphrase: Default::default(),
+            network_id: Default::default(),
             base_reserve: 10,
         });
 
@@ -351,50 +339,37 @@ mod tests {
             setup_reserve(&e);
             setup_reserve(&e);
             setup_reserve(&e);
-            storage.set_pool_emission_config(pool_emission_config);
-            storage.set_pool_emissions(pool_emissions);
-            storage.set_res_emis_config(ReserveUsage::liability_key(0), old_r_l_0_config);
-            storage.set_res_emis_data(ReserveUsage::liability_key(0), old_r_l_0_data);
-            storage.set_res_emis_config(ReserveUsage::supply_key(2), old_r_s_2_config);
-            storage.set_res_emis_data(ReserveUsage::supply_key(2), old_r_s_2_data);
+            storage::set_pool_emission_config(&e, &pool_emission_config);
+            storage::set_pool_emissions(&e, &pool_emissions);
+            storage::set_res_emis_config(&e, &ReserveUsage::liability_key(0), &old_r_l_0_config);
+            storage::set_res_emis_data(&e, &ReserveUsage::liability_key(0), &old_r_l_0_data);
+            storage::set_res_emis_config(&e, &ReserveUsage::supply_key(2), &old_r_s_2_config);
+            storage::set_res_emis_data(&e, &ReserveUsage::supply_key(2), &old_r_s_2_data);
 
             let result = update_emissions(&e, next_exp, pool_eps).unwrap();
 
-            let new_config = storage.get_pool_emission_config();
+            let new_config = storage::get_pool_emission_config(&e);
             assert_eq!(new_config.last_time, next_exp);
             assert_eq!(result, next_exp);
 
-            assert!(storage
-                .get_res_emis_config(ReserveUsage::supply_key(0))
-                .is_none());
-            assert!(storage
-                .get_res_emis_config(ReserveUsage::liability_key(1))
-                .is_none());
-            assert!(storage
-                .get_res_emis_config(ReserveUsage::supply_key(1))
-                .is_none());
-            assert!(storage
-                .get_res_emis_config(ReserveUsage::liability_key(2))
-                .is_none());
+            assert!(storage::get_res_emis_config(&e, &ReserveUsage::supply_key(0)).is_none());
+            assert!(storage::get_res_emis_config(&e, &ReserveUsage::liability_key(1)).is_none());
+            assert!(storage::get_res_emis_config(&e, &ReserveUsage::supply_key(1)).is_none());
+            assert!(storage::get_res_emis_config(&e, &ReserveUsage::liability_key(2)).is_none());
 
-            let r_0_l_config = storage
-                .get_res_emis_config(ReserveUsage::liability_key(0))
-                .unwrap();
-            let r_2_s_config = storage
-                .get_res_emis_config(ReserveUsage::supply_key(2))
-                .unwrap();
+            let r_0_l_config =
+                storage::get_res_emis_config(&e, &ReserveUsage::liability_key(0)).unwrap();
+            let r_2_s_config =
+                storage::get_res_emis_config(&e, &ReserveUsage::supply_key(2)).unwrap();
             assert_eq!(r_0_l_config.expiration, next_exp);
             assert_eq!(r_0_l_config.eps, 0_1250000);
             assert_eq!(r_2_s_config.expiration, next_exp);
             assert_eq!(r_2_s_config.eps, 0_3750000);
 
             // verify empty data was created for both
-            let r_1_l_data = storage
-                .get_res_emis_data(ReserveUsage::liability_key(0))
-                .unwrap();
-            let r_1_s_data = storage
-                .get_res_emis_data(ReserveUsage::supply_key(2))
-                .unwrap();
+            let r_1_l_data =
+                storage::get_res_emis_data(&e, &ReserveUsage::liability_key(0)).unwrap();
+            let r_1_s_data = storage::get_res_emis_data(&e, &ReserveUsage::supply_key(2)).unwrap();
             assert_eq!(r_1_l_data.index, 800000100);
             assert_eq!(r_1_l_data.last_time, 1500000000);
             assert_eq!(r_1_s_data.index, 600000500);
@@ -409,10 +384,10 @@ mod tests {
             timestamp: 1500000000,
             protocol_version: 1,
             sequence_number: 20100,
-            network_passphrase: Default::default(),
+            network_id: Default::default(),
             base_reserve: 10,
         });
-        let storage = StorageManager::new(&e);
+
         let pool_id = generate_contract_id(&e);
 
         let next_exp = 1500604800;
@@ -431,8 +406,8 @@ mod tests {
             setup_reserve(&e);
             setup_reserve(&e);
             setup_reserve(&e);
-            storage.set_pool_emission_config(pool_emission_config);
-            storage.set_pool_emissions(pool_emissions);
+            storage::set_pool_emission_config(&e, &pool_emission_config);
+            storage::set_pool_emissions(&e, &pool_emissions);
 
             let result = update_emissions(&e, next_exp, pool_eps);
             match result {
@@ -454,10 +429,10 @@ mod tests {
             timestamp: 1500000000,
             protocol_version: 1,
             sequence_number: 20100,
-            network_passphrase: Default::default(),
+            network_id: Default::default(),
             base_reserve: 10,
         });
-        let storage = StorageManager::new(&e);
+
         let pool_id = generate_contract_id(&e);
 
         let pool_emission_config = PoolEmissionConfig {
@@ -481,18 +456,18 @@ mod tests {
         ];
 
         e.as_contract(&pool_id, || {
-            storage.set_pool_emission_config(pool_emission_config.clone());
-            storage.set_pool_emissions(pool_emissions);
+            storage::set_pool_emission_config(&e, &pool_emission_config);
+            storage::set_pool_emissions(&e, &pool_emissions);
 
             set_pool_emissions(&e, res_emission_metadata).unwrap();
 
-            let new_pool_emission_config = storage.get_pool_emission_config();
+            let new_pool_emission_config = storage::get_pool_emission_config(&e);
             assert_eq!(
                 new_pool_emission_config.last_time,
                 pool_emission_config.last_time
             );
             assert_eq!(new_pool_emission_config.config, 0b001_000_000_010);
-            let new_pool_emissions = storage.get_pool_emissions();
+            let new_pool_emissions = storage::get_pool_emissions(&e);
             assert_eq!(new_pool_emissions.len(), 2);
             assert_eq!(
                 new_pool_emissions
@@ -518,10 +493,10 @@ mod tests {
             timestamp: 1500000000,
             protocol_version: 1,
             sequence_number: 20100,
-            network_passphrase: Default::default(),
+            network_id: Default::default(),
             base_reserve: 10,
         });
-        let storage = StorageManager::new(&e);
+
         let pool_id = generate_contract_id(&e);
 
         let pool_emission_config = PoolEmissionConfig {
@@ -545,8 +520,8 @@ mod tests {
         ];
 
         e.as_contract(&pool_id, || {
-            storage.set_pool_emission_config(pool_emission_config.clone());
-            storage.set_pool_emissions(pool_emissions);
+            storage::set_pool_emission_config(&e, &pool_emission_config);
+            storage::set_pool_emissions(&e, &pool_emissions);
 
             let result = set_pool_emissions(&e, res_emission_metadata);
             match result {
@@ -566,10 +541,10 @@ mod tests {
             timestamp: 1500000000,
             protocol_version: 1,
             sequence_number: 20100,
-            network_passphrase: Default::default(),
+            network_id: Default::default(),
             base_reserve: 10,
         });
-        let storage = StorageManager::new(&e);
+
         let pool_id = generate_contract_id(&e);
 
         let pool_emission_config = PoolEmissionConfig {
@@ -593,18 +568,18 @@ mod tests {
         ];
 
         e.as_contract(&pool_id, || {
-            storage.set_pool_emission_config(pool_emission_config.clone());
-            storage.set_pool_emissions(pool_emissions);
+            storage::set_pool_emission_config(&e, &pool_emission_config);
+            storage::set_pool_emissions(&e, &pool_emissions);
 
             set_pool_emissions(&e, res_emission_metadata).unwrap();
 
-            let new_pool_emission_config = storage.get_pool_emission_config();
+            let new_pool_emission_config = storage::get_pool_emission_config(&e);
             assert_eq!(
                 new_pool_emission_config.last_time,
                 pool_emission_config.last_time
             );
             assert_eq!(new_pool_emission_config.config, 0b001_000_000_010);
-            let new_pool_emissions = storage.get_pool_emissions();
+            let new_pool_emissions = storage::get_pool_emissions(&e);
             assert_eq!(new_pool_emissions.len(), 2);
             assert_eq!(
                 new_pool_emissions
@@ -626,7 +601,6 @@ mod tests {
     /********** Test Helpers **********/
 
     fn setup_reserve(e: &Env) -> BytesN<32> {
-        let storage = StorageManager::new(&e);
         let reserve = Reserve {
             asset: generate_contract_id(&e),
             config: ReserveConfig {
@@ -651,8 +625,8 @@ mod tests {
                 last_block: 100,
             },
         };
-        storage.set_res_config(reserve.asset.clone(), reserve.config);
-        storage.set_res_data(reserve.asset.clone(), reserve.data);
+        storage::set_res_config(&e, &reserve.asset, &reserve.config);
+        storage::set_res_data(&e, &reserve.asset, &reserve.data);
         reserve.asset
     }
 }

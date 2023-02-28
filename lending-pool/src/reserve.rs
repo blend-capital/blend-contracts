@@ -1,15 +1,14 @@
 use cast::i128;
 use fixed_point_math::FixedPoint;
-use soroban_auth::{Identifier, Signature};
-use soroban_sdk::{symbol, BytesN, Env};
+use soroban_sdk::{symbol, Address, BytesN, Env};
 
 use crate::{
     constants::{SCALAR_7, SCALAR_9},
     dependencies::TokenClient,
-    emissions_distributor,
+    emissions,
     errors::PoolError,
     interest::calc_accrual,
-    storage::{PoolConfig, PoolDataStore, ReserveConfig, ReserveData, StorageManager},
+    storage::{self, PoolConfig, ReserveConfig, ReserveData},
 };
 
 pub struct Reserve {
@@ -27,9 +26,8 @@ impl Reserve {
     /// ### Panics
     /// If the `asset` is not a reserve
     pub fn load(e: &Env, asset: BytesN<32>) -> Reserve {
-        let storage = StorageManager::new(e);
-        let config = storage.get_res_config(asset.clone());
-        let data = storage.get_res_data(asset.clone());
+        let config = storage::get_res_config(&e, &asset);
+        let data = storage::get_res_data(&e, &asset);
         Reserve {
             asset,
             config,
@@ -54,18 +52,17 @@ impl Reserve {
         e: &Env,
         pool_config: &PoolConfig,
         res_token_type: u32,
-        user: Identifier,
+        user: Address,
     ) -> Result<(), PoolError> {
         let to_mint = self.update_rates(e, pool_config.bstop_rate);
 
-        emissions_distributor::update(e, &self, res_token_type, user)?;
+        emissions::update_reserve(e, &self, res_token_type, &user)?;
 
         if to_mint > 0 {
-            let bkstp_addr = StorageManager::new(&e).get_backstop();
-            TokenClient::new(&e, self.config.b_token.clone()).mint(
-                &Signature::Invoker,
-                &0,
-                &Identifier::Contract(bkstp_addr),
+            let backstop = storage::get_backstop_address(e);
+            TokenClient::new(&e, &self.config.b_token).mint(
+                &e.current_contract_address(),
+                &backstop,
                 &to_mint,
             );
         }
@@ -133,13 +130,8 @@ impl Reserve {
 
         self.data.last_block = e.ledger().sequence();
         e.events().publish(
-            (symbol!("Update"), symbol!("Reserve"), symbol!("Rates")),
-            (
-                &self.asset,
-                self.data.b_rate,
-                self.data.d_rate,
-                self.data.ir_mod,
-            ),
+            (symbol!("updt_rate"), self.asset.clone()),
+            (self.data.b_rate, self.data.d_rate, self.data.ir_mod),
         );
         bstop_amount
     }
@@ -179,7 +171,7 @@ impl Reserve {
 
     /// Persist reserve data to ledger
     pub fn set_data(&self, e: &Env) {
-        StorageManager::new(e).set_res_data(self.asset.clone(), self.data.clone());
+        storage::set_res_data(e, &self.asset, &self.data);
     }
 
     // ***** Conversion functions *****
@@ -265,23 +257,23 @@ mod tests {
     };
 
     use super::*;
-    use soroban_sdk::testutils::{Accounts, Ledger, LedgerInfo};
+    use soroban_sdk::testutils::{Address as AddressTestTrait, Ledger, LedgerInfo};
 
-    /***** Update State *****/
+    /***** Pre Action *****/
 
     #[test]
     fn test_pre_action() {
         let e = Env::default();
-        let storage = StorageManager::new(&e);
-        let pool_address = generate_contract_id(&e);
-        let backstop_address = generate_contract_id(&e);
-        let oracle_address = generate_contract_id(&e);
 
-        let (b_token_id, b_token_client) =
-            create_token_contract(&e, &Identifier::Contract(pool_address.clone()));
+        let pool_id = generate_contract_id(&e);
+        let pool = &Address::from_contract_id(&e, &pool_id);
+        let backstop_id = generate_contract_id(&e);
+        let backstop = &Address::from_contract_id(&e, &backstop_id);
+        let oracle_id = generate_contract_id(&e);
 
-        let samwise = e.accounts().generate_and_create();
-        let samwise_id = Identifier::Account(samwise.clone());
+        let (b_token_id, b_token_client) = create_token_contract(&e, &pool);
+
+        let samwise = Address::random(&e);
 
         let mut reserve = Reserve {
             asset: generate_contract_id(&e),
@@ -312,32 +304,30 @@ mod tests {
             timestamp: 12345,
             protocol_version: 1,
             sequence_number: 123456,
-            network_passphrase: Default::default(),
+            network_id: Default::default(),
             base_reserve: 10,
         });
 
         let pool_config = PoolConfig {
-            oracle: oracle_address,
+            oracle: oracle_id,
             bstop_rate: 0_200_000_000,
             status: 0,
         };
 
-        e.as_contract(&pool_address, || {
-            storage.set_pool_config(pool_config.clone());
-            storage.set_backstop(backstop_address.clone());
-            storage.set_res_config(reserve.asset.clone(), reserve.config.clone());
-            storage.set_res_data(reserve.asset.clone(), reserve.data.clone());
+        e.as_contract(&pool_id, || {
+            storage::set_pool_config(&e, &pool_config);
+            storage::set_backstop(&e, &backstop_id);
+            storage::set_backstop_address(&e, backstop);
+            storage::set_res_config(&e, &reserve.asset, &reserve.config);
+            storage::set_res_data(&e, &reserve.asset, &reserve.data);
 
-            reserve.pre_action(&e, &pool_config, 0, samwise_id).unwrap(); // (accrual: 1_002_957_369, util: .7864352)
+            reserve.pre_action(&e, &pool_config, 0, samwise).unwrap(); // (accrual: 1_002_957_369, util: .7864352)
 
             assert_eq!(reserve.data.b_rate, 1_125_547_118);
             assert_eq!(reserve.data.d_rate, 1_349_657_792);
             assert_eq!(reserve.data.ir_mod, 1_044_981_440);
             assert_eq!(reserve.data.last_block, 123456);
-            assert_eq!(
-                b_token_client.balance(&Identifier::Contract(backstop_address)),
-                0_051_735_661
-            );
+            assert_eq!(b_token_client.balance(&backstop), 0_051_735_661);
         });
     }
 
@@ -376,7 +366,7 @@ mod tests {
             timestamp: 12345,
             protocol_version: 1,
             sequence_number: 123,
-            network_passphrase: Default::default(),
+            network_id: Default::default(),
             base_reserve: 10,
         });
 
@@ -392,6 +382,7 @@ mod tests {
     #[test]
     fn test_update_state_one_stroop_accrual() {
         let e = Env::default();
+        let pool_id = generate_contract_id(&e);
 
         let mut reserve = Reserve {
             asset: generate_contract_id(&e),
@@ -422,22 +413,25 @@ mod tests {
             timestamp: 12345,
             protocol_version: 1,
             sequence_number: 100,
-            network_passphrase: Default::default(),
+            network_id: Default::default(),
             base_reserve: 10,
         });
 
-        let to_mint = reserve.update_rates(&e, 0_200_000_000); // (accrual: 1_000_000_008, util: 0_6565656)
+        e.as_contract(&pool_id, || {
+            let to_mint = reserve.update_rates(&e, 0_200_000_000); // (accrual: 1_000_000_008, util: 0_6565656)
 
-        assert_eq!(reserve.data.b_rate, 1_000_000_000);
-        assert_eq!(reserve.data.d_rate, 1_000_000_001);
-        assert_eq!(reserve.data.ir_mod, 0_100_000_000);
-        assert_eq!(reserve.data.last_block, 100);
-        assert_eq!(to_mint, 0);
+            assert_eq!(reserve.data.b_rate, 1_000_000_000);
+            assert_eq!(reserve.data.d_rate, 1_000_000_001);
+            assert_eq!(reserve.data.ir_mod, 0_100_000_000);
+            assert_eq!(reserve.data.last_block, 100);
+            assert_eq!(to_mint, 0);
+        });
     }
 
     #[test]
     fn test_update_state_small_block_dif() {
         let e = Env::default();
+        let pool_id = generate_contract_id(&e);
 
         let mut reserve = Reserve {
             asset: generate_contract_id(&e),
@@ -468,23 +462,25 @@ mod tests {
             timestamp: 12345,
             protocol_version: 1,
             sequence_number: 100,
-            network_passphrase: Default::default(),
+            network_id: Default::default(),
             base_reserve: 10,
         });
+        e.as_contract(&pool_id, || {
+            let to_mint = reserve.update_rates(&e, 0_200_000_000); // (accrual: 1_000_000_852, util: 0_6565656)
 
-        let to_mint = reserve.update_rates(&e, 0_200_000_000); // (accrual: 1_000_000_852, util: 0_6565656)
-
-        assert_eq!(reserve.data.b_rate, 1_000_000_448);
-        assert_eq!(reserve.data.d_rate, 1_000_000_853);
-        assert_eq!(reserve.data.ir_mod, 0_999_906_566);
-        assert_eq!(reserve.data.last_block, 100);
-        // TODO: Calculator claims this is 11_068 with expected rounding. Determine why this is different
-        assert_eq!(to_mint, 0_000_011_088);
+            assert_eq!(reserve.data.b_rate, 1_000_000_448);
+            assert_eq!(reserve.data.d_rate, 1_000_000_853);
+            assert_eq!(reserve.data.ir_mod, 0_999_906_566);
+            assert_eq!(reserve.data.last_block, 100);
+            // TODO: Calculator claims this is 11_068 with expected rounding. Determine why this is different
+            assert_eq!(to_mint, 0_000_011_088);
+        });
     }
 
     #[test]
     fn test_update_state_large_block_dif() {
         let e = Env::default();
+        let pool_id = generate_contract_id(&e);
 
         let mut reserve = Reserve {
             asset: generate_contract_id(&e),
@@ -515,17 +511,19 @@ mod tests {
             timestamp: 12345,
             protocol_version: 1,
             sequence_number: 123456,
-            network_passphrase: Default::default(),
+            network_id: Default::default(),
             base_reserve: 10,
         });
 
-        let to_mint = reserve.update_rates(&e, 0_200_000_000); // (accrual: 1_002_957_369, util: .7864352)
+        e.as_contract(&pool_id, || {
+            let to_mint = reserve.update_rates(&e, 0_200_000_000); // (accrual: 1_002_957_369, util: .7864352)
 
-        assert_eq!(reserve.data.b_rate, 1_125_547_118);
-        assert_eq!(reserve.data.d_rate, 1_349_657_792);
-        assert_eq!(reserve.data.ir_mod, 1_044_981_440);
-        assert_eq!(reserve.data.last_block, 123456);
-        assert_eq!(to_mint, 0_051_735_661);
+            assert_eq!(reserve.data.b_rate, 1_125_547_118);
+            assert_eq!(reserve.data.d_rate, 1_349_657_792);
+            assert_eq!(reserve.data.ir_mod, 1_044_981_440);
+            assert_eq!(reserve.data.last_block, 123456);
+            assert_eq!(to_mint, 0_051_735_661);
+        });
     }
 
     /***** Total Supply / Liability Management *****/

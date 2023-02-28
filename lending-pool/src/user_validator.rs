@@ -1,6 +1,5 @@
 use fixed_point_math::FixedPoint;
-use soroban_auth::Identifier;
-use soroban_sdk::Env;
+use soroban_sdk::{Address, Env};
 
 use crate::{
     constants::SCALAR_7,
@@ -17,7 +16,7 @@ use crate::{
 pub fn validate_hf(
     e: &Env,
     pool_config: &PoolConfig,
-    user: &Identifier,
+    user: &Address,
     user_action: &UserAction,
 ) -> bool {
     let account_data = UserData::load(e, pool_config, user, &user_action);

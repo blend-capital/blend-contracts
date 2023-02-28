@@ -5,8 +5,8 @@ extern crate std;
 
 mod bad_debt;
 mod constants;
-mod emissions_distributor;
-mod emissions_manager;
+mod contract;
+mod emissions;
 mod errors;
 mod interest;
 mod pool;
@@ -20,4 +20,4 @@ mod auctions;
 mod dependencies;
 
 pub mod testutils;
-pub use crate::pool::{Pool, PoolClient};
+pub use crate::contract::{PoolContract, PoolContractClient};

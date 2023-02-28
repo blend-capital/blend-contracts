@@ -1,6 +1,5 @@
 use rand::{thread_rng, RngCore};
-use soroban_auth::Identifier;
-use soroban_sdk::{BytesN, Env, IntoVal};
+use soroban_sdk::{Address, BytesN, Env, IntoVal};
 
 // Generics
 
@@ -29,21 +28,27 @@ pub fn generate_contract_id(e: &Env) -> BytesN<32> {
     BytesN::from_array(e, &id)
 }
 
-pub fn create_token_from_id(e: &Env, contract_id: &BytesN<32>, admin: &Identifier) -> TokenClient {
+pub fn create_stellar_token(e: &Env, admin: &Address) -> (BytesN<32>, TokenClient) {
+    let contract_id = e.register_stellar_asset_contract(admin.clone());
+    let client = TokenClient::new(e, &contract_id);
+    (contract_id, client)
+}
+
+pub fn create_token_from_id(e: &Env, contract_id: &BytesN<32>, admin: &Address) -> TokenClient {
     e.register_contract_wasm(contract_id, token::WASM);
-    let client = TokenClient::new(e, contract_id.clone());
-    client.initialize(&admin, &7, &"unit".into_val(e), &"test".into_val(&e));
+    let client = TokenClient::new(e, contract_id);
+    client.initialize(&admin, &7, &"unit".into_val(e), &"test".into_val(e));
     client
 }
 
 pub fn create_backstop_module(e: &Env) -> (BytesN<32>, BackstopClient) {
     let contract_id = generate_contract_id(e);
     e.register_contract_wasm(&contract_id, backstop::WASM);
-    (contract_id.clone(), BackstopClient::new(e, contract_id))
+    (contract_id.clone(), BackstopClient::new(e, &contract_id))
 }
 
 pub fn create_mock_pool_factory(e: &Env) -> MockPoolFactoryClient {
     let contract_id = BytesN::from_array(&e, &[101; 32]);
     e.register_contract_wasm(&contract_id, mock_pool_factory::WASM);
-    MockPoolFactoryClient::new(e, contract_id)
+    MockPoolFactoryClient::new(e, &contract_id)
 }

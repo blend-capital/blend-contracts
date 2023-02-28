@@ -20,5 +20,5 @@ pub(crate) fn generate_contract_id(e: &Env) -> BytesN<32> {
 pub(crate) fn create_mock_pool_factory(e: &Env) -> MockPoolFactoryClient {
     let contract_id = BytesN::from_array(&e, &POOL_FACTORY);
     e.register_contract_wasm(&contract_id, mock_pool_factory::WASM);
-    MockPoolFactoryClient::new(e, contract_id)
+    MockPoolFactoryClient::new(e, &contract_id)
 }

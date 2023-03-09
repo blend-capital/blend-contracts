@@ -39,8 +39,8 @@ fn test_distribute_from_backstop() {
         base_reserve: 10,
     });
 
-    //Note: this is currently broken cuz we can't call a function as a contract - the test will fail
-    // let result = emitter_client.with_source_account(&backstop).distribute();
+    //Note: this function is not currently working properly - wait for- https://github.com/stellar/rs-soroban-sdk/issues/868
+    // let result = emitter_client.try_distribute() (&backstop).distribute();
 
     // let expected_emissions = BigInt::from_u64(&e, seconds_passed * 1_0000000);
 

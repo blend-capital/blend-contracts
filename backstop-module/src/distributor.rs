@@ -51,6 +51,7 @@ pub fn distribute(e: &Env) -> Result<(), BackstopError> {
     if e.ledger().timestamp() < storage::get_next_dist(&e) {
         return Err(BackstopError::BadRequest);
     }
+    storage::set_next_dist(&e, &(e.ledger().timestamp() + 7 * 24 * 60 * 60));
 
     // TODO: Fetch the emission amount from the emitter
     let emission: i128 = 500_000_0000000;
@@ -89,8 +90,6 @@ pub fn distribute(e: &Env) -> Result<(), BackstopError> {
         let pool_backstop_emissions = share.fixed_mul_floor(backstop_emissions, SCALAR_7).unwrap();
         storage::set_pool_tokens(&e, &rz_pool, &(cur_pool_tokens + pool_backstop_emissions));
     }
-
-    storage::set_next_dist(&e, &(e.ledger().timestamp() + 7 * 24 * 60 * 60));
 
     Ok(())
 }

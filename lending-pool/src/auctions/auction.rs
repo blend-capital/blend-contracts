@@ -24,7 +24,7 @@ pub enum AuctionType {
 }
 
 impl AuctionType {
-    fn from_u32(value: u32) -> Self {
+    pub fn from_u32(value: u32) -> Self {
         match value {
             0 => AuctionType::UserLiquidation,
             1 => AuctionType::BadDebtAuction,

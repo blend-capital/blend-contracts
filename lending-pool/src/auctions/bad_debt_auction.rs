@@ -14,7 +14,7 @@ use super::{get_fill_modifiers, AuctionData, AuctionQuote, AuctionType};
 
 pub fn create_bad_debt_auction_data(e: &Env, backstop: &Address) -> Result<AuctionData, PoolError> {
     if storage::has_auction(&e, &(AuctionType::BadDebtAuction as u32), backstop) {
-        return Err(PoolError::AlreadyInProgress);
+        return Err(PoolError::AuctionInProgress);
     }
 
     let pool_config = storage::get_pool_config(e);
@@ -172,7 +172,7 @@ mod tests {
 
             match result {
                 Ok(_) => assert!(false),
-                Err(err) => assert_eq!(err, PoolError::AlreadyInProgress),
+                Err(err) => assert_eq!(err, PoolError::AuctionInProgress),
             };
         });
     }

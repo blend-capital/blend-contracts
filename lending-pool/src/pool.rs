@@ -267,8 +267,8 @@ pub fn execute_repay(
         }
     }
 
-    d_token_client.clawback(&e.current_contract_address(), on_behalf_of, &to_burn);
     TokenClient::new(e, &reserve.asset).xfer(from, &e.current_contract_address(), &to_repay);
+    d_token_client.clawback(&e.current_contract_address(), on_behalf_of, &to_burn);
 
     let mut user_config = ReserveUsage::new(storage::get_user_config(e, from));
     if d_token_client.balance(&from) == 0 {

@@ -21,7 +21,7 @@ pub fn create_user_liq_auction_data(
     mut liq_data: LiquidationMetadata,
 ) -> Result<AuctionData, PoolError> {
     if storage::has_auction(e, &(AuctionType::UserLiquidation as u32), &user) {
-        return Err(PoolError::AlreadyInProgress);
+        return Err(PoolError::AuctionInProgress);
     }
 
     let pool_config = storage::get_pool_config(e);
@@ -321,7 +321,7 @@ mod tests {
 
             match result {
                 Ok(_) => assert!(false),
-                Err(err) => assert_eq!(err, PoolError::AlreadyInProgress),
+                Err(err) => assert_eq!(err, PoolError::AuctionInProgress),
             };
         });
     }

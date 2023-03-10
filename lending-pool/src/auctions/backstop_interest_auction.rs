@@ -13,7 +13,7 @@ use super::{get_fill_modifiers, AuctionData, AuctionQuote, AuctionType};
 
 pub fn create_interest_auction_data(e: &Env, backstop: &Address) -> Result<AuctionData, PoolError> {
     if storage::has_auction(e, &(AuctionType::InterestAuction as u32), backstop) {
-        return Err(PoolError::AlreadyInProgress);
+        return Err(PoolError::AuctionInProgress);
     }
 
     // TODO: Determine if any threshold should be required to create interest auction
@@ -206,7 +206,7 @@ mod tests {
 
             match result {
                 Ok(_) => assert!(false),
-                Err(err) => assert_eq!(err, PoolError::AlreadyInProgress),
+                Err(err) => assert_eq!(err, PoolError::AuctionInProgress),
             };
         });
     }

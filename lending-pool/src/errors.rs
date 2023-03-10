@@ -17,6 +17,6 @@ pub enum PoolError {
     InvalidLiquidation = 100,
     InvalidAsks = 106,
     InvalidBids = 102,
-    AlreadyInProgress = 103,
+    AuctionInProgress = 103,
     InvalidAuctionType = 104,
 }

@@ -78,8 +78,21 @@ pub fn execute_supply(
     reserve.pre_action(&e, &pool_config, 1, from.clone())?;
 
     let to_mint = reserve.to_b_token(amount.clone());
-    TokenClient::new(&e, asset).xfer(from, &e.current_contract_address(), &amount);
+    if storage::has_auction(e, &0, &from) {
+        let user_action = UserAction {
+            asset: asset.clone(),
+            b_token_delta: to_mint,
+            d_token_delta: 0,
+        };
+        let is_healthy = validate_hf(&e, &pool_config, &from, &user_action);
+        if !is_healthy {
+            return Err(PoolError::InvalidHf);
+        } else {
+            storage::del_auction(e, &0, &from);
+        }
+    }
 
+    TokenClient::new(&e, asset).xfer(from, &e.current_contract_address(), &amount);
     TokenClient::new(&e, &reserve.config.b_token).mint(
         &e.current_contract_address(),
         &from,
@@ -109,6 +122,10 @@ pub fn execute_withdraw(
     to: &Address,
 ) -> Result<i128, PoolError> {
     let pool_config = storage::get_pool_config(e);
+
+    if storage::has_auction(e, &0, &from) {
+        return Err(PoolError::AuctionInProgress);
+    }
 
     let mut reserve = Reserve::load(&e, asset.clone());
     reserve.pre_action(&e, &pool_config, 1, from.clone())?;
@@ -168,6 +185,10 @@ pub fn execute_borrow(
 
     if pool_config.status > 0 {
         return Err(PoolError::InvalidPoolStatus);
+    }
+
+    if storage::has_auction(e, &0, &from) {
+        return Err(PoolError::AuctionInProgress);
     }
 
     let mut reserve = Reserve::load(&e, asset.clone());
@@ -232,9 +253,21 @@ pub fn execute_repay(
         to_burn = reserve.to_d_token(amount);
         to_repay = amount;
     }
+    if storage::has_auction(e, &0, &from) {
+        let user_action = UserAction {
+            asset: asset.clone(),
+            b_token_delta: 0,
+            d_token_delta: -to_burn,
+        };
+        let is_healthy = validate_hf(&e, &pool_config, &from, &user_action);
+        if !is_healthy {
+            return Err(PoolError::InvalidHf);
+        } else {
+            storage::del_auction(e, &0, &from);
+        }
+    }
 
     d_token_client.clawback(&e.current_contract_address(), on_behalf_of, &to_burn);
-
     TokenClient::new(e, &reserve.asset).xfer(from, &e.current_contract_address(), &to_repay);
 
     let mut user_config = ReserveUsage::new(storage::get_user_config(e, from));
@@ -269,4 +302,267 @@ pub fn update_pool_emissions(e: &Env) -> Result<u64, PoolError> {
     let next_exp = backstop_client.next_dist();
     let pool_eps = backstop_client.pool_eps(&e.current_contract_id()) as u64;
     emissions::update_emissions(e, next_exp, pool_eps)
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{
+        auctions::AuctionData,
+        dependencies::TokenClient,
+        testutils::{create_mock_oracle, create_reserve, setup_reserve},
+    };
+
+    use super::*;
+    use soroban_sdk::{
+        map,
+        testutils::{Address as _, BytesN as _},
+    };
+
+    /***** Supply *****/
+
+    #[test]
+    fn test_supply_user_being_liquidated() {
+        let e = Env::default();
+        let pool_id = BytesN::<32>::random(&e);
+        let pool = Address::from_contract_id(&e, &pool_id);
+
+        let bombadil = Address::random(&e);
+        let samwise = Address::random(&e);
+
+        let reserve_0 = create_reserve(&e);
+        setup_reserve(&e, &pool_id, &bombadil, &reserve_0);
+
+        let reserve_1 = create_reserve(&e);
+        setup_reserve(&e, &pool_id, &bombadil, &reserve_1);
+
+        let (oracle_id, oracle_client) = create_mock_oracle(&e);
+        oracle_client.set_price(&reserve_0.asset, &1_0000000);
+        oracle_client.set_price(&reserve_1.asset, &1_0000000);
+
+        let asset_0_client = TokenClient::new(&e, &reserve_0.asset);
+        let asset_1_client = TokenClient::new(&e, &reserve_1.asset);
+        asset_0_client.mint(&bombadil, &samwise, &500_0000000);
+        asset_1_client.mint(&bombadil, &pool, &500_0000000); // for samwise to borrow
+
+        let pool_config = PoolConfig {
+            oracle: oracle_id,
+            bstop_rate: 0,
+            status: 0,
+        };
+        e.as_contract(&pool_id, || {
+            storage::set_pool_config(&e, &pool_config);
+
+            e.budget().reset();
+            execute_supply(&e, &samwise, &reserve_0.asset, 100_0000000).unwrap();
+            execute_borrow(&e, &samwise, &reserve_1.asset, 50_0000000, &samwise).unwrap();
+            assert_eq!(400_0000000, asset_0_client.balance(&samwise));
+            assert_eq!(50_0000000, asset_1_client.balance(&samwise));
+            assert_eq!(100_0000000, asset_0_client.balance(&pool));
+            assert_eq!(450_0000000, asset_1_client.balance(&pool));
+
+            // adjust prices to put samwise underwater
+            oracle_client.set_price(&reserve_1.asset, &2_0000000);
+
+            // mock a created liquidation auction
+            storage::set_auction(
+                &e,
+                &0,
+                &samwise,
+                &AuctionData {
+                    bid: map![&e],
+                    lot: map![&e],
+                    block: e.ledger().sequence(),
+                },
+            );
+
+            let result = execute_supply(&e, &samwise, &reserve_0.asset, 50_0000000);
+            assert_eq!(result, Err(PoolError::InvalidHf));
+
+            execute_supply(&e, &samwise, &reserve_0.asset, 100_0000000).unwrap();
+            assert_eq!(300_0000000, asset_0_client.balance(&samwise));
+            assert_eq!(50_0000000, asset_1_client.balance(&samwise));
+            assert_eq!(200_0000000, asset_0_client.balance(&pool));
+            assert_eq!(450_0000000, asset_1_client.balance(&pool));
+            assert_eq!(false, storage::has_auction(&e, &0, &samwise));
+        });
+    }
+
+    /***** Withdraw *****/
+
+    #[test]
+    fn test_withdraw_user_being_liquidated() {
+        let e = Env::default();
+        let pool_id = BytesN::<32>::random(&e);
+        let pool = Address::from_contract_id(&e, &pool_id);
+
+        let bombadil = Address::random(&e);
+        let samwise = Address::random(&e);
+
+        let reserve_0 = create_reserve(&e);
+        setup_reserve(&e, &pool_id, &bombadil, &reserve_0);
+
+        let reserve_1 = create_reserve(&e);
+        setup_reserve(&e, &pool_id, &bombadil, &reserve_1);
+
+        let (oracle_id, oracle_client) = create_mock_oracle(&e);
+        oracle_client.set_price(&reserve_0.asset, &1_0000000);
+        oracle_client.set_price(&reserve_1.asset, &1_0000000);
+
+        let asset_0_client = TokenClient::new(&e, &reserve_0.asset);
+        asset_0_client.mint(&bombadil, &samwise, &500_0000000);
+
+        let pool_config = PoolConfig {
+            oracle: oracle_id,
+            bstop_rate: 0,
+            status: 0,
+        };
+        e.as_contract(&pool_id, || {
+            storage::set_pool_config(&e, &pool_config);
+
+            e.budget().reset();
+            execute_supply(&e, &samwise, &reserve_0.asset, 100_0000000).unwrap();
+            assert_eq!(400_0000000, asset_0_client.balance(&samwise));
+            assert_eq!(100_0000000, asset_0_client.balance(&pool));
+
+            // mock a created liquidation auction
+            storage::set_auction(
+                &e,
+                &0,
+                &samwise,
+                &AuctionData {
+                    bid: map![&e],
+                    lot: map![&e],
+                    block: e.ledger().sequence(),
+                },
+            );
+
+            let result = execute_withdraw(&e, &samwise, &reserve_0.asset, 100_0000000, &samwise);
+            assert_eq!(result, Err(PoolError::AuctionInProgress));
+        });
+    }
+
+    /***** Borrow *****/
+
+    #[test]
+    fn test_borrow_user_being_liquidated() {
+        let e = Env::default();
+        let pool_id = BytesN::<32>::random(&e);
+        let pool = Address::from_contract_id(&e, &pool_id);
+
+        let bombadil = Address::random(&e);
+        let samwise = Address::random(&e);
+
+        let reserve_0 = create_reserve(&e);
+        setup_reserve(&e, &pool_id, &bombadil, &reserve_0);
+
+        let reserve_1 = create_reserve(&e);
+        setup_reserve(&e, &pool_id, &bombadil, &reserve_1);
+
+        let (oracle_id, oracle_client) = create_mock_oracle(&e);
+        oracle_client.set_price(&reserve_0.asset, &1_0000000);
+        oracle_client.set_price(&reserve_1.asset, &1_0000000);
+
+        let asset_0_client = TokenClient::new(&e, &reserve_0.asset);
+        let asset_1_client = TokenClient::new(&e, &reserve_1.asset);
+        asset_0_client.mint(&bombadil, &samwise, &500_0000000);
+        asset_1_client.mint(&bombadil, &pool, &500_0000000); // for samwise to borrow
+
+        let pool_config = PoolConfig {
+            oracle: oracle_id,
+            bstop_rate: 0,
+            status: 0,
+        };
+        e.as_contract(&pool_id, || {
+            storage::set_pool_config(&e, &pool_config);
+
+            e.budget().reset();
+            execute_supply(&e, &samwise, &reserve_0.asset, 100_0000000).unwrap();
+            assert_eq!(400_0000000, asset_0_client.balance(&samwise));
+            assert_eq!(100_0000000, asset_0_client.balance(&pool));
+
+            // mock a created liquidation auction
+            storage::set_auction(
+                &e,
+                &0,
+                &samwise,
+                &AuctionData {
+                    bid: map![&e],
+                    lot: map![&e],
+                    block: e.ledger().sequence(),
+                },
+            );
+
+            let result = execute_borrow(&e, &samwise, &reserve_0.asset, 50_0000000, &samwise);
+            assert_eq!(result, Err(PoolError::AuctionInProgress));
+        });
+    }
+
+    /***** Repay *****/
+
+    #[test]
+    fn test_repay_user_being_liquidated() {
+        let e = Env::default();
+        let pool_id = BytesN::<32>::random(&e);
+        let pool = Address::from_contract_id(&e, &pool_id);
+
+        let bombadil = Address::random(&e);
+        let samwise = Address::random(&e);
+
+        let reserve_0 = create_reserve(&e);
+        setup_reserve(&e, &pool_id, &bombadil, &reserve_0);
+
+        let reserve_1 = create_reserve(&e);
+        setup_reserve(&e, &pool_id, &bombadil, &reserve_1);
+
+        let (oracle_id, oracle_client) = create_mock_oracle(&e);
+        oracle_client.set_price(&reserve_0.asset, &1_0000000);
+        oracle_client.set_price(&reserve_1.asset, &1_0000000);
+
+        let asset_0_client = TokenClient::new(&e, &reserve_0.asset);
+        let asset_1_client = TokenClient::new(&e, &reserve_1.asset);
+        asset_0_client.mint(&bombadil, &samwise, &500_0000000);
+        asset_1_client.mint(&bombadil, &pool, &500_0000000); // for samwise to borrow
+
+        let pool_config = PoolConfig {
+            oracle: oracle_id,
+            bstop_rate: 0,
+            status: 0,
+        };
+        e.as_contract(&pool_id, || {
+            storage::set_pool_config(&e, &pool_config);
+
+            e.budget().reset();
+            execute_supply(&e, &samwise, &reserve_0.asset, 100_0000000).unwrap();
+            execute_borrow(&e, &samwise, &reserve_1.asset, 50_0000000, &samwise).unwrap();
+            assert_eq!(400_0000000, asset_0_client.balance(&samwise));
+            assert_eq!(50_0000000, asset_1_client.balance(&samwise));
+            assert_eq!(100_0000000, asset_0_client.balance(&pool));
+            assert_eq!(450_0000000, asset_1_client.balance(&pool));
+
+            // adjust prices to put samwise underwater
+            oracle_client.set_price(&reserve_1.asset, &2_0000000);
+
+            // mock a created liquidation auction
+            storage::set_auction(
+                &e,
+                &0,
+                &samwise,
+                &AuctionData {
+                    bid: map![&e],
+                    lot: map![&e],
+                    block: e.ledger().sequence(),
+                },
+            );
+
+            let result = execute_repay(&e, &samwise, &reserve_1.asset, 10_0000000, &samwise);
+            assert_eq!(result, Err(PoolError::InvalidHf));
+
+            execute_repay(&e, &samwise, &reserve_1.asset, 25_0000000, &samwise).unwrap();
+            assert_eq!(400_0000000, asset_0_client.balance(&samwise));
+            assert_eq!(25_0000000, asset_1_client.balance(&samwise));
+            assert_eq!(100_0000000, asset_0_client.balance(&pool));
+            assert_eq!(475_0000000, asset_1_client.balance(&pool));
+            assert_eq!(false, storage::has_auction(&e, &0, &samwise));
+        });
+    }
 }

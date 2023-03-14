@@ -104,23 +104,28 @@ pub(crate) fn create_reserve(e: &Env) -> Reserve {
             index: 0,
         },
         data: ReserveData {
-            b_rate: 1_000_000_000,
             d_rate: 1_000_000_000,
             ir_mod: 1_000_000_000,
             b_supply: 100_0000000,
             d_supply: 75_0000000,
             last_block: 0,
         },
+        b_rate: Some(1_000_000_000),
     }
 }
 
-pub(crate) fn setup_reserve(e: &Env, pool_id: &BytesN<32>, admin: &Address, reserve: &Reserve) {
+/// Expects a valid b_rate to be set
+pub(crate) fn setup_reserve(e: &Env, pool_id: &BytesN<32>, admin: &Address, reserve: &mut Reserve) {
     e.as_contract(pool_id, || {
         storage::set_res_config(e, &reserve.asset, &reserve.config);
         storage::set_res_data(e, &reserve.asset, &reserve.data);
     });
-    create_token_from_id(e, &reserve.asset, admin);
+    let asset_client = create_token_from_id(e, &reserve.asset, admin);
     let pool = Address::from_contract_id(e, &pool_id);
     create_token_from_id(e, &reserve.config.b_token, &pool);
     create_token_from_id(e, &reserve.config.d_token, &pool);
+
+    // mint pool assets to set expected b_rate
+    let to_mint_pool = reserve.total_supply(e) - reserve.total_liabilities();
+    asset_client.mint(admin, &pool, &to_mint_pool);
 }

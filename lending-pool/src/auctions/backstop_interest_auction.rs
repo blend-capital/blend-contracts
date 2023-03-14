@@ -41,7 +41,7 @@ pub fn create_interest_auction_data(e: &Env, backstop: &Address) -> Result<Aucti
         let b_token_balance = b_token_client.balance(&backstop) + to_mint_bkstp;
         if b_token_balance > 0 {
             let asset_to_base = oracle_client.get_price(&res_asset_address);
-            let asset_balance = reserve.to_asset_from_b_token(b_token_balance);
+            let asset_balance = reserve.to_asset_from_b_token(e, b_token_balance);
             interest_value += asset_balance
                 .fixed_mul_floor(i128(asset_to_base), SCALAR_7)
                 .unwrap();
@@ -237,23 +237,23 @@ mod tests {
         // creating reserves for a pool exhausts the budget
         e.budget().reset();
         let mut reserve_0 = create_reserve(&e);
-        reserve_0.data.b_rate = 1_100_000_000;
+        reserve_0.b_rate = Some(1_100_000_000);
         reserve_0.data.last_block = 50;
         reserve_0.config.index = 0;
-        setup_reserve(&e, &pool_id, &bombadil, &reserve_0);
+        setup_reserve(&e, &pool_id, &bombadil, &mut reserve_0);
         let b_token_0 = TokenClient::new(&e, &reserve_0.config.b_token);
 
         let mut reserve_1 = create_reserve(&e);
-        reserve_1.data.b_rate = 1_200_000_000;
+        reserve_1.b_rate = Some(1_200_000_000);
         reserve_1.data.last_block = 50;
         reserve_1.config.index = 1;
-        setup_reserve(&e, &pool_id, &bombadil, &reserve_1);
+        setup_reserve(&e, &pool_id, &bombadil, &mut reserve_1);
         let b_token_1 = TokenClient::new(&e, &reserve_1.config.b_token);
 
         let mut reserve_2 = create_reserve(&e);
         reserve_2.data.last_block = 50;
         reserve_2.config.index = 2;
-        setup_reserve(&e, &pool_id, &bombadil, &reserve_2);
+        setup_reserve(&e, &pool_id, &bombadil, &mut reserve_2);
         e.budget().reset();
 
         oracle_client.set_price(&reserve_0.asset, &2_0000000);
@@ -318,23 +318,23 @@ mod tests {
         // creating reserves for a pool exhausts the budget
         e.budget().reset();
         let mut reserve_0 = create_reserve(&e);
-        reserve_0.data.b_rate = 1_100_000_000;
+        reserve_0.b_rate = Some(1_100_000_000);
         reserve_0.data.last_block = 50;
         reserve_0.config.index = 0;
-        setup_reserve(&e, &pool_id, &bombadil, &reserve_0);
+        setup_reserve(&e, &pool_id, &bombadil, &mut reserve_0);
         let b_token_0 = TokenClient::new(&e, &reserve_0.config.b_token);
 
         let mut reserve_1 = create_reserve(&e);
-        reserve_1.data.b_rate = 1_200_000_000;
+        reserve_1.b_rate = Some(1_200_000_000);
         reserve_1.data.last_block = 50;
         reserve_1.config.index = 1;
-        setup_reserve(&e, &pool_id, &bombadil, &reserve_1);
+        setup_reserve(&e, &pool_id, &bombadil, &mut reserve_1);
         let b_token_1 = TokenClient::new(&e, &reserve_1.config.b_token);
 
         let mut reserve_2 = create_reserve(&e);
         reserve_2.data.last_block = 50;
         reserve_2.config.index = 2;
-        setup_reserve(&e, &pool_id, &bombadil, &reserve_2);
+        setup_reserve(&e, &pool_id, &bombadil, &mut reserve_2);
         e.budget().reset();
 
         oracle_client.set_price(&reserve_0.asset, &2_0000000);
@@ -359,19 +359,19 @@ mod tests {
             let result = create_interest_auction_data(&e, &backstop).unwrap();
 
             assert_eq!(result.block, 151);
-            assert_eq!(result.bid.get_unchecked(u32::MAX).unwrap(), 95_4122842);
+            assert_eq!(result.bid.get_unchecked(u32::MAX).unwrap(), 95_2021570);
             assert_eq!(result.bid.len(), 1);
             assert_eq!(
                 result.lot.get_unchecked(reserve_0.config.index).unwrap(),
-                10_0006589
+                10_0000065
             );
             assert_eq!(
                 result.lot.get_unchecked(reserve_1.config.index).unwrap(),
-                2_5006144
+                2_5000061
             );
             assert_eq!(
                 result.lot.get_unchecked(reserve_2.config.index).unwrap(),
-                7140
+                71
             );
             assert_eq!(result.lot.len(), 3);
         });
@@ -404,23 +404,23 @@ mod tests {
         // creating reserves for a pool exhausts the budget
         e.budget().reset();
         let mut reserve_0 = create_reserve(&e);
-        reserve_0.data.b_rate = 1_100_000_000;
+        reserve_0.b_rate = Some(1_100_000_000);
         reserve_0.data.last_block = 301;
         reserve_0.config.index = 0;
-        setup_reserve(&e, &pool_id, &bombadil, &reserve_0);
+        setup_reserve(&e, &pool_id, &bombadil, &mut reserve_0);
         let b_token_0 = TokenClient::new(&e, &reserve_0.config.b_token);
 
         let mut reserve_1 = create_reserve(&e);
-        reserve_1.data.b_rate = 1_200_000_000;
+        reserve_1.b_rate = Some(1_200_000_000);
         reserve_1.data.last_block = 301;
         reserve_1.config.index = 1;
-        setup_reserve(&e, &pool_id, &bombadil, &reserve_1);
+        setup_reserve(&e, &pool_id, &bombadil, &mut reserve_1);
         let b_token_1 = TokenClient::new(&e, &reserve_1.config.b_token);
 
         let mut reserve_2 = create_reserve(&e);
         reserve_2.data.last_block = 301;
         reserve_2.config.index = 2;
-        setup_reserve(&e, &pool_id, &bombadil, &reserve_2);
+        setup_reserve(&e, &pool_id, &bombadil, &mut reserve_2);
         e.budget().reset();
 
         let pool_config = PoolConfig {

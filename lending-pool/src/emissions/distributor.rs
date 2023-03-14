@@ -255,14 +255,14 @@ fn set_user_emissions(
 #[cfg(test)]
 mod tests {
     use crate::{
-        storage::{ReserveConfig, ReserveData, ReserveEmissionsConfig},
-        testutils::{create_token_contract, generate_contract_id},
+        storage::{ReserveEmissionsConfig},
+        testutils::{generate_contract_id, create_reserve, setup_reserve},
     };
 
     use super::*;
     use soroban_sdk::{
         testutils::{Address as AddressTestTrait, Ledger, LedgerInfo},
-        vec, BytesN,
+        vec,
     };
 
     /********** update_reserve **********/
@@ -271,12 +271,10 @@ mod tests {
     fn test_update_happy_path() {
         let e = Env::default();
         let pool_id = generate_contract_id(&e);
+        let pool = Address::from_contract_id(&e, &pool_id);
 
         let samwise = Address::random(&e);
         let bombadil = Address::random(&e);
-
-        let (res_token_id, res_token_client) = create_token_contract(&e, &bombadil);
-        res_token_client.mint(&bombadil, &samwise, &2_0000000);
 
         e.ledger().set(LedgerInfo {
             timestamp: 1501000000, // 10^6 seconds have passed
@@ -285,15 +283,16 @@ mod tests {
             network_id: Default::default(),
             base_reserve: 10,
         });
-        e.as_contract(&pool_id, || {
-            let reserve = setup_reserve(
-                &e,
-                generate_contract_id(&e),
-                res_token_id,
-                100_0000000,
-                50_0000000,
-            );
 
+        let mut reserve = create_reserve(&e);
+        reserve.data.b_supply = 100_0000000;
+        reserve.data.d_supply = 50_0000000;
+        setup_reserve(&e, &pool_id, &bombadil, &mut reserve);
+
+        let res_token_client = TokenClient::new(&e, &reserve.config.d_token);
+        res_token_client.mint(&pool, &samwise, &2_0000000);
+
+        e.as_contract(&pool_id, || {
             let reserve_emission_config = ReserveEmissionsConfig {
                 expiration: 1600000000,
                 eps: 0_0100000,
@@ -336,7 +335,6 @@ mod tests {
 
         let samwise = Address::random(&e);
         let bombadil = Address::random(&e);
-        let (res_token_id, _) = create_token_contract(&e, &bombadil);
 
         e.ledger().set(LedgerInfo {
             timestamp: 1501000000, // 10^6 seconds have passed
@@ -346,15 +344,12 @@ mod tests {
             base_reserve: 10,
         });
 
-        e.as_contract(&pool_id, || {
-            let reserve = setup_reserve(
-                &e,
-                generate_contract_id(&e),
-                res_token_id,
-                100_0000000,
-                50_0000000,
-            );
+        let mut reserve = create_reserve(&e);
+        reserve.data.b_supply = 100_0000000;
+        reserve.data.d_supply = 50_0000000;
+        setup_reserve(&e, &pool_id, &bombadil, &mut reserve);
 
+        e.as_contract(&pool_id, || {
             let res_token_type = 1;
             let res_token_index = reserve.config.index * 3 + res_token_type;
 
@@ -376,13 +371,9 @@ mod tests {
         let e = Env::default();
 
         let pool_id = generate_contract_id(&e);
+        let pool = Address::from_contract_id(&e, &pool_id);
         let samwise = Address::random(&e);
         let bombadil = Address::random(&e);
-
-        let (res_token_id_0, res_token_client_0) = create_token_contract(&e, &bombadil);
-        let (res_token_id_1, res_token_client_1) = create_token_contract(&e, &bombadil);
-        res_token_client_0.mint(&bombadil, &samwise, &2_0000000);
-        res_token_client_1.mint(&bombadil, &samwise, &2_0000000);
 
         e.ledger().set(LedgerInfo {
             timestamp: 1501000000, // 10^6 seconds have passed
@@ -392,14 +383,24 @@ mod tests {
             base_reserve: 10,
         });
 
+        let mut reserve_0 = create_reserve(&e);
+        reserve_0.data.b_supply = 100_0000000;
+        reserve_0.data.d_supply = 50_0000000;
+        setup_reserve(&e, &pool_id, &bombadil, &mut reserve_0);
+
+        let mut reserve_1 = create_reserve(&e);
+        reserve_1.config.index = 1;
+        reserve_1.data.b_supply = 100_0000000;
+        reserve_1.data.d_supply = 50_0000000;
+        setup_reserve(&e, &pool_id, &bombadil, &mut reserve_1);
+
+        let res_token_client_0 = TokenClient::new(&e, &reserve_0.config.d_token);
+        res_token_client_0.mint(&pool, &samwise, &2_0000000);
+
+        let res_token_client_1 = TokenClient::new(&e, &reserve_1.config.b_token);
+        res_token_client_1.mint(&pool, &samwise, &2_0000000);
+
         e.as_contract(&pool_id, || {
-            let reserve_0 = setup_reserve(
-                &e,
-                generate_contract_id(&e),
-                res_token_id_0,
-                100_0000000,
-                50_0000000,
-            );
             let reserve_emission_config_0 = ReserveEmissionsConfig {
                 expiration: 1600000000,
                 eps: 0_0100000,
@@ -414,13 +415,6 @@ mod tests {
             };
             let res_token_index_0 = reserve_0.config.index * 3 + 0; // d_token for reserve 0
 
-            let reserve_1 = setup_reserve(
-                &e,
-                res_token_id_1,
-                generate_contract_id(&e),
-                100_0000000,
-                50_0000000,
-            );
             let reserve_emission_config_1 = ReserveEmissionsConfig {
                 expiration: 1600000000,
                 eps: 0_0150000,
@@ -477,13 +471,9 @@ mod tests {
         let e = Env::default();
 
         let pool_id = generate_contract_id(&e);
+        let pool = Address::from_contract_id(&e, &pool_id);
         let samwise = Address::random(&e);
         let bombadil = Address::random(&e);
-
-        let (res_token_id_0, res_token_client_0) = create_token_contract(&e, &bombadil);
-        let (res_token_id_1, res_token_client_1) = create_token_contract(&e, &bombadil);
-        res_token_client_0.mint(&bombadil, &samwise, &2_0000000);
-        res_token_client_1.mint(&bombadil, &samwise, &2_0000000);
 
         e.ledger().set(LedgerInfo {
             timestamp: 1501000000, // 10^6 seconds have passed
@@ -493,14 +483,24 @@ mod tests {
             base_reserve: 10,
         });
 
+        let mut reserve_0 = create_reserve(&e);
+        reserve_0.data.b_supply = 100_0000000;
+        reserve_0.data.d_supply = 50_0000000;
+        setup_reserve(&e, &pool_id, &bombadil, &mut reserve_0);
+
+        let mut reserve_1 = create_reserve(&e);
+        reserve_1.config.index = 1;
+        reserve_1.data.b_supply = 100_0000000;
+        reserve_1.data.d_supply = 50_0000000;
+        setup_reserve(&e, &pool_id, &bombadil, &mut reserve_1);
+
+        let res_token_client_0 = TokenClient::new(&e, &reserve_0.config.d_token);
+        res_token_client_0.mint(&pool, &samwise, &2_0000000);
+
+        let res_token_client_1 = TokenClient::new(&e, &reserve_1.config.b_token);
+        res_token_client_1.mint(&pool, &samwise, &2_0000000);
+
         e.as_contract(&pool_id, || {
-            let reserve_0 = setup_reserve(
-                &e,
-                generate_contract_id(&e),
-                res_token_id_0,
-                100_0000000,
-                50_0000000,
-            );
             let reserve_emission_config_0 = ReserveEmissionsConfig {
                 expiration: 1600000000,
                 eps: 0_0100000,
@@ -515,13 +515,6 @@ mod tests {
             };
             let res_token_index_0 = reserve_0.config.index * 3 + 0; // d_token for reserve 0
 
-            let reserve_1 = setup_reserve(
-                &e,
-                res_token_id_1,
-                generate_contract_id(&e),
-                100_0000000,
-                50_0000000,
-            );
             let reserve_emission_config_1 = ReserveEmissionsConfig {
                 expiration: 1600000000,
                 eps: 0_0150000,
@@ -564,11 +557,9 @@ mod tests {
         let e = Env::default();
 
         let pool_id = generate_contract_id(&e);
+        let pool = Address::from_contract_id(&e, &pool_id);
         let samwise = Address::random(&e);
         let bombadil = Address::random(&e);
-
-        let (res_token_id, res_token_client) = create_token_contract(&e, &bombadil);
-        res_token_client.mint(&bombadil, &samwise, &2_0000000);
 
         e.ledger().set(LedgerInfo {
             timestamp: 1501000000, // 10^6 seconds have passed
@@ -578,15 +569,15 @@ mod tests {
             base_reserve: 10,
         });
 
-        e.as_contract(&pool_id, || {
-            let reserve = setup_reserve(
-                &e,
-                generate_contract_id(&e),
-                res_token_id,
-                100_0000000,
-                50_0000000,
-            );
+        let mut reserve = create_reserve(&e);
+        reserve.data.b_supply = 100_0000000;
+        reserve.data.d_supply = 50_0000000;
+        setup_reserve(&e, &pool_id, &bombadil, &mut reserve);
 
+        let res_token_client = TokenClient::new(&e, &reserve.config.d_token);
+        res_token_client.mint(&pool, &samwise, &2_0000000);
+
+        e.as_contract(&pool_id, || {
             let reserve_emission_config = ReserveEmissionsConfig {
                 expiration: 1600000000,
                 eps: 0_0100000,
@@ -630,6 +621,7 @@ mod tests {
         let e = Env::default();
 
         let pool_id = generate_contract_id(&e);
+        let bombadil = Address::random(&e);
 
         e.ledger().set(LedgerInfo {
             timestamp: 1501000000, // 10^6 seconds have passed
@@ -639,15 +631,12 @@ mod tests {
             base_reserve: 10,
         });
 
-        e.as_contract(&pool_id, || {
-            let reserve = setup_reserve(
-                &e,
-                generate_contract_id(&e),
-                generate_contract_id(&e),
-                100_0000000,
-                50_0000000,
-            );
+        let mut reserve = create_reserve(&e);
+        reserve.data.b_supply = 100_0000000;
+        reserve.data.d_supply = 50_0000000;
+        setup_reserve(&e, &pool_id, &bombadil, &mut reserve);
 
+        e.as_contract(&pool_id, || {
             let res_token_type = 1;
             let res_token_index = reserve.config.index * 3 + res_token_type;
             // no emission information stored
@@ -670,6 +659,8 @@ mod tests {
         let e = Env::default();
 
         let pool_id = generate_contract_id(&e);
+        let bombadil = Address::random(&e);
+
 
         e.ledger().set(LedgerInfo {
             timestamp: 1501000000,
@@ -679,15 +670,12 @@ mod tests {
             base_reserve: 10,
         });
 
+        let mut reserve = create_reserve(&e);
+        reserve.data.b_supply = 100_0000000;
+        reserve.data.d_supply = 50_0000000;
+        setup_reserve(&e, &pool_id, &bombadil, &mut reserve);
+        
         e.as_contract(&pool_id, || {
-            let reserve = setup_reserve(
-                &e,
-                generate_contract_id(&e),
-                generate_contract_id(&e),
-                100_0000000,
-                50_0000000,
-            );
-
             let reserve_emission_config = ReserveEmissionsConfig {
                 expiration: 1600000000,
                 eps: 0_0100000,
@@ -723,6 +711,7 @@ mod tests {
         let e = Env::default();
 
         let pool_id = generate_contract_id(&e);
+        let bombadil = Address::random(&e);
 
         e.ledger().set(LedgerInfo {
             timestamp: 1501000000,
@@ -732,15 +721,12 @@ mod tests {
             base_reserve: 10,
         });
 
-        e.as_contract(&pool_id, || {
-            let reserve = setup_reserve(
-                &e,
-                generate_contract_id(&e),
-                generate_contract_id(&e),
-                100_0000000,
-                50_0000000,
-            );
+        let mut reserve = create_reserve(&e);
+        reserve.data.b_supply = 100_0000000;
+        reserve.data.d_supply = 50_0000000;
+        setup_reserve(&e, &pool_id, &bombadil, &mut reserve);
 
+        e.as_contract(&pool_id, || {
             let reserve_emission_config = ReserveEmissionsConfig {
                 expiration: 1600000000,
                 eps: 0_0100000,
@@ -776,6 +762,7 @@ mod tests {
         let e = Env::default();
 
         let pool_id = generate_contract_id(&e);
+        let bombadil = Address::random(&e);
 
         e.ledger().set(LedgerInfo {
             timestamp: 1501000000,
@@ -785,15 +772,12 @@ mod tests {
             base_reserve: 10,
         });
 
-        e.as_contract(&pool_id, || {
-            let reserve = setup_reserve(
-                &e,
-                generate_contract_id(&e),
-                generate_contract_id(&e),
-                100_0000000,
-                50_0000000,
-            );
+        let mut reserve = create_reserve(&e);
+        reserve.data.b_supply = 100_0000000;
+        reserve.data.d_supply = 50_0000000;
+        setup_reserve(&e, &pool_id, &bombadil, &mut reserve);
 
+        e.as_contract(&pool_id, || {
             let reserve_emission_config = ReserveEmissionsConfig {
                 expiration: 1600000000,
                 eps: 0,
@@ -829,6 +813,7 @@ mod tests {
         let e = Env::default();
 
         let pool_id = generate_contract_id(&e);
+        let bombadil = Address::random(&e);
 
         e.ledger().set(LedgerInfo {
             timestamp: 1501000000,
@@ -838,15 +823,12 @@ mod tests {
             base_reserve: 10,
         });
 
-        e.as_contract(&pool_id, || {
-            let reserve = setup_reserve(
-                &e,
-                generate_contract_id(&e),
-                generate_contract_id(&e),
-                0,
-                100_0000000,
-            );
+        let mut reserve = create_reserve(&e);
+        reserve.data.b_supply = 0;
+        reserve.data.d_supply = 0;
+        setup_reserve(&e, &pool_id, &bombadil, &mut reserve);
 
+        e.as_contract(&pool_id, || {
             let reserve_emission_config = ReserveEmissionsConfig {
                 expiration: 1600000000,
                 eps: 0_0100000,
@@ -882,6 +864,7 @@ mod tests {
         let e = Env::default();
 
         let pool_id = generate_contract_id(&e);
+        let bombadil = Address::random(&e);
 
         e.ledger().set(LedgerInfo {
             timestamp: 1700000000,
@@ -891,15 +874,12 @@ mod tests {
             base_reserve: 10,
         });
 
-        e.as_contract(&pool_id, || {
-            let reserve = setup_reserve(
-                &e,
-                generate_contract_id(&e),
-                generate_contract_id(&e),
-                0,
-                100_0000000,
-            );
+        let mut reserve = create_reserve(&e);
+        reserve.data.b_supply = 200_0000000;
+        reserve.data.d_supply = 100_0000000;
+        setup_reserve(&e, &pool_id, &bombadil, &mut reserve);
 
+        e.as_contract(&pool_id, || {
             let reserve_emission_config = ReserveEmissionsConfig {
                 expiration: 1600000001,
                 eps: 0_0100000,
@@ -932,6 +912,7 @@ mod tests {
         let e = Env::default();
 
         let pool_id = generate_contract_id(&e);
+        let bombadil = Address::random(&e);
 
         e.ledger().set(LedgerInfo {
             timestamp: 1500000005,
@@ -941,15 +922,12 @@ mod tests {
             base_reserve: 10,
         });
 
-        e.as_contract(&pool_id, || {
-            let reserve = setup_reserve(
-                &e,
-                generate_contract_id(&e),
-                generate_contract_id(&e),
-                100_0001111,
-                0,
-            );
+        let mut reserve = create_reserve(&e);
+        reserve.data.b_supply = 100_0001111;
+        reserve.data.d_supply = 0;
+        setup_reserve(&e, &pool_id, &bombadil, &mut reserve);
 
+        e.as_contract(&pool_id, || {
             let reserve_emission_config = ReserveEmissionsConfig {
                 expiration: 1600000000,
                 eps: 0_0100000,
@@ -987,7 +965,6 @@ mod tests {
         let samwise = Address::random(&e);
         let bombadil = Address::random(&e);
 
-        let (res_token_id, _res_token_client) = create_token_contract(&e, &bombadil);
 
         e.ledger().set(LedgerInfo {
             timestamp: 1500000000,
@@ -997,15 +974,12 @@ mod tests {
             base_reserve: 10,
         });
 
-        e.as_contract(&pool_id, || {
-            let reserve = setup_reserve(
-                &e,
-                generate_contract_id(&e),
-                res_token_id,
-                100_0000000,
-                50_0000000,
-            );
+        let mut reserve = create_reserve(&e);
+        reserve.data.b_supply = 100_0000000;
+        reserve.data.d_supply = 50_0000000;
+        setup_reserve(&e, &pool_id, &bombadil, &mut reserve);
 
+        e.as_contract(&pool_id, || {
             let reserve_emission_data = ReserveEmissionsData {
                 index: 123456789,
                 last_time: 1500000000,
@@ -1035,11 +1009,9 @@ mod tests {
         let e = Env::default();
 
         let pool_id = generate_contract_id(&e);
+        let pool = Address::from_contract_id(&e, &pool_id);
         let samwise = Address::random(&e);
         let bombadil = Address::random(&e);
-
-        let (res_token_id, res_token_client) = create_token_contract(&e, &bombadil);
-        res_token_client.mint(&bombadil, &samwise, &0_5000000);
 
         e.ledger().set(LedgerInfo {
             timestamp: 1500000000,
@@ -1049,15 +1021,15 @@ mod tests {
             base_reserve: 10,
         });
 
-        e.as_contract(&pool_id, || {
-            let reserve = setup_reserve(
-                &e,
-                generate_contract_id(&e),
-                res_token_id,
-                100_0000000,
-                50_0000000,
-            );
+        let mut reserve = create_reserve(&e);
+        reserve.data.b_supply = 100_0000000;
+        reserve.data.d_supply = 50_0000000;
+        setup_reserve(&e, &pool_id, &bombadil, &mut reserve);
 
+        let res_token_client = TokenClient::new(&e, &reserve.config.d_token);
+        res_token_client.mint(&pool, &samwise, &0_5000000);
+
+        e.as_contract(&pool_id, || {
             let reserve_emission_data = ReserveEmissionsData {
                 index: 123456789,
                 last_time: 1500000000,
@@ -1089,7 +1061,6 @@ mod tests {
 
         let samwise = Address::random(&e);
         let bombadil = Address::random(&e);
-        let (res_token_id, _res_token_client) = create_token_contract(&e, &bombadil);
 
         e.ledger().set(LedgerInfo {
             timestamp: 1500000000,
@@ -1099,15 +1070,12 @@ mod tests {
             base_reserve: 10,
         });
 
-        e.as_contract(&pool_id, || {
-            let reserve = setup_reserve(
-                &e,
-                res_token_id,
-                generate_contract_id(&e),
-                60_0000000,
-                50_0000000,
-            );
+        let mut reserve = create_reserve(&e);
+        reserve.data.b_supply = 60_0000000;
+        reserve.data.d_supply = 50_0000000;
+        setup_reserve(&e, &pool_id, &bombadil, &mut reserve);
 
+        e.as_contract(&pool_id, || {
             let reserve_emission_data = ReserveEmissionsData {
                 index: 123456789,
                 last_time: 1500000000,
@@ -1143,11 +1111,9 @@ mod tests {
         let e = Env::default();
 
         let pool_id = generate_contract_id(&e);
+        let pool = Address::from_contract_id(&e, &pool_id);
         let samwise = Address::random(&e);
         let bombadil = Address::random(&e);
-
-        let (res_token_id, res_token_client) = create_token_contract(&e, &bombadil);
-        res_token_client.mint(&bombadil, &samwise, &0_5000000);
 
         e.ledger().set(LedgerInfo {
             timestamp: 1500000000,
@@ -1157,15 +1123,15 @@ mod tests {
             base_reserve: 10,
         });
 
-        e.as_contract(&pool_id, || {
-            let reserve = setup_reserve(
-                &e,
-                generate_contract_id(&e),
-                res_token_id,
-                60_0000000,
-                50_0000000,
-            );
+        let mut reserve = create_reserve(&e);
+        reserve.data.b_supply = 100_0000000;
+        reserve.data.d_supply = 50_0000000;
+        setup_reserve(&e, &pool_id, &bombadil, &mut reserve);
 
+        let res_token_client = TokenClient::new(&e, &reserve.config.d_token);
+        res_token_client.mint(&pool, &samwise, &0_5000000);
+
+        e.as_contract(&pool_id, || {
             let reserve_emission_data = ReserveEmissionsData {
                 index: 123456789,
                 last_time: 1500000000,
@@ -1201,11 +1167,9 @@ mod tests {
         let e = Env::default();
 
         let pool_id = generate_contract_id(&e);
+        let pool = Address::from_contract_id(&e, &pool_id);
         let samwise = Address::random(&e);
         let bombadil = Address::random(&e);
-
-        let (res_token_id, res_token_client) = create_token_contract(&e, &bombadil);
-        res_token_client.mint(&bombadil, &samwise, &0_5000000);
 
         e.ledger().set(LedgerInfo {
             timestamp: 1500000000,
@@ -1215,15 +1179,15 @@ mod tests {
             base_reserve: 10,
         });
 
-        e.as_contract(&pool_id, || {
-            let reserve = setup_reserve(
-                &e,
-                res_token_id,
-                generate_contract_id(&e),
-                60_0000000,
-                50_0000000,
-            );
+        let mut reserve = create_reserve(&e);
+        reserve.data.b_supply = 60_0000000;
+        reserve.data.d_supply = 50_0000000;
+        setup_reserve(&e, &pool_id, &bombadil, &mut reserve);
 
+        let res_token_client = TokenClient::new(&e, &reserve.config.b_token);
+        res_token_client.mint(&pool, &samwise, &0_5000000);
+
+        e.as_contract(&pool_id, || {
             let reserve_emission_data = ReserveEmissionsData {
                 index: 123456789,
                 last_time: 1500000000,
@@ -1259,11 +1223,9 @@ mod tests {
         let e = Env::default();
 
         let pool_id = generate_contract_id(&e);
+        let pool = Address::from_contract_id(&e, &pool_id);
         let samwise = Address::random(&e);
         let bombadil = Address::random(&e);
-
-        let (res_token_id, res_token_client) = create_token_contract(&e, &bombadil);
-        res_token_client.mint(&bombadil, &samwise, &0_5000000);
 
         e.ledger().set(LedgerInfo {
             timestamp: 1500000000,
@@ -1273,15 +1235,15 @@ mod tests {
             base_reserve: 10,
         });
 
-        e.as_contract(&pool_id, || {
-            let reserve = setup_reserve(
-                &e,
-                res_token_id,
-                generate_contract_id(&e),
-                60_0000000,
-                50_0000000,
-            );
+        let mut reserve = create_reserve(&e);
+        reserve.data.b_supply = 60_0000000;
+        reserve.data.d_supply = 50_0000000;
+        setup_reserve(&e, &pool_id, &bombadil, &mut reserve);
 
+        let res_token_client = TokenClient::new(&e, &reserve.config.b_token);
+        res_token_client.mint(&pool, &samwise, &0_5000000);
+
+        e.as_contract(&pool_id, || {
             let reserve_emission_data = ReserveEmissionsData {
                 index: 123456789,
                 last_time: 1500000000,
@@ -1318,11 +1280,9 @@ mod tests {
         let e = Env::default();
 
         let pool_id = generate_contract_id(&e);
+        let pool = Address::from_contract_id(&e, &pool_id);
         let samwise = Address::random(&e);
         let bombadil = Address::random(&e);
-
-        let (res_token_id, res_token_client) = create_token_contract(&e, &bombadil);
-        res_token_client.mint(&bombadil, &samwise, &0_5000000);
 
         e.ledger().set(LedgerInfo {
             timestamp: 1500000000,
@@ -1332,15 +1292,15 @@ mod tests {
             base_reserve: 10,
         });
 
-        e.as_contract(&pool_id, || {
-            let reserve = setup_reserve(
-                &e,
-                generate_contract_id(&e),
-                res_token_id,
-                100_0000000,
-                50_0000000,
-            );
+        let mut reserve = create_reserve(&e);
+        reserve.data.b_supply = 100_0000000;
+        reserve.data.d_supply = 50_0000000;
+        setup_reserve(&e, &pool_id, &bombadil, &mut reserve);
 
+        let res_token_client = TokenClient::new(&e, &reserve.config.d_token);
+        res_token_client.mint(&pool, &samwise, &0_5000000);
+
+        e.as_contract(&pool_id, || {
             let reserve_emission_data = ReserveEmissionsData {
                 index: 123456789,
                 last_time: 1500000000,
@@ -1364,46 +1324,5 @@ mod tests {
             assert_eq!(new_user_emission_data.accrued, 0);
             assert_eq!(result, 6_1728394);
         });
-    }
-
-    /********** Test Helpers **********/
-
-    fn setup_reserve(
-        e: &Env,
-        b_token_id: BytesN<32>,
-        d_token_id: BytesN<32>,
-        b_supply: i128,
-        d_supply: i128,
-    ) -> Reserve {
-        let res_addr = generate_contract_id(&e);
-        let index = storage::get_res_list(e).len();
-        let res_config = ReserveConfig {
-            b_token: b_token_id,
-            d_token: d_token_id,
-            decimals: 7,
-            c_factor: 0,
-            l_factor: 0,
-            util: 0_7500000,
-            r_one: 0_0500000,
-            r_two: 0_5000000,
-            r_three: 1_5000000,
-            reactivity: 0_000_010_000,
-            index,
-        };
-        let res_data = ReserveData {
-            b_rate: 1_000_000_000,
-            d_rate: 1_000_000_000,
-            ir_mod: 1_000_000_000,
-            b_supply,
-            d_supply,
-            last_block: 123,
-        };
-        storage::set_res_config(e, &res_addr, &res_config);
-        storage::set_res_data(e, &res_addr, &res_data);
-        Reserve {
-            asset: generate_contract_id(&e),
-            config: res_config,
-            data: res_data,
-        }
     }
 }

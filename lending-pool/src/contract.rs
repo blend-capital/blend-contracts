@@ -119,16 +119,20 @@ pub trait PoolContractTrait {
         on_behalf_of: Address,
     ) -> Result<i128, PoolError>;
 
-    /// Transfer bad debt from a user to the backstop module. Debt is considered "bad" if the user
-    /// no longer has any collateral posted. All collateralized reserves for the user must be
-    /// liquidated before debt can be transferred to the backstop.
+    /// Manage bad debt. Debt is considered "bad" if there is no longer has any collateral posted.
+    /// 
+    /// To manage a user's bad debt, all collateralized reserves for the user must be liquidated 
+    /// before debt can be transferred to the backstop.
+    /// 
+    /// To manage a backstop's bad debt, the backstop module must be below a critical threshold
+    /// to allow bad debt to be burnt.
     ///
     /// ### Arguments
     /// * `user` - The user who currently possesses bad debt
     ///
     /// ### Errors
     /// If the user has collateral posted
-    fn xfer_bdebt(e: Env, user: Address) -> Result<(), PoolError>;
+    fn bad_debt(e: Env, user: Address) -> Result<(), PoolError>;
 
     /// Pool status is changed to "pool_status"
     /// * 0 = active
@@ -362,8 +366,8 @@ impl PoolContractTrait for PoolContract {
         Ok(d_tokens_burnt)
     }
 
-    fn xfer_bdebt(e: Env, user: Address) -> Result<(), PoolError> {
-        bad_debt::transfer_bad_debt_to_backstop(&e, &user)
+    fn bad_debt(e: Env, user: Address) -> Result<(), PoolError> {
+        bad_debt::manage_bad_debt(&e, &user)
     }
 
     fn set_status(e: Env, admin: Address, pool_status: u32) -> Result<(), PoolError> {

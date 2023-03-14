@@ -56,7 +56,7 @@ pub fn create_user_liq_auction_data(
             // append users effective collateral to collateral_base
             let b_token_client = TokenClient::new(e, &reserve.config.b_token);
             let b_token_balance = b_token_client.balance(user);
-            let asset_collateral = reserve.to_effective_asset_from_b_token(b_token_balance);
+            let asset_collateral = reserve.to_effective_asset_from_b_token(e, b_token_balance);
             collateral_base += asset_collateral
                 .fixed_mul_floor(i128(asset_to_base), SCALAR_7)
                 .unwrap();
@@ -74,7 +74,7 @@ pub fn create_user_liq_auction_data(
                 scaled_cf += to_sell_amt_base
                     .fixed_mul_floor(i128(reserve.config.c_factor), SCALAR_7)
                     .unwrap();
-                let to_sell_b_tokens = reserve.to_b_token(to_sell_amt);
+                let to_sell_b_tokens = reserve.to_b_token(e, to_sell_amt);
                 if to_sell_b_tokens > b_token_balance {
                     return Err(PoolError::InvalidLiquidation);
                 }
@@ -348,21 +348,21 @@ mod tests {
         // creating reserves for a pool exhausts the budget
         e.budget().reset();
         let mut reserve_0 = create_reserve(&e);
-        reserve_0.data.b_rate = 1_100_000_000;
+        reserve_0.b_rate = Some(1_100_000_000);
         reserve_0.data.last_block = 50;
         reserve_0.config.c_factor = 0_8500000;
         reserve_0.config.l_factor = 0_9000000;
         reserve_0.config.index = 0;
-        setup_reserve(&e, &pool_id, &bombadil, &reserve_0);
+        setup_reserve(&e, &pool_id, &bombadil, &mut reserve_0);
         let b_token_0 = TokenClient::new(&e, &reserve_0.config.b_token);
 
         let mut reserve_1 = create_reserve(&e);
-        reserve_1.data.b_rate = 1_200_000_000;
+        reserve_1.b_rate = Some(1_200_000_000);
         reserve_1.data.last_block = 50;
         reserve_1.config.c_factor = 0_7500000;
         reserve_1.config.l_factor = 0_7500000;
         reserve_1.config.index = 1;
-        setup_reserve(&e, &pool_id, &bombadil, &reserve_1);
+        setup_reserve(&e, &pool_id, &bombadil, &mut reserve_1);
         let b_token_1 = TokenClient::new(&e, &reserve_1.config.b_token);
 
         let mut reserve_2 = create_reserve(&e);
@@ -370,7 +370,7 @@ mod tests {
         reserve_2.config.c_factor = 0_0000000;
         reserve_2.config.l_factor = 0_7000000;
         reserve_2.config.index = 2;
-        setup_reserve(&e, &pool_id, &bombadil, &reserve_2);
+        setup_reserve(&e, &pool_id, &bombadil, &mut reserve_2);
         let d_token_2 = TokenClient::new(&e, &reserve_2.config.d_token);
         e.budget().reset();
 
@@ -438,21 +438,21 @@ mod tests {
         // creating reserves for a pool exhausts the budget
         e.budget().reset();
         let mut reserve_0 = create_reserve(&e);
-        reserve_0.data.b_rate = 1_100_000_000;
+        reserve_0.b_rate = Some(1_100_000_000);
         reserve_0.data.last_block = 50;
         reserve_0.config.c_factor = 0_8500000;
         reserve_0.config.l_factor = 0_9000000;
         reserve_0.config.index = 0;
-        setup_reserve(&e, &pool_id, &bombadil, &reserve_0);
+        setup_reserve(&e, &pool_id, &bombadil, &mut reserve_0);
         let b_token_0 = TokenClient::new(&e, &reserve_0.config.b_token);
 
         let mut reserve_1 = create_reserve(&e);
-        reserve_1.data.b_rate = 1_200_000_000;
+        reserve_1.b_rate = Some(1_200_000_000);
         reserve_1.data.last_block = 50;
         reserve_1.config.c_factor = 0_7500000;
         reserve_1.config.l_factor = 0_7500000;
         reserve_1.config.index = 1;
-        setup_reserve(&e, &pool_id, &bombadil, &reserve_1);
+        setup_reserve(&e, &pool_id, &bombadil, &mut reserve_1);
         let b_token_1 = TokenClient::new(&e, &reserve_1.config.b_token);
 
         let mut reserve_2 = create_reserve(&e);
@@ -460,7 +460,7 @@ mod tests {
         reserve_2.config.c_factor = 0_0000000;
         reserve_2.config.l_factor = 0_7000000;
         reserve_2.config.index = 2;
-        setup_reserve(&e, &pool_id, &bombadil, &reserve_2);
+        setup_reserve(&e, &pool_id, &bombadil, &mut reserve_2);
         let d_token_2 = TokenClient::new(&e, &reserve_2.config.d_token);
         e.budget().reset();
 
@@ -525,21 +525,21 @@ mod tests {
         // creating reserves for a pool exhausts the budget
         e.budget().reset();
         let mut reserve_0 = create_reserve(&e);
-        reserve_0.data.b_rate = 1_100_000_000;
+        reserve_0.b_rate = Some(1_100_000_000);
         reserve_0.data.last_block = 50;
         reserve_0.config.c_factor = 0_8500000;
         reserve_0.config.l_factor = 0_9000000;
         reserve_0.config.index = 0;
-        setup_reserve(&e, &pool_id, &bombadil, &reserve_0);
+        setup_reserve(&e, &pool_id, &bombadil, &mut reserve_0);
         let b_token_0 = TokenClient::new(&e, &reserve_0.config.b_token);
 
         let mut reserve_1 = create_reserve(&e);
-        reserve_1.data.b_rate = 1_200_000_000;
+        reserve_1.b_rate = Some(1_200_000_000);
         reserve_1.data.last_block = 50;
         reserve_1.config.c_factor = 0_7500000;
         reserve_1.config.l_factor = 0_7500000;
         reserve_1.config.index = 1;
-        setup_reserve(&e, &pool_id, &bombadil, &reserve_1);
+        setup_reserve(&e, &pool_id, &bombadil, &mut reserve_1);
         let b_token_1 = TokenClient::new(&e, &reserve_1.config.b_token);
 
         let mut reserve_2 = create_reserve(&e);
@@ -547,7 +547,7 @@ mod tests {
         reserve_2.config.c_factor = 0_0000000;
         reserve_2.config.l_factor = 0_7000000;
         reserve_2.config.index = 2;
-        setup_reserve(&e, &pool_id, &bombadil, &reserve_2);
+        setup_reserve(&e, &pool_id, &bombadil, &mut reserve_2);
         let d_token_2 = TokenClient::new(&e, &reserve_2.config.d_token);
         e.budget().reset();
 
@@ -608,21 +608,21 @@ mod tests {
         // creating reserves for a pool exhausts the budget
         e.budget().reset();
         let mut reserve_0 = create_reserve(&e);
-        reserve_0.data.b_rate = 1_100_000_000;
+        reserve_0.b_rate = Some(1_100_000_000);
         reserve_0.data.last_block = 50;
         reserve_0.config.c_factor = 0_8500000;
         reserve_0.config.l_factor = 0_9000000;
         reserve_0.config.index = 0;
-        setup_reserve(&e, &pool_id, &bombadil, &reserve_0);
+        setup_reserve(&e, &pool_id, &bombadil, &mut reserve_0);
         let b_token_0 = TokenClient::new(&e, &reserve_0.config.b_token);
 
         let mut reserve_1 = create_reserve(&e);
-        reserve_1.data.b_rate = 1_200_000_000;
+        reserve_1.b_rate = Some(1_200_000_000);
         reserve_1.data.last_block = 50;
         reserve_1.config.c_factor = 0_7500000;
         reserve_1.config.l_factor = 0_7500000;
         reserve_1.config.index = 1;
-        setup_reserve(&e, &pool_id, &bombadil, &reserve_1);
+        setup_reserve(&e, &pool_id, &bombadil, &mut reserve_1);
         let b_token_1 = TokenClient::new(&e, &reserve_1.config.b_token);
 
         let mut reserve_2 = create_reserve(&e);
@@ -630,7 +630,7 @@ mod tests {
         reserve_2.config.c_factor = 0_0000000;
         reserve_2.config.l_factor = 0_7000000;
         reserve_2.config.index = 2;
-        setup_reserve(&e, &pool_id, &bombadil, &reserve_2);
+        setup_reserve(&e, &pool_id, &bombadil, &mut reserve_2);
         let d_token_2 = TokenClient::new(&e, &reserve_2.config.d_token);
         e.budget().reset();
 
@@ -692,21 +692,21 @@ mod tests {
         // creating reserves for a pool exhausts the budget
         e.budget().reset();
         let mut reserve_0 = create_reserve(&e);
-        reserve_0.data.b_rate = 1_100_000_000;
+        reserve_0.b_rate = Some(1_100_000_000);
         reserve_0.data.last_block = 175;
         reserve_0.config.c_factor = 0_8500000;
         reserve_0.config.l_factor = 0_9000000;
         reserve_0.config.index = 0;
-        setup_reserve(&e, &pool_id, &bombadil, &reserve_0);
+        setup_reserve(&e, &pool_id, &bombadil, &mut reserve_0);
         let b_token_0 = TokenClient::new(&e, &reserve_0.config.b_token);
 
         let mut reserve_1 = create_reserve(&e);
-        reserve_1.data.b_rate = 1_200_000_000;
+        reserve_1.b_rate = Some(1_200_000_000);
         reserve_1.data.last_block = 175;
         reserve_1.config.c_factor = 0_7500000;
         reserve_1.config.l_factor = 0_7500000;
         reserve_1.config.index = 1;
-        setup_reserve(&e, &pool_id, &bombadil, &reserve_1);
+        setup_reserve(&e, &pool_id, &bombadil, &mut reserve_1);
         let b_token_1 = TokenClient::new(&e, &reserve_1.config.b_token);
 
         let mut reserve_2 = create_reserve(&e);
@@ -714,7 +714,7 @@ mod tests {
         reserve_2.config.c_factor = 0_0000000;
         reserve_2.config.l_factor = 0_7000000;
         reserve_2.config.index = 2;
-        setup_reserve(&e, &pool_id, &bombadil, &reserve_2);
+        setup_reserve(&e, &pool_id, &bombadil, &mut reserve_2);
         let d_token_2 = TokenClient::new(&e, &reserve_2.config.d_token);
         e.budget().reset();
 
@@ -747,6 +747,7 @@ mod tests {
             b_token_0.mint(&pool, &samwise, &90_9100000);
             b_token_1.mint(&pool, &samwise, &04_5800000);
             d_token_2.mint(&pool, &samwise, &02_7500000);
+            let res_2_init_pool_bal = reserve_2_asset.balance(&pool);
 
             e.budget().reset();
             let result = fill_user_liq_auction(&e, &auction_data, &samwise, &frodo);
@@ -763,7 +764,7 @@ mod tests {
             );
             assert_eq!(result.lot.len(), 1);
             assert_eq!(reserve_2_asset.balance(&frodo), 0);
-            assert_eq!(reserve_2_asset.balance(&pool), 0_5000000);
+            assert_eq!(reserve_2_asset.balance(&pool), res_2_init_pool_bal + 0_5000000);
             assert_eq!(b_token_0.balance(&frodo), 11_3636363);
             assert_eq!(b_token_0.balance(&samwise), 79_5463637);
         });

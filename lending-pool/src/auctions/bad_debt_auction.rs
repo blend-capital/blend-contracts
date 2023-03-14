@@ -56,8 +56,8 @@ pub fn create_bad_debt_auction_data(e: &Env, backstop: &Address) -> Result<Aucti
         .unwrap()
         .fixed_div_floor(i128(blnd_to_base), SCALAR_7)
         .unwrap();
-    let backstop_balance = TokenClient::new(e, &blnd_token).balance(backstop);
-    lot_amount = backstop_balance.min(lot_amount);
+    let (pool_backstop_balance, _, _) = BackstopClient::new(e, &storage::get_backstop(e)).p_balance(&e.current_contract_id());
+    lot_amount = pool_backstop_balance.min(lot_amount);
     // u32::MAX is the key for the backstop token
     auction_data.lot.set(u32::MAX, lot_amount);
 
@@ -144,7 +144,7 @@ mod tests {
         let e = Env::default();
 
         let pool_id = generate_contract_id(&e);
-        let backstop_id = generate_contract_id(&e);
+        let (backstop_id, _backstop_client) = create_backstop(&e);
         let backstop = Address::from_contract_id(&e, &backstop_id);
 
         e.ledger().set(LedgerInfo {
@@ -193,10 +193,11 @@ mod tests {
         });
 
         let bombadil = Address::random(&e);
+        let samwise = Address::random(&e);
 
         let pool_id = generate_contract_id(&e);
         let pool = Address::from_contract_id(&e, &pool_id);
-        let (backstop_id, _backstop_client) = create_backstop(&e);
+        let (backstop_id, backstop_client) = create_backstop(&e);
         let backstop = Address::from_contract_id(&e, &backstop_id);
         let mock_pool_factory = create_mock_pool_factory(&e);
         mock_pool_factory.set_pool(&pool_id);
@@ -224,7 +225,9 @@ mod tests {
         setup_reserve(&e, &pool_id, &bombadil, &mut reserve_2);
 
         let blnd_client = create_token_from_id(&e, &BytesN::from_array(&e, &BLND_TOKEN), &bombadil);
-        blnd_client.mint(&bombadil, &backstop, &95_2000000);
+        blnd_client.mint(&bombadil, &samwise, &200_0000000);
+        blnd_client.incr_allow(&samwise, &backstop, &i128::MAX);
+        backstop_client.deposit(&samwise, &pool_id, &100_0000000);
         e.budget().reset();
 
         oracle_client.set_price(&reserve_0.asset, &2_0000000);
@@ -277,10 +280,11 @@ mod tests {
         });
 
         let bombadil = Address::random(&e);
+        let samwise = Address::random(&e);
 
         let pool_id = generate_contract_id(&e);
         let pool = Address::from_contract_id(&e, &pool_id);
-        let (backstop_id, _backstop_client) = create_backstop(&e);
+        let (backstop_id, backstop_client) = create_backstop(&e);
         let backstop = Address::from_contract_id(&e, &backstop_id);
         let mock_pool_factory = create_mock_pool_factory(&e);
         mock_pool_factory.set_pool(&pool_id);
@@ -308,7 +312,9 @@ mod tests {
         setup_reserve(&e, &pool_id, &bombadil, &mut reserve_2);
 
         let blnd_client = create_token_from_id(&e, &BytesN::from_array(&e, &BLND_TOKEN), &bombadil);
-        blnd_client.mint(&bombadil, &backstop, &95_0000000);
+        blnd_client.mint(&bombadil, &samwise, &200_0000000);
+        blnd_client.incr_allow(&samwise, &backstop, &i128::MAX);
+        backstop_client.deposit(&samwise, &pool_id, &95_0000000);
         e.budget().reset();
 
         oracle_client.set_price(&reserve_0.asset, &2_0000000);

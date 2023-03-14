@@ -136,12 +136,12 @@ mod tests {
         let samwise = Address::random(&e);
         let bombadil = Address::random(&e);
 
-        let reserve_0 = create_reserve(&e);
-        setup_reserve(&e, &pool_id, &bombadil, &reserve_0);
+        let mut reserve_0 = create_reserve(&e);
+        setup_reserve(&e, &pool_id, &bombadil, &mut reserve_0);
 
         let mut reserve_1 = create_reserve(&e);
         reserve_1.config.index = 1;
-        setup_reserve(&e, &pool_id, &bombadil, &reserve_1);
+        setup_reserve(&e, &pool_id, &bombadil, &mut reserve_1);
 
         let pool_config = PoolConfig {
             oracle: generate_contract_id(&e),
@@ -192,12 +192,12 @@ mod tests {
         let samwise = Address::random(&e);
         let bombadil = Address::random(&e);
 
-        let reserve_0 = create_reserve(&e);
-        setup_reserve(&e, &pool_id, &bombadil, &reserve_0);
+        let mut reserve_0 = create_reserve(&e);
+        setup_reserve(&e, &pool_id, &bombadil, &mut reserve_0);
 
         let mut reserve_1 = create_reserve(&e);
         reserve_1.config.index = 1;
-        setup_reserve(&e, &pool_id, &bombadil, &reserve_1);
+        setup_reserve(&e, &pool_id, &bombadil, &mut reserve_1);
 
         let pool_config = PoolConfig {
             oracle: generate_contract_id(&e),
@@ -235,12 +235,12 @@ mod tests {
         let samwise = Address::random(&e);
         let bombadil = Address::random(&e);
 
-        let reserve_0 = create_reserve(&e);
-        setup_reserve(&e, &pool_id, &bombadil, &reserve_0);
+        let mut reserve_0 = create_reserve(&e);
+        setup_reserve(&e, &pool_id, &bombadil, &mut reserve_0);
 
         let mut reserve_1 = create_reserve(&e);
         reserve_1.config.index = 1;
-        setup_reserve(&e, &pool_id, &bombadil, &reserve_1);
+        setup_reserve(&e, &pool_id, &bombadil, &mut reserve_1);
 
         let pool_config = PoolConfig {
             oracle: generate_contract_id(&e),
@@ -286,11 +286,11 @@ mod tests {
         let bombadil = Address::random(&e);
 
         let mut reserve_0 = create_reserve(&e);
-        setup_reserve(&e, &pool_id, &bombadil, &reserve_0);
+        setup_reserve(&e, &pool_id, &bombadil, &mut reserve_0);
 
         let mut reserve_1 = create_reserve(&e);
         reserve_1.config.index = 1;
-        setup_reserve(&e, &pool_id, &bombadil, &reserve_1);
+        setup_reserve(&e, &pool_id, &bombadil, &mut reserve_1);
 
         let blnd_client = create_token_from_id(&e, &BytesN::from_array(&e, &BLND_TOKEN), &bombadil);
         blnd_client.mint(&bombadil, &backstop, &123);
@@ -355,11 +355,11 @@ mod tests {
         let bombadil = Address::random(&e);
 
         let mut reserve_0 = create_reserve(&e);
-        setup_reserve(&e, &pool_id, &bombadil, &reserve_0);
+        setup_reserve(&e, &pool_id, &bombadil, &mut reserve_0);
 
         let mut reserve_1 = create_reserve(&e);
         reserve_1.config.index = 1;
-        setup_reserve(&e, &pool_id, &bombadil, &reserve_1);
+        setup_reserve(&e, &pool_id, &bombadil, &mut reserve_1);
 
         let blnd_client = create_token_from_id(&e, &BytesN::from_array(&e, &BLND_TOKEN), &bombadil);
         blnd_client.mint(&bombadil, &backstop, &10_000_0000001);
@@ -413,11 +413,11 @@ mod tests {
         let bombadil = Address::random(&e);
 
         let mut reserve_0 = create_reserve(&e);
-        setup_reserve(&e, &pool_id, &bombadil, &reserve_0);
+        setup_reserve(&e, &pool_id, &bombadil, &mut reserve_0);
 
         let mut reserve_1 = create_reserve(&e);
         reserve_1.config.index = 1;
-        setup_reserve(&e, &pool_id, &bombadil, &reserve_1);
+        setup_reserve(&e, &pool_id, &bombadil, &mut reserve_1);
 
         create_token_from_id(&e, &BytesN::from_array(&e, &BLND_TOKEN), &bombadil);
 

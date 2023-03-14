@@ -178,14 +178,13 @@ pub fn set_pool_emissions(
 #[cfg(test)]
 mod tests {
     use crate::{
-        storage::{ReserveConfig, ReserveData},
-        testutils::generate_contract_id,
+        testutils::{generate_contract_id, create_reserve, setup_reserve},
     };
 
     use super::*;
     use soroban_sdk::{
-        testutils::{Ledger, LedgerInfo},
-        vec,
+        testutils::{Address as _, Ledger, LedgerInfo},
+        vec, Address,
     };
 
     /********** Update Emissions **********/
@@ -202,6 +201,7 @@ mod tests {
         });
 
         let pool_id = generate_contract_id(&e);
+        let bombadil = Address::random(&e);
 
         let next_exp = 1500604800;
         let pool_eps = 0_5000000;
@@ -211,9 +211,13 @@ mod tests {
         };
         let pool_emissions: Map<u32, u64> = map![&e];
 
+        let mut reserve_0 = create_reserve(&e);
+        setup_reserve(&e, &pool_id, &bombadil, &mut reserve_0);
+        let mut reserve_1 = create_reserve(&e);
+        reserve_1.config.index = 1;
+        setup_reserve(&e, &pool_id, &bombadil, &mut reserve_1);
+
         e.as_contract(&pool_id, || {
-            storage::push_res_list(&e, &(setup_reserve(&e)));
-            storage::push_res_list(&e, &(setup_reserve(&e)));
             storage::set_pool_emission_config(&e, &pool_emission_config);
             storage::set_pool_emissions(&e, &pool_emissions);
 
@@ -241,6 +245,7 @@ mod tests {
         });
 
         let pool_id = generate_contract_id(&e);
+        let bombadil = Address::random(&e);
 
         let next_exp = 1500604800;
         let pool_eps = 0_5000000;
@@ -254,10 +259,20 @@ mod tests {
             (ReserveUsage::supply_key(1), 0_2500000)
         ];
 
+        let mut reserve_0 = create_reserve(&e);
+        reserve_0.data.last_block = 100;
+        setup_reserve(&e, &pool_id, &bombadil, &mut reserve_0);
+        let mut reserve_1 = create_reserve(&e);
+        reserve_1.config.index = 1;
+        reserve_1.data.last_block = 100;
+        setup_reserve(&e, &pool_id, &bombadil, &mut reserve_1);
+        let mut reserve_2 = create_reserve(&e);
+        reserve_2.config.index = 2;
+        reserve_2.data.last_block = 100;
+        setup_reserve(&e, &pool_id, &bombadil, &mut reserve_2);
+
+
         e.as_contract(&pool_id, || {
-            setup_reserve(&e);
-            setup_reserve(&e);
-            setup_reserve(&e);
             storage::set_pool_emission_config(&e, &pool_emission_config);
             storage::set_pool_emissions(&e, &pool_emissions);
 
@@ -297,6 +312,7 @@ mod tests {
         let e = Env::default();
 
         let pool_id = generate_contract_id(&e);
+        let bombadil = Address::random(&e);
 
         e.ledger().set(LedgerInfo {
             timestamp: 1500000000,
@@ -335,10 +351,23 @@ mod tests {
             last_time: 1499980000,
         };
 
+        let mut reserve_0 = create_reserve(&e);
+        reserve_0.data.last_block = 100;
+        reserve_0.data.b_supply = 100_0000000;
+        reserve_0.data.d_supply = 50_0000000;
+        setup_reserve(&e, &pool_id, &bombadil, &mut reserve_0);
+        let mut reserve_1 = create_reserve(&e);
+        reserve_1.config.index = 1;
+        reserve_1.data.last_block = 100;
+        setup_reserve(&e, &pool_id, &bombadil, &mut reserve_1);
+        let mut reserve_2 = create_reserve(&e);
+        reserve_2.config.index = 2;
+        reserve_2.data.last_block = 100;
+        reserve_2.data.b_supply = 100_0000000;
+        reserve_2.data.d_supply = 50_0000000;
+        setup_reserve(&e, &pool_id, &bombadil, &mut reserve_2);
+
         e.as_contract(&pool_id, || {
-            setup_reserve(&e);
-            setup_reserve(&e);
-            setup_reserve(&e);
             storage::set_pool_emission_config(&e, &pool_emission_config);
             storage::set_pool_emissions(&e, &pool_emissions);
             storage::set_res_emis_config(&e, &ReserveUsage::liability_key(0), &old_r_l_0_config);
@@ -366,14 +395,13 @@ mod tests {
             assert_eq!(r_2_s_config.expiration, next_exp);
             assert_eq!(r_2_s_config.eps, 0_3750000);
 
-            // verify empty data was created for both
-            let r_1_l_data =
+            let r_0_l_data =
                 storage::get_res_emis_data(&e, &ReserveUsage::liability_key(0)).unwrap();
-            let r_1_s_data = storage::get_res_emis_data(&e, &ReserveUsage::supply_key(2)).unwrap();
-            assert_eq!(r_1_l_data.index, 800000100);
-            assert_eq!(r_1_l_data.last_time, 1500000000);
-            assert_eq!(r_1_s_data.index, 600000500);
-            assert_eq!(r_1_s_data.last_time, 1500000000);
+            let r_2_s_data = storage::get_res_emis_data(&e, &ReserveUsage::supply_key(2)).unwrap();
+            assert_eq!(r_0_l_data.index, 800000100);
+            assert_eq!(r_0_l_data.last_time, 1500000000);
+            assert_eq!(r_2_s_data.index, 600000500);
+            assert_eq!(r_2_s_data.last_time, 1500000000);
         });
     }
 
@@ -389,6 +417,7 @@ mod tests {
         });
 
         let pool_id = generate_contract_id(&e);
+        let bombadil = Address::random(&e);
 
         let next_exp = 1500604800;
         let pool_eps = 0_5000000;
@@ -402,10 +431,16 @@ mod tests {
             (ReserveUsage::supply_key(1), 0_2500000)
         ];
 
+        let mut reserve_0 = create_reserve(&e);
+        setup_reserve(&e, &pool_id, &bombadil, &mut reserve_0);
+        let mut reserve_1 = create_reserve(&e);
+        reserve_1.config.index = 1;
+        setup_reserve(&e, &pool_id, &bombadil, &mut reserve_1);
+        let mut reserve_2 = create_reserve(&e);
+        reserve_2.config.index = 2;
+        setup_reserve(&e, &pool_id, &bombadil, &mut reserve_2);
+
         e.as_contract(&pool_id, || {
-            setup_reserve(&e);
-            setup_reserve(&e);
-            setup_reserve(&e);
             storage::set_pool_emission_config(&e, &pool_emission_config);
             storage::set_pool_emissions(&e, &pool_emissions);
 
@@ -596,37 +631,5 @@ mod tests {
                 0_6500000
             );
         });
-    }
-
-    /********** Test Helpers **********/
-
-    fn setup_reserve(e: &Env) -> BytesN<32> {
-        let reserve = Reserve {
-            asset: generate_contract_id(&e),
-            config: ReserveConfig {
-                b_token: generate_contract_id(&e),
-                d_token: generate_contract_id(&e),
-                decimals: 7,
-                c_factor: 0,
-                l_factor: 0,
-                util: 0_7500000,
-                r_one: 0_0500000,
-                r_two: 0_5000000,
-                r_three: 1_5000000,
-                reactivity: 0_000_010_000,
-                index: 0,
-            },
-            data: ReserveData {
-                b_rate: 1_000_000_000,
-                d_rate: 1_000_000_000,
-                ir_mod: 1_000_000_000,
-                b_supply: 100_0000000,
-                d_supply: 50_0000000,
-                last_block: 100,
-            },
-        };
-        storage::set_res_config(&e, &reserve.asset, &reserve.config);
-        storage::set_res_data(&e, &reserve.asset, &reserve.data);
-        reserve.asset
     }
 }

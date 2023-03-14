@@ -106,9 +106,7 @@ pub fn calc_accrual(
 #[cfg(test)]
 mod tests {
     use crate::{
-        reserve::Reserve,
-        storage::{ReserveConfig, ReserveData},
-        testutils::generate_contract_id,
+        testutils::{create_reserve},
     };
 
     use super::*;
@@ -117,30 +115,12 @@ mod tests {
     #[test]
     fn test_calc_accrual_util_under_target() {
         let e = Env::default();
-        let reserve = Reserve {
-            asset: generate_contract_id(&e),
-            config: ReserveConfig {
-                b_token: generate_contract_id(&e),
-                d_token: generate_contract_id(&e),
-                decimals: 7,
-                c_factor: 0,
-                l_factor: 0,
-                util: 0_7500000,
-                r_one: 0_0500000,
-                r_two: 0_5000000,
-                r_three: 1_5000000,
-                reactivity: 0_000_010_000, // 10e-5
-                index: 0,
-            },
-            data: ReserveData {
-                b_rate: 1_100_000_000,
-                d_rate: 1_000_000_000,
-                ir_mod: 1_000_000_000,
-                b_supply: 90_0000000,
-                d_supply: 65_0000000,
-                last_block: 0,
-            },
-        };
+
+        let mut reserve = create_reserve(&e);
+        reserve.b_rate = Some(1_100_000_000);
+        reserve.data.d_rate = 1_000_000_000;
+        reserve.data.b_supply = 90_0000000;
+        reserve.data.d_supply = 65_0000000;
 
         e.ledger().set(LedgerInfo {
             timestamp: 12345,
@@ -160,30 +140,12 @@ mod tests {
     #[test]
     fn test_calc_accrual_util_over_target() {
         let e = Env::default();
-        let reserve = Reserve {
-            asset: generate_contract_id(&e),
-            config: ReserveConfig {
-                b_token: generate_contract_id(&e),
-                d_token: generate_contract_id(&e),
-                decimals: 7,
-                c_factor: 0,
-                l_factor: 0,
-                util: 0_7500000,
-                r_one: 0_0500000,
-                r_two: 0_5000000,
-                r_three: 1_5000000,
-                reactivity: 0_000_010_000, // 10e-5
-                index: 0,
-            },
-            data: ReserveData {
-                b_rate: 1_100_000_000,
-                d_rate: 1_000_000_000,
-                ir_mod: 1_000_000_000,
-                b_supply: 90_0000000,
-                d_supply: 79_0000000,
-                last_block: 0,
-            },
-        };
+
+        let mut reserve = create_reserve(&e);
+        reserve.b_rate = Some(1_100_000_000);
+        reserve.data.d_rate = 1_000_000_000;
+        reserve.data.b_supply = 90_0000000;
+        reserve.data.d_supply = 79_0000000;
 
         e.ledger().set(LedgerInfo {
             timestamp: 12345,
@@ -203,30 +165,12 @@ mod tests {
     #[test]
     fn test_calc_accrual_util_over_95() {
         let e = Env::default();
-        let reserve = Reserve {
-            asset: generate_contract_id(&e),
-            config: ReserveConfig {
-                b_token: generate_contract_id(&e),
-                d_token: generate_contract_id(&e),
-                decimals: 7,
-                c_factor: 0,
-                l_factor: 0,
-                util: 0_7500000,
-                r_one: 0_0500000,
-                r_two: 0_5000000,
-                r_three: 1_5000000,
-                reactivity: 0_000_010_000, // 10e-5
-                index: 0,
-            },
-            data: ReserveData {
-                b_rate: 1_100_000_000,
-                d_rate: 1_000_000_000,
-                ir_mod: 1_000_000_000,
-                b_supply: 90_0000000,
-                d_supply: 96_0000000,
-                last_block: 0,
-            },
-        };
+
+        let mut reserve = create_reserve(&e);
+        reserve.b_rate = Some(1_100_000_000);
+        reserve.data.d_rate = 1_000_000_000;
+        reserve.data.b_supply = 90_0000000;
+        reserve.data.d_supply = 96_0000000;
 
         e.ledger().set(LedgerInfo {
             timestamp: 12345,
@@ -246,30 +190,13 @@ mod tests {
     #[test]
     fn test_calc_ir_mod_over_limit() {
         let e = Env::default();
-        let reserve = Reserve {
-            asset: generate_contract_id(&e),
-            config: ReserveConfig {
-                b_token: generate_contract_id(&e),
-                d_token: generate_contract_id(&e),
-                decimals: 7,
-                c_factor: 0,
-                l_factor: 0,
-                util: 0_5500000,
-                r_one: 0_0500000,
-                r_two: 0_5000000,
-                r_three: 1_5000000,
-                reactivity: 0_000_010_000, // 10e-5
-                index: 0,
-            },
-            data: ReserveData {
-                b_rate: 1_100_000_000,
-                d_rate: 1_000_000_000,
-                ir_mod: 9_997_000_000,
-                b_supply: 90_0000000,
-                d_supply: 96_0000000,
-                last_block: 0,
-            },
-        };
+
+        let mut reserve = create_reserve(&e);
+        reserve.b_rate = Some(1_100_000_000);
+        reserve.data.d_rate = 1_000_000_000;
+        reserve.data.ir_mod = 9_997_000_000;
+        reserve.data.b_supply = 90_0000000;
+        reserve.data.d_supply = 96_0000000;
 
         e.ledger().set(LedgerInfo {
             timestamp: 12345,
@@ -288,30 +215,13 @@ mod tests {
     #[test]
     fn test_calc_ir_mod_under_limit() {
         let e = Env::default();
-        let reserve = Reserve {
-            asset: generate_contract_id(&e),
-            config: ReserveConfig {
-                b_token: generate_contract_id(&e),
-                d_token: generate_contract_id(&e),
-                decimals: 7,
-                c_factor: 0,
-                l_factor: 0,
-                util: 0_8500000,
-                r_one: 0_0500000,
-                r_two: 0_5000000,
-                r_three: 1_5000000,
-                reactivity: 0_000_010_000, // 10e-5
-                index: 0,
-            },
-            data: ReserveData {
-                b_rate: 1_100_000_000,
-                d_rate: 1_000_000_000,
-                ir_mod: 0_150_000_000,
-                b_supply: 90_0000000,
-                d_supply: 20_0000000,
-                last_block: 0,
-            },
-        };
+
+        let mut reserve = create_reserve(&e);
+        reserve.b_rate = Some(1_100_000_000);
+        reserve.data.d_rate = 1_000_000_000;
+        reserve.data.ir_mod = 0_150_000_000;
+        reserve.data.b_supply = 90_0000000;
+        reserve.data.d_supply = 20_0000000;
 
         e.ledger().set(LedgerInfo {
             timestamp: 12345,
@@ -330,30 +240,13 @@ mod tests {
     #[test]
     fn test_calc_accrual_rounds_up() {
         let e = Env::default();
-        let reserve = Reserve {
-            asset: generate_contract_id(&e),
-            config: ReserveConfig {
-                b_token: generate_contract_id(&e),
-                d_token: generate_contract_id(&e),
-                decimals: 7,
-                c_factor: 0,
-                l_factor: 0,
-                util: 0_7500000,
-                r_one: 0_0500000,
-                r_two: 0_5000000,
-                r_three: 1_5000000,
-                reactivity: 0_000_010_000, // 10e-5
-                index: 0,
-            },
-            data: ReserveData {
-                b_rate: 1_100_000_000,
-                d_rate: 1_000_000_000,
-                ir_mod: 0_100_000_000,
-                b_supply: 100_0000000,
-                d_supply: 20_0000000,
-                last_block: 0,
-            },
-        };
+
+        let mut reserve = create_reserve(&e);
+        reserve.b_rate = Some(1_100_000_000);
+        reserve.data.d_rate = 1_000_000_000;
+        reserve.data.ir_mod = 0_100_000_000;
+        reserve.data.b_supply = 90_0000000;
+        reserve.data.d_supply = 20_0000000;
 
         e.ledger().set(LedgerInfo {
             timestamp: 12345,

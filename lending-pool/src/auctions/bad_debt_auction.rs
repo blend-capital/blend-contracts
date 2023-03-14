@@ -208,20 +208,20 @@ mod tests {
         reserve_0.data.d_rate = 1_100_000_000;
         reserve_0.data.last_block = 50;
         reserve_0.config.index = 0;
-        setup_reserve(&e, &pool_id, &bombadil, &reserve_0);
+        setup_reserve(&e, &pool_id, &bombadil, &mut reserve_0);
         let d_token_0 = TokenClient::new(&e, &reserve_0.config.d_token);
 
         let mut reserve_1 = create_reserve(&e);
         reserve_1.data.d_rate = 1_200_000_000;
         reserve_1.data.last_block = 50;
         reserve_1.config.index = 1;
-        setup_reserve(&e, &pool_id, &bombadil, &reserve_1);
+        setup_reserve(&e, &pool_id, &bombadil, &mut reserve_1);
         let d_token_1 = TokenClient::new(&e, &reserve_1.config.d_token);
 
         let mut reserve_2 = create_reserve(&e);
         reserve_2.data.last_block = 50;
         reserve_2.config.index = 2;
-        setup_reserve(&e, &pool_id, &bombadil, &reserve_2);
+        setup_reserve(&e, &pool_id, &bombadil, &mut reserve_2);
 
         let blnd_client = create_token_from_id(&e, &BytesN::from_array(&e, &BLND_TOKEN), &bombadil);
         blnd_client.mint(&bombadil, &backstop, &95_2000000);
@@ -292,20 +292,20 @@ mod tests {
         reserve_0.data.d_rate = 1_100_000_000;
         reserve_0.data.last_block = 50;
         reserve_0.config.index = 0;
-        setup_reserve(&e, &pool_id, &bombadil, &reserve_0);
+        setup_reserve(&e, &pool_id, &bombadil, &mut reserve_0);
         let d_token_0 = TokenClient::new(&e, &reserve_0.config.d_token);
 
         let mut reserve_1 = create_reserve(&e);
         reserve_1.data.d_rate = 1_200_000_000;
         reserve_1.data.last_block = 50;
         reserve_1.config.index = 1;
-        setup_reserve(&e, &pool_id, &bombadil, &reserve_1);
+        setup_reserve(&e, &pool_id, &bombadil, &mut reserve_1);
         let d_token_1 = TokenClient::new(&e, &reserve_1.config.d_token);
 
         let mut reserve_2 = create_reserve(&e);
         reserve_2.data.last_block = 50;
         reserve_2.config.index = 2;
-        setup_reserve(&e, &pool_id, &bombadil, &reserve_2);
+        setup_reserve(&e, &pool_id, &bombadil, &mut reserve_2);
 
         let blnd_client = create_token_from_id(&e, &BytesN::from_array(&e, &BLND_TOKEN), &bombadil);
         blnd_client.mint(&bombadil, &backstop, &95_0000000);
@@ -376,20 +376,20 @@ mod tests {
         reserve_0.data.d_rate = 1_100_000_000;
         reserve_0.data.last_block = 50;
         reserve_0.config.index = 0;
-        setup_reserve(&e, &pool_id, &bombadil, &reserve_0);
+        setup_reserve(&e, &pool_id, &bombadil, &mut reserve_0);
         let d_token_0 = TokenClient::new(&e, &reserve_0.config.d_token);
 
         let mut reserve_1 = create_reserve(&e);
         reserve_1.data.d_rate = 1_200_000_000;
         reserve_1.data.last_block = 50;
         reserve_1.config.index = 1;
-        setup_reserve(&e, &pool_id, &bombadil, &reserve_1);
+        setup_reserve(&e, &pool_id, &bombadil, &mut reserve_1);
         let d_token_1 = TokenClient::new(&e, &reserve_1.config.d_token);
 
         let mut reserve_2 = create_reserve(&e);
         reserve_2.data.last_block = 50;
         reserve_2.config.index = 2;
-        setup_reserve(&e, &pool_id, &bombadil, &reserve_2);
+        setup_reserve(&e, &pool_id, &bombadil, &mut reserve_2);
 
         let blnd_client = create_token_from_id(&e, &BytesN::from_array(&e, &BLND_TOKEN), &bombadil);
         blnd_client.mint(&bombadil, &backstop, &95_2004720);
@@ -461,7 +461,7 @@ mod tests {
         reserve_0.data.d_rate = 1_100_000_000;
         reserve_0.data.last_block = 301;
         reserve_0.config.index = 0;
-        setup_reserve(&e, &pool_id, &bombadil, &reserve_0);
+        setup_reserve(&e, &pool_id, &bombadil, &mut reserve_0);
         let d_token_0 = TokenClient::new(&e, &reserve_0.config.d_token);
         let token_0 = TokenClient::new(&e, &reserve_0.asset);
 
@@ -469,14 +469,14 @@ mod tests {
         reserve_1.data.d_rate = 1_200_000_000;
         reserve_1.data.last_block = 301;
         reserve_1.config.index = 1;
-        setup_reserve(&e, &pool_id, &bombadil, &reserve_1);
+        setup_reserve(&e, &pool_id, &bombadil, &mut reserve_1);
         let d_token_1 = TokenClient::new(&e, &reserve_1.config.d_token);
         let token_1 = TokenClient::new(&e, &reserve_1.asset);
 
         let mut reserve_2 = create_reserve(&e);
         reserve_2.data.last_block = 301;
         reserve_2.config.index = 2;
-        setup_reserve(&e, &pool_id, &bombadil, &reserve_2);
+        setup_reserve(&e, &pool_id, &bombadil, &mut reserve_2);
         e.budget().reset();
 
         // set up user reserves

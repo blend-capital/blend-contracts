@@ -52,7 +52,7 @@ impl UserData {
                 // append users effective collateral to collateral_base
                 let b_token_client = TokenClient::new(e, &reserve.config.b_token);
                 let b_token_balance = b_token_client.balance(user);
-                let asset_collateral = reserve.to_effective_asset_from_b_token(b_token_balance);
+                let asset_collateral = reserve.to_effective_asset_from_b_token(e, b_token_balance);
                 collateral_base += asset_collateral
                     .fixed_mul_floor(i128(asset_to_base), SCALAR_7)
                     .unwrap();
@@ -72,7 +72,7 @@ impl UserData {
                 // user is making modifications to this asset, reflect them in the liability and/or collateral
                 if action.b_token_delta != 0 {
                     let asset_collateral =
-                        reserve.to_effective_asset_from_b_token(action.b_token_delta);
+                        reserve.to_effective_asset_from_b_token(e, action.b_token_delta);
                     collateral_base += asset_collateral
                         .fixed_mul_floor(i128(asset_to_base), SCALAR_7)
                         .unwrap();
@@ -117,17 +117,17 @@ mod tests {
         let mut reserve_0 = create_reserve(&e);
         reserve_0.config.c_factor = 0_7500000;
         reserve_0.config.l_factor = 0_5000000;
-        reserve_0.data.b_rate = 1_000_000_000;
+        reserve_0.b_rate = Some(1_000_000_000);
         reserve_0.data.d_rate = 1_100_000_000;
-        setup_reserve(&e, &pool_id, &bombadil, &reserve_0);
+        setup_reserve(&e, &pool_id, &bombadil, &mut reserve_0);
 
         let mut reserve_1 = create_reserve(&e);
         reserve_1.config.c_factor = 0_7000000;
         reserve_1.config.l_factor = 0_6000000;
-        reserve_1.data.b_rate = 1_100_000_000;
+        reserve_1.b_rate = Some(1_100_000_000);
         reserve_1.data.d_rate = 1_200_000_000;
         reserve_1.config.index = 1;
-        setup_reserve(&e, &pool_id, &bombadil, &reserve_1);
+        setup_reserve(&e, &pool_id, &bombadil, &mut reserve_1);
 
         let (oracle_id, oracle_client) = create_mock_oracle(&e);
         oracle_client.set_price(&reserve_0.asset, &1000000_0000000);
@@ -175,17 +175,17 @@ mod tests {
         let mut reserve_0 = create_reserve(&e);
         reserve_0.config.c_factor = 0_7500000;
         reserve_0.config.l_factor = 0_5500000;
-        reserve_0.data.b_rate = 1_000_000_000;
+        reserve_0.b_rate = Some(1_000_000_000);
         reserve_0.data.d_rate = 1_100_000_000;
-        setup_reserve(&e, &pool_id, &bombadil, &reserve_0);
+        setup_reserve(&e, &pool_id, &bombadil, &mut reserve_0);
 
         let mut reserve_1 = create_reserve(&e);
         reserve_1.config.c_factor = 0_7000000;
         reserve_1.config.l_factor = 0_6000000;
-        reserve_1.data.b_rate = 1_100_000_000;
+        reserve_1.b_rate = Some(1_100_000_000);
         reserve_1.data.d_rate = 1_200_000_000;
         reserve_1.config.index = 1;
-        setup_reserve(&e, &pool_id, &bombadil, &reserve_1);
+        setup_reserve(&e, &pool_id, &bombadil, &mut reserve_1);
 
         let (oracle_id, oracle_client) = create_mock_oracle(&e);
         oracle_client.set_price(&reserve_0.asset, &10_0000000);
@@ -231,17 +231,17 @@ mod tests {
         let mut reserve_0 = create_reserve(&e);
         reserve_0.config.c_factor = 0_7500000;
         reserve_0.config.l_factor = 0_5500000;
-        reserve_0.data.b_rate = 1_000_000_000;
+        reserve_0.b_rate = Some(1_000_000_000);
         reserve_0.data.d_rate = 1_100_000_000;
-        setup_reserve(&e, &pool_id, &bombadil, &reserve_0);
+        setup_reserve(&e, &pool_id, &bombadil, &mut reserve_0);
 
         let mut reserve_1 = create_reserve(&e);
         reserve_1.config.c_factor = 0_7000000;
         reserve_1.config.l_factor = 0_6000000;
-        reserve_1.data.b_rate = 1_100_000_000;
+        reserve_1.b_rate = Some(1_100_000_000);
         reserve_1.data.d_rate = 1_200_000_000;
         reserve_1.config.index = 1;
-        setup_reserve(&e, &pool_id, &bombadil, &reserve_1);
+        setup_reserve(&e, &pool_id, &bombadil, &mut reserve_1);
 
         let (oracle_id, oracle_client) = create_mock_oracle(&e);
         oracle_client.set_price(&reserve_0.asset, &10_0000000);
@@ -281,17 +281,17 @@ mod tests {
         let mut reserve_0 = create_reserve(&e);
         reserve_0.config.c_factor = 0_7500000;
         reserve_0.config.l_factor = 0_5500000;
-        reserve_0.data.b_rate = 1_000_000_000;
+        reserve_0.b_rate = Some(1_000_000_000);
         reserve_0.data.d_rate = 1_100_000_000;
-        setup_reserve(&e, &pool_id, &bombadil, &reserve_0);
+        setup_reserve(&e, &pool_id, &bombadil, &mut reserve_0);
 
         let mut reserve_1 = create_reserve(&e);
         reserve_1.config.c_factor = 0_7000000;
         reserve_1.config.l_factor = 0_6000000;
-        reserve_1.data.b_rate = 1_100_000_000;
+        reserve_1.b_rate = Some(1_100_000_000);
         reserve_1.data.d_rate = 1_200_000_000;
         reserve_1.config.index = 1;
-        setup_reserve(&e, &pool_id, &bombadil, &reserve_1);
+        setup_reserve(&e, &pool_id, &bombadil, &mut reserve_1);
 
         let (oracle_id, oracle_client) = create_mock_oracle(&e);
         oracle_client.set_price(&reserve_0.asset, &10_0000000);
@@ -346,17 +346,17 @@ mod tests {
         let mut reserve_0 = create_reserve(&e);
         reserve_0.config.c_factor = 0_7500000;
         reserve_0.config.l_factor = 0_5500000;
-        reserve_0.data.b_rate = 1_000_000_000;
+        reserve_0.b_rate = Some(1_000_000_000);
         reserve_0.data.d_rate = 1_100_000_000;
-        setup_reserve(&e, &pool_id, &bombadil, &reserve_0);
+        setup_reserve(&e, &pool_id, &bombadil, &mut reserve_0);
 
         let mut reserve_1 = create_reserve(&e);
         reserve_1.config.c_factor = 0_7000000;
         reserve_1.config.l_factor = 0_6000000;
-        reserve_1.data.b_rate = 1_100_000_000;
+        reserve_1.b_rate = Some(1_100_000_000);
         reserve_1.data.d_rate = 1_200_000_000;
         reserve_1.config.index = 1;
-        setup_reserve(&e, &pool_id, &bombadil, &reserve_1);
+        setup_reserve(&e, &pool_id, &bombadil, &mut reserve_1);
 
         let (oracle_id, oracle_client) = create_mock_oracle(&e);
         oracle_client.set_price(&reserve_0.asset, &10_0000000);
@@ -404,7 +404,7 @@ mod tests {
         e.as_contract(&pool_id, || {
             let user_data = UserData::load(&e, &pool_config, &samwise, &user_action);
             assert_eq!(user_data.liability_base, 190_8570655);
-            assert_eq!(user_data.collateral_base, 188_1744480);
+            assert_eq!(user_data.collateral_base, 188_1741780);
         });
     }
 }

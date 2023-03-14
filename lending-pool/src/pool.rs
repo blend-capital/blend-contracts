@@ -49,7 +49,6 @@ pub fn initialize_reserve(e: &Env, from: &Address, asset: &BytesN<32>, config: &
 
     storage::set_res_config(e, asset, config);
     let init_data = ReserveData {
-        b_rate: 1_000_000_000,
         d_rate: 1_000_000_000,
         ir_mod: 1_000_000_000,
         d_supply: 0,
@@ -77,7 +76,7 @@ pub fn execute_supply(
     let mut reserve = Reserve::load(&e, asset.clone());
     reserve.pre_action(&e, &pool_config, 1, from.clone())?;
 
-    let to_mint = reserve.to_b_token(amount.clone());
+    let to_mint = reserve.to_b_token(e, amount.clone());
     if storage::has_auction(e, &0, &from) {
         let user_action = UserAction {
             asset: asset.clone(),
@@ -136,9 +135,9 @@ pub fn execute_withdraw(
     if amount == i128::MAX {
         // if they input i128::MAX as the burn amount, burn 100% of their holdings
         to_burn = b_token_client.balance(&from);
-        to_return = reserve.to_asset_from_b_token(to_burn);
+        to_return = reserve.to_asset_from_b_token(e, to_burn);
     } else {
-        to_burn = reserve.to_b_token(amount);
+        to_burn = reserve.to_b_token(e, amount);
         if to_burn == 0 {
             to_burn = 1
         };
@@ -329,11 +328,15 @@ mod tests {
         let bombadil = Address::random(&e);
         let samwise = Address::random(&e);
 
-        let reserve_0 = create_reserve(&e);
-        setup_reserve(&e, &pool_id, &bombadil, &reserve_0);
+        let mut reserve_0 = create_reserve(&e);
+        reserve_0.data.d_supply = 0;
+        reserve_0.data.b_supply = 0;
+        setup_reserve(&e, &pool_id, &bombadil, &mut reserve_0);
 
-        let reserve_1 = create_reserve(&e);
-        setup_reserve(&e, &pool_id, &bombadil, &reserve_1);
+        let mut reserve_1 = create_reserve(&e);
+        reserve_1.data.d_supply = 0;
+        reserve_1.data.b_supply = 0;
+        setup_reserve(&e, &pool_id, &bombadil, &mut reserve_1);
 
         let (oracle_id, oracle_client) = create_mock_oracle(&e);
         oracle_client.set_price(&reserve_0.asset, &1_0000000);
@@ -398,11 +401,15 @@ mod tests {
         let bombadil = Address::random(&e);
         let samwise = Address::random(&e);
 
-        let reserve_0 = create_reserve(&e);
-        setup_reserve(&e, &pool_id, &bombadil, &reserve_0);
+        let mut reserve_0 = create_reserve(&e);
+        reserve_0.data.d_supply = 0;
+        reserve_0.data.b_supply = 0;
+        setup_reserve(&e, &pool_id, &bombadil, &mut reserve_0);
 
-        let reserve_1 = create_reserve(&e);
-        setup_reserve(&e, &pool_id, &bombadil, &reserve_1);
+        let mut reserve_1 = create_reserve(&e);
+        reserve_1.data.d_supply = 0;
+        reserve_1.data.b_supply = 0;
+        setup_reserve(&e, &pool_id, &bombadil, &mut reserve_1);
 
         let (oracle_id, oracle_client) = create_mock_oracle(&e);
         oracle_client.set_price(&reserve_0.asset, &1_0000000);
@@ -452,11 +459,15 @@ mod tests {
         let bombadil = Address::random(&e);
         let samwise = Address::random(&e);
 
-        let reserve_0 = create_reserve(&e);
-        setup_reserve(&e, &pool_id, &bombadil, &reserve_0);
+        let mut reserve_0 = create_reserve(&e);
+        reserve_0.data.d_supply = 0;
+        reserve_0.data.b_supply = 0;
+        setup_reserve(&e, &pool_id, &bombadil, &mut reserve_0);
 
-        let reserve_1 = create_reserve(&e);
-        setup_reserve(&e, &pool_id, &bombadil, &reserve_1);
+        let mut reserve_1 = create_reserve(&e);
+        reserve_1.data.d_supply = 0;
+        reserve_1.data.b_supply = 0;
+        setup_reserve(&e, &pool_id, &bombadil, &mut reserve_1);
 
         let (oracle_id, oracle_client) = create_mock_oracle(&e);
         oracle_client.set_price(&reserve_0.asset, &1_0000000);
@@ -508,11 +519,15 @@ mod tests {
         let bombadil = Address::random(&e);
         let samwise = Address::random(&e);
 
-        let reserve_0 = create_reserve(&e);
-        setup_reserve(&e, &pool_id, &bombadil, &reserve_0);
+        let mut reserve_0 = create_reserve(&e);
+        reserve_0.data.d_supply = 0;
+        reserve_0.data.b_supply = 0;
+        setup_reserve(&e, &pool_id, &bombadil, &mut reserve_0);
 
-        let reserve_1 = create_reserve(&e);
-        setup_reserve(&e, &pool_id, &bombadil, &reserve_1);
+        let mut reserve_1 = create_reserve(&e);
+        reserve_1.data.d_supply = 0;
+        reserve_1.data.b_supply = 0;
+        setup_reserve(&e, &pool_id, &bombadil, &mut reserve_1);
 
         let (oracle_id, oracle_client) = create_mock_oracle(&e);
         oracle_client.set_price(&reserve_0.asset, &1_0000000);

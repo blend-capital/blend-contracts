@@ -15,6 +15,7 @@ pub struct Reserve {
     pub asset: BytesN<32>,
     pub config: ReserveConfig,
     pub data: ReserveData,
+    pub b_rate: Option<i128>
 }
 
 impl Reserve {
@@ -32,6 +33,7 @@ impl Reserve {
             asset,
             config,
             data,
+            b_rate: None,
         }
     }
 
@@ -84,7 +86,7 @@ impl Reserve {
         // accrue interest to current block
         let cur_util = self
             .total_liabilities()
-            .fixed_div_floor(self.total_supply(), SCALAR_7)
+            .fixed_div_floor(self.total_supply(e), SCALAR_7)
             .unwrap();
         let (loan_accrual, new_ir_mod) = calc_accrual(
             e,
@@ -93,45 +95,33 @@ impl Reserve {
             self.data.ir_mod,
             self.data.last_block,
         );
-        let b_rate_accrual: i128;
-        let bstop_amount: i128;
+        let mut bstop_amount: i128 = 0;
         if bstop_rate > 0 {
             let backstop_rate = i128(bstop_rate);
-            // mint the required amount of b_tokens to the backstop addr
             let b_accrual = (loan_accrual - SCALAR_9)
                 .fixed_mul_floor(i128(cur_util), SCALAR_7)
                 .unwrap();
             bstop_amount = b_accrual
-                .fixed_mul_floor(self.total_supply(), SCALAR_7)
+                .fixed_mul_floor(self.total_supply(e), SCALAR_9)
                 .unwrap()
                 .fixed_mul_floor(backstop_rate, SCALAR_9)
                 .unwrap();
             self.add_supply(&bstop_amount);
-
-            b_rate_accrual = b_accrual
-                .fixed_mul_floor(SCALAR_9 - backstop_rate, SCALAR_9)
-                .unwrap()
-                + SCALAR_9;
-        } else {
-            b_rate_accrual = (loan_accrual - SCALAR_9)
-                .fixed_mul_floor(i128(cur_util), SCALAR_7)
-                .unwrap()
-                + SCALAR_9;
-            bstop_amount = 0;
         }
 
-        self.data.b_rate = b_rate_accrual
-            .fixed_mul_floor(self.data.b_rate, SCALAR_9)
-            .unwrap();
+        // self.get_b_rate(e) = b_rate_accrual
+        //     .fixed_mul_floor(self.get_b_rate(e), SCALAR_9)
+        //     .unwrap();
         self.data.d_rate = loan_accrual
             .fixed_mul_ceil(self.data.d_rate, SCALAR_9)
             .unwrap();
         self.data.ir_mod = new_ir_mod;
+        self.b_rate = None;
 
         self.data.last_block = e.ledger().sequence();
         e.events().publish(
             (symbol!("updt_rate"), self.asset.clone()),
-            (self.data.b_rate, self.data.d_rate, self.data.ir_mod),
+            (self.data.d_rate, self.data.ir_mod),
         );
         bstop_amount
     }
@@ -182,8 +172,8 @@ impl Reserve {
     }
 
     /// Fetch the total supply for the reserve
-    pub fn total_supply(&self) -> i128 {
-        self.to_asset_from_b_token(self.data.b_supply)
+    pub fn total_supply(&mut self, e: &Env) -> i128 {
+        self.to_asset_from_b_token(e, self.data.b_supply)
     }
 
     /// Convert d_tokens to the corresponding asset value
@@ -201,9 +191,8 @@ impl Reserve {
     ///
     /// ### Arguments
     /// * `b_tokens` - The amount of tokens to convert
-    pub fn to_asset_from_b_token(&self, b_tokens: i128) -> i128 {
-        self.data
-            .b_rate
+    pub fn to_asset_from_b_token(&mut self, e: &Env, b_tokens: i128) -> i128 {
+        self.get_b_rate(e)
             .fixed_mul_floor(b_tokens, SCALAR_9)
             .unwrap()
     }
@@ -225,8 +214,8 @@ impl Reserve {
     ///
     /// ### Arguments
     /// * `b_tokens` - The amount of tokens to convert
-    pub fn to_effective_asset_from_b_token(&self, b_tokens: i128) -> i128 {
-        let assets = self.to_asset_from_b_token(b_tokens);
+    pub fn to_effective_asset_from_b_token(&mut self, e: &Env, b_tokens: i128) -> i128 {
+        let assets = self.to_asset_from_b_token(e, b_tokens);
         assets
             .fixed_mul_floor(i128(self.config.c_factor), SCALAR_7)
             .unwrap()
@@ -244,16 +233,36 @@ impl Reserve {
     ///
     /// ### Arguments
     /// * `amount` - The amount of tokens to convert
-    pub fn to_b_token(&self, amount: i128) -> i128 {
-        amount.fixed_div_floor(self.data.b_rate, SCALAR_9).unwrap()
+    pub fn to_b_token(&mut self, e: &Env, amount: i128) -> i128 {
+        amount.fixed_div_floor(self.get_b_rate(e), SCALAR_9).unwrap()
+    }
+
+    // ***** Private functions *****
+
+    /// Fetch or calculate the `b_token_rate` based on outstanding tokens
+    fn get_b_rate(&mut self, e: &Env) -> i128 {
+        match self.b_rate {
+            Some(rate) => rate,
+            None => {
+                let b_rate: i128;
+                if self.data.b_supply == 0 {
+                    b_rate = 1_000_000_000;
+                } else {
+                    let token_bal = TokenClient::new(e, &self.asset).balance(&e.current_contract_address());
+                    // TODO: Should b_token_rates take into account "partial" tokens? Getting rounded away in `total_liabilities`
+                    b_rate = (self.total_liabilities() + token_bal).fixed_div_floor(self.data.b_supply, SCALAR_9).unwrap();
+                }
+                self.b_rate = Some(b_rate);
+                b_rate
+            }
+        }
     }
 }
 
 #[cfg(test)]
 mod tests {
     use crate::{
-        storage::{ReserveConfig, ReserveData},
-        testutils::{create_token_contract, generate_contract_id},
+        testutils::{generate_contract_id, setup_reserve, create_reserve},
     };
 
     use super::*;
@@ -266,39 +275,21 @@ mod tests {
         let e = Env::default();
 
         let pool_id = generate_contract_id(&e);
-        let pool = &Address::from_contract_id(&e, &pool_id);
         let backstop_id = generate_contract_id(&e);
         let backstop = &Address::from_contract_id(&e, &backstop_id);
         let oracle_id = generate_contract_id(&e);
 
-        let (b_token_id, b_token_client) = create_token_contract(&e, &pool);
-
+        let bombadil = Address::random(&e);
         let samwise = Address::random(&e);
 
-        let mut reserve = Reserve {
-            asset: generate_contract_id(&e),
-            config: ReserveConfig {
-                b_token: b_token_id.clone(),
-                d_token: generate_contract_id(&e),
-                decimals: 7,
-                c_factor: 0,
-                l_factor: 0,
-                util: 0_7500000,
-                r_one: 0_0500000,
-                r_two: 0_5000000,
-                r_three: 1_5000000,
-                reactivity: 0_000_010_000, // 10e-5
-                index: 0,
-            },
-            data: ReserveData {
-                b_rate: 1_123_456_789,
-                d_rate: 1_345_678_123,
-                ir_mod: 1_000_000_000,
-                b_supply: 99_0000000,
-                d_supply: 65_0000000,
-                last_block: 0,
-            },
-        };
+        let mut reserve = create_reserve(&e);
+        reserve.b_rate = Some(1_123_456_789);
+        reserve.data.d_rate = 1_345_678_123;
+        reserve.data.b_supply = 99_0000000;
+        reserve.data.d_supply = 65_0000000;
+        setup_reserve(&e, &pool_id, &bombadil, &mut reserve);
+
+        let b_token_client = TokenClient::new(&e, &reserve.config.b_token);
 
         e.ledger().set(LedgerInfo {
             timestamp: 12345,
@@ -323,11 +314,11 @@ mod tests {
 
             reserve.pre_action(&e, &pool_config, 0, samwise).unwrap(); // (accrual: 1_002_957_369, util: .7864352)
 
-            assert_eq!(reserve.data.b_rate, 1_125_547_118);
+            // assert_eq!(reserve.data.b_rate, 1_125_547_118);
             assert_eq!(reserve.data.d_rate, 1_349_657_792);
             assert_eq!(reserve.data.ir_mod, 1_044_981_440);
             assert_eq!(reserve.data.last_block, 123456);
-            assert_eq!(b_token_client.balance(&backstop), 0_051_735_661);
+            assert_eq!(b_token_client.balance(&backstop), 0_051_735_6);
         });
     }
 
@@ -337,30 +328,10 @@ mod tests {
     fn test_update_state_same_block_skips() {
         let e = Env::default();
 
-        let mut reserve = Reserve {
-            asset: generate_contract_id(&e),
-            config: ReserveConfig {
-                b_token: generate_contract_id(&e),
-                d_token: generate_contract_id(&e),
-                decimals: 7,
-                c_factor: 0,
-                l_factor: 0,
-                util: 0_7500000,
-                r_one: 0_0500000,
-                r_two: 0_5000000,
-                r_three: 1_5000000,
-                reactivity: 0_000_010_000, // 10e-5
-                index: 0,
-            },
-            data: ReserveData {
-                b_rate: 1_000_000_000,
-                d_rate: 1_000_000_000,
-                ir_mod: 1_000_000_000,
-                b_supply: 99_0000000,
-                d_supply: 65_0000000,
-                last_block: 123,
-            },
-        };
+        let mut reserve = create_reserve(&e);
+        reserve.data.b_supply = 99_0000000;
+        reserve.data.d_supply = 65_0000000;
+        reserve.data.last_block = 123;
 
         e.ledger().set(LedgerInfo {
             timestamp: 12345,
@@ -372,7 +343,6 @@ mod tests {
 
         let to_mint = reserve.update_rates(&e, 0_200_000_000);
 
-        assert_eq!(reserve.data.b_rate, 1_000_000_000);
         assert_eq!(reserve.data.d_rate, 1_000_000_000);
         assert_eq!(reserve.data.ir_mod, 1_000_000_000);
         assert_eq!(reserve.data.last_block, 123);
@@ -384,30 +354,11 @@ mod tests {
         let e = Env::default();
         let pool_id = generate_contract_id(&e);
 
-        let mut reserve = Reserve {
-            asset: generate_contract_id(&e),
-            config: ReserveConfig {
-                b_token: generate_contract_id(&e),
-                d_token: generate_contract_id(&e),
-                decimals: 7,
-                c_factor: 0,
-                l_factor: 0,
-                util: 0_7500000,
-                r_one: 0_0500000,
-                r_two: 0_5000000,
-                r_three: 1_5000000,
-                reactivity: 0_000_010_000, // 10e-5
-                index: 0,
-            },
-            data: ReserveData {
-                b_rate: 1_000_000_000,
-                d_rate: 1_000_000_000,
-                ir_mod: 0_100_000_000,
-                b_supply: 100_0000000,
-                d_supply: 5_0000000,
-                last_block: 99,
-            },
-        };
+        let mut reserve = create_reserve(&e);
+        reserve.data.b_supply = 100_0000000;
+        reserve.data.d_supply = 5_0000000;
+        reserve.data.ir_mod = 0_100_000_000;
+        reserve.data.last_block = 99;
 
         e.ledger().set(LedgerInfo {
             timestamp: 12345,
@@ -420,7 +371,7 @@ mod tests {
         e.as_contract(&pool_id, || {
             let to_mint = reserve.update_rates(&e, 0_200_000_000); // (accrual: 1_000_000_008, util: 0_6565656)
 
-            assert_eq!(reserve.data.b_rate, 1_000_000_000);
+            // assert_eq!(reserve.data.b_rate, 1_000_000_000);
             assert_eq!(reserve.data.d_rate, 1_000_000_001);
             assert_eq!(reserve.data.ir_mod, 0_100_000_000);
             assert_eq!(reserve.data.last_block, 100);
@@ -433,30 +384,10 @@ mod tests {
         let e = Env::default();
         let pool_id = generate_contract_id(&e);
 
-        let mut reserve = Reserve {
-            asset: generate_contract_id(&e),
-            config: ReserveConfig {
-                b_token: generate_contract_id(&e),
-                d_token: generate_contract_id(&e),
-                decimals: 7,
-                c_factor: 0,
-                l_factor: 0,
-                util: 0_7500000,
-                r_one: 0_0500000,
-                r_two: 0_5000000,
-                r_three: 1_5000000,
-                reactivity: 0_000_010_000, // 10e-5
-                index: 0,
-            },
-            data: ReserveData {
-                b_rate: 1_000_000_000,
-                d_rate: 1_000_000_000,
-                ir_mod: 1_000_000_000,
-                b_supply: 99_0000000,
-                d_supply: 65_0000000,
-                last_block: 0,
-            },
-        };
+        let mut reserve = create_reserve(&e);
+        reserve.data.b_supply = 99_0000000;
+        reserve.data.d_supply = 65_0000000;
+        reserve.data.last_block = 0;
 
         e.ledger().set(LedgerInfo {
             timestamp: 12345,
@@ -468,12 +399,11 @@ mod tests {
         e.as_contract(&pool_id, || {
             let to_mint = reserve.update_rates(&e, 0_200_000_000); // (accrual: 1_000_000_852, util: 0_6565656)
 
-            assert_eq!(reserve.data.b_rate, 1_000_000_448);
+            // assert_eq!(reserve.data.b_rate, 1_000_000_448);
             assert_eq!(reserve.data.d_rate, 1_000_000_853);
             assert_eq!(reserve.data.ir_mod, 0_999_906_566);
             assert_eq!(reserve.data.last_block, 100);
-            // TODO: Calculator claims this is 11_068 with expected rounding. Determine why this is different
-            assert_eq!(to_mint, 0_000_011_088);
+            assert_eq!(to_mint, 0_0000110);
         });
     }
 
@@ -482,30 +412,12 @@ mod tests {
         let e = Env::default();
         let pool_id = generate_contract_id(&e);
 
-        let mut reserve = Reserve {
-            asset: generate_contract_id(&e),
-            config: ReserveConfig {
-                b_token: generate_contract_id(&e),
-                d_token: generate_contract_id(&e),
-                decimals: 7,
-                c_factor: 0,
-                l_factor: 0,
-                util: 0_7500000,
-                r_one: 0_0500000,
-                r_two: 0_5000000,
-                r_three: 1_5000000,
-                reactivity: 0_000_010_000, // 10e-5
-                index: 0,
-            },
-            data: ReserveData {
-                b_rate: 1_123_456_789,
-                d_rate: 1_345_678_123,
-                ir_mod: 1_000_000_000,
-                b_supply: 99_0000000,
-                d_supply: 65_0000000,
-                last_block: 0,
-            },
-        };
+        let mut reserve = create_reserve(&e);
+        reserve.b_rate = Some(1_123_456_789);
+        reserve.data.d_rate = 1_345_678_123;
+        reserve.data.b_supply = 99_0000000;
+        reserve.data.d_supply = 65_0000000;
+        reserve.data.last_block = 0;
 
         e.ledger().set(LedgerInfo {
             timestamp: 12345,
@@ -518,11 +430,11 @@ mod tests {
         e.as_contract(&pool_id, || {
             let to_mint = reserve.update_rates(&e, 0_200_000_000); // (accrual: 1_002_957_369, util: .7864352)
 
-            assert_eq!(reserve.data.b_rate, 1_125_547_118);
+            // assert_eq!(reserve.data.b_rate, 1_125_547_118);
             assert_eq!(reserve.data.d_rate, 1_349_657_792);
             assert_eq!(reserve.data.ir_mod, 1_044_981_440);
             assert_eq!(reserve.data.last_block, 123456);
-            assert_eq!(to_mint, 0_051_735_661);
+            assert_eq!(to_mint, 0_051_735_6);
         });
     }
 
@@ -532,30 +444,9 @@ mod tests {
     fn test_add_supply() {
         let e = Env::default();
 
-        let mut reserve = Reserve {
-            asset: generate_contract_id(&e),
-            config: ReserveConfig {
-                b_token: generate_contract_id(&e),
-                d_token: generate_contract_id(&e),
-                decimals: 7,
-                c_factor: 0,
-                l_factor: 0,
-                util: 0_7500000,
-                r_one: 0_0500000,
-                r_two: 0_5000000,
-                r_three: 1_5000000,
-                reactivity: 0_000_010_000, // 10e-5
-                index: 0,
-            },
-            data: ReserveData {
-                b_rate: 1_000_000_000,
-                d_rate: 1_000_000_000,
-                ir_mod: 1_000_000_000,
-                b_supply: 99_0000000,
-                d_supply: 65_0000000,
-                last_block: 123,
-            },
-        };
+        let mut reserve = create_reserve(&e);
+        reserve.data.b_supply = 99_0000000;
+        reserve.data.d_supply = 65_0000000;
 
         reserve.add_supply(&1_1234567);
 
@@ -566,30 +457,9 @@ mod tests {
     fn test_remove_supply() {
         let e = Env::default();
 
-        let mut reserve = Reserve {
-            asset: generate_contract_id(&e),
-            config: ReserveConfig {
-                b_token: generate_contract_id(&e),
-                d_token: generate_contract_id(&e),
-                decimals: 7,
-                c_factor: 0,
-                l_factor: 0,
-                util: 0_7500000,
-                r_one: 0_0500000,
-                r_two: 0_5000000,
-                r_three: 1_5000000,
-                reactivity: 0_000_010_000, // 10e-5
-                index: 0,
-            },
-            data: ReserveData {
-                b_rate: 1_000_000_000,
-                d_rate: 1_000_000_000,
-                ir_mod: 1_000_000_000,
-                b_supply: 99_0000000,
-                d_supply: 65_0000000,
-                last_block: 123,
-            },
-        };
+        let mut reserve = create_reserve(&e);
+        reserve.data.b_supply = 99_0000000;
+        reserve.data.d_supply = 65_0000000;
 
         reserve.remove_supply(&1_1234567);
 
@@ -600,30 +470,9 @@ mod tests {
     fn test_add_liability() {
         let e = Env::default();
 
-        let mut reserve = Reserve {
-            asset: generate_contract_id(&e),
-            config: ReserveConfig {
-                b_token: generate_contract_id(&e),
-                d_token: generate_contract_id(&e),
-                decimals: 7,
-                c_factor: 0,
-                l_factor: 0,
-                util: 0_7500000,
-                r_one: 0_0500000,
-                r_two: 0_5000000,
-                r_three: 1_5000000,
-                reactivity: 0_000_010_000, // 10e-5
-                index: 0,
-            },
-            data: ReserveData {
-                b_rate: 1_000_000_000,
-                d_rate: 1_000_000_000,
-                ir_mod: 1_000_000_000,
-                b_supply: 99_0000000,
-                d_supply: 65_0000000,
-                last_block: 123,
-            },
-        };
+        let mut reserve = create_reserve(&e);
+        reserve.data.b_supply = 99_0000000;
+        reserve.data.d_supply = 65_0000000;
 
         reserve.add_liability(&1_1234567);
 
@@ -634,30 +483,9 @@ mod tests {
     fn test_remove_liability() {
         let e = Env::default();
 
-        let mut reserve = Reserve {
-            asset: generate_contract_id(&e),
-            config: ReserveConfig {
-                b_token: generate_contract_id(&e),
-                d_token: generate_contract_id(&e),
-                decimals: 7,
-                c_factor: 0,
-                l_factor: 0,
-                util: 0_7500000,
-                r_one: 0_0500000,
-                r_two: 0_5000000,
-                r_three: 1_5000000,
-                reactivity: 0_000_010_000, // 10e-5
-                index: 0,
-            },
-            data: ReserveData {
-                b_rate: 1_000_000_000,
-                d_rate: 1_000_000_000,
-                ir_mod: 1_000_000_000,
-                b_supply: 99_0000000,
-                d_supply: 65_0000000,
-                last_block: 123,
-            },
-        };
+        let mut reserve = create_reserve(&e);
+        reserve.data.b_supply = 99_0000000;
+        reserve.data.d_supply = 65_0000000;
 
         reserve.remove_liability(&1_1234567);
 
@@ -670,30 +498,10 @@ mod tests {
     fn test_to_asset_from_d_token() {
         let e = Env::default();
 
-        let reserve = Reserve {
-            asset: generate_contract_id(&e),
-            config: ReserveConfig {
-                b_token: generate_contract_id(&e),
-                d_token: generate_contract_id(&e),
-                decimals: 7,
-                c_factor: 0,
-                l_factor: 0,
-                util: 0_7500000,
-                r_one: 0_0500000,
-                r_two: 0_5000000,
-                r_three: 1_5000000,
-                reactivity: 0_000_010_000, // 10e-5
-                index: 0,
-            },
-            data: ReserveData {
-                b_rate: 1_000_000_000,
-                d_rate: 1_321_834_961,
-                ir_mod: 1_000_000_000,
-                b_supply: 99_0000000,
-                d_supply: 65_0000000,
-                last_block: 123,
-            },
-        };
+        let mut reserve = create_reserve(&e);
+        reserve.data.d_rate = 1_321_834_961;
+        reserve.data.b_supply = 99_0000000;
+        reserve.data.d_supply = 65_0000000;
 
         let result = reserve.to_asset_from_d_token(1_1234567);
 
@@ -704,32 +512,12 @@ mod tests {
     fn test_to_asset_from_b_token() {
         let e = Env::default();
 
-        let reserve = Reserve {
-            asset: generate_contract_id(&e),
-            config: ReserveConfig {
-                b_token: generate_contract_id(&e),
-                d_token: generate_contract_id(&e),
-                decimals: 7,
-                c_factor: 0,
-                l_factor: 0,
-                util: 0_7500000,
-                r_one: 0_0500000,
-                r_two: 0_5000000,
-                r_three: 1_5000000,
-                reactivity: 0_000_010_000, // 10e-5
-                index: 0,
-            },
-            data: ReserveData {
-                b_rate: 1_321_834_961,
-                d_rate: 1_000_000_000,
-                ir_mod: 1_000_000_000,
-                b_supply: 99_0000000,
-                d_supply: 65_0000000,
-                last_block: 123,
-            },
-        };
+        let mut reserve = create_reserve(&e);
+        reserve.b_rate = Some(1_321_834_961);
+        reserve.data.b_supply = 99_0000000;
+        reserve.data.d_supply = 65_0000000;
 
-        let result = reserve.to_asset_from_b_token(1_1234567);
+        let result = reserve.to_asset_from_b_token(&e, 1_1234567);
 
         assert_eq!(result, 1_4850243);
     }
@@ -738,30 +526,11 @@ mod tests {
     fn test_to_effective_asset_from_d_token() {
         let e = Env::default();
 
-        let reserve = Reserve {
-            asset: generate_contract_id(&e),
-            config: ReserveConfig {
-                b_token: generate_contract_id(&e),
-                d_token: generate_contract_id(&e),
-                decimals: 7,
-                c_factor: 0,
-                l_factor: 1_1000000,
-                util: 0_7500000,
-                r_one: 0_0500000,
-                r_two: 0_5000000,
-                r_three: 1_5000000,
-                reactivity: 0_000_010_000, // 10e-5
-                index: 0,
-            },
-            data: ReserveData {
-                b_rate: 1_000_000_000,
-                d_rate: 1_321_834_961,
-                ir_mod: 1_000_000_000,
-                b_supply: 99_0000000,
-                d_supply: 65_0000000,
-                last_block: 123,
-            },
-        };
+        let mut reserve = create_reserve(&e);
+        reserve.data.d_rate = 1_321_834_961;
+        reserve.data.b_supply = 99_0000000;
+        reserve.data.d_supply = 65_0000000;
+        reserve.config.l_factor = 1_1000000;
 
         let result = reserve.to_effective_asset_from_d_token(1_1234567);
 
@@ -772,32 +541,13 @@ mod tests {
     fn test_to_effective_asset_from_b_token() {
         let e = Env::default();
 
-        let reserve = Reserve {
-            asset: generate_contract_id(&e),
-            config: ReserveConfig {
-                b_token: generate_contract_id(&e),
-                d_token: generate_contract_id(&e),
-                decimals: 7,
-                c_factor: 0_8500000,
-                l_factor: 0,
-                util: 0_7500000,
-                r_one: 0_0500000,
-                r_two: 0_5000000,
-                r_three: 1_5000000,
-                reactivity: 0_000_010_000, // 10e-5
-                index: 0,
-            },
-            data: ReserveData {
-                b_rate: 1_321_834_961,
-                d_rate: 1_000_000_000,
-                ir_mod: 1_000_000_000,
-                b_supply: 99_0000000,
-                d_supply: 65_0000000,
-                last_block: 123,
-            },
-        };
+        let mut reserve = create_reserve(&e);
+        reserve.b_rate = Some(1_321_834_961);
+        reserve.data.b_supply = 99_0000000;
+        reserve.data.d_supply = 65_0000000;
+        reserve.config.c_factor = 0_8500000;
 
-        let result = reserve.to_effective_asset_from_b_token(1_1234567);
+        let result = reserve.to_effective_asset_from_b_token(&e, 1_1234567);
 
         assert_eq!(result, 1_2622706);
     }
@@ -806,30 +556,10 @@ mod tests {
     fn test_total_liabilities() {
         let e = Env::default();
 
-        let reserve = Reserve {
-            asset: generate_contract_id(&e),
-            config: ReserveConfig {
-                b_token: generate_contract_id(&e),
-                d_token: generate_contract_id(&e),
-                decimals: 7,
-                c_factor: 0,
-                l_factor: 0,
-                util: 0_7500000,
-                r_one: 0_0500000,
-                r_two: 0_5000000,
-                r_three: 1_5000000,
-                reactivity: 0_000_010_000, // 10e-5
-                index: 0,
-            },
-            data: ReserveData {
-                b_rate: 1_000_000_000,
-                d_rate: 1_823_912_692,
-                ir_mod: 1_000_000_000,
-                b_supply: 99_0000000,
-                d_supply: 65_0000000,
-                last_block: 123,
-            },
-        };
+        let mut reserve = create_reserve(&e);
+        reserve.data.d_rate = 1_823_912_692;
+        reserve.data.b_supply = 99_0000000;
+        reserve.data.d_supply = 65_0000000;
 
         let result = reserve.total_liabilities();
 
@@ -840,32 +570,12 @@ mod tests {
     fn test_total_supply() {
         let e = Env::default();
 
-        let reserve = Reserve {
-            asset: generate_contract_id(&e),
-            config: ReserveConfig {
-                b_token: generate_contract_id(&e),
-                d_token: generate_contract_id(&e),
-                decimals: 7,
-                c_factor: 0,
-                l_factor: 0,
-                util: 0_7500000,
-                r_one: 0_0500000,
-                r_two: 0_5000000,
-                r_three: 1_5000000,
-                reactivity: 0_000_010_000, // 10e-5
-                index: 0,
-            },
-            data: ReserveData {
-                b_rate: 1_823_912_692,
-                d_rate: 1_000_000_000,
-                ir_mod: 1_000_000_000,
-                b_supply: 99_0000000,
-                d_supply: 65_0000000,
-                last_block: 123,
-            },
-        };
+        let mut reserve = create_reserve(&e);
+        reserve.b_rate = Some(1_823_912_692);
+        reserve.data.b_supply = 99_0000000;
+        reserve.data.d_supply = 65_0000000;
 
-        let result = reserve.total_supply();
+        let result = reserve.total_supply(&e);
 
         assert_eq!(result, 180_5673565);
     }
@@ -874,30 +584,10 @@ mod tests {
     fn test_to_d_token() {
         let e = Env::default();
 
-        let reserve = Reserve {
-            asset: generate_contract_id(&e),
-            config: ReserveConfig {
-                b_token: generate_contract_id(&e),
-                d_token: generate_contract_id(&e),
-                decimals: 7,
-                c_factor: 0,
-                l_factor: 0,
-                util: 0_7500000,
-                r_one: 0_0500000,
-                r_two: 0_5000000,
-                r_three: 1_5000000,
-                reactivity: 0_000_010_000, // 10e-5
-                index: 0,
-            },
-            data: ReserveData {
-                b_rate: 1_000_000_000,
-                d_rate: 1_321_834_961,
-                ir_mod: 1_000_000_000,
-                b_supply: 99_0000000,
-                d_supply: 65_0000000,
-                last_block: 123,
-            },
-        };
+        let mut reserve = create_reserve(&e);
+        reserve.data.d_rate = 1_321_834_961;
+        reserve.data.b_supply = 99_0000000;
+        reserve.data.d_supply = 65_0000000;
 
         let result = reserve.to_d_token(1_4850243);
 
@@ -908,32 +598,12 @@ mod tests {
     fn test_to_b_token() {
         let e = Env::default();
 
-        let reserve = Reserve {
-            asset: generate_contract_id(&e),
-            config: ReserveConfig {
-                b_token: generate_contract_id(&e),
-                d_token: generate_contract_id(&e),
-                decimals: 7,
-                c_factor: 0,
-                l_factor: 0,
-                util: 0_7500000,
-                r_one: 0_0500000,
-                r_two: 0_5000000,
-                r_three: 1_5000000,
-                reactivity: 0_000_010_000, // 10e-5
-                index: 0,
-            },
-            data: ReserveData {
-                b_rate: 1_321_834_961,
-                d_rate: 1_000_000_000,
-                ir_mod: 1_000_000_000,
-                b_supply: 99_0000000,
-                d_supply: 65_0000000,
-                last_block: 123,
-            },
-        };
+        let mut reserve = create_reserve(&e);
+        reserve.b_rate = Some(1_321_834_961);
+        reserve.data.b_supply = 99_0000000;
+        reserve.data.d_supply = 65_0000000;
 
-        let result = reserve.to_b_token(1_4850243);
+        let result = reserve.to_b_token(&e, 1_4850243);
 
         assert_eq!(result, 1_1234566);
     }

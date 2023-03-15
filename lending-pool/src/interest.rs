@@ -105,9 +105,7 @@ pub fn calc_accrual(
 
 #[cfg(test)]
 mod tests {
-    use crate::{
-        testutils::{create_reserve},
-    };
+    use crate::testutils::create_reserve;
 
     use super::*;
     use soroban_sdk::testutils::{Ledger, LedgerInfo};

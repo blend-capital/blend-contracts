@@ -764,7 +764,10 @@ mod tests {
             );
             assert_eq!(result.lot.len(), 1);
             assert_eq!(reserve_2_asset.balance(&frodo), 0);
-            assert_eq!(reserve_2_asset.balance(&pool), res_2_init_pool_bal + 0_5000000);
+            assert_eq!(
+                reserve_2_asset.balance(&pool),
+                res_2_init_pool_bal + 0_5000000
+            );
             assert_eq!(b_token_0.balance(&frodo), 11_3636363);
             assert_eq!(b_token_0.balance(&samwise), 79_5463637);
         });

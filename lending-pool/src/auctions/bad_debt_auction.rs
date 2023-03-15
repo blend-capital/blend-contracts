@@ -56,7 +56,8 @@ pub fn create_bad_debt_auction_data(e: &Env, backstop: &Address) -> Result<Aucti
         .unwrap()
         .fixed_div_floor(i128(blnd_to_base), SCALAR_7)
         .unwrap();
-    let (pool_backstop_balance, _, _) = BackstopClient::new(e, &storage::get_backstop(e)).p_balance(&e.current_contract_id());
+    let (pool_backstop_balance, _, _) =
+        BackstopClient::new(e, &storage::get_backstop(e)).p_balance(&e.current_contract_id());
     lot_amount = pool_backstop_balance.min(lot_amount);
     // u32::MAX is the key for the backstop token
     auction_data.lot.set(u32::MAX, lot_amount);

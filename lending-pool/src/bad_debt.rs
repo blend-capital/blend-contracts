@@ -1,8 +1,12 @@
-use soroban_sdk::{symbol, Address, Env, BytesN};
+use soroban_sdk::{symbol, Address, BytesN, Env};
 
 use crate::{
-    dependencies::TokenClient, errors::PoolError, reserve::Reserve, reserve_usage::ReserveUsage,
-    storage::{self, has_auction}, constants::BLND_TOKEN,
+    constants::BLND_TOKEN,
+    dependencies::TokenClient,
+    errors::PoolError,
+    reserve::Reserve,
+    reserve_usage::ReserveUsage,
+    storage::{self, has_auction},
 };
 
 pub fn manage_bad_debt(e: &Env, user: &Address) -> Result<(), PoolError> {
@@ -14,7 +18,6 @@ pub fn manage_bad_debt(e: &Env, user: &Address) -> Result<(), PoolError> {
     }
 }
 
-
 /// Transfer bad debt from a user to the backstop. Validates that the user does hold bad debt
 /// and transfers all held d_tokens to the backstop.
 ///
@@ -23,7 +26,11 @@ pub fn manage_bad_debt(e: &Env, user: &Address) -> Result<(), PoolError> {
 ///
 /// ### Errors
 /// If the user does not have bad debt
-pub fn transfer_bad_debt_to_backstop(e: &Env, user: &Address, backstop: &Address) -> Result<(), PoolError> {
+pub fn transfer_bad_debt_to_backstop(
+    e: &Env,
+    user: &Address,
+    backstop: &Address,
+) -> Result<(), PoolError> {
     let user_res_config = ReserveUsage::new(storage::get_user_config(e, &user));
     let has_collateral = user_res_config.has_collateral();
     let has_liability = user_res_config.has_liability();
@@ -63,7 +70,7 @@ pub fn transfer_bad_debt_to_backstop(e: &Env, user: &Address, backstop: &Address
 }
 
 /// Burn bad debt from the backstop. This can only occur if the backstop module has reached a critical balance and
-/// a bad debt auction is not currently occurring. 
+/// a bad debt auction is not currently occurring.
 ///
 /// ### Errors
 /// If the backstop's bad debt is not eligible to be burnt
@@ -73,7 +80,8 @@ pub fn burn_backstop_bad_debt(e: &Env, backstop: &Address) -> Result<(), PoolErr
     }
 
     // TODO: Determine a healthy number for this
-    let backstop_balance = TokenClient::new(e, &BytesN::from_array(e, &BLND_TOKEN)).balance(backstop);
+    let backstop_balance =
+        TokenClient::new(e, &BytesN::from_array(e, &BLND_TOKEN)).balance(backstop);
     if backstop_balance > 10_000_0000000 {
         return Err(PoolError::BadRequest);
     }
@@ -108,12 +116,17 @@ pub fn burn_backstop_bad_debt(e: &Env, backstop: &Address) -> Result<(), PoolErr
 #[cfg(test)]
 mod tests {
     use crate::{
+        auctions::AuctionData,
         storage::PoolConfig,
-        testutils::{create_reserve, generate_contract_id, setup_reserve, create_token_from_id}, auctions::AuctionData,
+        testutils::{create_reserve, create_token_from_id, generate_contract_id, setup_reserve},
     };
 
     use super::*;
-    use soroban_sdk::{BytesN, testutils::{Address as AddressTestTrait, Ledger, LedgerInfo, BytesN as _}, map};
+    use soroban_sdk::{
+        map,
+        testutils::{Address as AddressTestTrait, BytesN as _, Ledger, LedgerInfo},
+        BytesN,
+    };
 
     /***** transfer_bad_debt_to_backstop ******/
 
@@ -311,12 +324,20 @@ mod tests {
             storage::set_backstop_address(&e, &backstop);
 
             let d_token_0 = TokenClient::new(&e, &reserve_0.config.d_token);
-            d_token_0.mint(&e.current_contract_address(), &backstop, &liability_amount_0);
+            d_token_0.mint(
+                &e.current_contract_address(),
+                &backstop,
+                &liability_amount_0,
+            );
             reserve_0.add_liability(&liability_amount_0);
             reserve_0.set_data(&e);
             let d_token_supply_0 = reserve_0.data.d_supply;
             let d_token_1 = TokenClient::new(&e, &reserve_1.config.d_token);
-            d_token_1.mint(&e.current_contract_address(), &backstop, &liability_amount_1);
+            d_token_1.mint(
+                &e.current_contract_address(),
+                &backstop,
+                &liability_amount_1,
+            );
             reserve_1.add_liability(&liability_amount_1);
             reserve_1.set_data(&e);
             let d_token_supply_1 = reserve_1.data.d_supply;
@@ -330,9 +351,15 @@ mod tests {
             let reserve_0_data = storage::get_res_data(&e, &reserve_0.asset);
             let reserve_1_data = storage::get_res_data(&e, &reserve_1.asset);
             assert_eq!(reserve_0_data.last_block, 123);
-            assert_eq!(reserve_0_data.d_supply, d_token_supply_0 - liability_amount_0);
+            assert_eq!(
+                reserve_0_data.d_supply,
+                d_token_supply_0 - liability_amount_0
+            );
             assert_eq!(reserve_1_data.last_block, 123);
-            assert_eq!(reserve_1_data.d_supply, d_token_supply_1 - liability_amount_1);
+            assert_eq!(
+                reserve_1_data.d_supply,
+                d_token_supply_1 - liability_amount_1
+            );
         });
     }
 
@@ -380,11 +407,19 @@ mod tests {
             storage::set_backstop_address(&e, &backstop);
 
             let d_token_0 = TokenClient::new(&e, &reserve_0.config.d_token);
-            d_token_0.mint(&e.current_contract_address(), &backstop, &liability_amount_0);
+            d_token_0.mint(
+                &e.current_contract_address(),
+                &backstop,
+                &liability_amount_0,
+            );
             reserve_0.add_liability(&liability_amount_0);
             reserve_0.set_data(&e);
             let d_token_1 = TokenClient::new(&e, &reserve_1.config.d_token);
-            d_token_1.mint(&e.current_contract_address(), &backstop, &liability_amount_1);
+            d_token_1.mint(
+                &e.current_contract_address(),
+                &backstop,
+                &liability_amount_1,
+            );
             reserve_1.add_liability(&liability_amount_1);
             reserve_1.set_data(&e);
 
@@ -437,11 +472,19 @@ mod tests {
             storage::set_backstop_address(&e, &backstop);
 
             let d_token_0 = TokenClient::new(&e, &reserve_0.config.d_token);
-            d_token_0.mint(&e.current_contract_address(), &backstop, &liability_amount_0);
+            d_token_0.mint(
+                &e.current_contract_address(),
+                &backstop,
+                &liability_amount_0,
+            );
             reserve_0.add_liability(&liability_amount_0);
             reserve_0.set_data(&e);
             let d_token_1 = TokenClient::new(&e, &reserve_1.config.d_token);
-            d_token_1.mint(&e.current_contract_address(), &backstop, &liability_amount_1);
+            d_token_1.mint(
+                &e.current_contract_address(),
+                &backstop,
+                &liability_amount_1,
+            );
             reserve_1.add_liability(&liability_amount_1);
             reserve_1.set_data(&e);
 

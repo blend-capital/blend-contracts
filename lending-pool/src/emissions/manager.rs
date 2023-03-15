@@ -177,9 +177,7 @@ pub fn set_pool_emissions(
 
 #[cfg(test)]
 mod tests {
-    use crate::{
-        testutils::{generate_contract_id, create_reserve, setup_reserve},
-    };
+    use crate::testutils::{create_reserve, generate_contract_id, setup_reserve};
 
     use super::*;
     use soroban_sdk::{
@@ -270,7 +268,6 @@ mod tests {
         reserve_2.config.index = 2;
         reserve_2.data.last_block = 100;
         setup_reserve(&e, &pool_id, &bombadil, &mut reserve_2);
-
 
         e.as_contract(&pool_id, || {
             storage::set_pool_emission_config(&e, &pool_emission_config);

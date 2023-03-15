@@ -15,7 +15,7 @@ pub struct Reserve {
     pub asset: BytesN<32>,
     pub config: ReserveConfig,
     pub data: ReserveData,
-    pub b_rate: Option<i128>
+    pub b_rate: Option<i128>,
 }
 
 impl Reserve {
@@ -234,7 +234,9 @@ impl Reserve {
     /// ### Arguments
     /// * `amount` - The amount of tokens to convert
     pub fn to_b_token(&mut self, e: &Env, amount: i128) -> i128 {
-        amount.fixed_div_floor(self.get_b_rate(e), SCALAR_9).unwrap()
+        amount
+            .fixed_div_floor(self.get_b_rate(e), SCALAR_9)
+            .unwrap()
     }
 
     // ***** Private functions *****
@@ -248,9 +250,12 @@ impl Reserve {
                 if self.data.b_supply == 0 {
                     b_rate = 1_000_000_000;
                 } else {
-                    let token_bal = TokenClient::new(e, &self.asset).balance(&e.current_contract_address());
+                    let token_bal =
+                        TokenClient::new(e, &self.asset).balance(&e.current_contract_address());
                     // TODO: Should b_token_rates take into account "partial" tokens? Getting rounded away in `total_liabilities`
-                    b_rate = (self.total_liabilities() + token_bal).fixed_div_floor(self.data.b_supply, SCALAR_9).unwrap();
+                    b_rate = (self.total_liabilities() + token_bal)
+                        .fixed_div_floor(self.data.b_supply, SCALAR_9)
+                        .unwrap();
                 }
                 self.b_rate = Some(b_rate);
                 b_rate
@@ -261,9 +266,7 @@ impl Reserve {
 
 #[cfg(test)]
 mod tests {
-    use crate::{
-        testutils::{generate_contract_id, setup_reserve, create_reserve},
-    };
+    use crate::testutils::{create_reserve, generate_contract_id, setup_reserve};
 
     use super::*;
     use soroban_sdk::testutils::{Address as AddressTestTrait, Ledger, LedgerInfo};

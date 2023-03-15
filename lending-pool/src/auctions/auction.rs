@@ -1,4 +1,8 @@
-use crate::{errors::PoolError, storage};
+use crate::{
+    errors::PoolError,
+    storage,
+    user_data::{UserAction, UserData},
+};
 use cast::i128;
 use fixed_point_math::FixedPoint;
 use soroban_sdk::{contracttype, Address, BytesN, Env, Map, Vec};
@@ -108,6 +112,35 @@ pub fn create_liquidation(
     return Ok(auction_data);
 }
 
+/// Delete a liquidation auction if the user being liquidated is no longer eligible for liquidation.
+///
+/// ### Arguments
+/// * `auction_type` - The type of auction being created
+///
+/// ### Errors
+/// If no auction exists for the user or if the user is still eligible for liquidation.
+pub fn delete_liquidation(e: &Env, user: &Address) -> Result<(), PoolError> {
+    if !storage::has_auction(e, &(AuctionType::UserLiquidation as u32), &user) {
+        return Err(PoolError::BadRequest);
+    }
+
+    let pool_config = storage::get_pool_config(e);
+    // no action is being take when calculating the users health factor
+    let action = UserAction {
+        asset: BytesN::from_array(e, &[0; 32]),
+        b_token_delta: 0,
+        d_token_delta: 0,
+    };
+    let user_data = UserData::load(e, &pool_config, user, &action);
+
+    if user_data.collateral_base > user_data.liability_base {
+        storage::del_auction(e, &(AuctionType::UserLiquidation as u32), &user);
+        Ok(())
+    } else {
+        return Err(PoolError::InvalidHf);
+    }
+}
+
 /// Preview the quote the auction will be filled at
 ///
 /// ### Arguments
@@ -186,7 +219,11 @@ pub(super) fn get_fill_modifiers(e: &Env, auction_data: &AuctionData) -> (i128, 
 
 #[cfg(test)]
 mod tests {
-    use crate::testutils::generate_contract_id;
+    use crate::{
+        dependencies::TokenClient,
+        storage::PoolConfig,
+        testutils::{create_mock_oracle, create_reserve, generate_contract_id, setup_reserve},
+    };
 
     use super::*;
     use soroban_sdk::{
@@ -209,6 +246,131 @@ mod tests {
                 Ok(_) => assert!(false),
                 Err(err) => assert_eq!(err, PoolError::BadRequest),
             }
+        });
+    }
+
+    #[test]
+    fn test_delete_user_liquidation() {
+        let e = Env::default();
+        let pool_id = generate_contract_id(&e);
+
+        let bombadil = Address::random(&e);
+        let samwise = Address::random(&e);
+
+        let mut reserve_0 = create_reserve(&e);
+        setup_reserve(&e, &pool_id, &bombadil, &mut reserve_0);
+
+        let mut reserve_1 = create_reserve(&e);
+        reserve_1.config.index = 1;
+        setup_reserve(&e, &pool_id, &bombadil, &mut reserve_1);
+
+        let (oracle_id, oracle_client) = create_mock_oracle(&e);
+        oracle_client.set_price(&reserve_0.asset, &10_0000000);
+        oracle_client.set_price(&reserve_1.asset, &5_0000000);
+
+        // setup user (collateralize reserve 0 and borrow reserve 1)
+        let collateral_amount = 17_8000000;
+        let liability_amount = 20_0000000;
+
+        let auction_data = AuctionData {
+            bid: map![&e],
+            lot: map![&e],
+            block: 100,
+        };
+        let pool_config = PoolConfig {
+            oracle: oracle_id,
+            bstop_rate: 0_100_000_000,
+            status: 0,
+        };
+        e.as_contract(&pool_id, || {
+            storage::set_pool_config(&e, &pool_config);
+            storage::set_user_config(&e, &samwise, &0x000000000000000A);
+            TokenClient::new(&e, &reserve_0.config.b_token).mint(
+                &e.current_contract_address(),
+                &samwise,
+                &collateral_amount,
+            );
+            TokenClient::new(&e, &reserve_1.config.d_token).mint(
+                &e.current_contract_address(),
+                &samwise,
+                &liability_amount,
+            );
+            storage::set_auction(
+                &e,
+                &(AuctionType::UserLiquidation as u32),
+                &samwise,
+                &auction_data,
+            );
+
+            delete_liquidation(&e, &samwise).unwrap();
+            assert!(!storage::has_auction(
+                &e,
+                &(AuctionType::UserLiquidation as u32),
+                &samwise
+            ));
+        });
+    }
+
+    #[test]
+    fn test_delete_user_liquidation_invalid_hf() {
+        let e = Env::default();
+        let pool_id = generate_contract_id(&e);
+
+        let bombadil = Address::random(&e);
+        let samwise = Address::random(&e);
+
+        let mut reserve_0 = create_reserve(&e);
+        setup_reserve(&e, &pool_id, &bombadil, &mut reserve_0);
+
+        let mut reserve_1 = create_reserve(&e);
+        reserve_1.config.index = 1;
+        setup_reserve(&e, &pool_id, &bombadil, &mut reserve_1);
+
+        let (oracle_id, oracle_client) = create_mock_oracle(&e);
+        oracle_client.set_price(&reserve_0.asset, &10_0000000);
+        oracle_client.set_price(&reserve_1.asset, &5_0000000);
+
+        // setup user (collateralize reserve 0 and borrow reserve 1)
+        let collateral_amount = 15_0000000;
+        let liability_amount = 20_0000000;
+
+        let auction_data = AuctionData {
+            bid: map![&e],
+            lot: map![&e],
+            block: 100,
+        };
+        let pool_config = PoolConfig {
+            oracle: oracle_id,
+            bstop_rate: 0_100_000_000,
+            status: 0,
+        };
+        e.as_contract(&pool_id, || {
+            storage::set_pool_config(&e, &pool_config);
+            storage::set_user_config(&e, &samwise, &0x000000000000000A);
+            TokenClient::new(&e, &reserve_0.config.b_token).mint(
+                &e.current_contract_address(),
+                &samwise,
+                &collateral_amount,
+            );
+            TokenClient::new(&e, &reserve_1.config.d_token).mint(
+                &e.current_contract_address(),
+                &samwise,
+                &liability_amount,
+            );
+            storage::set_auction(
+                &e,
+                &(AuctionType::UserLiquidation as u32),
+                &samwise,
+                &auction_data,
+            );
+
+            let result = delete_liquidation(&e, &samwise);
+            assert_eq!(result, Err(PoolError::InvalidHf));
+            assert!(storage::has_auction(
+                &e,
+                &(AuctionType::UserLiquidation as u32),
+                &samwise
+            ));
         });
     }
 

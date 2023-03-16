@@ -120,10 +120,10 @@ pub trait PoolContractTrait {
     ) -> Result<i128, PoolError>;
 
     /// Manage bad debt. Debt is considered "bad" if there is no longer has any collateral posted.
-    /// 
-    /// To manage a user's bad debt, all collateralized reserves for the user must be liquidated 
+    ///
+    /// To manage a user's bad debt, all collateralized reserves for the user must be liquidated
     /// before debt can be transferred to the backstop.
-    /// 
+    ///
     /// To manage a backstop's bad debt, the backstop module must be below a critical threshold
     /// to allow bad debt to be burnt.
     ///
@@ -222,6 +222,15 @@ pub trait PoolContractTrait {
         user: Address,
         data: LiquidationMetadata,
     ) -> Result<AuctionData, PoolError>;
+
+    /// Delete a user liquidation auction if the user is no longer eligible to be liquidated.
+    ///
+    /// ### Arguments
+    /// * `user` - The user getting liquidated through the auction
+    ///
+    /// ### Errors
+    /// If the user is still eligible to be liquidated state or the auction doesn't exist
+    fn del_liq_a(e: Env, user: Address) -> Result<(), PoolError>;
 
     /// Fetch an auction from the ledger. Returns a quote based on the current block.
     ///
@@ -447,6 +456,15 @@ impl PoolContractTrait for PoolContract {
             .publish((symbol!("new_liq_a"), user), auction_data.clone());
 
         Ok(auction_data)
+    }
+
+    // TODO: Consider checking this before filling an auction based on estimated gas cost.
+    fn del_liq_a(e: Env, user: Address) -> Result<(), PoolError> {
+        auctions::delete_liquidation(&e, &user)?;
+
+        e.events().publish((symbol!("del_liq_a"), user), ());
+
+        Ok(())
     }
 
     // @dev: view

@@ -255,8 +255,8 @@ fn set_user_emissions(
 #[cfg(test)]
 mod tests {
     use crate::{
-        storage::{ReserveEmissionsConfig},
-        testutils::{generate_contract_id, create_reserve, setup_reserve},
+        storage::ReserveEmissionsConfig,
+        testutils::{create_reserve, generate_contract_id, setup_reserve},
     };
 
     use super::*;
@@ -661,7 +661,6 @@ mod tests {
         let pool_id = generate_contract_id(&e);
         let bombadil = Address::random(&e);
 
-
         e.ledger().set(LedgerInfo {
             timestamp: 1501000000,
             protocol_version: 1,
@@ -674,7 +673,7 @@ mod tests {
         reserve.data.b_supply = 100_0000000;
         reserve.data.d_supply = 50_0000000;
         setup_reserve(&e, &pool_id, &bombadil, &mut reserve);
-        
+
         e.as_contract(&pool_id, || {
             let reserve_emission_config = ReserveEmissionsConfig {
                 expiration: 1600000000,
@@ -964,7 +963,6 @@ mod tests {
         let pool_id = generate_contract_id(&e);
         let samwise = Address::random(&e);
         let bombadil = Address::random(&e);
-
 
         e.ledger().set(LedgerInfo {
             timestamp: 1500000000,

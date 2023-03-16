@@ -4,6 +4,7 @@ use crate::{
     emissions::{self, ReserveEmissionMetadata},
     errors::PoolError,
     pool,
+    reserve::Reserve,
     storage::{self, ReserveConfig, ReserveEmissionsConfig, ReserveEmissionsData},
 };
 use soroban_sdk::{contractimpl, symbol, Address, BytesN, Env, Map, Vec};
@@ -119,11 +120,25 @@ pub trait PoolContractTrait {
         on_behalf_of: Address,
     ) -> Result<i128, PoolError>;
 
+    /// Fetches the d rate for a given asset
+    ///
+    /// ### Arguments
+    /// * `asset` - The contract address of the asset
+    ///
+    fn get_d_rate(e: Env, asset: BytesN<32>) -> i128;
+
+    /// Fetches the b rate for a given asset
+    ///
+    /// ### Arguments
+    /// * `asset` - The contract address of the asset
+    ///
+    fn get_b_rate(e: Env, asset: BytesN<32>) -> i128;
+
     /// Manage bad debt. Debt is considered "bad" if there is no longer has any collateral posted.
-    /// 
-    /// To manage a user's bad debt, all collateralized reserves for the user must be liquidated 
+    ///
+    /// To manage a user's bad debt, all collateralized reserves for the user must be liquidated
     /// before debt can be transferred to the backstop.
-    /// 
+    ///
     /// To manage a backstop's bad debt, the backstop module must be below a critical threshold
     /// to allow bad debt to be burnt.
     ///
@@ -364,6 +379,18 @@ impl PoolContractTrait for PoolContract {
             .publish((symbol!("repay"), from), (asset, amount, d_tokens_burnt));
 
         Ok(d_tokens_burnt)
+    }
+
+    fn get_d_rate(e: Env, asset: BytesN<32>) -> i128 {
+        let mut res = Reserve::load(&e, asset);
+        res.update_rates(&e, storage::get_pool_config(&e).bstop_rate);
+        res.data.d_rate
+    }
+
+    fn get_b_rate(e: Env, asset: BytesN<32>) -> i128 {
+        let mut res = Reserve::load(&e, asset);
+        res.update_rates(&e, storage::get_pool_config(&e).bstop_rate);
+        res.get_b_rate(&e)
     }
 
     fn bad_debt(e: Env, user: Address) -> Result<(), PoolError> {

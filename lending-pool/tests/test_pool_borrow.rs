@@ -1,8 +1,9 @@
 #![cfg(test)]
 use cast::i128;
 use soroban_sdk::{
+    contractimpl, contracttype, map,
     testutils::{Address as AddressTestTrait, Ledger, LedgerInfo},
-    Address, Env, Status,
+    Address, BytesN, Env, Map, RawVal, Status,
 };
 
 mod common;
@@ -318,4 +319,79 @@ fn test_pool_borrow_one_stroop() {
         (minted_dtokens + minted_dtokens_2)
     );
     assert_eq!(minted_dtokens_2, 1);
+}
+
+//TODO: IDK if this test is appropriate here
+#[test]
+fn test_pool_borrow_one_stroop_insufficient_collateral_for_two() {
+    let e = Env::default();
+
+    let bombadil = Address::random(&e);
+
+    let samwise = Address::random(&e);
+
+    let (mock_oracle, mock_oracle_client) = create_mock_oracle(&e);
+
+    let backstop_id = generate_contract_id(&e);
+    let backstop = Address::from_contract_id(&e, &backstop_id);
+    let (pool_id, pool_client) = create_wasm_lending_pool(&e);
+    let pool = Address::from_contract_id(&e, &pool_id);
+    pool_client.initialize(
+        &bombadil,
+        &mock_oracle,
+        &backstop_id,
+        &backstop,
+        &0_200_000_000,
+    );
+    pool_client.set_status(&bombadil, &0);
+
+    let (asset1_id, b_token1_id, d_token1_id) =
+        pool_helper::setup_reserve(&e, &pool, &pool_client, &bombadil);
+
+    mock_oracle_client.set_price(&asset1_id, &1_0000000);
+
+    let asset1_client = TokenClient::new(&e, &asset1_id);
+    let b_token1_client = TokenClient::new(&e, &b_token1_id);
+    let d_token1_client = TokenClient::new(&e, &d_token1_id);
+    asset1_client.mint(&bombadil, &samwise, &10_0000000);
+    asset1_client.incr_allow(&samwise, &pool, &i128(u64::MAX));
+
+    // supply
+    let minted_btokens = pool_client.supply(&samwise, &asset1_id, &4);
+    assert_eq!(b_token1_client.balance(&samwise), minted_btokens);
+    println!("supplied");
+    // borrow
+    let minted_dtokens = pool_client.borrow(&samwise, &asset1_id, &1, &samwise);
+    assert_eq!(d_token1_client.balance(&samwise), minted_dtokens);
+    println!("borrow");
+
+    // allow interest to accumulate
+    // IR -> 6%
+    e.ledger().set(LedgerInfo {
+        timestamp: 12345,
+        protocol_version: 1,
+        sequence_number: 6307200 * 60, // 30 years
+        network_id: Default::default(),
+        base_reserve: 10,
+    });
+
+    // user now has insufficient collateral - attempt to liquidate
+
+    let liq_data = common::LiquidationMetadata {
+        collateral: map![&e, (asset1_id.clone(), 4)],
+        liability: map![&e, (asset1_id, 3)],
+    };
+    let result = pool_client.try_new_liq_a(&samwise, &liq_data);
+    let expected_data = common::AuctionData {
+        lot: map![&e, (0, 2)],
+        bid: map![&e, (0, 1)],
+        block: 6307200 * 3,
+    };
+    match result {
+        Ok(_) => assert_eq!(result.unwrap().unwrap(), expected_data),
+        Err(_) => {
+            println!("{:?}", (result.unwrap().unwrap()));
+            assert!(false)
+        }
+    }
 }

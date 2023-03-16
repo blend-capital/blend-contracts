@@ -13,7 +13,9 @@ mod pool {
         file = "../target/wasm32-unknown-unknown/release/lending_pool.wasm"
     );
 }
-pub use pool::{Client as PoolClient, PoolError, ReserveConfig, ReserveData};
+pub use pool::{
+    AuctionData, Client as PoolClient, LiquidationMetadata, PoolError, ReserveConfig, ReserveData,
+};
 
 mod mock_blend_oracle {
     soroban_sdk::contractimport!(

@@ -239,10 +239,8 @@ impl Reserve {
             .unwrap()
     }
 
-    // ***** Private functions *****
-
     /// Fetch or calculate the `b_token_rate` based on outstanding tokens
-    fn get_b_rate(&mut self, e: &Env) -> i128 {
+    pub fn get_b_rate(&mut self, e: &Env) -> i128 {
         match self.b_rate {
             Some(rate) => rate,
             None => {

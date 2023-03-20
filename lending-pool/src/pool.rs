@@ -6,7 +6,7 @@ use crate::{
     reserve_usage::ReserveUsage,
     storage::{self, PoolConfig, ReserveConfig, ReserveData},
     user_data::UserAction,
-    user_validator::validate_hf,
+    validator::{require_hf, require_util_under_cap},
 };
 use soroban_sdk::{Address, BytesN, Env};
 
@@ -83,12 +83,8 @@ pub fn execute_supply(
             b_token_delta: to_mint,
             d_token_delta: 0,
         };
-        let is_healthy = validate_hf(&e, &pool_config, &from, &user_action);
-        if !is_healthy {
-            return Err(PoolError::InvalidHf);
-        } else {
-            storage::del_auction(e, &0, &from);
-        }
+        require_hf(&e, &pool_config, &from, &user_action)?;
+        storage::del_auction(e, &0, &from);
     }
 
     TokenClient::new(&e, asset).xfer(from, &e.current_contract_address(), &amount);
@@ -149,10 +145,7 @@ pub fn execute_withdraw(
         b_token_delta: -to_burn,
         d_token_delta: 0,
     };
-    let is_healthy = validate_hf(&e, &pool_config, &from, &user_action);
-    if !is_healthy {
-        return Err(PoolError::InvalidHf);
-    }
+    require_hf(&e, &pool_config, &from, &user_action)?;
 
     b_token_client.clawback(&e.current_contract_address(), &from, &to_burn);
 
@@ -202,10 +195,8 @@ pub fn execute_borrow(
         b_token_delta: 0,
         d_token_delta: to_mint,
     };
-    let is_healthy = validate_hf(&e, &pool_config, &from, &user_action);
-    if !is_healthy {
-        return Err(PoolError::InvalidHf);
-    }
+    require_util_under_cap(e, &mut reserve, &user_action)?;
+    require_hf(&e, &pool_config, &from, &user_action)?;
 
     TokenClient::new(&e, &reserve.config.d_token).mint(
         &e.current_contract_address(),
@@ -258,12 +249,8 @@ pub fn execute_repay(
             b_token_delta: 0,
             d_token_delta: -to_burn,
         };
-        let is_healthy = validate_hf(&e, &pool_config, &from, &user_action);
-        if !is_healthy {
-            return Err(PoolError::InvalidHf);
-        } else {
-            storage::del_auction(e, &0, &from);
-        }
+        require_hf(&e, &pool_config, &from, &user_action)?;
+        storage::del_auction(e, &0, &from);
     }
 
     TokenClient::new(e, &reserve.asset).xfer(from, &e.current_contract_address(), &to_repay);

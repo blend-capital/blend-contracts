@@ -246,6 +246,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "d-token"
+version = "0.0.0"
+dependencies = [
+ "cast",
+ "fixed-point-math",
+ "rand 0.7.3",
+ "soroban-sdk",
+]
+
+[[package]]
 name = "darling"
 version = "0.14.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"

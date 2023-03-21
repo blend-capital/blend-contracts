@@ -3,6 +3,7 @@ resolver = "2"
 
 members = [
     "backstop-module",
+    "d-token",
     "emitter",
     "lending-pool",
     "mocks/mock-blend-oracle",

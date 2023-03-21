@@ -314,6 +314,7 @@ mod tests {
 
         let bombadil = Address::random(&e);
         let samwise = Address::random(&e);
+        let frodo = Address::random(&e);
 
         let mut reserve_0 = create_reserve(&e);
         reserve_0.data.d_supply = 0;
@@ -332,7 +333,7 @@ mod tests {
         let asset_0_client = TokenClient::new(&e, &reserve_0.asset);
         let asset_1_client = TokenClient::new(&e, &reserve_1.asset);
         asset_0_client.mint(&bombadil, &samwise, &500_0000000);
-        asset_1_client.mint(&bombadil, &pool, &500_0000000); // for samwise to borrow
+        asset_1_client.mint(&bombadil, &frodo, &500_0000000);
 
         let pool_config = PoolConfig {
             oracle: oracle_id,
@@ -343,6 +344,7 @@ mod tests {
             storage::set_pool_config(&e, &pool_config);
 
             e.budget().reset();
+            execute_supply(&e, &frodo, &reserve_1.asset, 500_0000000).unwrap(); // for samwise to borrow
             execute_supply(&e, &samwise, &reserve_0.asset, 100_0000000).unwrap();
             execute_borrow(&e, &samwise, &reserve_1.asset, 50_0000000, &samwise).unwrap();
             assert_eq!(400_0000000, asset_0_client.balance(&samwise));
@@ -505,6 +507,7 @@ mod tests {
 
         let bombadil = Address::random(&e);
         let samwise = Address::random(&e);
+        let frodo = Address::random(&e);
 
         let mut reserve_0 = create_reserve(&e);
         reserve_0.data.d_supply = 0;
@@ -523,7 +526,7 @@ mod tests {
         let asset_0_client = TokenClient::new(&e, &reserve_0.asset);
         let asset_1_client = TokenClient::new(&e, &reserve_1.asset);
         asset_0_client.mint(&bombadil, &samwise, &500_0000000);
-        asset_1_client.mint(&bombadil, &pool, &500_0000000); // for samwise to borrow
+        asset_1_client.mint(&bombadil, &frodo, &500_0000000); // for samwise to borrow
 
         let pool_config = PoolConfig {
             oracle: oracle_id,
@@ -534,6 +537,7 @@ mod tests {
             storage::set_pool_config(&e, &pool_config);
 
             e.budget().reset();
+            execute_supply(&e, &frodo, &reserve_1.asset, 500_0000000).unwrap(); // for samwise to borrow
             execute_supply(&e, &samwise, &reserve_0.asset, 100_0000000).unwrap();
             execute_borrow(&e, &samwise, &reserve_1.asset, 50_0000000, &samwise).unwrap();
             assert_eq!(400_0000000, asset_0_client.balance(&samwise));

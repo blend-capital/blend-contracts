@@ -97,6 +97,7 @@ pub(crate) fn create_reserve(e: &Env) -> Reserve {
             c_factor: 0_7500000,
             l_factor: 0_7500000,
             util: 0_7500000,
+            max_util: 0_9500000,
             r_one: 0_0500000,
             r_two: 0_5000000,
             r_three: 1_5000000,

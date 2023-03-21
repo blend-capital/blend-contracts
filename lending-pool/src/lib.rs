@@ -14,7 +14,7 @@ mod reserve;
 mod reserve_usage;
 mod storage;
 mod user_data;
-mod user_validator;
+mod validator;
 
 mod auctions;
 mod dependencies;

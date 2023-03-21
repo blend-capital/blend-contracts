@@ -119,7 +119,7 @@ pub trait BlendPoolToken {
     /// Initialize the Blend Pool Token with an asset where "asset" represents
     /// the address of the underlying asset and "index" is the asset's reserve index
     /// in the pool.
-    /// 
+    ///
     /// Can only be set once.
     fn init_asset(env: Env, admin: Address, asset: Address, index: u32);
 }

@@ -1,13 +1,13 @@
-use soroban_sdk::{Address, Env, panic_with_error};
+use soroban_sdk::{panic_with_error, Address, Env};
 
 use crate::{errors::TokenError, storage};
 
 /// Require "addr" is the pool the token belongs too. This function should be called
 /// if any admin level actions are taken.
-/// 
+///
 /// ### Arguments
 /// * `addr` - The address to test
-/// 
+///
 /// ### Errors
 /// If the given address is not the pool the token belongs to
 pub fn require_is_pool(e: &Env, addr: &Address) {

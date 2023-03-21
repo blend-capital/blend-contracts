@@ -1,4 +1,10 @@
-use crate::{admin, balance, errors::TokenError, events, interface::{CAP4606, BlendPoolToken}, storage::{self, Asset}};
+use crate::{
+    admin, balance,
+    errors::TokenError,
+    events,
+    interface::{BlendPoolToken, CAP4606},
+    storage::{self, Asset},
+};
 use soroban_sdk::{contractimpl, panic_with_error, Address, Bytes, Env};
 
 pub struct Token;
@@ -75,7 +81,7 @@ impl CAP4606 for Token {
         balance::spend_balance(&e, &from, &amount).unwrap();
         balance::receive_balance(&e, &to, &amount).unwrap();
 
-        events::transfer(&e, from, to, amount); 
+        events::transfer(&e, from, to, amount);
     }
 
     fn burn(e: Env, _from: Address, _amount: i128) {
@@ -142,10 +148,15 @@ impl BlendPoolToken for DToken {
         if storage::has_asset(&e) {
             panic_with_error!(&e, TokenError::AlreadyInitializedError)
         }
-        storage::write_asset(&e, &Asset { address: asset, res_index: index })
+        storage::write_asset(
+            &e,
+            &Asset {
+                address: asset,
+                res_index: index,
+            },
+        )
     }
 }
-
 
 fn require_nonnegative(e: &Env, amount: i128) {
     if amount.is_negative() {

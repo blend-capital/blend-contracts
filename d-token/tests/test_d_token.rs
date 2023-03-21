@@ -1,12 +1,7 @@
-use soroban_sdk::{
-    testutils::{Address as _},
-    Address, Env, Status, IntoVal,
-};
+use soroban_sdk::{testutils::Address as _, Address, Env, IntoVal, Status};
 
 mod common;
-use crate::common::{
-    create_d_token, TokenError, DTokenClient
-};
+use crate::common::{create_d_token, DTokenClient, TokenError};
 
 fn create_and_init_d_token(e: &Env, pool: &Address) -> DTokenClient {
     let (_, d_token_client) = create_d_token(e);
@@ -31,11 +26,17 @@ fn test_mint() {
 
     // verify only pool can mint
     let result = d_token_client.try_mint(&sauron, &samwise, &2);
-    assert_eq!(result.unwrap_err().unwrap(), Status::from(TokenError::UnauthorizedError));
+    assert_eq!(
+        result.unwrap_err().unwrap(),
+        Status::from(TokenError::UnauthorizedError)
+    );
 
     // verify can't mint a negative number
     let result = d_token_client.try_mint(&pool, &samwise, &-1);
-    assert_eq!(result.unwrap_err().unwrap(), Status::from(TokenError::NegativeAmountError));
+    assert_eq!(
+        result.unwrap_err().unwrap(),
+        Status::from(TokenError::NegativeAmountError)
+    );
 }
 
 #[test]
@@ -57,11 +58,17 @@ fn test_clawback() {
 
     // verify only pool can clawback
     let result = d_token_client.try_clawback(&sauron, &samwise, &2);
-    assert_eq!(result.unwrap_err().unwrap(), Status::from(TokenError::UnauthorizedError));
+    assert_eq!(
+        result.unwrap_err().unwrap(),
+        Status::from(TokenError::UnauthorizedError)
+    );
 
     // verify can't clawback a negative number
     let result = d_token_client.try_clawback(&pool, &samwise, &-1);
-    assert_eq!(result.unwrap_err().unwrap(), Status::from(TokenError::NegativeAmountError));
+    assert_eq!(
+        result.unwrap_err().unwrap(),
+        Status::from(TokenError::NegativeAmountError)
+    );
 }
 
 #[test]
@@ -85,9 +92,15 @@ fn test_xfer_from() {
 
     // verify only pool can xfer_from
     let result = d_token_client.try_xfer_from(&sauron, &samwise, &frodo, &2);
-    assert_eq!(result.unwrap_err().unwrap(), Status::from(TokenError::UnauthorizedError));
+    assert_eq!(
+        result.unwrap_err().unwrap(),
+        Status::from(TokenError::UnauthorizedError)
+    );
 
     // verify can't xfer_from a negative number
     let result = d_token_client.try_xfer_from(&pool, &samwise, &frodo, &-1);
-    assert_eq!(result.unwrap_err().unwrap(), Status::from(TokenError::NegativeAmountError));
+    assert_eq!(
+        result.unwrap_err().unwrap(),
+        Status::from(TokenError::NegativeAmountError)
+    );
 }

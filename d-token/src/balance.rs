@@ -1,9 +1,6 @@
 use soroban_sdk::{Address, Env};
 
-use crate::{
-    errors::TokenError,
-    storage,
-};
+use crate::{errors::TokenError, storage};
 
 /// Spend "amount" of tokens from "user"
 ///
@@ -32,7 +29,6 @@ pub fn receive_balance(e: &Env, user: &Address, amount: &i128) -> Result<(), Tok
     storage::write_balance(e, user, &balance);
     Ok(())
 }
-
 
 #[cfg(test)]
 mod tests {

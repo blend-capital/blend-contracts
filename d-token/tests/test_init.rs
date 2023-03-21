@@ -1,13 +1,8 @@
 use common::create_d_token;
-use soroban_sdk::{
-    testutils::{Address as _},
-    Address, Env, Status, Bytes, IntoVal,
-};
+use soroban_sdk::{testutils::Address as _, Address, Bytes, Env, IntoVal, Status};
 
 mod common;
-use crate::common::{
-    TokenError
-};
+use crate::common::TokenError;
 
 #[test]
 fn test_init_d_token() {
@@ -22,7 +17,7 @@ fn test_init_d_token() {
 
     let asset = Address::random(&e);
     let res_index: u32 = 3;
-    
+
     // initialize token
     d_token_client.initialize(&pool, &decimal, &name, &symbol);
     assert_eq!(pool, d_token_client.pool());
@@ -32,7 +27,10 @@ fn test_init_d_token() {
 
     // can't initialize a second time
     let result = d_token_client.try_initialize(&pool, &18, &name, &symbol);
-    assert_eq!(result.unwrap_err().unwrap(), Status::from_contract_error(TokenError::AlreadyInitializedError as u32));
+    assert_eq!(
+        result.unwrap_err().unwrap(),
+        Status::from_contract_error(TokenError::AlreadyInitializedError as u32)
+    );
 
     // initialize asset
     d_token_client.init_asset(&pool, &asset, &res_index);
@@ -42,5 +40,8 @@ fn test_init_d_token() {
 
     // can't initialize a second time
     let result = d_token_client.try_init_asset(&pool, &asset, &res_index);
-    assert_eq!(result.unwrap_err().unwrap(), Status::from_contract_error(TokenError::AlreadyInitializedError as u32));
+    assert_eq!(
+        result.unwrap_err().unwrap(),
+        Status::from_contract_error(TokenError::AlreadyInitializedError as u32)
+    );
 }

@@ -4,7 +4,9 @@ test: build
 	cargo test --all --tests
 
 build:
+	cargo build --target wasm32-unknown-unknown --release -p mock-lending-pool
 	cargo build --target wasm32-unknown-unknown --release -p d-token
+	cargo build --target wasm32-unknown-unknown --release -p b-token
 	cargo build --target wasm32-unknown-unknown --release -p oracle
 	cargo build --target wasm32-unknown-unknown --release -p mock-blend-oracle
 	cargo build --target wasm32-unknown-unknown --release -p emitter

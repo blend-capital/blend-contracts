@@ -8,8 +8,8 @@ use crate::{errors::TokenError, storage};
 pub fn spend_balance(e: &Env, user: &Address, amount: &i128) -> Result<(), TokenError> {
     let mut balance = storage::read_balance(e, user);
 
-    balance.amount -= amount;
-    if balance.amount.is_negative() {
+    balance -= amount;
+    if balance.is_negative() {
         return Err(TokenError::BalanceError);
     }
     storage::write_balance(e, user, &balance);
@@ -22,8 +22,7 @@ pub fn spend_balance(e: &Env, user: &Address, amount: &i128) -> Result<(), Token
 pub fn receive_balance(e: &Env, user: &Address, amount: &i128) -> Result<(), TokenError> {
     let mut balance = storage::read_balance(e, user);
 
-    balance.amount = balance
-        .amount
+    balance = balance
         .checked_add(*amount)
         .ok_or(TokenError::OverflowError)?;
     storage::write_balance(e, user, &balance);
@@ -37,8 +36,6 @@ mod tests {
         BytesN,
     };
 
-    use crate::storage::Balance;
-
     use super::*;
 
     #[test]
@@ -51,19 +48,12 @@ mod tests {
         let starting_balance: i128 = 123456789;
         let amount: i128 = starting_balance - 1;
         e.as_contract(&token_id, || {
-            storage::write_balance(
-                &e,
-                &user,
-                &Balance {
-                    amount: starting_balance,
-                    authorized: true,
-                },
-            );
+            storage::write_balance(&e, &user, &starting_balance);
 
             spend_balance(&e, &user, &amount).unwrap();
 
             let balance = storage::read_balance(&e, &user);
-            assert_eq!(balance.amount, 1);
+            assert_eq!(balance, 1);
         });
     }
 
@@ -77,14 +67,7 @@ mod tests {
         let starting_balance: i128 = 123456789;
         let amount: i128 = starting_balance + 1;
         e.as_contract(&token_id, || {
-            storage::write_balance(
-                &e,
-                &user,
-                &Balance {
-                    amount: starting_balance,
-                    authorized: true,
-                },
-            );
+            storage::write_balance(&e, &user, &starting_balance);
 
             let result = spend_balance(&e, &user, &amount);
             assert_eq!(result, Err(TokenError::BalanceError));
@@ -103,7 +86,7 @@ mod tests {
             receive_balance(&e, &user, &amount).unwrap();
 
             let balance = storage::read_balance(&e, &user);
-            assert_eq!(balance.amount, amount);
+            assert_eq!(balance, amount);
         });
     }
 

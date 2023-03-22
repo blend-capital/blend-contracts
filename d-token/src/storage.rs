@@ -4,13 +4,6 @@ use soroban_sdk::{contracttype, Address, Bytes, Env};
 
 #[derive(Clone)]
 #[contracttype]
-pub struct Balance {
-    pub amount: i128,
-    pub authorized: bool,
-}
-
-#[derive(Clone)]
-#[contracttype]
 pub struct Asset {
     pub address: Address,
     pub res_index: u32,
@@ -33,21 +26,18 @@ pub enum TokenDataKey {
 
 /***** Balance *****/
 
-pub fn read_balance(e: &Env, user: &Address) -> Balance {
+pub fn read_balance(e: &Env, user: &Address) -> i128 {
     let key = TokenDataKey::Balance(user.clone());
     // addresses are authorized by default
     e.storage()
-        .get::<TokenDataKey, Balance>(&key)
-        .unwrap_or(Ok(Balance {
-            amount: 0,
-            authorized: true,
-        }))
+        .get::<TokenDataKey, i128>(&key)
+        .unwrap_or(Ok(0))
         .unwrap()
 }
 
-pub fn write_balance(e: &Env, user: &Address, balance: &Balance) {
+pub fn write_balance(e: &Env, user: &Address, balance: &i128) {
     let key = TokenDataKey::Balance(user.clone());
-    e.storage().set::<TokenDataKey, Balance>(&key, balance)
+    e.storage().set::<TokenDataKey, i128>(&key, balance)
 }
 
 /***** Pool *****/

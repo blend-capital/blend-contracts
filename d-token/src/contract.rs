@@ -97,11 +97,11 @@ impl CAP4606 for Token {
     // --------------------------------------------------------------------------------
 
     fn balance(e: Env, id: Address) -> i128 {
-        storage::read_balance(&e, &id).amount
+        storage::read_balance(&e, &id)
     }
 
     fn spendable(e: Env, id: Address) -> i128 {
-        storage::read_balance(&e, &id).amount
+        storage::read_balance(&e, &id)
     }
 
     fn authorized(e: Env, _id: Address) -> bool {

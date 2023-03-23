@@ -1,0 +1,20 @@
+[package]
+name = "d-token"
+version = "0.0.0"
+authors = ["Blend Capital <gm@blend.capital>"]
+license = "AGPL-3.0"
+edition = "2021"
+publish = false
+
+[lib]
+crate-type = ["cdylib"]
+doctest = false
+
+[features]
+testutils = ["soroban-sdk/testutils"]
+
+[dependencies]
+soroban-sdk = "0.6.0"
+
+[dev_dependencies]
+soroban-sdk = { version = "0.6.0", features = ["testutils"] }

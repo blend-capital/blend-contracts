@@ -33,6 +33,13 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d468802bab17cbc0cc575e9b053f41e72aa36bfa6b7f55e3529ffa43161b97fa"
 
 [[package]]
+name = "b-token"
+version = "0.0.0"
+dependencies = [
+ "soroban-sdk",
+]
+
+[[package]]
 name = "backstop-module"
 version = "0.0.0"
 dependencies = [
@@ -243,6 +250,13 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
+]
+
+[[package]]
+name = "d-token"
+version = "0.0.0"
+dependencies = [
+ "soroban-sdk",
 ]
 
 [[package]]
@@ -547,6 +561,13 @@ dependencies = [
 
 [[package]]
 name = "mock-blend-oracle"
+version = "0.0.0"
+dependencies = [
+ "soroban-sdk",
+]
+
+[[package]]
+name = "mock-lending-pool"
 version = "0.0.0"
 dependencies = [
  "soroban-sdk",

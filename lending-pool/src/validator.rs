@@ -59,6 +59,8 @@ pub fn require_util_under_cap(
     if user_action.d_token_delta != 0 {
         user_action_liabilities = reserve.to_asset_from_d_token(user_action.d_token_delta);
     }
+    let temp = reserve.total_liabilities() + user_action_liabilities;
+    let temp2 = reserve.total_supply(e) + user_action_supply;
     let util = (reserve.total_liabilities() + user_action_liabilities)
         .fixed_div_floor(reserve.total_supply(e) + user_action_supply, SCALAR_7)
         .unwrap();

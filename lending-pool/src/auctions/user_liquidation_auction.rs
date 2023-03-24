@@ -3,7 +3,7 @@ use fixed_point_math::FixedPoint;
 use soroban_sdk::{map, vec, Address, Env};
 
 use crate::auctions::auction::AuctionData;
-use crate::constants::SCALAR_7;
+use crate::constants::{SCALAR_7, SCALAR_9};
 use crate::pool;
 use crate::reserve_usage::ReserveUsage;
 use crate::{
@@ -35,6 +35,8 @@ pub fn create_user_liq_auction_data(
 
     let user_config = ReserveUsage::new(storage::get_user_config(e, &user));
     let reserve_count = storage::get_res_list(e);
+    let mut collateral_raw = 0;
+    let mut liability_raw = 0;
     let mut collateral_base = 0;
     let mut sell_collat_base = 0;
     let mut scaled_cf = 0;
@@ -60,7 +62,10 @@ pub fn create_user_liq_auction_data(
             collateral_base += asset_collateral
                 .fixed_mul_floor(i128(asset_to_base), SCALAR_7)
                 .unwrap();
-
+            collateral_raw += reserve
+                .to_asset_from_b_token(e, b_token_balance)
+                .fixed_mul_floor(i128(asset_to_base), SCALAR_7)
+                .unwrap();
             if let Some(to_sell_entry) = liq_data.collateral.get(res_asset_address.clone()) {
                 let to_sell_amt = to_sell_entry.unwrap();
                 liq_data
@@ -72,7 +77,7 @@ pub fn create_user_liq_auction_data(
                 sell_collat_base += to_sell_amt_base;
 
                 scaled_cf += to_sell_amt_base
-                    .fixed_mul_floor(i128(reserve.config.c_factor), SCALAR_7)
+                    .fixed_mul_floor(i128(reserve.config.c_factor) * 100, SCALAR_7)
                     .unwrap();
                 let to_sell_b_tokens = reserve.to_b_token(e, to_sell_amt);
                 if to_sell_b_tokens > b_token_balance {
@@ -90,9 +95,12 @@ pub fn create_user_liq_auction_data(
             let d_token_balance = d_token_client.balance(user);
             let asset_liability = reserve.to_effective_asset_from_d_token(d_token_balance);
             liability_base += asset_liability
-                .fixed_mul_floor(i128(asset_to_base), SCALAR_7)
+                .fixed_mul_ceil(i128(asset_to_base), SCALAR_7)
                 .unwrap();
-
+            liability_raw += reserve
+                .to_asset_from_d_token(d_token_balance)
+                .fixed_mul_ceil(i128(asset_to_base), SCALAR_7)
+                .unwrap();
             if let Some(to_buy_entry) = liq_data.liability.get(res_asset_address.clone()) {
                 let to_buy_amt = to_buy_entry.unwrap();
                 liq_data
@@ -102,9 +110,8 @@ pub fn create_user_liq_auction_data(
                     .fixed_mul_floor(i128(asset_to_base), SCALAR_7)
                     .unwrap();
                 buy_liab_base += to_buy_amt_base;
-
                 scaled_lf += to_buy_amt_base
-                    .fixed_mul_floor(i128(reserve.config.l_factor), SCALAR_7)
+                    .fixed_mul_floor(i128(reserve.config.l_factor) * 100, SCALAR_7)
                     .unwrap();
                 let to_buy_d_tokens = reserve.to_d_token(to_buy_amt);
                 if to_buy_d_tokens > d_token_balance {
@@ -128,34 +135,40 @@ pub fn create_user_liq_auction_data(
 
     // ensure liquidation size is fair and the collateral is large enough to allow for the auction to price the liquidation
     let weighted_cf = scaled_cf
-        .fixed_div_floor(sell_collat_base, SCALAR_7)
+        .fixed_div_floor(sell_collat_base * 100, SCALAR_7)
         .unwrap();
-    let weighted_lf = SCALAR_7
+    let weighted_lf = SCALAR_9
         .fixed_div_floor(
             scaled_lf.fixed_div_floor(buy_liab_base, SCALAR_7).unwrap(),
             SCALAR_7,
         )
         .unwrap();
-    let max_target_liabilities = (liability_base.fixed_mul_floor(1_1000000, SCALAR_7).unwrap()
+    let max_target_liabilities = (liability_base.fixed_mul_ceil(1_2000000, SCALAR_7).unwrap()
         - collateral_base)
-        .fixed_div_floor(
-            weighted_lf.fixed_mul_floor(1_1000000, SCALAR_7).unwrap() - weighted_cf,
+        .fixed_div_ceil(
+            weighted_lf.fixed_mul_floor(1_2000000, SCALAR_7).unwrap() - weighted_cf,
             SCALAR_7,
         )
         .unwrap();
-    let min_target_liabilities = (liability_base.fixed_mul_floor(1_0300000, SCALAR_7).unwrap()
+    let mut min_target_liabilities = (liability_base.fixed_mul_ceil(1_0300000, SCALAR_7).unwrap()
         - collateral_base)
-        .fixed_div_floor(
+        .fixed_div_ceil(
             weighted_lf.fixed_mul_floor(1_0300000, SCALAR_7).unwrap() - weighted_cf,
             SCALAR_7,
         )
         .unwrap();
+    if min_target_liabilities > liability_raw {
+        min_target_liabilities = liability_raw;
+    };
+    let max_collateral_lot = buy_liab_base.fixed_mul_floor(2_5000000, SCALAR_7).unwrap();
+    let mut min_collateral_lot = buy_liab_base.fixed_mul_floor(1_2500000, SCALAR_7).unwrap();
+    if min_collateral_lot > collateral_raw {
+        min_collateral_lot = collateral_raw;
+    };
     if max_target_liabilities < buy_liab_base || min_target_liabilities > buy_liab_base {
         return Err(PoolError::InvalidLiquidation);
     }
-    if sell_collat_base < buy_liab_base.fixed_mul_floor(1_2500000, SCALAR_7).unwrap()
-        || sell_collat_base > buy_liab_base.fixed_mul_floor(1_5000000, SCALAR_7).unwrap()
-    {
+    if sell_collat_base < min_collateral_lot || sell_collat_base > max_collateral_lot {
         return Err(PoolError::InvalidLiquidation);
     }
 
@@ -479,7 +492,7 @@ mod tests {
         let liquidation_data = LiquidationMetadata {
             collateral: map![
                 &e,
-                (reserve_0.asset, 17_0000000),
+                (reserve_0.asset, 23_0000000),
                 (reserve_1.asset, 4_5000000)
             ],
             liability: map![&e, (reserve_2.asset, 0_5100000)],
@@ -647,8 +660,8 @@ mod tests {
         oracle_client.set_price(&reserve_2.asset, &50_0000000);
 
         let liquidation_data = LiquidationMetadata {
-            collateral: map![&e, (reserve_0.asset, 26_0000000)],
-            liability: map![&e, (reserve_2.asset, 0_8300000)],
+            collateral: map![&e, (reserve_0.asset, 32_0000000)],
+            liability: map![&e, (reserve_2.asset, 1_2000000)],
         };
         let pool_config = PoolConfig {
             oracle: oracle_id,

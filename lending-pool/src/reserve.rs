@@ -205,7 +205,7 @@ impl Reserve {
     pub fn to_effective_asset_from_d_token(&self, d_tokens: i128) -> i128 {
         let assets = self.to_asset_from_d_token(d_tokens);
         assets
-            .fixed_div_floor(i128(self.config.l_factor), SCALAR_7)
+            .fixed_div_ceil(i128(self.config.l_factor), SCALAR_7)
             .unwrap()
     }
 
@@ -535,7 +535,7 @@ mod tests {
 
         let result = reserve.to_effective_asset_from_d_token(1_1234567);
 
-        assert_eq!(result, 1_3500220);
+        assert_eq!(result, 1_3500221);
     }
 
     #[test]

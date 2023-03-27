@@ -8,7 +8,7 @@ use crate::{
     user_data::UserAction,
     validator::{require_hf, require_util_under_cap},
 };
-use soroban_sdk::{Address, BytesN, Env, Bytes, IntoVal};
+use soroban_sdk::{Address, BytesN, Env, IntoVal};
 
 /// Initialize the pool
 pub fn execute_initialize(
@@ -374,8 +374,6 @@ pub fn update_pool_emissions(e: &Env) -> Result<u64, PoolError> {
 
 #[cfg(test)]
 mod tests {
-    use std::println;
-
     use crate::{
         auctions::AuctionData,
         dependencies::{TokenClient, D_TOKEN_WASM, B_TOKEN_WASM},

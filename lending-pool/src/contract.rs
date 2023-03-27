@@ -40,21 +40,21 @@ pub trait PoolContractTrait {
     /// ### Arguments
     /// * `admin` - The Address for the admin
     /// * `asset` - The underlying asset to add as a reserve
-    /// * `metadata` - The ReserveConfig for the reserve
+    /// * `metadata` - The ReserveMetadata for the reserve
     ///
     /// ### Errors
     /// If the caller is not the admin or the reserve is already setup
     fn init_res(e: Env, admin: Address, asset: BytesN<32>, metadata: ReserveMetadata) -> Result<(), PoolError>;
 
-    /// Initialize a reserve in the pool
+    /// Update a reserve in the pool
     ///
     /// ### Arguments
     /// * `admin` - The Address for the admin
     /// * `asset` - The underlying asset to add as a reserve
-    /// * `metadata` - The ReserveConfig for the reserve
+    /// * `metadata` - The ReserveMetadata for the reserve
     ///
     /// ### Errors
-    /// If the caller is not the admin
+    /// If the caller is not the admin or the reserve does not exist
     fn updt_res(e: Env, admin: Address, asset: BytesN<32>, metadata: ReserveMetadata) -> Result<(), PoolError>;
 
     /// Fetch the reserve configuration for a reserve

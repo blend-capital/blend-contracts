@@ -72,11 +72,45 @@ impl Reserve {
         Ok(())
     }
 
-    /// Update the reserve rates based on the current chain state
+
+    /// Update the reserve rates based on the current chain state and mint any tokens due to the backstop.
     ///
     /// Returns the amount of b_tokens to mint to the backstop module
     ///
     /// Does not store reserve data back to ledger
+    /// 
+    /// @ dev - Do not use if any b or d token balances will be adjusted for a user, use `pre_action` instead
+    /// 
+    /// TODO: Fix backstop emissions issues
+    pub fn update_rates_and_mint_backstop(
+        &mut self,
+        e: &Env,
+        pool_config: &PoolConfig,
+    ) -> Result<(), PoolError> {
+        let to_mint = self.update_rates(e, pool_config.bstop_rate);
+
+        if to_mint > 0 {
+            let backstop = storage::get_backstop_address(e);
+            TokenClient::new(&e, &self.config.b_token).mint(
+                &e.current_contract_address(),
+                &backstop,
+                &to_mint,
+            );
+        }
+
+        Ok(())
+    }
+
+    /// Update the reserve rates based on the current chain state, where no action is due to be taken
+    /// against the reserve.
+    ///
+    /// Returns the amount of b_tokens to mint to the backstop module
+    ///
+    /// Does not store reserve data back to ledger
+    /// 
+    /// @dev - Do not write data to chain without minting backstop module, or use
+    ///        `update_rates_and_mint_backstop` if no action is being taken, and
+    ///        `pre_action` if an action is being taken
     pub fn update_rates(&mut self, e: &Env, bstop_rate: u64) -> i128 {
         // if updating has already happened this block, don't repeat
         if e.ledger().sequence() == self.data.last_block {

@@ -8,7 +8,7 @@ use soroban_sdk::{
 mod common;
 use crate::common::{
     create_mock_oracle, create_wasm_lending_pool, generate_contract_id, pool_helper, PoolError,
-    TokenClient,
+    TokenClient, BlendTokenClient
 };
 
 #[test]
@@ -19,21 +19,15 @@ fn test_pool_withdraw_no_supply_panics() {
 
     let sauron = Address::random(&e);
 
-    let (mock_oracle, mock_oracle_client) = create_mock_oracle(&e);
+    let (oracle_id, mock_oracle_client) = create_mock_oracle(&e);
 
     let backstop_id = generate_contract_id(&e);
-    let backstop = Address::from_contract_id(&e, &backstop_id);
     let (pool_id, pool_client) = create_wasm_lending_pool(&e);
     let pool = Address::from_contract_id(&e, &pool_id);
-    pool_client.initialize(
-        &bombadil,
-        &mock_oracle,
-        &backstop_id,
-        &backstop,
-        &0_200_000_000,
-    );
+    pool_helper::setup_pool(&e, &pool_client, &bombadil, &oracle_id, &backstop_id, 0_200_000_000);
 
-    let (asset1_id, _, _) = pool_helper::setup_reserve(&e, &pool, &pool_client, &bombadil);
+    let (asset1_id, btoken1_id, dtoken1_id) = pool_helper::setup_reserve(&e, &pool, &pool_client, &bombadil, &pool_helper::default_reserve_metadata());
+    let asset1_client = TokenClient::new(&e, &asset1_id);
 
     mock_oracle_client.set_price(&asset1_id, &2_0000000);
 
@@ -64,29 +58,19 @@ fn test_pool_withdraw_bad_hf_panics() {
 
     let sauron = Address::random(&e);
 
-    let (mock_oracle, mock_oracle_client) = create_mock_oracle(&e);
+    let (oracle_id, mock_oracle_client) = create_mock_oracle(&e);
 
     let backstop_id = generate_contract_id(&e);
-    let backstop = Address::from_contract_id(&e, &backstop_id);
     let (pool_id, pool_client) = create_wasm_lending_pool(&e);
     let pool = Address::from_contract_id(&e, &pool_id);
-    pool_client.initialize(
-        &bombadil,
-        &mock_oracle,
-        &backstop_id,
-        &backstop,
-        &0_200_000_000,
-    );
-    pool_client.set_status(&bombadil, &0);
+    pool_helper::setup_pool(&e, &pool_client, &bombadil, &oracle_id, &backstop_id, 0_200_000_000);
 
-    let (asset1_id, b_token1_id, d_token1_id) =
-        pool_helper::setup_reserve(&e, &pool, &pool_client, &bombadil);
+    let (asset1_id, btoken1_id, dtoken1_id) = pool_helper::setup_reserve(&e, &pool, &pool_client, &bombadil, &pool_helper::default_reserve_metadata());
+    let asset1_client = TokenClient::new(&e, &asset1_id);
+    let b_token1_client = BlendTokenClient::new(&e, &btoken1_id);
+    let d_token1_client = BlendTokenClient::new(&e, &dtoken1_id);
 
     mock_oracle_client.set_price(&asset1_id, &2_0000000);
-
-    let asset1_client = TokenClient::new(&e, &asset1_id);
-    let b_token1_client = TokenClient::new(&e, &b_token1_id);
-    let d_token1_client = TokenClient::new(&e, &d_token1_id);
     asset1_client.mint(&bombadil, &sauron, &10_0000000);
     asset1_client.incr_allow(&sauron, &pool, &i128(u64::MAX));
 
@@ -115,32 +99,21 @@ fn test_pool_withdraw_one_stroop() {
     let e = Env::default();
 
     let bombadil = Address::random(&e);
-
     let samwise = Address::random(&e);
 
-    let (mock_oracle, mock_oracle_client) = create_mock_oracle(&e);
+    let (oracle_id, mock_oracle_client) = create_mock_oracle(&e);
 
     let backstop_id = generate_contract_id(&e);
-    let backstop = Address::from_contract_id(&e, &backstop_id);
     let (pool_id, pool_client) = create_wasm_lending_pool(&e);
     let pool = Address::from_contract_id(&e, &pool_id);
-    pool_client.initialize(
-        &bombadil,
-        &mock_oracle,
-        &backstop_id,
-        &backstop,
-        &0_200_000_000,
-    );
-    pool_client.set_status(&bombadil, &0);
+    pool_helper::setup_pool(&e, &pool_client, &bombadil, &oracle_id, &backstop_id, 0_200_000_000);
 
-    let (asset1_id, b_token1_id, d_token1_id) =
-        pool_helper::setup_reserve(&e, &pool, &pool_client, &bombadil);
+    let (asset1_id, btoken1_id, dtoken1_id) = pool_helper::setup_reserve(&e, &pool, &pool_client, &bombadil, &pool_helper::default_reserve_metadata());
+    let asset1_client = TokenClient::new(&e, &asset1_id);
+    let b_token1_client = BlendTokenClient::new(&e, &btoken1_id);
+    let d_token1_client = BlendTokenClient::new(&e, &dtoken1_id);
 
     mock_oracle_client.set_price(&asset1_id, &2_0000000);
-
-    let asset1_client = TokenClient::new(&e, &asset1_id);
-    let b_token1_client = TokenClient::new(&e, &b_token1_id);
-    let d_token1_client = TokenClient::new(&e, &d_token1_id);
     asset1_client.mint(&bombadil, &samwise, &10_0000000);
     asset1_client.incr_allow(&samwise, &pool, &i128(u64::MAX));
 

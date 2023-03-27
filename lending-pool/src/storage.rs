@@ -21,12 +21,10 @@ pub struct PoolEmissionConfig {
     pub last_time: u64,
 }
 
-/// The configuration information about a reserve asset
+/// The mutable configuration information about a reserve asset
 #[derive(Clone)]
 #[contracttype]
-pub struct ReserveConfig {
-    pub b_token: BytesN<32>, // the address of the bToken contract
-    pub d_token: BytesN<32>, // the address of the dToken contract
+pub struct ReserveMetadata {
     pub decimals: u32,       // the decimals used in both the bToken and underlying contract
     pub c_factor: u32,       // the collateral factor for the reserve
     pub l_factor: u32,       // the liability factor for the reserve
@@ -36,7 +34,24 @@ pub struct ReserveConfig {
     pub r_two: u32,          // the R2 value in the interest rate formula
     pub r_three: u32,        // the R3 value in the interest rate formula
     pub reactivity: u32,     // the reactivity constant for the reserve
-    pub index: u32,          // the index of the reserve in the list (TODO: Make u8)
+}
+
+/// The configuration information about a reserve asset
+#[derive(Clone)]
+#[contracttype]
+pub struct ReserveConfig {
+    pub b_token: BytesN<32>, // the address of the bToken contract
+    pub d_token: BytesN<32>, // the address of the dToken contract
+    pub index: u32,          // the index of the reserve in the list
+    pub decimals: u32,       // the decimals used in both the bToken and underlying contract
+    pub c_factor: u32,       // the collateral factor for the reserve
+    pub l_factor: u32,       // the liability factor for the reserve
+    pub util: u32,           // the target utilization rate
+    pub max_util: u32,       // the maximum allowed utilization rate
+    pub r_one: u32,          // the R1 value in the interest rate formula
+    pub r_two: u32,          // the R2 value in the interest rate formula
+    pub r_three: u32,        // the R3 value in the interest rate formula
+    pub reactivity: u32,     // the reactivity constant for the reserve
 }
 
 /// The data for a reserve asset
@@ -104,6 +119,8 @@ pub enum PoolDataKey {
     Backstop,
     // TODO: Remove after: https://github.com/stellar/rs-soroban-sdk/issues/868
     BkstpAddr,
+    // Token Hashes
+    TokenHash,
     // The config of the pool
     PoolConfig,
     // A list of the next reserve emission allocation percentages
@@ -187,6 +204,27 @@ pub fn set_backstop_address(e: &Env, backstop: &Address) {
         .set::<PoolDataKey, Address>(&PoolDataKey::BkstpAddr, backstop);
 }
 
+/********** Token Hashes **********/
+
+/// Fetch the B and D token hashes for the pool
+///
+/// ### Errors
+/// If the pool has not been initialized
+pub fn get_token_hashes(e: &Env) -> (BytesN<32>, BytesN<32>) {
+    e.storage().get_unchecked(&PoolDataKey::TokenHash).unwrap()
+}
+
+/// Set the B and D token hashes
+///
+/// ### Arguments
+/// * `b_token_hash` - The hash of the WASM b_token implementation
+/// * `d_token_hash` - The hash of the WASM d_token implementation
+pub fn set_token_hashes(e: &Env, b_token_hash: &BytesN<32>, d_token_hash: &BytesN<32>) {
+    let key = PoolDataKey::TokenHash;
+    e.storage().set::<PoolDataKey, (BytesN<32>, BytesN<32>)>(&key, &(b_token_hash.clone(), d_token_hash.clone()));
+}
+
+
 /********** Pool Config **********/
 
 /// Fetch the pool configuration
@@ -230,17 +268,9 @@ pub fn get_res_config(e: &Env, asset: &BytesN<32>) -> ReserveConfig {
 /// * `config` - The reserve configuration for the asset
 pub fn set_res_config(e: &Env, asset: &BytesN<32>, config: &ReserveConfig) {
     let key = PoolDataKey::ResConfig(asset.clone());
-    let mut indexed_config = config.clone();
-
-    // TODO: Might fit better in reserve module
-    // add to reserve list if its new
-    if !e.storage().has(&key) {
-        let index = push_res_list(e, asset);
-        indexed_config.index = index;
-    }
 
     e.storage()
-        .set::<PoolDataKey, ReserveConfig>(&key, &indexed_config);
+        .set::<PoolDataKey, ReserveConfig>(&key, &config);
 }
 
 /// Checks if a reserve exists for an asset

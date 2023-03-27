@@ -5,7 +5,7 @@ use soroban_sdk::{contracttype, Address, Bytes, BytesN, Env};
 #[derive(Clone)]
 #[contracttype]
 pub struct Asset {
-    pub address: Address,
+    pub id: BytesN<32>,
     pub res_index: u32,
 }
 

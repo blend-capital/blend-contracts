@@ -5,7 +5,7 @@ use crate::{
     interface::{BlendPoolToken, CAP4606},
     storage::{self, Asset},
 };
-use soroban_sdk::{contractimpl, panic_with_error, Address, Bytes, Env};
+use soroban_sdk::{contractimpl, panic_with_error, Address, Bytes, Env, BytesN};
 
 pub struct Token;
 
@@ -141,7 +141,7 @@ impl BlendPoolToken for DToken {
         storage::read_asset(&e)
     }
 
-    fn init_asset(e: Env, admin: Address, asset: Address, index: u32) {
+    fn init_asset(e: Env, admin: Address, _pool: BytesN<32>, asset: BytesN<32>, index: u32) {
         admin::require_is_pool(&e, &admin);
         admin.require_auth();
 
@@ -151,7 +151,7 @@ impl BlendPoolToken for DToken {
         storage::write_asset(
             &e,
             &Asset {
-                address: asset,
+                id: asset,
                 res_index: index,
             },
         )

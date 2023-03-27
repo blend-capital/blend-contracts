@@ -24,7 +24,7 @@ pub fn require_noncollateralized(e: &Env, user: &Address) {
 mod tests {
     use soroban_sdk::{
         testutils::{Address as _, BytesN as _},
-        BytesN,
+        BytesN, Bytes,
     };
 
     use super::*;
@@ -56,7 +56,7 @@ mod tests {
                 &e,
                 &Asset {
                     res_index,
-                    address: Address::random(&e),
+                    id: BytesN::<32>::random(&e),
                 },
             );
 
@@ -84,7 +84,7 @@ mod tests {
                 &e,
                 &Asset {
                     res_index,
-                    address: Address::random(&e),
+                    id: BytesN::<32>::random(&e),
                 },
             );
 

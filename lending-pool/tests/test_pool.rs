@@ -7,13 +7,14 @@ use soroban_sdk::{
 
 mod common;
 use crate::common::{
-    create_mock_oracle, create_wasm_lending_pool, generate_contract_id, pool_helper, TokenClient,
+    create_mock_oracle, create_wasm_lending_pool, generate_contract_id, pool_helper, TokenClient, BlendTokenClient
 };
 
 // TODO: Investigate if mint / burn semantics will be better (operate in bTokens)
 #[test]
 fn test_pool_happy_path() {
     let e = Env::default();
+    println!("test 2");
 
     e.ledger().set(LedgerInfo {
         timestamp: 12345,
@@ -26,27 +27,17 @@ fn test_pool_happy_path() {
     let bombadil = Address::random(&e);
     let samwise = Address::random(&e);
 
-    let (mock_oracle, mock_oracle_client) = create_mock_oracle(&e);
+    let (oracle_id, mock_oracle_client) = create_mock_oracle(&e);
 
     let backstop_id = generate_contract_id(&e);
-    let backstop = Address::from_contract_id(&e, &backstop_id);
     let (pool_id, pool_client) = create_wasm_lending_pool(&e);
     let pool = Address::from_contract_id(&e, &pool_id);
-    pool_client.initialize(
-        &bombadil,
-        &mock_oracle,
-        &backstop_id,
-        &backstop,
-        &0_200_000_000,
-    );
-    pool_client.set_status(&bombadil, &0);
+    pool_helper::setup_pool(&e, &pool_client, &bombadil, &oracle_id, &backstop_id, 0_200_000_000);
 
-    let (asset1_id, btoken1_id, dtoken1_id) =
-        pool_helper::setup_reserve(&e, &pool, &pool_client, &bombadil);
-
+    let (asset1_id, btoken1_id, dtoken1_id) = pool_helper::setup_reserve(&e, &pool, &pool_client, &bombadil, &pool_helper::default_reserve_metadata());
     let asset1_client = TokenClient::new(&e, &asset1_id);
-    let btoken1_id_client = TokenClient::new(&e, &btoken1_id);
-    let dtoken1_id_client = TokenClient::new(&e, &dtoken1_id);
+    let b_token1_client = BlendTokenClient::new(&e, &btoken1_id);
+    let d_token1_client = BlendTokenClient::new(&e, &dtoken1_id);
 
     mock_oracle_client.set_price(&asset1_id, &2_0000000);
 
@@ -60,7 +51,7 @@ fn test_pool_happy_path() {
 
     assert_eq!(asset1_client.balance(&samwise), 0);
     assert_eq!(asset1_client.balance(&pool), supply_amount);
-    assert_eq!(btoken1_id_client.balance(&samwise), minted_btokens);
+    assert_eq!(b_token1_client.balance(&samwise), minted_btokens);
     assert_eq!(minted_btokens, 2_0000000);
     assert_eq!(pool_client.config(&samwise), 2);
     println!("supply successful");
@@ -74,8 +65,8 @@ fn test_pool_happy_path() {
         asset1_client.balance(&pool),
         (supply_amount - borrow_amount)
     );
-    assert_eq!(btoken1_id_client.balance(&samwise), minted_btokens);
-    assert_eq!(dtoken1_id_client.balance(&samwise), minted_dtokens);
+    assert_eq!(b_token1_client.balance(&samwise), minted_btokens);
+    assert_eq!(d_token1_client.balance(&samwise), minted_dtokens);
     assert_eq!(minted_dtokens, 1_0000000);
     assert_eq!(pool_client.config(&samwise), 3);
     println!("borrow successful");
@@ -95,8 +86,8 @@ fn test_pool_happy_path() {
 
     assert_eq!(asset1_client.balance(&samwise), 0);
     assert_eq!(asset1_client.balance(&pool), supply_amount);
-    assert_eq!(btoken1_id_client.balance(&samwise), minted_btokens);
-    assert_eq!(dtoken1_id_client.balance(&samwise), 566038);
+    assert_eq!(b_token1_client.balance(&samwise), minted_btokens);
+    assert_eq!(d_token1_client.balance(&samwise), 566038);
     assert_eq!(burnt_dtokens, minted_dtokens - 566038);
     assert_eq!(pool_client.config(&samwise), 3);
     println!("repay successful");
@@ -111,14 +102,14 @@ fn test_pool_happy_path() {
         asset1_client.balance(&pool),
         (supply_amount + interest_accrued)
     );
-    assert_eq!(btoken1_id_client.balance(&samwise), minted_btokens);
-    assert_eq!(dtoken1_id_client.balance(&samwise), 0);
+    assert_eq!(b_token1_client.balance(&samwise), minted_btokens);
+    assert_eq!(d_token1_client.balance(&samwise), 0);
     assert_eq!(burnt_dtokens_interest, 566038);
     assert_eq!(pool_client.config(&samwise), 2);
     println!("full repay successful");
 
     // withdraw
-    let user_interest_accrued = 0_0480000;
+    let user_interest_accrued = 0_0477138;
     let burnt_btokens = pool_client.withdraw(
         &samwise,
         &asset1_id,
@@ -131,8 +122,8 @@ fn test_pool_happy_path() {
         (supply_amount + user_interest_accrued)
     );
     // the remaining funds due to the backstop based on the 20% backstop_rate
-    assert_eq!(asset1_client.balance(&pool), 120000);
-    assert_eq!(btoken1_id_client.balance(&samwise), 0);
+    assert_eq!(asset1_client.balance(&pool), 122862);
+    assert_eq!(b_token1_client.balance(&samwise), 0);
     assert_eq!(burnt_btokens, minted_btokens);
     assert_eq!(pool_client.config(&samwise), 0);
     println!("withdraw successful");

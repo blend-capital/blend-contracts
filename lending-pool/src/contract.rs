@@ -5,7 +5,7 @@ use crate::{
     errors::PoolError,
     pool,
     reserve::Reserve,
-    storage::{self, ReserveConfig, ReserveEmissionsConfig, ReserveEmissionsData},
+    storage::{self, ReserveConfig, ReserveEmissionsConfig, ReserveEmissionsData, ReserveMetadata},
 };
 use soroban_sdk::{contractimpl, symbol, Address, BytesN, Env, Map, Vec};
 
@@ -22,7 +22,8 @@ pub trait PoolContractTrait {
     /// * `oracle` - The contract address of the oracle
     /// * `backstop_id` - The contract address of the pool's backstop module
     /// * `backstop` - TODO: remove once BytesN <-> Address is finished
-    /// * `bstop_rate` - The rate of interest shared with the backstop module
+    /// * `b_token_hash` - The hash of the WASM b_token implementation
+    /// * `d_token_hash` - The hash of the WASM d_token implementation
     fn initialize(
         e: Env,
         admin: Address,
@@ -30,18 +31,37 @@ pub trait PoolContractTrait {
         backstop_id: BytesN<32>,
         backstop: Address,
         bstop_rate: u64,
-    );
+        b_token_hash: BytesN<32>,
+        d_token_hash: BytesN<32>
+    ) -> Result<(), PoolError>;
 
     /// Initialize a reserve in the pool
     ///
     /// ### Arguments
     /// * `admin` - The Address for the admin
     /// * `asset` - The underlying asset to add as a reserve
-    /// * `config` - The ReserveConfig for the reserve
+    /// * `metadata` - The ReserveMetadata for the reserve
     ///
     /// ### Errors
-    /// If the caller is not the admin
-    fn init_res(e: Env, admin: Address, asset: BytesN<32>, config: ReserveConfig);
+    /// If the caller is not the admin or the reserve is already setup
+    fn init_res(e: Env, admin: Address, asset: BytesN<32>, metadata: ReserveMetadata) -> Result<(), PoolError>;
+
+    /// Update a reserve in the pool
+    ///
+    /// ### Arguments
+    /// * `admin` - The Address for the admin
+    /// * `asset` - The underlying asset to add as a reserve
+    /// * `metadata` - The ReserveMetadata for the reserve
+    ///
+    /// ### Errors
+    /// If the caller is not the admin or the reserve does not exist
+    fn updt_res(e: Env, admin: Address, asset: BytesN<32>, metadata: ReserveMetadata) -> Result<(), PoolError>;
+
+    /// Fetch the reserve configuration for a reserve
+    ///
+    /// ### Arguments
+    /// * `asset` - The underlying asset to add as a reserve
+    fn res_config(e: Env, asset: BytesN<32>) -> ReserveConfig;
 
     /// Fetch the reserve usage configuration for a user
     ///
@@ -294,33 +314,45 @@ impl PoolContractTrait for PoolContract {
         backstop_id: BytesN<32>,
         backstop: Address,
         bstop_rate: u64,
-    ) {
+        b_token_hash: BytesN<32>,
+        d_token_hash: BytesN<32>
+    ) -> Result<(), PoolError> {
         admin.require_auth();
 
-        pool::execute_initialize(&e, &admin, &oracle, &backstop_id, &backstop, &bstop_rate);
+        pool::execute_initialize(&e, &admin, &oracle, &backstop_id, &backstop, &bstop_rate, &b_token_hash, &d_token_hash)
     }
 
-    fn init_res(e: Env, admin: Address, asset: BytesN<32>, config: ReserveConfig) {
+    fn init_res(e: Env, admin: Address, asset: BytesN<32>, metadata: ReserveMetadata) -> Result<(), PoolError> {
         admin.require_auth();
 
-        pool::initialize_reserve(&e, &admin, &asset, &config);
+        pool::initialize_reserve(&e, &admin, &asset, &metadata)?;
 
         e.events().publish(
             (symbol!("init_res"), admin),
             (
-                config.b_token.clone(),
-                config.d_token.clone(),
-                config.decimals,
-                config.c_factor,
-                config.l_factor,
-                config.util,
-                config.r_one,
-                config.r_two,
-                config.r_three,
-                config.reactivity,
-                config.index,
+                asset,
             ),
         );
+        Ok(())
+    }
+
+    fn updt_res(e: Env, admin: Address, asset: BytesN<32>, metadata: ReserveMetadata) -> Result<(), PoolError> {
+        admin.require_auth();
+
+        pool::execute_update_reserve(&e, &admin, &asset, &metadata)?;
+
+        e.events().publish(
+            (symbol!("updt_res"), admin),
+            (
+                asset,
+            ),
+        );
+
+        Ok(())
+    }
+
+    fn res_config(e: Env, asset: BytesN<32>) -> ReserveConfig {
+        storage::get_res_config(&e, &asset)
     }
 
     // @dev: view

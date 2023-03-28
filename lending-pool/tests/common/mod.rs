@@ -8,13 +8,23 @@ mod token {
 }
 pub use token::Client as TokenClient;
 
+mod b_token {
+    soroban_sdk::contractimport!(file = "../target/wasm32-unknown-unknown/release/b_token.wasm");
+}
+pub use b_token::{Client as BlendTokenClient, WASM as B_TOKEN_WASM};
+
+mod d_token {
+    soroban_sdk::contractimport!(file = "../target/wasm32-unknown-unknown/release/b_token.wasm");
+}
+pub use d_token::WASM as D_TOKEN_WASM;
+
 mod pool {
     soroban_sdk::contractimport!(
         file = "../target/wasm32-unknown-unknown/release/lending_pool.wasm"
     );
 }
 pub use pool::{
-    AuctionData, Client as PoolClient, LiquidationMetadata, PoolError, ReserveConfig, ReserveData,
+    AuctionData, Client as PoolClient, LiquidationMetadata, PoolError, ReserveMetadata, ReserveConfig, ReserveData,
 };
 
 mod mock_blend_oracle {

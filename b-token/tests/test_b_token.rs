@@ -16,7 +16,7 @@ fn create_and_init_b_token(
 ) -> (BytesN<32>, DTokenClient) {
     let (b_token_id, b_token_client) = create_b_token(e);
     b_token_client.initialize(pool, &7, &"name".into_val(e), &"symbol".into_val(e));
-    b_token_client.init_asset(pool, pool_id, &Address::random(&e), index);
+    b_token_client.init_asset(pool, pool_id, &BytesN::<32>::random(&e), index);
     (b_token_id, b_token_client)
 }
 

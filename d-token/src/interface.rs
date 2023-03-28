@@ -1,4 +1,4 @@
-use soroban_sdk::{contractclient, Address, Bytes, Env};
+use soroban_sdk::{contractclient, Address, Bytes, Env, BytesN};
 
 use crate::storage::Asset;
 
@@ -121,5 +121,5 @@ pub trait BlendPoolToken {
     /// in the pool.
     ///
     /// Can only be set once.
-    fn init_asset(env: Env, admin: Address, asset: Address, index: u32);
+    fn init_asset(e: Env, admin: Address, pool: BytesN<32>, asset: BytesN<32>, index: u32);
 }

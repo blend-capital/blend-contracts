@@ -234,6 +234,22 @@ impl Pool {
         self.set_q4w(cur_q4w + shares);
     }
 
+    /// Dequeue queued for withdraw for the pool
+    ///
+    /// Updates cached values but does not write:
+    /// * q4w
+    ///
+    /// ### Arguments
+    /// * `shares` - The amount of shares to dequeue from q4w
+    pub fn dequeue_q4w(&mut self, e: &Env, shares: i128) -> Result<(), BackstopError> {
+        let cur_q4w = self.get_q4w(e);
+        if shares > cur_q4w {
+            return Err(BackstopError::InsufficientFunds);
+        }
+        self.set_q4w(cur_q4w - shares);
+        Ok(())
+    }
+
     /// Claim emissions from the pool
     ///
     /// Updates cached values but does not write:
@@ -557,11 +573,42 @@ mod tests {
         };
 
         let result = pool.withdraw(&e, 201, 25);
+        assert_eq!(result, Err(BackstopError::InsufficientFunds));
+    }
 
-        match result {
-            Ok(_) => assert!(false),
-            Err(err) => assert_eq!(err, BackstopError::InsufficientFunds),
-        }
+    #[test]
+    fn test_dequeue_q4w() {
+        let e = Env::default();
+        let pool_addr = generate_contract_id(&e);
+        let mut pool = Pool {
+            contract_id: pool_addr.clone(),
+            shares: Some(100),
+            tokens: Some(200),
+            q4w: Some(25),
+            emissions: Some(0),
+        };
+
+        pool.dequeue_q4w(&e, 25).unwrap();
+
+        assert_eq!(pool.get_shares(&e), 100);
+        assert_eq!(pool.get_tokens(&e), 200);
+        assert_eq!(pool.get_q4w(&e), 0);
+    }
+
+    #[test]
+    fn test_dequeue_q4w_too_much() {
+        let e = Env::default();
+        let pool_addr = generate_contract_id(&e);
+        let mut pool = Pool {
+            contract_id: pool_addr.clone(),
+            shares: Some(100),
+            tokens: Some(200),
+            q4w: Some(25),
+            emissions: Some(0),
+        };
+
+        let result = pool.dequeue_q4w(&e, 26);
+        assert_eq!(result, Err(BackstopError::InsufficientFunds));
     }
 
     #[test]
@@ -612,9 +659,6 @@ mod tests {
         };
 
         let result = pool.claim(&e, 124);
-        match result {
-            Ok(_) => assert!(false),
-            Err(err) => assert_eq!(err, BackstopError::InsufficientFunds),
-        }
+        assert_eq!(result, Err(BackstopError::InsufficientFunds));
     }
 }

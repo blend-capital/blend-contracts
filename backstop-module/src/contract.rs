@@ -43,6 +43,19 @@ pub trait BackstopModuleContractTrait {
         amount: i128,
     ) -> Result<Q4W, BackstopError>;
 
+    /// Dequeue a currently queued pool share withdraw for "form" from the backstop of a pool
+    ///
+    /// ### Arguments
+    /// * `from` - The address whose deposits are being queued for withdrawal
+    /// * `pool_address` - The address of the pool
+    /// * `amount` - The amount of shares to dequeue
+    fn dequeue_wd(
+        e: Env,
+        from: Address,
+        pool_address: BytesN<32>,
+        amount: i128,
+    ) -> Result<(), BackstopError>;
+
     /// Withdraw shares from "from"s withdraw queue for a backstop of a pool
     ///
     /// Returns the amount of tokens returned
@@ -177,7 +190,7 @@ impl BackstopModuleContractTrait for BackstopModuleContract {
     ) -> Result<i128, BackstopError> {
         from.require_auth();
 
-        let to_mint = backstop::execute_deposit(&e, from.clone(), pool_address.clone(), amount)?;
+        let to_mint = backstop::execute_deposit(&e, &from, &pool_address, amount)?;
 
         e.events()
             .publish((symbol!("deposit"), pool_address), (from, amount, to_mint));
@@ -192,14 +205,28 @@ impl BackstopModuleContractTrait for BackstopModuleContract {
     ) -> Result<Q4W, BackstopError> {
         from.require_auth();
 
-        let to_queue =
-            backstop::execute_q_withdraw(&e, from.clone(), pool_address.clone(), amount)?;
+        let to_queue = backstop::execute_q_withdraw(&e, &from, &pool_address, amount)?;
 
         e.events().publish(
             (symbol!("q_withdraw"), pool_address),
             (from, amount, to_queue.exp),
         );
         Ok(to_queue)
+    }
+
+    fn dequeue_wd(
+        e: Env,
+        from: Address,
+        pool_address: BytesN<32>,
+        amount: i128,
+    ) -> Result<(), BackstopError> {
+        from.require_auth();
+
+        backstop::execute_dequeue_q4w(&e, &from, &pool_address, amount)?;
+
+        e.events()
+            .publish((symbol!("dequeue_wd"), pool_address), (from, amount));
+        Ok(())
     }
 
     fn withdraw(
@@ -210,8 +237,7 @@ impl BackstopModuleContractTrait for BackstopModuleContract {
     ) -> Result<i128, BackstopError> {
         from.require_auth();
 
-        let to_withdraw =
-            backstop::execute_withdraw(&e, from.clone(), pool_address.clone(), amount)?;
+        let to_withdraw = backstop::execute_withdraw(&e, &from, &pool_address, amount)?;
 
         e.events().publish(
             (symbol!("withdraw"), pool_address),
@@ -273,7 +299,7 @@ impl BackstopModuleContractTrait for BackstopModuleContract {
     ) -> Result<(), BackstopError> {
         from.require_auth();
 
-        backstop::execute_claim(&e, pool_address.clone(), to.clone(), amount)?;
+        backstop::execute_claim(&e, &pool_address, &to, amount)?;
 
         e.events()
             .publish((symbol!("claim"), pool_address), (to, amount));
@@ -291,7 +317,7 @@ impl BackstopModuleContractTrait for BackstopModuleContract {
     ) -> Result<(), BackstopError> {
         from.require_auth();
 
-        backstop::execute_draw(&e, pool_address.clone(), amount, to.clone())?;
+        backstop::execute_draw(&e, &pool_address, amount, &to)?;
 
         e.events()
             .publish((symbol!("draw"), pool_address), (to, amount));
@@ -306,7 +332,7 @@ impl BackstopModuleContractTrait for BackstopModuleContract {
     ) -> Result<(), BackstopError> {
         from.require_auth();
 
-        backstop::execute_donate(&e, from.clone(), pool_address.clone(), amount)?;
+        backstop::execute_donate(&e, &from, &pool_address, amount)?;
         e.events()
             .publish((symbol!("donate"), pool_address), (from, amount));
         Ok(())

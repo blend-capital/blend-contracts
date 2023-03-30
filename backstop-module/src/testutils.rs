@@ -1,8 +1,12 @@
 #![cfg(any(test, feature = "testutils"))]
 
-use crate::constants::POOL_FACTORY;
+use crate::{
+    constants::{BACKSTOP_TOKEN, POOL_FACTORY},
+    dependencies::{TokenClient, TOKEN_WASM},
+    storage::Q4W,
+};
 use rand::{thread_rng, RngCore};
-use soroban_sdk::{BytesN, Env};
+use soroban_sdk::{Address, BytesN, Env, IntoVal, Vec};
 
 mod mock_pool_factory {
     soroban_sdk::contractimport!(
@@ -21,4 +25,24 @@ pub(crate) fn create_mock_pool_factory(e: &Env) -> MockPoolFactoryClient {
     let contract_id = BytesN::from_array(&e, &POOL_FACTORY);
     e.register_contract_wasm(&contract_id, mock_pool_factory::WASM);
     MockPoolFactoryClient::new(e, &contract_id)
+}
+
+pub(crate) fn create_backstop_token(e: &Env, admin: &Address) -> TokenClient {
+    let contract_id = BytesN::from_array(&e, &BACKSTOP_TOKEN);
+    e.register_contract_wasm(&contract_id, TOKEN_WASM);
+    let client = TokenClient::new(e, &contract_id);
+    client.initialize(&admin, &7, &"unit".into_val(e), &"test".into_val(e));
+    client
+}
+
+/********** Comparison Helpers **********/
+
+pub(crate) fn assert_eq_vec_q4w(actual: &Vec<Q4W>, expected: &Vec<Q4W>) {
+    assert_eq!(actual.len(), expected.len());
+    for index in 0..actual.len() {
+        let actual_q4w = actual.get(index).unwrap().unwrap();
+        let expected_q4w = expected.get(index).unwrap().unwrap();
+        assert_eq!(actual_q4w.amount, expected_q4w.amount);
+        assert_eq!(actual_q4w.exp, expected_q4w.exp);
+    }
 }

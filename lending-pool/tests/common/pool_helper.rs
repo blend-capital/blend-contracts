@@ -1,14 +1,32 @@
 use crate::common::{create_token, B_TOKEN_WASM, D_TOKEN_WASM};
-use soroban_sdk::{Address, BytesN, Env, testutils::{BytesN as _, Address as _}};
+use soroban_sdk::{
+    testutils::{Address as _, BytesN as _},
+    Address, BytesN, Env,
+};
 
 use super::{PoolClient, ReserveConfig, ReserveMetadata};
 
 /// Set up pool
-pub fn setup_pool(e: &Env, pool_client: &PoolClient, admin: &Address, oracle_id: &BytesN<32>, backstop_id: &BytesN<32>, bstop_rate: u64) {
+pub fn setup_pool(
+    e: &Env,
+    pool_client: &PoolClient,
+    admin: &Address,
+    oracle_id: &BytesN<32>,
+    backstop_id: &BytesN<32>,
+    bstop_rate: u64,
+) {
     let b_token_hash = e.install_contract_wasm(B_TOKEN_WASM);
     let d_token_hash = e.install_contract_wasm(D_TOKEN_WASM);
     let backstop = Address::from_contract_id(e, backstop_id);
-    pool_client.initialize(admin, oracle_id, backstop_id, &backstop, &bstop_rate, &b_token_hash, &d_token_hash);
+    pool_client.initialize(
+        admin,
+        oracle_id,
+        backstop_id,
+        &backstop,
+        &bstop_rate,
+        &b_token_hash,
+        &d_token_hash,
+    );
     pool_client.set_status(admin, &0);
 }
 

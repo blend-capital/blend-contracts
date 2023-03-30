@@ -19,7 +19,7 @@ pub fn execute_initialize(
     backstop: &Address,
     bstop_rate: &u64,
     b_token_hash: &BytesN<32>,
-    d_token_hash: &BytesN<32>
+    d_token_hash: &BytesN<32>,
 ) -> Result<(), PoolError> {
     if storage::has_admin(e) {
         return Err(PoolError::AlreadyInitialized);
@@ -41,7 +41,12 @@ pub fn execute_initialize(
 }
 
 /// Initialize a reserve for the pool
-pub fn initialize_reserve(e: &Env, from: &Address, asset: &BytesN<32>, metadata: &ReserveMetadata) -> Result<(), PoolError> {
+pub fn initialize_reserve(
+    e: &Env,
+    from: &Address,
+    asset: &BytesN<32>,
+    metadata: &ReserveMetadata,
+) -> Result<(), PoolError> {
     if storage::has_res(e, asset) {
         return Err(PoolError::AlreadyInitialized);
     }
@@ -54,11 +59,15 @@ pub fn initialize_reserve(e: &Env, from: &Address, asset: &BytesN<32>, metadata:
     // force consistent d and b token addresses based on underlying asset
     let deployer = e.deployer();
     let mut b_token_salt: BytesN<32> = asset.clone();
-    let mut d_token_salt: BytesN<32>  = asset.clone();
+    let mut d_token_salt: BytesN<32> = asset.clone();
     b_token_salt.set(0, 0);
     d_token_salt.set(0, 1);
-    let b_token_id = deployer.with_current_contract(&b_token_salt).deploy(&b_token_hash);
-    let d_token_id = deployer.with_current_contract(&d_token_salt).deploy(&d_token_hash);
+    let b_token_id = deployer
+        .with_current_contract(&b_token_salt)
+        .deploy(&b_token_hash);
+    let d_token_id = deployer
+        .with_current_contract(&d_token_salt)
+        .deploy(&d_token_hash);
 
     let index = storage::push_res_list(e, asset);
     let reserve_config = ReserveConfig {
@@ -94,22 +103,47 @@ pub fn initialize_reserve(e: &Env, from: &Address, asset: &BytesN<32>, metadata:
     b_token_symbol.insert_from_bytes(0, "b".into_val(e));
     let mut b_token_name = asset_symbol.clone();
     b_token_name.insert_from_bytes(0, "Blend supply token for ".into_val(e));
-    b_token_client.initialize(&e.current_contract_address(), &7, &b_token_name, &b_token_symbol);
-    b_token_client.init_asset(&e.current_contract_address(), &e.current_contract_id(), &asset, &index);
+    b_token_client.initialize(
+        &e.current_contract_address(),
+        &7,
+        &b_token_name,
+        &b_token_symbol,
+    );
+    b_token_client.init_asset(
+        &e.current_contract_address(),
+        &e.current_contract_id(),
+        &asset,
+        &index,
+    );
 
     let d_token_client = BlendTokenClient::new(e, &d_token_id);
     let mut d_token_symbol = asset_symbol.clone();
     d_token_symbol.insert_from_bytes(0, "d".into_val(e));
     let mut d_token_name = asset_symbol.clone();
     d_token_name.insert_from_bytes(0, "Blend debt token for ".into_val(e));
-    d_token_client.initialize(&e.current_contract_address(), &7, &b_token_name, &b_token_symbol);
-    d_token_client.init_asset(&e.current_contract_address(), &e.current_contract_id(), &asset, &index);
+    d_token_client.initialize(
+        &e.current_contract_address(),
+        &7,
+        &b_token_name,
+        &b_token_symbol,
+    );
+    d_token_client.init_asset(
+        &e.current_contract_address(),
+        &e.current_contract_id(),
+        &asset,
+        &index,
+    );
 
     Ok(())
 }
 
 /// Update a reserve in the pool
-pub fn execute_update_reserve(e: &Env, from: &Address, asset: &BytesN<32>, metadata: &ReserveMetadata) -> Result<(), PoolError> {
+pub fn execute_update_reserve(
+    e: &Env,
+    from: &Address,
+    asset: &BytesN<32>,
+    metadata: &ReserveMetadata,
+) -> Result<(), PoolError> {
     if from.clone() != storage::get_admin(e) {
         return Err(PoolError::NotAuthorized);
     }
@@ -376,8 +410,8 @@ pub fn update_pool_emissions(e: &Env) -> Result<u64, PoolError> {
 mod tests {
     use crate::{
         auctions::AuctionData,
-        dependencies::{TokenClient, D_TOKEN_WASM, B_TOKEN_WASM},
-        testutils::{create_mock_oracle, create_reserve, setup_reserve, create_token_contract},
+        dependencies::{TokenClient, B_TOKEN_WASM, D_TOKEN_WASM},
+        testutils::{create_mock_oracle, create_reserve, create_token_contract, setup_reserve},
     };
 
     use super::*;
@@ -465,7 +499,17 @@ mod tests {
         let b_token_hash = e.install_contract_wasm(B_TOKEN_WASM);
         let d_token_hash = e.install_contract_wasm(D_TOKEN_WASM);
         e.as_contract(&pool_id, || {
-            execute_initialize(&e, &bombadil, &oracle_id, &backstop_id, &backstop, &0_200_000_000, &b_token_hash, &d_token_hash).unwrap();
+            execute_initialize(
+                &e,
+                &bombadil,
+                &oracle_id,
+                &backstop_id,
+                &backstop,
+                &0_200_000_000,
+                &b_token_hash,
+                &d_token_hash,
+            )
+            .unwrap();
         });
 
         let metadata = ReserveMetadata {

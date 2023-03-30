@@ -5,7 +5,7 @@ use crate::{
     interface::{BlendPoolToken, CAP4606},
     storage::{self, Asset},
 };
-use soroban_sdk::{contractimpl, panic_with_error, Address, Bytes, Env, BytesN};
+use soroban_sdk::{contractimpl, panic_with_error, Address, Bytes, BytesN, Env};
 
 pub struct Token;
 

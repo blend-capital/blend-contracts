@@ -3,7 +3,7 @@ use soroban_sdk::{testutils::Address as AddressTestTrait, Address, Env, Status};
 
 mod common;
 use crate::common::{
-    create_mock_oracle, create_wasm_lending_pool, generate_contract_id, PoolError,
+    create_mock_oracle, create_wasm_lending_pool, generate_contract_id, PoolError, pool_helper,
 };
 
 #[test]
@@ -12,18 +12,12 @@ fn test_set_status() {
 
     let bombadil = Address::random(&e);
 
-    let (mock_oracle, _mock_oracle_client) = create_mock_oracle(&e);
+    let (oracle_id, _) = create_mock_oracle(&e);
 
     let backstop_id = generate_contract_id(&e);
-    let backstop = Address::from_contract_id(&e, &backstop_id);
-    let (pool_id, pool_client) = create_wasm_lending_pool(&e);
-    pool_client.initialize(
-        &bombadil,
-        &mock_oracle,
-        &backstop_id,
-        &backstop,
-        &0_200_000_000,
-    );
+    let (_, pool_client) = create_wasm_lending_pool(&e);
+    pool_helper::setup_pool(&e, &pool_client, &bombadil, &oracle_id, &backstop_id, 0_200_000_000);
+
     pool_client.set_status(&bombadil, &0);
     assert_eq!(pool_client.status(), 0);
 
@@ -42,18 +36,12 @@ fn test_set_status_not_admin_panic() {
 
     let sauron = Address::random(&e);
 
-    let (mock_oracle, _mock_oracle_client) = create_mock_oracle(&e);
+    let (oracle_id, _) = create_mock_oracle(&e);
 
     let backstop_id = generate_contract_id(&e);
-    let backstop = Address::from_contract_id(&e, &backstop_id);
-    let (pool_id, pool_client) = create_wasm_lending_pool(&e);
-    pool_client.initialize(
-        &bombadil,
-        &mock_oracle,
-        &backstop_id,
-        &backstop,
-        &0_200_000_000,
-    );
+    let (_, pool_client) = create_wasm_lending_pool(&e);
+    pool_helper::setup_pool(&e, &pool_client, &bombadil, &oracle_id, &backstop_id, 0_200_000_000);
+
     let result = pool_client.try_set_status(&sauron, &0);
 
     match result {

@@ -157,7 +157,7 @@ impl BlendPoolToken for DToken {
         storage::read_asset(&e)
     }
 
-    fn init_asset(e: Env, admin: Address, pool: BytesN<32>, asset: Address, index: u32) {
+    fn init_asset(e: Env, admin: Address, pool: BytesN<32>, asset: BytesN<32>, index: u32) {
         admin::require_is_pool(&e, &admin);
         admin.require_auth();
 
@@ -167,7 +167,7 @@ impl BlendPoolToken for DToken {
         storage::write_asset(
             &e,
             &Asset {
-                address: asset,
+                id: asset,
                 res_index: index,
             },
         );

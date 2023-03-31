@@ -2,7 +2,7 @@
 
 use crate::{
     constants::POOL_FACTORY,
-    dependencies::{BackstopClient, TokenClient, BACKSTOP_WASM, TOKEN_WASM},
+    dependencies::{BackstopClient, TokenClient, BACKSTOP_WASM, TOKEN_WASM, B_TOKEN_WASM, D_TOKEN_WASM, BlendTokenClient},
     reserve::Reserve,
     storage::{self, ReserveConfig, ReserveData},
 };
@@ -37,6 +37,36 @@ pub(crate) fn create_token_from_id(
     e.register_contract_wasm(contract_id, TOKEN_WASM);
     let client = TokenClient::new(e, contract_id);
     client.initialize(admin, &7, &"unit".into_val(e), &"test".into_val(e));
+    client
+}
+
+pub(crate) fn create_b_token_from_id(
+    e: &Env,
+    contract_id: &BytesN<32>,
+    pool: &Address,
+    pool_id: &BytesN<32>,
+    asset: &BytesN<32>,
+    res_index: u32
+) -> BlendTokenClient {
+    e.register_contract_wasm(contract_id, B_TOKEN_WASM);
+    let client = BlendTokenClient::new(e, contract_id);
+    client.initialize(pool, &7, &"unit".into_val(e), &"test".into_val(e));
+    client.init_asset(pool, pool_id, asset, &res_index);
+    client
+}
+
+pub(crate) fn create_d_token_from_id(
+    e: &Env,
+    contract_id: &BytesN<32>,
+    pool: &Address,
+    pool_id: &BytesN<32>,
+    asset: &BytesN<32>,
+    res_index: u32
+) -> BlendTokenClient {
+    e.register_contract_wasm(contract_id, D_TOKEN_WASM);
+    let client = BlendTokenClient::new(e, contract_id);
+    client.initialize(pool, &7, &"unit".into_val(e), &"test".into_val(e));
+    client.init_asset(pool, pool_id, asset, &res_index);
     client
 }
 
@@ -118,13 +148,15 @@ pub(crate) fn create_reserve(e: &Env) -> Reserve {
 /// Expects a valid b_rate to be set
 pub(crate) fn setup_reserve(e: &Env, pool_id: &BytesN<32>, admin: &Address, reserve: &mut Reserve) {
     e.as_contract(pool_id, || {
+        let index = storage::push_res_list(e, &reserve.asset);
+        reserve.config.index = index;
         storage::set_res_config(e, &reserve.asset, &reserve.config);
         storage::set_res_data(e, &reserve.asset, &reserve.data);
     });
     let asset_client = create_token_from_id(e, &reserve.asset, admin);
-    let pool = Address::from_contract_id(e, &pool_id);
-    create_token_from_id(e, &reserve.config.b_token, &pool);
-    create_token_from_id(e, &reserve.config.d_token, &pool);
+    let pool = Address::from_contract_id(e, pool_id);
+    create_b_token_from_id(e, &reserve.config.b_token, &pool, pool_id, &reserve.asset, reserve.config.index);
+    create_d_token_from_id(e, &reserve.config.d_token, &pool, pool_id, &reserve.asset, reserve.config.index);
 
     // mint pool assets to set expected b_rate
     let to_mint_pool = reserve.total_supply(e) - reserve.total_liabilities();

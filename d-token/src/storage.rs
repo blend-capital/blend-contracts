@@ -1,11 +1,11 @@
-use soroban_sdk::{contracttype, Address, Bytes, Env};
+use soroban_sdk::{contracttype, Address, Bytes, Env, BytesN};
 
 /********** Storage Types **********/
 
 #[derive(Clone)]
 #[contracttype]
 pub struct Asset {
-    pub address: Address,
+    pub id: BytesN<32>,
     pub res_index: u32,
 }
 

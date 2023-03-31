@@ -122,5 +122,5 @@ pub trait BlendPoolToken {
     ///
     /// Can only be set once.
     // @dev: Remove pool arg once Address <-> BytesN conversions are added
-    fn init_asset(env: Env, admin: Address, pool: BytesN<32>, asset: Address, index: u32);
+    fn init_asset(env: Env, admin: Address, pool: BytesN<32>, asset: BytesN<32>, index: u32);
 }

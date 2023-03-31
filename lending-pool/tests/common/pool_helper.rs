@@ -1,22 +1,19 @@
-use crate::common::create_token;
-use soroban_sdk::{Address, BytesN, Env};
+use crate::common::{create_token, B_TOKEN_WASM, D_TOKEN_WASM};
+use soroban_sdk::{Address, BytesN, Env, testutils::{BytesN as _, Address as _}};
 
-use super::{PoolClient, ReserveConfig};
+use super::{PoolClient, ReserveConfig, ReserveMetadata};
 
-/// Uses default configuration
-pub fn setup_reserve(
-    e: &Env,
-    pool: &Address,
-    pool_client: &PoolClient,
-    admin: &Address,
-) -> (BytesN<32>, BytesN<32>, BytesN<32>) {
-    let (underlying_id, _) = create_token(e, &admin);
-    let (b_token_id, _) = create_token(e, &pool);
-    let (d_token_id, _) = create_token(e, &pool);
+/// Set up pool
+pub fn setup_pool(e: &Env, pool_client: &PoolClient, admin: &Address, oracle_id: &BytesN<32>, backstop_id: &BytesN<32>, bstop_rate: u64) {
+    let b_token_hash = e.install_contract_wasm(B_TOKEN_WASM);
+    let d_token_hash = e.install_contract_wasm(D_TOKEN_WASM);
+    let backstop = Address::from_contract_id(e, backstop_id);
+    pool_client.initialize(admin, oracle_id, backstop_id, &backstop, &bstop_rate, &b_token_hash, &d_token_hash);
+    pool_client.set_status(admin, &0);
+}
 
-    let config = ReserveConfig {
-        b_token: b_token_id.clone(),
-        d_token: d_token_id.clone(),
+pub fn default_reserve_metadata() -> ReserveMetadata {
+    ReserveMetadata {
         decimals: 7,
         c_factor: 0_7500000,
         l_factor: 0_7500000,
@@ -26,43 +23,21 @@ pub fn setup_reserve(
         r_two: 0_5000000,
         r_three: 1_5000000,
         reactivity: 100, // 10e-5
-        index: 0,
-    };
-
-    pool_client.init_res(&admin, &underlying_id, &config);
-
-    return (underlying_id, b_token_id, d_token_id);
+    }
 }
 
 /// Uses default configuration
-pub fn setup_custom_reserve(
+pub fn setup_reserve(
     e: &Env,
     pool: &Address,
     pool_client: &PoolClient,
     admin: &Address,
-    c_factor: u32,
-    l_factor: u32,
+    metadata: &ReserveMetadata,
 ) -> (BytesN<32>, BytesN<32>, BytesN<32>) {
-    let (underlying_id, _) = create_token(e, &admin);
-    let (b_token_id, _) = create_token(e, &pool);
-    let (d_token_id, _) = create_token(e, &pool);
+    let (asset_id, _) = create_token(e, admin);
 
-    let config = ReserveConfig {
-        b_token: b_token_id.clone(),
-        d_token: d_token_id.clone(),
-        decimals: 7,
-        c_factor,
-        l_factor,
-        util: 0_5000000,
-        max_util: 0_9500000,
-        r_one: 0_0500000,
-        r_two: 0_5000000,
-        r_three: 1_5000000,
-        reactivity: 100, // 10e-5
-        index: 0,
-    };
+    pool_client.init_res(&admin, &asset_id, &metadata);
+    let reserve_config = pool_client.res_config(&asset_id);
 
-    pool_client.init_res(&admin, &underlying_id, &config);
-
-    return (underlying_id, b_token_id, d_token_id);
+    return (asset_id, reserve_config.b_token, reserve_config.d_token);
 }

@@ -24,7 +24,8 @@ mod pool {
     );
 }
 pub use pool::{
-    AuctionData, Client as PoolClient, LiquidationMetadata, PoolError, ReserveMetadata, ReserveConfig, ReserveData,
+    AuctionData, Client as PoolClient, LiquidationMetadata, PoolError, ReserveConfig, ReserveData,
+    ReserveMetadata,
 };
 
 mod mock_blend_oracle {

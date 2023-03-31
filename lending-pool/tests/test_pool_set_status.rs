@@ -3,7 +3,7 @@ use soroban_sdk::{testutils::Address as AddressTestTrait, Address, Env, Status};
 
 mod common;
 use crate::common::{
-    create_mock_oracle, create_wasm_lending_pool, generate_contract_id, PoolError, pool_helper,
+    create_mock_oracle, create_wasm_lending_pool, generate_contract_id, pool_helper, PoolError,
 };
 
 #[test]
@@ -16,7 +16,14 @@ fn test_set_status() {
 
     let backstop_id = generate_contract_id(&e);
     let (_, pool_client) = create_wasm_lending_pool(&e);
-    pool_helper::setup_pool(&e, &pool_client, &bombadil, &oracle_id, &backstop_id, 0_200_000_000);
+    pool_helper::setup_pool(
+        &e,
+        &pool_client,
+        &bombadil,
+        &oracle_id,
+        &backstop_id,
+        0_200_000_000,
+    );
 
     pool_client.set_status(&bombadil, &0);
     assert_eq!(pool_client.status(), 0);
@@ -40,7 +47,14 @@ fn test_set_status_not_admin_panic() {
 
     let backstop_id = generate_contract_id(&e);
     let (_, pool_client) = create_wasm_lending_pool(&e);
-    pool_helper::setup_pool(&e, &pool_client, &bombadil, &oracle_id, &backstop_id, 0_200_000_000);
+    pool_helper::setup_pool(
+        &e,
+        &pool_client,
+        &bombadil,
+        &oracle_id,
+        &backstop_id,
+        0_200_000_000,
+    );
 
     let result = pool_client.try_set_status(&sauron, &0);
 

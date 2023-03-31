@@ -72,15 +72,14 @@ impl Reserve {
         Ok(())
     }
 
-
     /// Update the reserve rates based on the current chain state and mint any tokens due to the backstop.
     ///
     /// Returns the amount of b_tokens to mint to the backstop module
     ///
     /// Does not store reserve data back to ledger
-    /// 
+    ///
     /// @ dev - Do not use if any b or d token balances will be adjusted for a user, use `pre_action` instead
-    /// 
+    ///
     /// TODO: Fix backstop emissions issues
     pub fn update_rates_and_mint_backstop(
         &mut self,
@@ -107,7 +106,7 @@ impl Reserve {
     /// Returns the amount of b_tokens to mint to the backstop module
     ///
     /// Does not store reserve data back to ledger
-    /// 
+    ///
     /// @dev - Do not write data to chain without minting backstop module, or use
     ///        `update_rates_and_mint_backstop` if no action is being taken, and
     ///        `pre_action` if an action is being taken

@@ -24,7 +24,7 @@ pub fn require_noncollateralized(e: &Env, user: &Address) {
 mod tests {
     use soroban_sdk::{
         testutils::{Address as _, BytesN as _},
-        BytesN, Bytes,
+        Bytes, BytesN,
     };
 
     use super::*;

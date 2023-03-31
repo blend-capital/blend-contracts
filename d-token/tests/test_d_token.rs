@@ -1,4 +1,7 @@
-use soroban_sdk::{testutils::{Address as _, BytesN as _}, Address, Env, IntoVal, Status, BytesN};
+use soroban_sdk::{
+    testutils::{Address as _, BytesN as _},
+    Address, BytesN, Env, IntoVal, Status,
+};
 
 mod common;
 use crate::common::{create_d_token, DTokenClient, TokenError};

@@ -7,7 +7,8 @@ use soroban_sdk::{
 
 mod common;
 use crate::common::{
-    create_mock_oracle, create_wasm_lending_pool, generate_contract_id, pool_helper, TokenClient, BlendTokenClient
+    create_mock_oracle, create_wasm_lending_pool, generate_contract_id, pool_helper,
+    BlendTokenClient, TokenClient,
 };
 
 // TODO: Investigate if mint / burn semantics will be better (operate in bTokens)
@@ -32,9 +33,22 @@ fn test_pool_happy_path() {
     let backstop_id = generate_contract_id(&e);
     let (pool_id, pool_client) = create_wasm_lending_pool(&e);
     let pool = Address::from_contract_id(&e, &pool_id);
-    pool_helper::setup_pool(&e, &pool_client, &bombadil, &oracle_id, &backstop_id, 0_200_000_000);
+    pool_helper::setup_pool(
+        &e,
+        &pool_client,
+        &bombadil,
+        &oracle_id,
+        &backstop_id,
+        0_200_000_000,
+    );
 
-    let (asset1_id, btoken1_id, dtoken1_id) = pool_helper::setup_reserve(&e, &pool, &pool_client, &bombadil, &pool_helper::default_reserve_metadata());
+    let (asset1_id, btoken1_id, dtoken1_id) = pool_helper::setup_reserve(
+        &e,
+        &pool,
+        &pool_client,
+        &bombadil,
+        &pool_helper::default_reserve_metadata(),
+    );
     let asset1_client = TokenClient::new(&e, &asset1_id);
     let b_token1_client = BlendTokenClient::new(&e, &btoken1_id);
     let d_token1_client = BlendTokenClient::new(&e, &dtoken1_id);

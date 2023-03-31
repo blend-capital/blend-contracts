@@ -98,7 +98,7 @@ impl User {
         self.set_shares(cur_bal + to_add);
     }
 
-    /***** Queue for Withdrawal *****/
+    /***** Withdrawal Queue Management *****/
 
     /// Queue new shares for withdraw for the user
     ///
@@ -138,7 +138,58 @@ impl User {
         Ok(new_q4w)
     }
 
-    /***** Queue for Withdrawal *****/
+    /// Dequeue shares from the withdrawal queue
+    ///
+    /// Updates but does not write:
+    /// * q4w
+    ///
+    /// ### Arguments
+    /// * `to_dequeue` - The amount of shares to dequeue from the withdrawal queue
+    /// * `require_expired` - If only expired Q4W can be dequeued. This
+    ///                       MUST be true if the user is withdrawing.
+    ///
+    /// ### Errors
+    /// If the user does not have enough shares currently queued to dequeue,
+    /// or if they don't have enough queued shares to dequeue
+    pub fn try_dequeue_shares_for_withdrawal(
+        &mut self,
+        e: &Env,
+        to_dequeue: i128,
+        require_expired: bool,
+    ) -> Result<(), BackstopError> {
+        // validate the invoke has enough unlocked Q4W to claim
+        // manage the q4w list while verifying
+        let mut user_q4w = self.get_q4w(e);
+        let mut left_to_dequeue: i128 = to_dequeue;
+        for _index in 0..user_q4w.len() {
+            let mut cur_q4w = user_q4w.pop_front_unchecked().unwrap();
+            if !require_expired || cur_q4w.exp <= e.ledger().timestamp() {
+                if cur_q4w.amount > left_to_dequeue {
+                    // last record we need to update, but the q4w should remain
+                    cur_q4w.amount -= left_to_dequeue;
+                    left_to_dequeue = 0;
+                    user_q4w.push_front(cur_q4w);
+                    break;
+                } else if cur_q4w.amount == left_to_dequeue {
+                    // last record we need to update, q4w fully consumed
+                    left_to_dequeue = 0;
+                    break;
+                } else {
+                    // allow the pop to consume the record
+                    left_to_dequeue -= cur_q4w.amount;
+                }
+            } else {
+                return Err(BackstopError::NotExpired);
+            }
+        }
+
+        if left_to_dequeue > 0 {
+            return Err(BackstopError::InvalidBalance);
+        }
+
+        self.set_q4w(user_q4w);
+        Ok(())
+    }
 
     /// Withdraw shares from the user
     ///
@@ -152,37 +203,8 @@ impl User {
     /// ### Errors
     /// If the amount to queue is greater than the available shares
     pub fn try_withdraw_shares(&mut self, e: &Env, to_withdraw: i128) -> Result<(), BackstopError> {
-        // validate the invoke has enough unlocked Q4W to claim
-        // manage the q4w list while verifying
-        let mut user_q4w = self.get_q4w(e);
-        let mut left_to_withdraw: i128 = to_withdraw;
-        for _index in 0..user_q4w.len() {
-            let mut cur_q4w = user_q4w.pop_front_unchecked().unwrap();
-            if cur_q4w.exp <= e.ledger().timestamp() {
-                if cur_q4w.amount > left_to_withdraw {
-                    // last record we need to update, but the q4w should remain
-                    cur_q4w.amount -= left_to_withdraw;
-                    left_to_withdraw = 0;
-                    user_q4w.push_front(cur_q4w);
-                    break;
-                } else if cur_q4w.amount == left_to_withdraw {
-                    // last record we need to update, q4w fully consumed
-                    left_to_withdraw = 0;
-                    break;
-                } else {
-                    // allow the pop to consume the record
-                    left_to_withdraw -= cur_q4w.amount;
-                }
-            } else {
-                return Err(BackstopError::NotExpired);
-            }
-        }
+        self.try_dequeue_shares_for_withdrawal(e, to_withdraw, true)?;
 
-        if left_to_withdraw > 0 {
-            return Err(BackstopError::InvalidBalance);
-        }
-
-        self.set_q4w(user_q4w);
         let shares_left = self.get_shares(e) - to_withdraw;
         self.set_shares(shares_left);
 
@@ -192,7 +214,7 @@ impl User {
 
 #[cfg(test)]
 mod tests {
-    use crate::testutils::generate_contract_id;
+    use crate::testutils::{assert_eq_vec_q4w, generate_contract_id};
 
     use super::*;
     use soroban_sdk::{
@@ -669,15 +691,135 @@ mod tests {
         });
     }
 
-    /********** Helpers **********/
+    #[test]
+    fn test_try_dequeue_shares() {
+        let e = Env::default();
 
-    fn assert_eq_vec_q4w(actual: &Vec<Q4W>, expected: &Vec<Q4W>) {
-        assert_eq!(actual.len(), expected.len());
-        for index in 0..actual.len() {
-            let actual_q4w = actual.get(index).unwrap().unwrap();
-            let expected_q4w = expected.get(index).unwrap().unwrap();
-            assert_eq!(actual_q4w.amount, expected_q4w.amount);
-            assert_eq!(actual_q4w.exp, expected_q4w.exp);
-        }
+        let backstop_addr = generate_contract_id(&e);
+
+        let cur_q4w = vec![
+            &e,
+            Q4W {
+                amount: 125,
+                exp: 10000000,
+            },
+            Q4W {
+                amount: 200,
+                exp: 12592000,
+            },
+            Q4W {
+                amount: 50,
+                exp: 19592000,
+            },
+        ];
+        let mut user = User {
+            pool: generate_contract_id(&e),
+            id: Address::random(&e),
+            shares: Some(1000),
+            q4w: Some(cur_q4w.clone()),
+        };
+
+        e.ledger().set(LedgerInfo {
+            protocol_version: 1,
+            sequence_number: 1,
+            timestamp: 11192000,
+            network_id: Default::default(),
+            base_reserve: 10,
+        });
+
+        e.as_contract(&backstop_addr, || {
+            let to_dequeue = 300;
+
+            // verify exp is respected when specified
+            let res = user.try_dequeue_shares_for_withdrawal(&e, to_dequeue, true);
+            match res {
+                Ok(_) => assert!(false),
+                Err(err) => match err {
+                    BackstopError::NotExpired => {
+                        // verify q4w vec was not modified
+                        let q4w = user.get_q4w(&e);
+                        assert_eq_vec_q4w(&q4w, &cur_q4w);
+                        assert_eq!(user.get_shares(&e), 1000);
+                    }
+                    _ => assert!(false),
+                },
+            }
+
+            // verify exp is ignored if only dequeueing
+            let res = user.try_dequeue_shares_for_withdrawal(&e, to_dequeue, false);
+            match res {
+                Ok(_) => {
+                    let expected_q4w = vec![
+                        &e,
+                        Q4W {
+                            amount: 25,
+                            exp: 12592000,
+                        },
+                        Q4W {
+                            amount: 50,
+                            exp: 19592000,
+                        },
+                    ];
+                    let q4w = user.get_q4w(&e);
+                    assert_eq_vec_q4w(&q4w, &expected_q4w);
+                    assert_eq!(user.get_shares(&e), 1000);
+                }
+                Err(_) => assert!(false),
+            }
+        });
+    }
+
+    #[test]
+    fn test_try_withdraw_shares_over_total() {
+        let e = Env::default();
+
+        let backstop_addr = generate_contract_id(&e);
+
+        let cur_q4w = vec![
+            &e,
+            Q4W {
+                amount: 125,
+                exp: 10000000,
+            },
+            Q4W {
+                amount: 200,
+                exp: 12592000,
+            },
+            Q4W {
+                amount: 50,
+                exp: 19592000,
+            },
+        ];
+        let mut user = User {
+            pool: generate_contract_id(&e),
+            id: Address::random(&e),
+            shares: Some(1000),
+            q4w: Some(cur_q4w.clone()),
+        };
+
+        e.ledger().set(LedgerInfo {
+            protocol_version: 1,
+            sequence_number: 1,
+            timestamp: 11192000,
+            network_id: Default::default(),
+            base_reserve: 10,
+        });
+
+        e.as_contract(&backstop_addr, || {
+            let to_dequeue = 376;
+            let res = user.try_dequeue_shares_for_withdrawal(&e, to_dequeue, false);
+            match res {
+                Ok(_) => assert!(false),
+                Err(err) => match err {
+                    BackstopError::InvalidBalance => {
+                        // verify q4w vec was not modified
+                        let q4w = user.get_q4w(&e);
+                        assert_eq_vec_q4w(&q4w, &cur_q4w);
+                        assert_eq!(user.get_shares(&e), 1000);
+                    }
+                    _ => assert!(false),
+                },
+            }
+        });
     }
 }

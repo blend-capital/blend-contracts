@@ -6,7 +6,7 @@ use crate::{
     reserve_usage::ReserveUsage,
     storage::{self, PoolConfig, ReserveConfig, ReserveData},
     user_data::UserAction,
-    user_validator::validate_hf,
+    validator::{require_hf, require_util_under_cap},
 };
 use soroban_sdk::{Address, BytesN, Env};
 
@@ -83,12 +83,8 @@ pub fn execute_supply(
             b_token_delta: to_mint,
             d_token_delta: 0,
         };
-        let is_healthy = validate_hf(&e, &pool_config, &from, &user_action);
-        if !is_healthy {
-            return Err(PoolError::InvalidHf);
-        } else {
-            storage::del_auction(e, &0, &from);
-        }
+        require_hf(&e, &pool_config, &from, &user_action)?;
+        storage::del_auction(e, &0, &from);
     }
 
     TokenClient::new(&e, asset).xfer(from, &e.current_contract_address(), &amount);
@@ -149,10 +145,7 @@ pub fn execute_withdraw(
         b_token_delta: -to_burn,
         d_token_delta: 0,
     };
-    let is_healthy = validate_hf(&e, &pool_config, &from, &user_action);
-    if !is_healthy {
-        return Err(PoolError::InvalidHf);
-    }
+    require_hf(&e, &pool_config, &from, &user_action)?;
 
     b_token_client.clawback(&e.current_contract_address(), &from, &to_burn);
 
@@ -202,10 +195,8 @@ pub fn execute_borrow(
         b_token_delta: 0,
         d_token_delta: to_mint,
     };
-    let is_healthy = validate_hf(&e, &pool_config, &from, &user_action);
-    if !is_healthy {
-        return Err(PoolError::InvalidHf);
-    }
+    require_util_under_cap(e, &mut reserve, &user_action)?;
+    require_hf(&e, &pool_config, &from, &user_action)?;
 
     TokenClient::new(&e, &reserve.config.d_token).mint(
         &e.current_contract_address(),
@@ -258,12 +249,8 @@ pub fn execute_repay(
             b_token_delta: 0,
             d_token_delta: -to_burn,
         };
-        let is_healthy = validate_hf(&e, &pool_config, &from, &user_action);
-        if !is_healthy {
-            return Err(PoolError::InvalidHf);
-        } else {
-            storage::del_auction(e, &0, &from);
-        }
+        require_hf(&e, &pool_config, &from, &user_action)?;
+        storage::del_auction(e, &0, &from);
     }
 
     TokenClient::new(e, &reserve.asset).xfer(from, &e.current_contract_address(), &to_repay);
@@ -327,6 +314,7 @@ mod tests {
 
         let bombadil = Address::random(&e);
         let samwise = Address::random(&e);
+        let frodo = Address::random(&e);
 
         let mut reserve_0 = create_reserve(&e);
         reserve_0.data.d_supply = 0;
@@ -345,7 +333,7 @@ mod tests {
         let asset_0_client = TokenClient::new(&e, &reserve_0.asset);
         let asset_1_client = TokenClient::new(&e, &reserve_1.asset);
         asset_0_client.mint(&bombadil, &samwise, &500_0000000);
-        asset_1_client.mint(&bombadil, &pool, &500_0000000); // for samwise to borrow
+        asset_1_client.mint(&bombadil, &frodo, &500_0000000);
 
         let pool_config = PoolConfig {
             oracle: oracle_id,
@@ -356,6 +344,7 @@ mod tests {
             storage::set_pool_config(&e, &pool_config);
 
             e.budget().reset();
+            execute_supply(&e, &frodo, &reserve_1.asset, 500_0000000).unwrap(); // for samwise to borrow
             execute_supply(&e, &samwise, &reserve_0.asset, 100_0000000).unwrap();
             execute_borrow(&e, &samwise, &reserve_1.asset, 50_0000000, &samwise).unwrap();
             assert_eq!(400_0000000, asset_0_client.balance(&samwise));
@@ -518,6 +507,7 @@ mod tests {
 
         let bombadil = Address::random(&e);
         let samwise = Address::random(&e);
+        let frodo = Address::random(&e);
 
         let mut reserve_0 = create_reserve(&e);
         reserve_0.data.d_supply = 0;
@@ -536,7 +526,7 @@ mod tests {
         let asset_0_client = TokenClient::new(&e, &reserve_0.asset);
         let asset_1_client = TokenClient::new(&e, &reserve_1.asset);
         asset_0_client.mint(&bombadil, &samwise, &500_0000000);
-        asset_1_client.mint(&bombadil, &pool, &500_0000000); // for samwise to borrow
+        asset_1_client.mint(&bombadil, &frodo, &500_0000000); // for samwise to borrow
 
         let pool_config = PoolConfig {
             oracle: oracle_id,
@@ -547,6 +537,7 @@ mod tests {
             storage::set_pool_config(&e, &pool_config);
 
             e.budget().reset();
+            execute_supply(&e, &frodo, &reserve_1.asset, 500_0000000).unwrap(); // for samwise to borrow
             execute_supply(&e, &samwise, &reserve_0.asset, 100_0000000).unwrap();
             execute_borrow(&e, &samwise, &reserve_1.asset, 50_0000000, &samwise).unwrap();
             assert_eq!(400_0000000, asset_0_client.balance(&samwise));

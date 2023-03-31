@@ -11,6 +11,7 @@ pub enum PoolError {
     // Pool State Errors (10-19)
     InvalidHf = 10,
     InvalidPoolStatus = 11,
+    InvalidUtilRate = 12,
     // Emission Errors (20-29)
     EmissionFailure = 20,
     // Auction Errors (100-199)

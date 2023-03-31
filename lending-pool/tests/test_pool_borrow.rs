@@ -329,7 +329,7 @@ fn test_pool_borrow_one_stroop_insufficient_collateral_for_two() {
     let bombadil = Address::random(&e);
 
     let samwise = Address::random(&e);
-    let merry = Address::random(&e);
+    let frodo = Address::random(&e);
 
     let (mock_oracle, mock_oracle_client) = create_mock_oracle(&e);
 
@@ -356,8 +356,8 @@ fn test_pool_borrow_one_stroop_insufficient_collateral_for_two() {
     let d_token1_client = TokenClient::new(&e, &d_token1_id);
     asset1_client.mint(&bombadil, &samwise, &10_0000000);
     asset1_client.incr_allow(&samwise, &pool, &i128(u64::MAX));
-    asset1_client.mint(&bombadil, &merry, &10_0000000);
-    asset1_client.incr_allow(&merry, &pool, &i128(u64::MAX));
+    asset1_client.mint(&bombadil, &frodo, &10_0000000);
+    asset1_client.incr_allow(&frodo, &pool, &i128(u64::MAX));
 
     let (asset2_id, b_token2_id, _d_token2_id) =
         pool_helper::setup_reserve(&e, &pool, &pool_client, &bombadil);
@@ -366,19 +366,19 @@ fn test_pool_borrow_one_stroop_insufficient_collateral_for_two() {
 
     let asset2_client = TokenClient::new(&e, &asset2_id);
     let b_token2_client = TokenClient::new(&e, &b_token2_id);
-    asset2_client.mint(&bombadil, &merry, &10_0000000);
-    asset2_client.incr_allow(&merry, &pool, &i128(u64::MAX));
+    asset2_client.mint(&bombadil, &frodo, &10_0000000);
+    asset2_client.incr_allow(&frodo, &pool, &i128(u64::MAX));
     e.budget().reset();
 
     // supply
     let minted_btokens = pool_client.supply(&samwise, &asset1_id, &4);
     assert_eq!(b_token1_client.balance(&samwise), minted_btokens);
-    let minted_btokens2 = pool_client.supply(&merry, &asset2_id, &6);
-    assert_eq!(b_token2_client.balance(&merry), minted_btokens2);
+    let minted_btokens2 = pool_client.supply(&frodo, &asset2_id, &6);
+    assert_eq!(b_token2_client.balance(&frodo), minted_btokens2);
 
     // borrow
-    let minted_dtokens = pool_client.borrow(&merry, &asset1_id, &1, &merry);
-    assert_eq!(d_token1_client.balance(&merry), minted_dtokens);
+    let minted_dtokens = pool_client.borrow(&frodo, &asset1_id, &1, &frodo);
+    assert_eq!(d_token1_client.balance(&frodo), minted_dtokens);
 
     // allow interest to accumulate
     // IR -> 3.5%
@@ -395,7 +395,7 @@ fn test_pool_borrow_one_stroop_insufficient_collateral_for_two() {
         collateral: map![&e, (asset2_id.clone(), 6)],
         liability: map![&e, (asset1_id, 5)],
     };
-    let result = pool_client.try_new_liq_a(&merry, &liq_data);
+    let result = pool_client.try_new_liq_a(&frodo, &liq_data);
     let expected_data = common::AuctionData {
         lot: map![&e, (1, 6)],
         bid: map![&e, (0, 1)],

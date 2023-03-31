@@ -15,7 +15,6 @@ use crate::common::{
 #[test]
 fn test_pool_happy_path() {
     let e = Env::default();
-    println!("test 2");
 
     e.ledger().set(LedgerInfo {
         timestamp: 12345,
@@ -68,7 +67,6 @@ fn test_pool_happy_path() {
     assert_eq!(b_token1_client.balance(&samwise), minted_btokens);
     assert_eq!(minted_btokens, 2_0000000);
     assert_eq!(pool_client.config(&samwise), 2);
-    println!("supply successful");
 
     // borrow
     let borrow_amount = 1_0000000;
@@ -83,7 +81,6 @@ fn test_pool_happy_path() {
     assert_eq!(d_token1_client.balance(&samwise), minted_dtokens);
     assert_eq!(minted_dtokens, 1_0000000);
     assert_eq!(pool_client.config(&samwise), 3);
-    println!("borrow successful");
 
     // allow interest to accumulate
     // IR -> 6%
@@ -104,7 +101,6 @@ fn test_pool_happy_path() {
     assert_eq!(d_token1_client.balance(&samwise), 566038);
     assert_eq!(burnt_dtokens, minted_dtokens - 566038);
     assert_eq!(pool_client.config(&samwise), 3);
-    println!("repay successful");
 
     // repay interest
     let interest_accrued = 0_0600000;
@@ -120,7 +116,6 @@ fn test_pool_happy_path() {
     assert_eq!(d_token1_client.balance(&samwise), 0);
     assert_eq!(burnt_dtokens_interest, 566038);
     assert_eq!(pool_client.config(&samwise), 2);
-    println!("full repay successful");
 
     // withdraw
     let user_interest_accrued = 0_0477138;
@@ -140,5 +135,4 @@ fn test_pool_happy_path() {
     assert_eq!(b_token1_client.balance(&samwise), 0);
     assert_eq!(burnt_btokens, minted_btokens);
     assert_eq!(pool_client.config(&samwise), 0);
-    println!("withdraw successful");
 }

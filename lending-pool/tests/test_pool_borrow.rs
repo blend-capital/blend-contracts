@@ -15,9 +15,9 @@ use crate::common::{
 #[test]
 fn test_pool_borrow_no_collateral_panics() {
     let e = Env::default();
-
     let bombadil = Address::random(&e);
     let sauron = Address::random(&e);
+    let samwise = Address::random(&e);
 
     let (oracle_id, mock_oracle_client) = create_mock_oracle(&e);
 
@@ -43,6 +43,9 @@ fn test_pool_borrow_no_collateral_panics() {
     let asset1_client = TokenClient::new(&e, &asset1_id);
     let b_token1_client = BlendTokenClient::new(&e, &btoken1_id);
     let d_token1_client = BlendTokenClient::new(&e, &dtoken1_id);
+    asset1_client.mint(&bombadil, &samwise, &100_0000000);
+    asset1_client.incr_allow(&samwise, &pool, &100_0000000);
+    pool_client.supply(&samwise, &asset1_id, &51_0000000);
 
     mock_oracle_client.set_price(&asset1_id, &2_0000000);
 
@@ -99,7 +102,7 @@ fn test_pool_borrow_bad_hf_panics() {
     assert_eq!(b_token1_client.balance(&sauron), minted_btokens as i128);
 
     // borrow
-    let borrow_amount = 0_5358000; // 0.75 cf * 0.75 lf => 0.5625 / 1.05 hf min => 0.5357 max
+    let borrow_amount = 0_5625000; // 0.75 cf * 0.75 lf => just under 0.5625 max
     let result = pool_client.try_borrow(&sauron, &asset1_id, &borrow_amount, &sauron);
     match result {
         Ok(_) => {
@@ -202,8 +205,10 @@ fn test_pool_borrow_on_ice_panics() {
     let minted_btokens = pool_client.supply(&sauron, &asset1_id, &1_0000000);
     assert_eq!(b_token1_client.balance(&sauron), minted_btokens as i128);
 
+    pool_client.set_status(&bombadil, &1);
+
     // borrow
-    let borrow_amount = 0_5358000; // 0.75 cf * 0.75 lf => 0.5625 / 1.05 hf min => 0.5357 max
+    let borrow_amount = 0_5358000; // 0.75 cf * 0.75 lf => 0.5625 max
     let result = pool_client.try_borrow(&sauron, &asset1_id, &borrow_amount, &sauron);
     match result {
         Ok(_) => {

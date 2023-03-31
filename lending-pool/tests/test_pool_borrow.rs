@@ -8,8 +8,8 @@ use soroban_sdk::{
 
 mod common;
 use crate::common::{
-    create_mock_oracle, create_wasm_lending_pool, generate_contract_id, pool_helper, PoolError,
-    TokenClient, BlendTokenClient
+    create_mock_oracle, create_wasm_lending_pool, generate_contract_id, pool_helper,
+    BlendTokenClient, PoolError, TokenClient,
 };
 
 #[test]
@@ -24,9 +24,22 @@ fn test_pool_borrow_no_collateral_panics() {
     let backstop_id = generate_contract_id(&e);
     let (pool_id, pool_client) = create_wasm_lending_pool(&e);
     let pool = Address::from_contract_id(&e, &pool_id);
-    pool_helper::setup_pool(&e, &pool_client, &bombadil, &oracle_id, &backstop_id, 0_200_000_000);
+    pool_helper::setup_pool(
+        &e,
+        &pool_client,
+        &bombadil,
+        &oracle_id,
+        &backstop_id,
+        0_200_000_000,
+    );
 
-    let (asset1_id, btoken1_id, dtoken1_id) = pool_helper::setup_reserve(&e, &pool, &pool_client, &bombadil, &pool_helper::default_reserve_metadata());
+    let (asset1_id, btoken1_id, dtoken1_id) = pool_helper::setup_reserve(
+        &e,
+        &pool,
+        &pool_client,
+        &bombadil,
+        &pool_helper::default_reserve_metadata(),
+    );
     let asset1_client = TokenClient::new(&e, &asset1_id);
     let b_token1_client = BlendTokenClient::new(&e, &btoken1_id);
     let d_token1_client = BlendTokenClient::new(&e, &dtoken1_id);
@@ -58,9 +71,22 @@ fn test_pool_borrow_bad_hf_panics() {
     let backstop_id = generate_contract_id(&e);
     let (pool_id, pool_client) = create_wasm_lending_pool(&e);
     let pool = Address::from_contract_id(&e, &pool_id);
-    pool_helper::setup_pool(&e, &pool_client, &bombadil, &oracle_id, &backstop_id, 0_200_000_000);
+    pool_helper::setup_pool(
+        &e,
+        &pool_client,
+        &bombadil,
+        &oracle_id,
+        &backstop_id,
+        0_200_000_000,
+    );
 
-    let (asset1_id, btoken1_id, dtoken1_id) = pool_helper::setup_reserve(&e, &pool, &pool_client, &bombadil, &pool_helper::default_reserve_metadata());
+    let (asset1_id, btoken1_id, dtoken1_id) = pool_helper::setup_reserve(
+        &e,
+        &pool,
+        &pool_client,
+        &bombadil,
+        &pool_helper::default_reserve_metadata(),
+    );
     let asset1_client = TokenClient::new(&e, &asset1_id);
     let b_token1_client = BlendTokenClient::new(&e, &btoken1_id);
     let d_token1_client = BlendTokenClient::new(&e, &dtoken1_id);
@@ -98,9 +124,22 @@ fn test_pool_borrow_good_hf_borrows() {
     let backstop_id = generate_contract_id(&e);
     let (pool_id, pool_client) = create_wasm_lending_pool(&e);
     let pool = Address::from_contract_id(&e, &pool_id);
-    pool_helper::setup_pool(&e, &pool_client, &bombadil, &oracle_id, &backstop_id, 0_200_000_000);
+    pool_helper::setup_pool(
+        &e,
+        &pool_client,
+        &bombadil,
+        &oracle_id,
+        &backstop_id,
+        0_200_000_000,
+    );
 
-    let (asset1_id, btoken1_id, dtoken1_id) = pool_helper::setup_reserve(&e, &pool, &pool_client, &bombadil, &pool_helper::default_reserve_metadata());
+    let (asset1_id, btoken1_id, dtoken1_id) = pool_helper::setup_reserve(
+        &e,
+        &pool,
+        &pool_client,
+        &bombadil,
+        &pool_helper::default_reserve_metadata(),
+    );
     let asset1_client = TokenClient::new(&e, &asset1_id);
     let b_token1_client = BlendTokenClient::new(&e, &btoken1_id);
     let d_token1_client = BlendTokenClient::new(&e, &dtoken1_id);
@@ -136,9 +175,22 @@ fn test_pool_borrow_on_ice_panics() {
     let backstop_id = generate_contract_id(&e);
     let (pool_id, pool_client) = create_wasm_lending_pool(&e);
     let pool = Address::from_contract_id(&e, &pool_id);
-    pool_helper::setup_pool(&e, &pool_client, &bombadil, &oracle_id, &backstop_id, 0_200_000_000);
+    pool_helper::setup_pool(
+        &e,
+        &pool_client,
+        &bombadil,
+        &oracle_id,
+        &backstop_id,
+        0_200_000_000,
+    );
 
-    let (asset1_id, btoken1_id, dtoken1_id) = pool_helper::setup_reserve(&e, &pool, &pool_client, &bombadil, &pool_helper::default_reserve_metadata());
+    let (asset1_id, btoken1_id, dtoken1_id) = pool_helper::setup_reserve(
+        &e,
+        &pool,
+        &pool_client,
+        &bombadil,
+        &pool_helper::default_reserve_metadata(),
+    );
     let asset1_client = TokenClient::new(&e, &asset1_id);
     let b_token1_client = BlendTokenClient::new(&e, &btoken1_id);
     let d_token1_client = BlendTokenClient::new(&e, &dtoken1_id);
@@ -176,9 +228,22 @@ fn test_pool_borrow_frozen_panics() {
     let backstop_id = generate_contract_id(&e);
     let (pool_id, pool_client) = create_wasm_lending_pool(&e);
     let pool = Address::from_contract_id(&e, &pool_id);
-    pool_helper::setup_pool(&e, &pool_client, &bombadil, &oracle_id, &backstop_id, 0_200_000_000);
+    pool_helper::setup_pool(
+        &e,
+        &pool_client,
+        &bombadil,
+        &oracle_id,
+        &backstop_id,
+        0_200_000_000,
+    );
 
-    let (asset1_id, btoken1_id, dtoken1_id) = pool_helper::setup_reserve(&e, &pool, &pool_client, &bombadil, &pool_helper::default_reserve_metadata());
+    let (asset1_id, btoken1_id, dtoken1_id) = pool_helper::setup_reserve(
+        &e,
+        &pool,
+        &pool_client,
+        &bombadil,
+        &pool_helper::default_reserve_metadata(),
+    );
     let asset1_client = TokenClient::new(&e, &asset1_id);
     let b_token1_client = BlendTokenClient::new(&e, &btoken1_id);
     let d_token1_client = BlendTokenClient::new(&e, &dtoken1_id);
@@ -221,9 +286,22 @@ fn test_pool_borrow_one_stroop() {
     let backstop_id = generate_contract_id(&e);
     let (pool_id, pool_client) = create_wasm_lending_pool(&e);
     let pool = Address::from_contract_id(&e, &pool_id);
-    pool_helper::setup_pool(&e, &pool_client, &bombadil, &oracle_id, &backstop_id, 0_200_000_000);
+    pool_helper::setup_pool(
+        &e,
+        &pool_client,
+        &bombadil,
+        &oracle_id,
+        &backstop_id,
+        0_200_000_000,
+    );
 
-    let (asset1_id, btoken1_id, dtoken1_id) = pool_helper::setup_reserve(&e, &pool, &pool_client, &bombadil, &pool_helper::default_reserve_metadata());
+    let (asset1_id, btoken1_id, dtoken1_id) = pool_helper::setup_reserve(
+        &e,
+        &pool,
+        &pool_client,
+        &bombadil,
+        &pool_helper::default_reserve_metadata(),
+    );
     let asset1_client = TokenClient::new(&e, &asset1_id);
     let b_token1_client = BlendTokenClient::new(&e, &btoken1_id);
     let d_token1_client = BlendTokenClient::new(&e, &dtoken1_id);
@@ -282,9 +360,22 @@ fn test_pool_borrow_one_stroop_insufficient_collateral_for_two() {
     let backstop_id = generate_contract_id(&e);
     let (pool_id, pool_client) = create_wasm_lending_pool(&e);
     let pool = Address::from_contract_id(&e, &pool_id);
-    pool_helper::setup_pool(&e, &pool_client, &bombadil, &oracle_id, &backstop_id, 0_200_000_000);
+    pool_helper::setup_pool(
+        &e,
+        &pool_client,
+        &bombadil,
+        &oracle_id,
+        &backstop_id,
+        0_200_000_000,
+    );
 
-    let (asset1_id, btoken1_id, dtoken1_id) = pool_helper::setup_reserve(&e, &pool, &pool_client, &bombadil, &pool_helper::default_reserve_metadata());
+    let (asset1_id, btoken1_id, dtoken1_id) = pool_helper::setup_reserve(
+        &e,
+        &pool,
+        &pool_client,
+        &bombadil,
+        &pool_helper::default_reserve_metadata(),
+    );
     let asset1_client = TokenClient::new(&e, &asset1_id);
     let b_token1_client = BlendTokenClient::new(&e, &btoken1_id);
     let d_token1_client = BlendTokenClient::new(&e, &dtoken1_id);
@@ -295,8 +386,13 @@ fn test_pool_borrow_one_stroop_insufficient_collateral_for_two() {
     asset1_client.mint(&bombadil, &frodo, &10_0000000);
     asset1_client.incr_allow(&frodo, &pool, &i128(u64::MAX));
 
-    let (asset2_id, b_token2_id, _d_token2_id) =
-        pool_helper::setup_reserve(&e, &pool, &pool_client, &bombadil);
+    let (asset2_id, b_token2_id, _d_token2_id) = pool_helper::setup_reserve(
+        &e,
+        &pool,
+        &pool_client,
+        &bombadil,
+        &pool_helper::default_reserve_metadata(),
+    );
 
     mock_oracle_client.set_price(&asset2_id, &1_0000000);
 

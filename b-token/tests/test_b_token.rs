@@ -4,9 +4,7 @@ use soroban_sdk::{
 };
 
 mod common;
-use crate::common::{
-    create_b_token, create_lending_pool, DTokenClient, TokenError,
-};
+use crate::common::{create_b_token, create_lending_pool, DTokenClient, TokenError};
 
 fn create_and_init_b_token(
     e: &Env,

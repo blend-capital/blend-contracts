@@ -32,7 +32,7 @@ pub trait PoolContractTrait {
         backstop: Address,
         bstop_rate: u64,
         b_token_hash: BytesN<32>,
-        d_token_hash: BytesN<32>
+        d_token_hash: BytesN<32>,
     ) -> Result<(), PoolError>;
 
     /// Initialize a reserve in the pool
@@ -44,7 +44,12 @@ pub trait PoolContractTrait {
     ///
     /// ### Errors
     /// If the caller is not the admin or the reserve is already setup
-    fn init_res(e: Env, admin: Address, asset: BytesN<32>, metadata: ReserveMetadata) -> Result<(), PoolError>;
+    fn init_res(
+        e: Env,
+        admin: Address,
+        asset: BytesN<32>,
+        metadata: ReserveMetadata,
+    ) -> Result<(), PoolError>;
 
     /// Update a reserve in the pool
     ///
@@ -55,7 +60,12 @@ pub trait PoolContractTrait {
     ///
     /// ### Errors
     /// If the caller is not the admin or the reserve does not exist
-    fn updt_res(e: Env, admin: Address, asset: BytesN<32>, metadata: ReserveMetadata) -> Result<(), PoolError>;
+    fn updt_res(
+        e: Env,
+        admin: Address,
+        asset: BytesN<32>,
+        metadata: ReserveMetadata,
+    ) -> Result<(), PoolError>;
 
     /// Fetch the reserve configuration for a reserve
     ///
@@ -315,38 +325,47 @@ impl PoolContractTrait for PoolContract {
         backstop: Address,
         bstop_rate: u64,
         b_token_hash: BytesN<32>,
-        d_token_hash: BytesN<32>
+        d_token_hash: BytesN<32>,
     ) -> Result<(), PoolError> {
         admin.require_auth();
 
-        pool::execute_initialize(&e, &admin, &oracle, &backstop_id, &backstop, &bstop_rate, &b_token_hash, &d_token_hash)
+        pool::execute_initialize(
+            &e,
+            &admin,
+            &oracle,
+            &backstop_id,
+            &backstop,
+            &bstop_rate,
+            &b_token_hash,
+            &d_token_hash,
+        )
     }
 
-    fn init_res(e: Env, admin: Address, asset: BytesN<32>, metadata: ReserveMetadata) -> Result<(), PoolError> {
+    fn init_res(
+        e: Env,
+        admin: Address,
+        asset: BytesN<32>,
+        metadata: ReserveMetadata,
+    ) -> Result<(), PoolError> {
         admin.require_auth();
 
         pool::initialize_reserve(&e, &admin, &asset, &metadata)?;
 
-        e.events().publish(
-            (symbol!("init_res"), admin),
-            (
-                asset,
-            ),
-        );
+        e.events().publish((symbol!("init_res"), admin), (asset,));
         Ok(())
     }
 
-    fn updt_res(e: Env, admin: Address, asset: BytesN<32>, metadata: ReserveMetadata) -> Result<(), PoolError> {
+    fn updt_res(
+        e: Env,
+        admin: Address,
+        asset: BytesN<32>,
+        metadata: ReserveMetadata,
+    ) -> Result<(), PoolError> {
         admin.require_auth();
 
         pool::execute_update_reserve(&e, &admin, &asset, &metadata)?;
 
-        e.events().publish(
-            (symbol!("updt_res"), admin),
-            (
-                asset,
-            ),
-        );
+        e.events().publish((symbol!("updt_res"), admin), (asset,));
 
         Ok(())
     }

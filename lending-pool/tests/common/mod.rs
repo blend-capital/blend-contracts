@@ -28,6 +28,13 @@ pub use pool::{
     ReserveMetadata,
 };
 
+mod backstop {
+    soroban_sdk::contractimport!(
+        file = "../target/wasm32-unknown-unknown/release/backstop_module.wasm"
+    );
+}
+pub use backstop::Client as BackstopClient;
+
 mod mock_blend_oracle {
     soroban_sdk::contractimport!(
         file = "../target/wasm32-unknown-unknown/release/mock_blend_oracle.wasm"
@@ -66,6 +73,12 @@ pub fn create_wasm_lending_pool(e: &Env) -> (BytesN<32>, PoolClient) {
     let contract_id = generate_contract_id(e);
     e.register_contract_wasm(&contract_id, pool::WASM);
     (contract_id.clone(), PoolClient::new(e, &contract_id))
+}
+
+pub fn create_backstop(e: &Env) -> (BytesN<32>, BackstopClient) {
+    let contract_id = generate_contract_id(e);
+    e.register_contract_wasm(&contract_id, backstop::WASM);
+    (contract_id.clone(), BackstopClient::new(e, &contract_id))
 }
 
 pub fn create_mock_oracle(e: &Env) -> (BytesN<32>, MockOracleClient) {

@@ -7,8 +7,8 @@ use soroban_sdk::{
 
 mod common;
 use crate::common::{
-    create_mock_oracle, create_wasm_lending_pool, generate_contract_id, pool_helper,
-    BlendTokenClient, PoolError, TokenClient,
+    create_mock_oracle, create_wasm_lending_pool, pool_helper, BlendTokenClient, PoolError,
+    TokenClient,
 };
 
 #[test]
@@ -21,27 +21,24 @@ fn test_pool_withdraw_no_supply_panics() {
 
     let (oracle_id, mock_oracle_client) = create_mock_oracle(&e);
 
-    let backstop_id = generate_contract_id(&e);
     let (pool_id, pool_client) = create_wasm_lending_pool(&e);
     let pool = Address::from_contract_id(&e, &pool_id);
     pool_helper::setup_pool(
         &e,
+        &pool_id,
         &pool_client,
         &bombadil,
         &oracle_id,
-        &backstop_id,
         0_200_000_000,
     );
 
-    let (asset1_id, btoken1_id, dtoken1_id) = pool_helper::setup_reserve(
+    let (asset1_id, _, _) = pool_helper::setup_reserve(
         &e,
         &pool,
         &pool_client,
         &bombadil,
         &pool_helper::default_reserve_metadata(),
     );
-    let asset1_client = TokenClient::new(&e, &asset1_id);
-
     mock_oracle_client.set_price(&asset1_id, &2_0000000);
 
     let asset1_client = TokenClient::new(&e, &asset1_id);
@@ -73,15 +70,14 @@ fn test_pool_withdraw_bad_hf_panics() {
 
     let (oracle_id, mock_oracle_client) = create_mock_oracle(&e);
 
-    let backstop_id = generate_contract_id(&e);
     let (pool_id, pool_client) = create_wasm_lending_pool(&e);
     let pool = Address::from_contract_id(&e, &pool_id);
     pool_helper::setup_pool(
         &e,
+        &pool_id,
         &pool_client,
         &bombadil,
         &oracle_id,
-        &backstop_id,
         0_200_000_000,
     );
 
@@ -129,15 +125,14 @@ fn test_pool_withdraw_one_stroop() {
 
     let (oracle_id, mock_oracle_client) = create_mock_oracle(&e);
 
-    let backstop_id = generate_contract_id(&e);
     let (pool_id, pool_client) = create_wasm_lending_pool(&e);
     let pool = Address::from_contract_id(&e, &pool_id);
     pool_helper::setup_pool(
         &e,
+        &pool_id,
         &pool_client,
         &bombadil,
         &oracle_id,
-        &backstop_id,
         0_200_000_000,
     );
 

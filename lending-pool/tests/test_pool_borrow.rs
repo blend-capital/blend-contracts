@@ -1,15 +1,15 @@
 #![cfg(test)]
 use cast::i128;
 use soroban_sdk::{
-    contractimpl, contracttype, map,
+    map,
     testutils::{Address as AddressTestTrait, Ledger, LedgerInfo},
-    Address, BytesN, Env, Map, RawVal, Status,
+    Address, Env, Status,
 };
 
 mod common;
 use crate::common::{
-    create_mock_oracle, create_wasm_lending_pool, generate_contract_id, pool_helper,
-    BlendTokenClient, PoolError, TokenClient,
+    create_mock_oracle, create_wasm_lending_pool, pool_helper, BlendTokenClient, PoolError,
+    TokenClient,
 };
 
 #[test]
@@ -21,29 +21,24 @@ fn test_pool_borrow_no_collateral_panics() {
 
     let (oracle_id, mock_oracle_client) = create_mock_oracle(&e);
 
-    let backstop_id = generate_contract_id(&e);
     let (pool_id, pool_client) = create_wasm_lending_pool(&e);
     let pool = Address::from_contract_id(&e, &pool_id);
     pool_helper::setup_pool(
         &e,
+        &pool_id,
         &pool_client,
         &bombadil,
         &oracle_id,
-        &backstop_id,
         0_200_000_000,
     );
 
-    let (asset1_id, btoken1_id, dtoken1_id) = pool_helper::setup_reserve(
+    let (asset1_id, _, _) = pool_helper::setup_reserve(
         &e,
         &pool,
         &pool_client,
         &bombadil,
         &pool_helper::default_reserve_metadata(),
     );
-    let asset1_client = TokenClient::new(&e, &asset1_id);
-    let b_token1_client = BlendTokenClient::new(&e, &btoken1_id);
-    let d_token1_client = BlendTokenClient::new(&e, &dtoken1_id);
-
     mock_oracle_client.set_price(&asset1_id, &2_0000000);
 
     // borrow
@@ -68,19 +63,18 @@ fn test_pool_borrow_bad_hf_panics() {
 
     let (oracle_id, mock_oracle_client) = create_mock_oracle(&e);
 
-    let backstop_id = generate_contract_id(&e);
     let (pool_id, pool_client) = create_wasm_lending_pool(&e);
     let pool = Address::from_contract_id(&e, &pool_id);
     pool_helper::setup_pool(
         &e,
+        &pool_id,
         &pool_client,
         &bombadil,
         &oracle_id,
-        &backstop_id,
         0_200_000_000,
     );
 
-    let (asset1_id, btoken1_id, dtoken1_id) = pool_helper::setup_reserve(
+    let (asset1_id, btoken1_id, _) = pool_helper::setup_reserve(
         &e,
         &pool,
         &pool_client,
@@ -89,7 +83,6 @@ fn test_pool_borrow_bad_hf_panics() {
     );
     let asset1_client = TokenClient::new(&e, &asset1_id);
     let b_token1_client = BlendTokenClient::new(&e, &btoken1_id);
-    let d_token1_client = BlendTokenClient::new(&e, &dtoken1_id);
 
     mock_oracle_client.set_price(&asset1_id, &2_0000000);
     asset1_client.mint(&bombadil, &sauron, &10_0000000);
@@ -121,15 +114,14 @@ fn test_pool_borrow_good_hf_borrows() {
 
     let (oracle_id, mock_oracle_client) = create_mock_oracle(&e);
 
-    let backstop_id = generate_contract_id(&e);
     let (pool_id, pool_client) = create_wasm_lending_pool(&e);
     let pool = Address::from_contract_id(&e, &pool_id);
     pool_helper::setup_pool(
         &e,
+        &pool_id,
         &pool_client,
         &bombadil,
         &oracle_id,
-        &backstop_id,
         0_200_000_000,
     );
 
@@ -172,19 +164,18 @@ fn test_pool_borrow_on_ice_panics() {
 
     let (oracle_id, mock_oracle_client) = create_mock_oracle(&e);
 
-    let backstop_id = generate_contract_id(&e);
     let (pool_id, pool_client) = create_wasm_lending_pool(&e);
     let pool = Address::from_contract_id(&e, &pool_id);
     pool_helper::setup_pool(
         &e,
+        &pool_id,
         &pool_client,
         &bombadil,
         &oracle_id,
-        &backstop_id,
         0_200_000_000,
     );
 
-    let (asset1_id, btoken1_id, dtoken1_id) = pool_helper::setup_reserve(
+    let (asset1_id, btoken1_id, _) = pool_helper::setup_reserve(
         &e,
         &pool,
         &pool_client,
@@ -193,7 +184,6 @@ fn test_pool_borrow_on_ice_panics() {
     );
     let asset1_client = TokenClient::new(&e, &asset1_id);
     let b_token1_client = BlendTokenClient::new(&e, &btoken1_id);
-    let d_token1_client = BlendTokenClient::new(&e, &dtoken1_id);
 
     mock_oracle_client.set_price(&asset1_id, &2_0000000);
     asset1_client.mint(&bombadil, &sauron, &10_0000000);
@@ -202,8 +192,10 @@ fn test_pool_borrow_on_ice_panics() {
     let minted_btokens = pool_client.supply(&sauron, &asset1_id, &1_0000000);
     assert_eq!(b_token1_client.balance(&sauron), minted_btokens as i128);
 
+    pool_client.set_status(&bombadil, &1);
+
     // borrow
-    let borrow_amount = 0_5358000; // 0.75 cf * 0.75 lf => 0.5625 / 1.05 hf min => 0.5357 max
+    let borrow_amount = 0_5357000; // 0.75 cf * 0.75 lf => 0.5625 / 1.05 hf min => 0.5357 max
     let result = pool_client.try_borrow(&sauron, &asset1_id, &borrow_amount, &sauron);
     match result {
         Ok(_) => {
@@ -225,19 +217,18 @@ fn test_pool_borrow_frozen_panics() {
 
     let (oracle_id, mock_oracle_client) = create_mock_oracle(&e);
 
-    let backstop_id = generate_contract_id(&e);
     let (pool_id, pool_client) = create_wasm_lending_pool(&e);
     let pool = Address::from_contract_id(&e, &pool_id);
     pool_helper::setup_pool(
         &e,
+        &pool_id,
         &pool_client,
         &bombadil,
         &oracle_id,
-        &backstop_id,
         0_200_000_000,
     );
 
-    let (asset1_id, btoken1_id, dtoken1_id) = pool_helper::setup_reserve(
+    let (asset1_id, btoken1_id, _) = pool_helper::setup_reserve(
         &e,
         &pool,
         &pool_client,
@@ -246,7 +237,6 @@ fn test_pool_borrow_frozen_panics() {
     );
     let asset1_client = TokenClient::new(&e, &asset1_id);
     let b_token1_client = BlendTokenClient::new(&e, &btoken1_id);
-    let d_token1_client = BlendTokenClient::new(&e, &dtoken1_id);
 
     mock_oracle_client.set_price(&asset1_id, &2_0000000);
     asset1_client.mint(&bombadil, &sauron, &10_0000000);
@@ -283,15 +273,14 @@ fn test_pool_borrow_one_stroop() {
 
     let (oracle_id, mock_oracle_client) = create_mock_oracle(&e);
 
-    let backstop_id = generate_contract_id(&e);
     let (pool_id, pool_client) = create_wasm_lending_pool(&e);
     let pool = Address::from_contract_id(&e, &pool_id);
     pool_helper::setup_pool(
         &e,
+        &pool_id,
         &pool_client,
         &bombadil,
         &oracle_id,
-        &backstop_id,
         0_200_000_000,
     );
 
@@ -356,15 +345,14 @@ fn test_pool_borrow_one_stroop_insufficient_collateral_for_two() {
 
     let (oracle_id, mock_oracle_client) = create_mock_oracle(&e);
 
-    let backstop_id = generate_contract_id(&e);
     let (pool_id, pool_client) = create_wasm_lending_pool(&e);
     let pool = Address::from_contract_id(&e, &pool_id);
     pool_helper::setup_pool(
         &e,
+        &pool_id,
         &pool_client,
         &bombadil,
         &oracle_id,
-        &backstop_id,
         0_200_000_000,
     );
 

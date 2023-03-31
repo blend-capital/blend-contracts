@@ -4,8 +4,7 @@ use soroban_sdk::{testutils::Address as AddressTestTrait, Address, Env, Status};
 
 mod common;
 use crate::common::{
-    create_mock_oracle, create_wasm_lending_pool, generate_contract_id, pool_helper, PoolError,
-    TokenClient,
+    create_mock_oracle, create_wasm_lending_pool, pool_helper, PoolError, TokenClient,
 };
 
 #[test]
@@ -18,20 +17,19 @@ fn test_pool_supply_on_ice() {
 
     let (oracle_id, mock_oracle_client) = create_mock_oracle(&e);
 
-    let backstop_id = generate_contract_id(&e);
     let (pool_id, pool_client) = create_wasm_lending_pool(&e);
     let pool = Address::from_contract_id(&e, &pool_id);
     pool_helper::setup_pool(
         &e,
+        &pool_id,
         &pool_client,
         &bombadil,
         &oracle_id,
-        &backstop_id,
         0_200_000_000,
     );
     pool_client.set_status(&bombadil, &1);
 
-    let (asset1_id, btoken1_id, dtoken1_id) = pool_helper::setup_reserve(
+    let (asset1_id, _, _) = pool_helper::setup_reserve(
         &e,
         &pool,
         &pool_client,
@@ -62,20 +60,19 @@ fn test_pool_supply_frozen_panics() {
 
     let (oracle_id, mock_oracle_client) = create_mock_oracle(&e);
 
-    let backstop_id = generate_contract_id(&e);
     let (pool_id, pool_client) = create_wasm_lending_pool(&e);
     let pool = Address::from_contract_id(&e, &pool_id);
     pool_helper::setup_pool(
         &e,
+        &pool_id,
         &pool_client,
         &bombadil,
         &oracle_id,
-        &backstop_id,
         0_200_000_000,
     );
     pool_client.set_status(&bombadil, &2);
 
-    let (asset1_id, btoken1_id, dtoken1_id) = pool_helper::setup_reserve(
+    let (asset1_id, _, _) = pool_helper::setup_reserve(
         &e,
         &pool,
         &pool_client,

@@ -61,7 +61,7 @@ pub fn require_util_under_cap(
     }
     let util = (reserve.total_liabilities() + user_action_liabilities)
         .fixed_div_floor(reserve.total_supply(e) + user_action_supply, SCALAR_7)
-        .unwrap();
+        .unwrap_or(0); // can fail if div by 0 (no supply)
     if util > i128(reserve.config.max_util) {
         return Err(PoolError::InvalidUtilRate);
     }

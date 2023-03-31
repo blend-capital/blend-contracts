@@ -7,8 +7,7 @@ use soroban_sdk::{
 
 mod common;
 use crate::common::{
-    create_mock_oracle, create_wasm_lending_pool, generate_contract_id, pool_helper,
-    BlendTokenClient, TokenClient,
+    create_mock_oracle, create_wasm_lending_pool, pool_helper, BlendTokenClient, TokenClient,
 };
 
 // TODO: Investigate if mint / burn semantics will be better (operate in bTokens)
@@ -30,15 +29,14 @@ fn test_pool_happy_path() {
 
     let (oracle_id, mock_oracle_client) = create_mock_oracle(&e);
 
-    let backstop_id = generate_contract_id(&e);
     let (pool_id, pool_client) = create_wasm_lending_pool(&e);
     let pool = Address::from_contract_id(&e, &pool_id);
     pool_helper::setup_pool(
         &e,
+        &pool_id,
         &pool_client,
         &bombadil,
         &oracle_id,
-        &backstop_id,
         0_200_000_000,
     );
 
@@ -60,6 +58,7 @@ fn test_pool_happy_path() {
     asset1_client.incr_allow(&samwise, &pool, &i128(u64::MAX));
     assert_eq!(asset1_client.balance(&samwise), supply_amount);
 
+    e.budget().reset();
     // supply
     let minted_btokens = pool_client.supply(&samwise, &asset1_id, &supply_amount);
 

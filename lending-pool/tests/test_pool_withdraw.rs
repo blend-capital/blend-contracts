@@ -101,11 +101,11 @@ fn test_pool_withdraw_bad_hf_panics() {
     assert_eq!(b_token1_client.balance(&sauron), minted_btokens);
 
     // borrow
-    let minted_dtokens = pool_client.borrow(&sauron, &asset1_id, &0_5357000, &sauron);
+    let minted_dtokens = pool_client.borrow(&sauron, &asset1_id, &00_5624000, &sauron); // 0.75 * 0.75 * 1_0000000 = 0.5625000 just over max
     assert_eq!(d_token1_client.balance(&sauron), minted_dtokens);
 
     // withdraw
-    let withdraw_amount = 0_0001000;
+    let withdraw_amount = 0_0010000;
     let result = pool_client.try_withdraw(&sauron, &asset1_id, &withdraw_amount, &sauron);
     match result {
         Ok(_) => assert!(false),

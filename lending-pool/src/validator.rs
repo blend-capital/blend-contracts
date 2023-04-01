@@ -26,11 +26,11 @@ pub fn require_hf(
     user_action: &UserAction,
 ) -> Result<(), PoolError> {
     let account_data = UserData::load(e, pool_config, user, &user_action);
-    // Note: User is required to have at least 5% excess collateral in order to undertake an action that would reduce their health factor
+    // Note: User is required to have slightly more collateral than liabilities to prevent rounding errors
     let collateral_required = account_data
         .liability_base
         .clone()
-        .fixed_mul_ceil(1_0500000, SCALAR_7)
+        .fixed_mul_ceil(1_0000100, SCALAR_7)
         .unwrap();
     if collateral_required > account_data.collateral_base && account_data.liability_base != 0 {
         return Err(PoolError::InvalidHf);
@@ -100,9 +100,9 @@ mod tests {
         oracle_client.set_price(&reserve_1.asset, &5_0000000);
 
         // setup user (collateralize reserve 0 and borrow reserve 1)
-        let collateral_amount = 25_0000000;
-        let liability_amount = 26_0000000;
-        let additional_liability = 1_0000000;
+        let collateral_amount = 25_0000000; //* .75 * 10 = 187.5
+        let liability_amount = 27_6000000; // / .75 * 5 = 184
+        let additional_liability = 1_0000000; // / .75 * 5 = 3.75
         e.as_contract(&pool_id, || {
             storage::set_user_config(&e, &samwise, &0x000000000000000A);
 

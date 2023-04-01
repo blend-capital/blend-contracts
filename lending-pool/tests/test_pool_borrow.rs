@@ -1,9 +1,9 @@
 #![cfg(test)]
 use cast::i128;
 use soroban_sdk::{
-    contractimpl, contracttype, map,
+    map,
     testutils::{Address as AddressTestTrait, Ledger, LedgerInfo},
-    Address, BytesN, Env, Map, RawVal, Status,
+    Address, Env, Status,
 };
 
 mod common;
@@ -15,9 +15,9 @@ use crate::common::{
 #[test]
 fn test_pool_borrow_no_collateral_panics() {
     let e = Env::default();
-
     let bombadil = Address::random(&e);
     let sauron = Address::random(&e);
+    let samwise = Address::random(&e);
 
     let (oracle_id, mock_oracle_client) = create_mock_oracle(&e);
 
@@ -43,6 +43,9 @@ fn test_pool_borrow_no_collateral_panics() {
     let asset1_client = TokenClient::new(&e, &asset1_id);
     let b_token1_client = BlendTokenClient::new(&e, &btoken1_id);
     let d_token1_client = BlendTokenClient::new(&e, &dtoken1_id);
+    asset1_client.mint(&bombadil, &samwise, &100_0000000);
+    asset1_client.incr_allow(&samwise, &pool, &100_0000000);
+    pool_client.supply(&samwise, &asset1_id, &51_0000000);
 
     mock_oracle_client.set_price(&asset1_id, &2_0000000);
 
@@ -99,7 +102,7 @@ fn test_pool_borrow_bad_hf_panics() {
     assert_eq!(b_token1_client.balance(&sauron), minted_btokens as i128);
 
     // borrow
-    let borrow_amount = 0_5358000; // 0.75 cf * 0.75 lf => 0.5625 / 1.05 hf min => 0.5357 max
+    let borrow_amount = 0_5625000; // 0.75 cf * 0.75 lf => just under 0.5625 max
     let result = pool_client.try_borrow(&sauron, &asset1_id, &borrow_amount, &sauron);
     match result {
         Ok(_) => {
@@ -202,8 +205,10 @@ fn test_pool_borrow_on_ice_panics() {
     let minted_btokens = pool_client.supply(&sauron, &asset1_id, &1_0000000);
     assert_eq!(b_token1_client.balance(&sauron), minted_btokens as i128);
 
+    pool_client.set_status(&bombadil, &1);
+
     // borrow
-    let borrow_amount = 0_5358000; // 0.75 cf * 0.75 lf => 0.5625 / 1.05 hf min => 0.5357 max
+    let borrow_amount = 0_5358000; // 0.75 cf * 0.75 lf => 0.5625 max
     let result = pool_client.try_borrow(&sauron, &asset1_id, &borrow_amount, &sauron);
     match result {
         Ok(_) => {
@@ -353,6 +358,7 @@ fn test_pool_borrow_one_stroop_insufficient_collateral_for_two() {
 
     let bombadil = Address::random(&e);
     let samwise = Address::random(&e);
+    let frodo = Address::random(&e);
 
     let (oracle_id, mock_oracle_client) = create_mock_oracle(&e);
 
@@ -382,37 +388,55 @@ fn test_pool_borrow_one_stroop_insufficient_collateral_for_two() {
     mock_oracle_client.set_price(&asset1_id, &1_0000000);
     asset1_client.mint(&bombadil, &samwise, &10_0000000);
     asset1_client.incr_allow(&samwise, &pool, &i128(u64::MAX));
+    asset1_client.mint(&bombadil, &frodo, &10_0000000);
+    asset1_client.incr_allow(&frodo, &pool, &i128(u64::MAX));
+
+    let (asset2_id, b_token2_id, _d_token2_id) = pool_helper::setup_reserve(
+        &e,
+        &pool,
+        &pool_client,
+        &bombadil,
+        &pool_helper::default_reserve_metadata(),
+    );
+
+    mock_oracle_client.set_price(&asset2_id, &1_0000000);
+
+    let asset2_client = TokenClient::new(&e, &asset2_id);
+    let b_token2_client = TokenClient::new(&e, &b_token2_id);
+    asset2_client.mint(&bombadil, &frodo, &10_0000000);
+    asset2_client.incr_allow(&frodo, &pool, &i128(u64::MAX));
+    e.budget().reset();
 
     // supply
     let minted_btokens = pool_client.supply(&samwise, &asset1_id, &4);
     assert_eq!(b_token1_client.balance(&samwise), minted_btokens);
-    println!("supplied");
+    let minted_btokens2 = pool_client.supply(&frodo, &asset2_id, &6);
+    assert_eq!(b_token2_client.balance(&frodo), minted_btokens2);
+
     // borrow
-    let minted_dtokens = pool_client.borrow(&samwise, &asset1_id, &1, &samwise);
-    assert_eq!(d_token1_client.balance(&samwise), minted_dtokens);
-    println!("borrow");
+    let minted_dtokens = pool_client.borrow(&frodo, &asset1_id, &1, &frodo);
+    assert_eq!(d_token1_client.balance(&frodo), minted_dtokens);
 
     // allow interest to accumulate
-    // IR -> 6%
+    // IR -> 3.5%
     e.ledger().set(LedgerInfo {
         timestamp: 12345,
         protocol_version: 1,
-        sequence_number: 6307200 * 60, // 30 years
+        sequence_number: 6307200 * 90, // 90 years
         network_id: Default::default(),
         base_reserve: 10,
     });
-
     // user now has insufficient collateral - attempt to liquidate
 
     let liq_data = common::LiquidationMetadata {
-        collateral: map![&e, (asset1_id.clone(), 4)],
-        liability: map![&e, (asset1_id, 3)],
+        collateral: map![&e, (asset2_id.clone(), 6)],
+        liability: map![&e, (asset1_id, 5)],
     };
-    let result = pool_client.try_new_liq_a(&samwise, &liq_data);
+    let result = pool_client.try_new_liq_a(&frodo, &liq_data);
     let expected_data = common::AuctionData {
-        lot: map![&e, (0, 2)],
+        lot: map![&e, (1, 6)],
         bid: map![&e, (0, 1)],
-        block: 6307200 * 3,
+        block: 6307200 * 90 + 1,
     };
     match result {
         Ok(_) => assert_eq!(result.unwrap().unwrap(), expected_data),

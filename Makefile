@@ -9,10 +9,10 @@ build:
 	cargo build --target wasm32-unknown-unknown --release -p b-token
 	cargo build --target wasm32-unknown-unknown --release -p oracle
 	cargo build --target wasm32-unknown-unknown --release -p mock-blend-oracle
-	cargo build --target wasm32-unknown-unknown --release -p emitter
 	cargo build --target wasm32-unknown-unknown --release -p pool-factory
 	cargo build --target wasm32-unknown-unknown --release -p mock-pool-factory
 	cargo build --target wasm32-unknown-unknown --release -p backstop-module
+	cargo build --target wasm32-unknown-unknown --release -p emitter
 	cargo build --target wasm32-unknown-unknown --release -p lending-pool
 	cd target/wasm32-unknown-unknown/release/ && \
 		for i in *.wasm ; do \

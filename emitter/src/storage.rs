@@ -8,6 +8,8 @@ use soroban_sdk::{contracttype, Address, BytesN, Env};
 pub enum EmitterDataKey {
     // The address of the backstop module contract
     Backstop,
+    /// TODO: Delete after address <-> bytesN support,
+    BstopId,
     // The address of the blend token contract
     BlendId,
     // The address of the blend lp token contract
@@ -18,7 +20,7 @@ pub enum EmitterDataKey {
 
 /********** Backstop **********/
 
-/// Fetch the current backstop Identifier
+/// Fetch the current backstop
 ///
 /// Returns current backstop module contract address
 pub fn get_backstop(e: &Env) -> Address {
@@ -30,7 +32,7 @@ pub fn get_backstop(e: &Env) -> Address {
 /// Set a new backstop
 ///
 /// ### Arguments
-/// * `new_backstop` - The Identifier for the new backstop
+/// * `new_backstop` - The id for the new backstop
 pub fn set_backstop(e: &Env, new_backstop: &Address) {
     e.storage()
         .set::<EmitterDataKey, Address>(&EmitterDataKey::Backstop, &new_backstop);
@@ -39,7 +41,7 @@ pub fn set_backstop(e: &Env, new_backstop: &Address) {
 /// Check if a backstop has been set
 ///
 /// Returns true if a backstop has been set
-pub fn is_backstop_set(e: &Env) -> bool {
+pub fn has_backstop(e: &Env) -> bool {
     e.storage().has(&EmitterDataKey::Backstop)
 }
 
@@ -61,10 +63,10 @@ pub fn set_blend_id(e: &Env, blend_id: &BytesN<32>) {
         .set::<EmitterDataKey, BytesN<32>>(&EmitterDataKey::BlendId, &blend_id);
 }
 
-/// Fetch the lp token address
+/// Fetch the backstop token address
 ///
 /// Returns the blend lp token address
-pub fn get_blend_lp_id(e: &Env) -> BytesN<32> {
+pub fn get_backstop_token_id(e: &Env) -> BytesN<32> {
     e.storage()
         .get_unchecked(&EmitterDataKey::BlendLPId)
         .unwrap()
@@ -74,7 +76,7 @@ pub fn get_blend_lp_id(e: &Env) -> BytesN<32> {
 ///
 /// ### Arguments
 /// * `blend_lp_id` - The blend lp token address
-pub fn set_blend_lp_id(e: &Env, blend_lp_id: &BytesN<32>) {
+pub fn set_backstop_token_id(e: &Env, blend_lp_id: &BytesN<32>) {
     e.storage()
         .set::<EmitterDataKey, BytesN<32>>(&EmitterDataKey::BlendLPId, blend_lp_id);
 }

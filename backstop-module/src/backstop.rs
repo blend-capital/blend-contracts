@@ -1,7 +1,4 @@
-use crate::{
-    constants::BACKSTOP_TOKEN, dependencies::TokenClient, errors::BackstopError, pool::Pool,
-    storage, user::User,
-};
+use crate::{dependencies::TokenClient, errors::BackstopError, pool::Pool, storage, user::User};
 use soroban_sdk::{Address, BytesN, Env};
 
 /// Perform a deposit into the backstop module
@@ -16,7 +13,7 @@ pub fn execute_deposit(
 
     let to_mint = pool.convert_to_shares(e, amount);
 
-    let backstop_token_client = TokenClient::new(e, &BytesN::from_array(e, &BACKSTOP_TOKEN));
+    let backstop_token_client = TokenClient::new(e, &storage::get_backstop_token(e));
     backstop_token_client.xfer(&from, &e.current_contract_address(), &amount);
 
     // "mint" shares
@@ -92,7 +89,7 @@ pub fn execute_withdraw(
     user.write_q4w(&e);
     user.write_shares(&e);
 
-    let backstop_client = TokenClient::new(e, &BytesN::from_array(e, &BACKSTOP_TOKEN));
+    let backstop_client = TokenClient::new(e, &storage::get_backstop_token(e));
     backstop_client.xfer(&e.current_contract_address(), &from, &to_return);
 
     Ok(to_return)
@@ -112,7 +109,7 @@ pub fn execute_claim(
     pool.claim(e, amount)?;
     pool.write_emissions(&e);
 
-    let backstop_token = TokenClient::new(e, &BytesN::from_array(e, &BACKSTOP_TOKEN));
+    let backstop_token = TokenClient::new(e, &storage::get_backstop_token(e));
     backstop_token.xfer(&e.current_contract_address(), &to, &amount);
 
     Ok(())
@@ -133,7 +130,7 @@ pub fn execute_draw(
     pool.withdraw(e, amount, 0)?;
     pool.write_tokens(&e);
 
-    let backstop_token = TokenClient::new(e, &BytesN::from_array(e, &BACKSTOP_TOKEN));
+    let backstop_token = TokenClient::new(e, &storage::get_backstop_token(e));
     backstop_token.xfer(&e.current_contract_address(), &to, &amount);
 
     Ok(())
@@ -148,7 +145,7 @@ pub fn execute_donate(
 ) -> Result<(), BackstopError> {
     let mut pool = Pool::new(e, pool_address.clone());
 
-    let backstop_token = TokenClient::new(e, &BytesN::from_array(e, &BACKSTOP_TOKEN));
+    let backstop_token = TokenClient::new(e, &storage::get_backstop_token(e));
     backstop_token.xfer(&from, &e.current_contract_address(), &amount);
 
     pool.deposit(e, amount, 0);
@@ -182,7 +179,7 @@ mod tests {
         let bombadil = Address::random(&e);
         let samwise = Address::random(&e);
 
-        let backstop_token_client = create_backstop_token(&e, &bombadil);
+        let (_, backstop_token_client) = create_backstop_token(&e, &backstop_id, &bombadil);
         backstop_token_client.mint(&bombadil, &samwise, &100_0000000);
 
         // queue shares for withdraw

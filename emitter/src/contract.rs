@@ -1,7 +1,4 @@
-use crate::{
-    dependencies::TokenClient, emitter, errors::EmitterError, lp_reader::get_lp_blend_holdings,
-    storage,
-};
+use crate::{dependencies::BackstopClient, emitter, errors::EmitterError, storage};
 use soroban_sdk::{contractimpl, symbol, Address, BytesN, Env};
 
 /// ### Emitter
@@ -14,9 +11,9 @@ pub trait EmitterContractTrait {
     ///
     /// ### Arguments
     /// * `backstop` - The backstop module address
-    /// * `blend_id` - The address of the blend token
-    /// * `blend_lp_id` - The contract address of the blend LP token contract
-    fn initialize(e: Env, backstop: Address, blend_id: BytesN<32>, blend_lp_id: BytesN<32>);
+    /// * `backstop_id` - The backstop module contract address
+    /// * `blend_token_id` - The address of the blend token
+    fn initialize(e: Env, backstop: Address, backstop_id: BytesN<32>, blend_token_id: BytesN<32>);
 
     /// Distributes BLND tokens to the listed backstop module
     ///
@@ -38,18 +35,23 @@ pub trait EmitterContractTrait {
     ///
     /// ### Errors
     /// If the input contract does not have more backstop deposits than the listed backstop module
-    fn swap_bstop(e: Env, new_backstop: Address) -> Result<(), EmitterError>;
+    fn swap_bstop(
+        e: Env,
+        new_backstop: Address,
+        new_backstop_id: BytesN<32>,
+    ) -> Result<(), EmitterError>;
 }
 
 #[contractimpl]
 impl EmitterContractTrait for EmitterContract {
-    fn initialize(e: Env, backstop: Address, blend_id: BytesN<32>, blend_lp_id: BytesN<32>) {
-        if storage::is_backstop_set(&e) {
+    fn initialize(e: Env, backstop: Address, backstop_id: BytesN<32>, blend_token_id: BytesN<32>) {
+        if storage::has_backstop(&e) {
             panic!("Emitter already initialized");
         }
         storage::set_backstop(&e, &backstop);
-        storage::set_blend_id(&e, &blend_id);
-        storage::set_blend_lp_id(&e, &blend_lp_id);
+        storage::set_blend_id(&e, &blend_token_id);
+        let backstop_token = BackstopClient::new(&e, &backstop_id).bstp_token();
+        storage::set_backstop_token_id(&e, &backstop_token);
         // TODO: Determine if setting the last distro time here is appropriate, since it means tokens immediately start being distributed
         storage::set_last_distro_time(&e, &e.ledger().timestamp());
     }
@@ -69,8 +71,14 @@ impl EmitterContractTrait for EmitterContract {
         storage::get_backstop(&e)
     }
 
-    fn swap_bstop(e: Env, new_backstop: Address) -> Result<(), EmitterError> {
+    fn swap_bstop(
+        e: Env,
+        new_backstop: Address,
+        new_backstop_id: BytesN<32>,
+    ) -> Result<(), EmitterError> {
         emitter::execute_swap_backstop(&e, new_backstop.clone())?;
+        let backstop_token = BackstopClient::new(&e, &new_backstop_id).bstp_token();
+        storage::set_backstop_token_id(&e, &backstop_token);
 
         e.events().publish((symbol!("swap"),), (new_backstop,));
         Ok(())

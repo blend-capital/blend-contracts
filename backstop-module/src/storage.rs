@@ -31,11 +31,36 @@ pub enum BackstopDataKey {
     RewardZone,
     PoolEPS(BytesN<32>),
     PoolEmis(BytesN<32>),
+    BckstpTkn,
 }
 
 /****************************
 **         Storage         **
 ****************************/
+
+/********** Backstop Token **********/
+
+/// Fetch the backstop token
+pub fn get_backstop_token(e: &Env) -> BytesN<32> {
+    e.storage()
+        .get::<BackstopDataKey, BytesN<32>>(&BackstopDataKey::BckstpTkn)
+        .unwrap()
+        .unwrap()
+}
+
+/// Checks if a backstop token is set for the backstop
+pub fn has_backstop_token(e: &Env) -> bool {
+    e.storage().has(&BackstopDataKey::BckstpTkn)
+}
+
+/// Set the backstop token
+///
+/// ### Arguments
+/// * `token_address` - The address of the new backstop token
+pub fn set_backstop_token(e: &Env, token_address: &BytesN<32>) {
+    e.storage()
+        .set::<BackstopDataKey, BytesN<32>>(&BackstopDataKey::BckstpTkn, token_address);
+}
 
 /********** User Shares **********/
 

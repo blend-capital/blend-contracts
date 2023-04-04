@@ -23,6 +23,7 @@ fn test_backstop_happy_path() {
     let backstop = Address::from_contract_id(&e, &backstop_addr);
     let token_addr = BytesN::from_array(&e, &[222; 32]);
     let token_client = create_token_from_id(&e, &token_addr, &bombadil);
+    backstop_client.initialize(&token_addr);
 
     e.ledger().set(LedgerInfo {
         timestamp: 0,

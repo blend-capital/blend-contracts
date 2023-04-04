@@ -14,6 +14,13 @@ mod emitter {
 
 pub use emitter::{Client as EmitterClient, EmitterError};
 
+mod backstop {
+    soroban_sdk::contractimport!(
+        file = "../target/wasm32-unknown-unknown/release/backstop_module.wasm"
+    );
+}
+pub use backstop::Client as BackstopClient;
+
 pub fn generate_contract_id(e: &Env) -> BytesN<32> {
     let mut id: [u8; 32] = Default::default();
     thread_rng().fill_bytes(&mut id);
@@ -30,4 +37,10 @@ pub fn create_wasm_emitter(e: &Env) -> (BytesN<32>, EmitterClient) {
     let contract_id = generate_contract_id(e);
     e.register_contract_wasm(&contract_id, emitter::WASM);
     (contract_id.clone(), EmitterClient::new(e, &contract_id))
+}
+
+pub fn create_backstop(e: &Env) -> (BytesN<32>, BackstopClient) {
+    let contract_id = generate_contract_id(e);
+    e.register_contract_wasm(&contract_id, backstop::WASM);
+    (contract_id.clone(), BackstopClient::new(e, &contract_id))
 }

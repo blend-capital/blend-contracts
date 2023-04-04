@@ -1,12 +1,12 @@
 #![cfg(any(test, feature = "testutils"))]
 
 use crate::{
-    constants::{BACKSTOP_TOKEN, POOL_FACTORY},
+    constants::POOL_FACTORY,
     dependencies::{TokenClient, TOKEN_WASM},
-    storage::Q4W,
+    storage::{self, Q4W},
 };
 use rand::{thread_rng, RngCore};
-use soroban_sdk::{Address, BytesN, Env, IntoVal, Vec};
+use soroban_sdk::{testutils::BytesN as _, Address, BytesN, Env, IntoVal, Vec};
 
 mod mock_pool_factory {
     soroban_sdk::contractimport!(
@@ -27,12 +27,20 @@ pub(crate) fn create_mock_pool_factory(e: &Env) -> MockPoolFactoryClient {
     MockPoolFactoryClient::new(e, &contract_id)
 }
 
-pub(crate) fn create_backstop_token(e: &Env, admin: &Address) -> TokenClient {
-    let contract_id = BytesN::from_array(&e, &BACKSTOP_TOKEN);
+pub(crate) fn create_backstop_token(
+    e: &Env,
+    backstop: &BytesN<32>,
+    admin: &Address,
+) -> (BytesN<32>, TokenClient) {
+    let contract_id = BytesN::<32>::random(e);
     e.register_contract_wasm(&contract_id, TOKEN_WASM);
     let client = TokenClient::new(e, &contract_id);
     client.initialize(&admin, &7, &"unit".into_val(e), &"test".into_val(e));
-    client
+
+    e.as_contract(backstop, || {
+        storage::set_backstop_token(e, &contract_id);
+    });
+    (contract_id, client)
 }
 
 /********** Comparison Helpers **********/

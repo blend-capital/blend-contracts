@@ -2,7 +2,7 @@ use crate::{
     constants::SCALAR_7, dependencies::TokenClient, errors::EmitterError,
     lp_reader::get_lp_blend_holdings, storage,
 };
-use soroban_sdk::{contractimpl, symbol, Address, BytesN, Env};
+use soroban_sdk::{Address, Env};
 
 /// Perform a distribution
 pub fn execute_distribute(e: &Env, backstop: &Address) -> Result<i128, EmitterError> {
@@ -44,11 +44,4 @@ pub fn execute_swap_backstop(e: &Env, new_backstop: Address) -> Result<(), Emitt
 
     storage::set_backstop(e, &new_backstop);
     Ok(())
-}
-
-// ****** Helpers ********
-
-pub fn get_blend_token_client(e: &Env) -> TokenClient {
-    let id = storage::get_blend_id(e);
-    TokenClient::new(e, &id)
 }

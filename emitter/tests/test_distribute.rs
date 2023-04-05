@@ -6,7 +6,9 @@ use soroban_sdk::{
 };
 
 mod common;
-use crate::common::{create_token, create_wasm_emitter, generate_contract_id, EmitterError};
+use crate::common::{
+    create_backstop, create_token, create_wasm_emitter, generate_contract_id, EmitterError,
+};
 
 #[test]
 fn test_distribute_from_backstop() {
@@ -19,17 +21,19 @@ fn test_distribute_from_backstop() {
         base_reserve: 10,
     });
 
-    let bombadil = Address::random(&e);
+    // let bombadil = Address::random(&e);
 
-    let backstop = Address::random(&e);
-    let blend_lp = generate_contract_id(&e);
+    let (backstop_id, backstop_client) = create_backstop(&e);
+    let backstop = Address::from_contract_id(&e, &backstop_id);
+    let backstop_token_id = generate_contract_id(&e);
+    backstop_client.initialize(&backstop_token_id);
 
     let (emitter, emitter_client) = create_wasm_emitter(&e);
     let emitter_id = Address::from_contract_id(&e, &emitter);
-    let (blend_id, blend_client) = create_token(&e, &emitter_id);
-    emitter_client.initialize(&backstop, &blend_id, &blend_lp);
+    let (blend_id, _) = create_token(&e, &emitter_id);
+    emitter_client.initialize(&backstop, &backstop_id, &blend_id);
 
-    //pass some time
+    // pass some time
     let seconds_passed = 10000;
     e.ledger().set(LedgerInfo {
         timestamp: 100 + seconds_passed,
@@ -39,7 +43,7 @@ fn test_distribute_from_backstop() {
         base_reserve: 10,
     });
 
-    //Note: this function is not currently working properly - wait for- https://github.com/stellar/rs-soroban-sdk/issues/868
+    // Note: this function is not currently working properly - wait for- https://github.com/stellar/rs-soroban-sdk/issues/868
     // let result = emitter_client.try_distribute() (&backstop).distribute();
 
     // let expected_emissions = BigInt::from_u64(&e, seconds_passed * 1_0000000);
@@ -59,16 +63,15 @@ fn test_distribute_from_non_backstop_panics() {
         base_reserve: 10,
     });
 
-    let bombadil = Address::random(&e);
-    let sauron = Address::random(&e);
-
-    let backstop = Address::random(&e);
-    let blend_lp = generate_contract_id(&e);
+    let (backstop_id, backstop_client) = create_backstop(&e);
+    let backstop = Address::from_contract_id(&e, &backstop_id);
+    let backstop_token_id = generate_contract_id(&e);
+    backstop_client.initialize(&backstop_token_id);
 
     let (emitter, emitter_client) = create_wasm_emitter(&e);
     let emitter_id = Address::from_contract_id(&e, &emitter);
-    let (blend_id, blend_client) = create_token(&e, &emitter_id);
-    emitter_client.initialize(&backstop, &blend_id, &blend_lp);
+    let (blend_id, _) = create_token(&e, &emitter_id);
+    emitter_client.initialize(&backstop, &backstop_id, &blend_id);
 
     // pass some time
     let seconds_passed = 10000;

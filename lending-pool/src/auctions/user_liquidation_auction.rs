@@ -354,7 +354,7 @@ mod tests {
         let (oracle_id, oracle_client) = create_mock_oracle(&e);
 
         // creating reserves for a pool exhausts the budget
-        e.budget().reset();
+        e.budget().reset_unlimited();
         let mut reserve_0 = create_reserve(&e);
         reserve_0.b_rate = Some(1_100_000_000);
         reserve_0.data.last_block = 50;
@@ -380,7 +380,7 @@ mod tests {
         reserve_2.config.index = 2;
         setup_reserve(&e, &pool_id, &bombadil, &mut reserve_2);
         let d_token_2 = TokenClient::new(&e, &reserve_2.config.d_token);
-        e.budget().reset();
+        e.budget().reset_unlimited();
 
         oracle_client.set_price(&reserve_0.asset, &2_0000000);
         oracle_client.set_price(&reserve_1.asset, &4_0000000);
@@ -407,7 +407,7 @@ mod tests {
             b_token_1.mint(&pool, &samwise, &04_5800000);
             d_token_2.mint(&pool, &samwise, &02_7500000);
 
-            e.budget().reset();
+            e.budget().reset_unlimited();
             let result = create_user_liq_auction_data(&e, &samwise, liquidation_data).unwrap();
 
             assert_eq!(result.block, 51);
@@ -444,7 +444,7 @@ mod tests {
         let (oracle_id, oracle_client) = create_mock_oracle(&e);
 
         // creating reserves for a pool exhausts the budget
-        e.budget().reset();
+        e.budget().reset_unlimited();
         let mut reserve_0 = create_reserve(&e);
         reserve_0.b_rate = Some(1_100_000_000);
         reserve_0.data.last_block = 50;
@@ -470,7 +470,7 @@ mod tests {
         reserve_2.config.index = 2;
         setup_reserve(&e, &pool_id, &bombadil, &mut reserve_2);
         let d_token_2 = TokenClient::new(&e, &reserve_2.config.d_token);
-        e.budget().reset();
+        e.budget().reset_unlimited();
 
         oracle_client.set_price(&reserve_0.asset, &2_0000000);
         oracle_client.set_price(&reserve_1.asset, &4_0000000);
@@ -501,7 +501,7 @@ mod tests {
             b_token_1.mint(&pool, &samwise, &04_5800000);
             d_token_2.mint(&pool, &samwise, &02_7500000);
 
-            e.budget().reset();
+            e.budget().reset_unlimited();
             let result = create_user_liq_auction_data(&e, &samwise, liquidation_data);
 
             match result {
@@ -531,7 +531,7 @@ mod tests {
         let (oracle_id, oracle_client) = create_mock_oracle(&e);
 
         // creating reserves for a pool exhausts the budget
-        e.budget().reset();
+        e.budget().reset_unlimited();
         let mut reserve_0 = create_reserve(&e);
         reserve_0.b_rate = Some(1_100_000_000);
         reserve_0.data.last_block = 50;
@@ -557,7 +557,7 @@ mod tests {
         reserve_2.config.index = 2;
         setup_reserve(&e, &pool_id, &bombadil, &mut reserve_2);
         let d_token_2 = TokenClient::new(&e, &reserve_2.config.d_token);
-        e.budget().reset();
+        e.budget().reset_unlimited();
 
         oracle_client.set_price(&reserve_0.asset, &2_0000000);
         oracle_client.set_price(&reserve_1.asset, &4_0000000);
@@ -584,7 +584,7 @@ mod tests {
             b_token_1.mint(&pool, &samwise, &04_5800000);
             d_token_2.mint(&pool, &samwise, &02_7500000);
 
-            e.budget().reset();
+            e.budget().reset_unlimited();
             let result = create_user_liq_auction_data(&e, &samwise, liquidation_data);
 
             match result {
@@ -614,7 +614,7 @@ mod tests {
         let (oracle_id, oracle_client) = create_mock_oracle(&e);
 
         // creating reserves for a pool exhausts the budget
-        e.budget().reset();
+        e.budget().reset_unlimited();
         let mut reserve_0 = create_reserve(&e);
         reserve_0.b_rate = Some(1_100_000_000);
         reserve_0.data.last_block = 50;
@@ -640,7 +640,7 @@ mod tests {
         reserve_2.config.index = 2;
         setup_reserve(&e, &pool_id, &bombadil, &mut reserve_2);
         let d_token_2 = TokenClient::new(&e, &reserve_2.config.d_token);
-        e.budget().reset();
+        e.budget().reset_unlimited();
 
         oracle_client.set_price(&reserve_0.asset, &2_0000000);
         oracle_client.set_price(&reserve_1.asset, &4_0000000);
@@ -667,7 +667,7 @@ mod tests {
             b_token_1.mint(&pool, &samwise, &04_5800000);
             d_token_2.mint(&pool, &samwise, &02_7500000);
 
-            e.budget().reset();
+            e.budget().reset_unlimited();
             let result = create_user_liq_auction_data(&e, &samwise, liquidation_data);
 
             match result {
@@ -697,7 +697,7 @@ mod tests {
         let (oracle_id, oracle_client) = create_mock_oracle(&e);
 
         // creating reserves for a pool exhausts the budget
-        e.budget().reset();
+        e.budget().reset_unlimited();
         let mut reserve_0 = create_reserve(&e);
         reserve_0.b_rate = Some(1_100_000_000);
         reserve_0.data.last_block = 50;
@@ -723,7 +723,7 @@ mod tests {
         reserve_2.config.index = 2;
         setup_reserve(&e, &pool_id, &bombadil, &mut reserve_2);
         let d_token_2 = TokenClient::new(&e, &reserve_2.config.d_token);
-        e.budget().reset();
+        e.budget().reset_unlimited();
 
         oracle_client.set_price(&reserve_0.asset, &2_0000000);
         oracle_client.set_price(&reserve_1.asset, &4_0000000);
@@ -750,7 +750,7 @@ mod tests {
             b_token_1.mint(&pool, &samwise, &04_5800000);
             d_token_2.mint(&pool, &samwise, &02_7500000);
 
-            e.budget().reset();
+            e.budget().reset_unlimited();
             let result = create_user_liq_auction_data(&e, &samwise, liquidation_data);
 
             match result {
@@ -781,7 +781,7 @@ mod tests {
         let (oracle_id, oracle_client) = create_mock_oracle(&e);
 
         // creating reserves for a pool exhausts the budget
-        e.budget().reset();
+        e.budget().reset_unlimited();
         let mut reserve_0 = create_reserve(&e);
         reserve_0.b_rate = Some(1_100_000_000);
         reserve_0.data.last_block = 175;
@@ -807,7 +807,7 @@ mod tests {
         reserve_2.config.index = 2;
         setup_reserve(&e, &pool_id, &bombadil, &mut reserve_2);
         let d_token_2 = TokenClient::new(&e, &reserve_2.config.d_token);
-        e.budget().reset();
+        e.budget().reset_unlimited();
 
         oracle_client.set_price(&reserve_0.asset, &2_0000000);
         oracle_client.set_price(&reserve_1.asset, &4_0000000);
@@ -840,7 +840,7 @@ mod tests {
             d_token_2.mint(&pool, &samwise, &02_7500000);
             let res_2_init_pool_bal = reserve_2_asset.balance(&pool);
 
-            e.budget().reset();
+            e.budget().reset_unlimited();
             let result = fill_user_liq_auction(&e, &auction_data, &samwise, &frodo);
 
             assert_eq!(result.block, 175);

@@ -1,6 +1,6 @@
 use cast::i128;
 use fixed_point_math::FixedPoint;
-use soroban_sdk::{symbol, Address, BytesN, Env};
+use soroban_sdk::{Address, BytesN, Env, Symbol};
 
 use crate::{
     constants::{SCALAR_7, SCALAR_9},
@@ -120,7 +120,7 @@ impl Reserve {
 
         self.data.last_block = e.ledger().sequence();
         e.events().publish(
-            (symbol!("updt_rate"), self.asset.clone()),
+            (Symbol::new(&e, "updt_rate"), self.asset.clone()),
             (self.data.d_rate, self.data.ir_mod),
         );
         bstop_amount

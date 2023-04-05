@@ -85,6 +85,7 @@ mod tests {
     #[test]
     fn test_require_hf() {
         let e = Env::default();
+        e.budget().reset_unlimited();
         let pool_id = generate_contract_id(&e);
 
         let bombadil = Address::random(&e);

@@ -5,7 +5,7 @@ use crate::{
     storage::{self, PoolEmissionConfig, ReserveEmissionsConfig, ReserveEmissionsData},
 };
 use fixed_point_math::FixedPoint;
-use soroban_sdk::{contracttype, map, symbol, BytesN, Env, Map, Vec};
+use soroban_sdk::{contracttype, map, BytesN, Env, Map, Symbol, Vec};
 
 use super::distributor;
 
@@ -122,8 +122,10 @@ fn update_reserve_emission_config(
     };
 
     storage::set_res_emis_config(e, &key, &new_reserve_emis_config);
-    e.events()
-        .publish((symbol!("e_config"),), (key, new_res_eps, expiration))
+    e.events().publish(
+        (Symbol::new(&e, "e_config"),),
+        (key, new_res_eps, expiration),
+    )
 }
 
 /// Set the pool emissions

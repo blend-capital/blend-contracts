@@ -7,7 +7,7 @@ use crate::{
     reserve::Reserve,
     storage::{self, ReserveConfig, ReserveEmissionsConfig, ReserveEmissionsData},
 };
-use soroban_sdk::{contractimpl, symbol, Address, BytesN, Env, Map, Vec};
+use soroban_sdk::{contractimpl, Address, BytesN, Env, Map, Symbol, Vec};
 
 /// ### Pool
 ///
@@ -306,7 +306,7 @@ impl PoolContractTrait for PoolContract {
         pool::initialize_reserve(&e, &admin, &asset, &config);
 
         e.events().publish(
-            (symbol!("init_res"), admin),
+            (Symbol::new(&e, "init_res"), admin),
             (
                 config.b_token.clone(),
                 config.d_token.clone(),
@@ -333,8 +333,10 @@ impl PoolContractTrait for PoolContract {
 
         let b_tokens_minted = pool::execute_supply(&e, &from, &asset, amount)?;
 
-        e.events()
-            .publish((symbol!("supply"), from), (asset, amount, b_tokens_minted));
+        e.events().publish(
+            (Symbol::new(&e, "supply"), from),
+            (asset, amount, b_tokens_minted),
+        );
 
         Ok(b_tokens_minted)
     }
@@ -350,8 +352,10 @@ impl PoolContractTrait for PoolContract {
 
         let b_tokens_burnt = pool::execute_withdraw(&e, &from, &asset, amount, &to)?;
 
-        e.events()
-            .publish((symbol!("withdraw"), from), (asset, amount, b_tokens_burnt));
+        e.events().publish(
+            (Symbol::new(&e, "withdraw"), from),
+            (asset, amount, b_tokens_burnt),
+        );
 
         Ok(b_tokens_burnt)
     }
@@ -367,8 +371,10 @@ impl PoolContractTrait for PoolContract {
 
         let d_tokens_minted = pool::execute_borrow(&e, &from, &asset, amount, &to)?;
 
-        e.events()
-            .publish((symbol!("borrow"), from), (asset, amount, d_tokens_minted));
+        e.events().publish(
+            (Symbol::new(&e, "borrow"), from),
+            (asset, amount, d_tokens_minted),
+        );
 
         Ok(d_tokens_minted)
     }
@@ -384,8 +390,10 @@ impl PoolContractTrait for PoolContract {
 
         let d_tokens_burnt = pool::execute_repay(&e, &from, &asset, amount, &on_behalf_of)?;
 
-        e.events()
-            .publish((symbol!("repay"), from), (asset, amount, d_tokens_burnt));
+        e.events().publish(
+            (Symbol::new(&e, "repay"), from),
+            (asset, amount, d_tokens_burnt),
+        );
 
         Ok(d_tokens_burnt)
     }
@@ -412,7 +420,7 @@ impl PoolContractTrait for PoolContract {
         pool::set_pool_status(&e, &admin, pool_status)?;
 
         e.events()
-            .publish((symbol!("set_status"), admin), pool_status);
+            .publish((Symbol::new(&e, "set_status"), admin), pool_status);
         Ok(())
     }
 
@@ -431,7 +439,8 @@ impl PoolContractTrait for PoolContract {
     fn updt_emis(e: Env) -> Result<u64, PoolError> {
         let next_expiration = pool::update_pool_emissions(&e)?;
 
-        e.events().publish((symbol!("updt_emis"),), next_expiration);
+        e.events()
+            .publish((Symbol::new(&e, "updt_emis"),), next_expiration);
         Ok(next_expiration)
     }
 
@@ -454,7 +463,7 @@ impl PoolContractTrait for PoolContract {
         let amount_claimed = emissions::execute_claim(&e, &from, &reserve_token_ids, &to)?;
 
         e.events().publish(
-            (symbol!("claim"), from),
+            (Symbol::new(&e, "claim"), from),
             (reserve_token_ids, amount_claimed),
         );
 
@@ -480,7 +489,7 @@ impl PoolContractTrait for PoolContract {
         let auction_data = auctions::create_liquidation(&e, &user, data)?;
 
         e.events()
-            .publish((symbol!("new_liq_a"), user), auction_data.clone());
+            .publish((Symbol::new(&e, "new_liq_a"), user), auction_data.clone());
 
         Ok(auction_data)
     }
@@ -489,7 +498,7 @@ impl PoolContractTrait for PoolContract {
     fn del_liq_a(e: Env, user: Address) -> Result<(), PoolError> {
         auctions::delete_liquidation(&e, &user)?;
 
-        e.events().publish((symbol!("del_liq_a"), user), ());
+        e.events().publish((Symbol::new(&e, "del_liq_a"), user), ());
 
         Ok(())
     }
@@ -502,8 +511,10 @@ impl PoolContractTrait for PoolContract {
     fn new_auct(e: Env, auction_type: u32) -> Result<AuctionData, PoolError> {
         let auction_data = auctions::create(&e, auction_type)?;
 
-        e.events()
-            .publish((symbol!("new_auct"), auction_type), auction_data.clone());
+        e.events().publish(
+            (Symbol::new(&e, "new_auct"), auction_type),
+            auction_data.clone(),
+        );
 
         Ok(auction_data)
     }
@@ -517,7 +528,7 @@ impl PoolContractTrait for PoolContract {
         let auction_quote = auctions::fill(&e, auction_type, &user, &from)?;
 
         e.events()
-            .publish((symbol!("fill_auct"), from), (auction_type, user));
+            .publish((Symbol::new(&e, "fill_auct"), from), (auction_type, user));
 
         Ok(auction_quote)
     }

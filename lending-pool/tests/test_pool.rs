@@ -14,7 +14,7 @@ use crate::common::{
 #[test]
 fn test_pool_happy_path() {
     let e = Env::default();
-
+    e.budget().reset_unlimited();
     e.ledger().set(LedgerInfo {
         timestamp: 12345,
         protocol_version: 1,

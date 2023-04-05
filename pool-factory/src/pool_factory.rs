@@ -1,5 +1,5 @@
 use crate::storage;
-use soroban_sdk::{contractimpl, symbol, BytesN, Env, RawVal, Symbol, Vec};
+use soroban_sdk::{contractimpl, BytesN, Env, RawVal, Symbol, Vec};
 
 pub struct PoolFactory;
 
@@ -51,7 +51,7 @@ impl PoolFactoryTrait for PoolFactory {
         storage::set_deployed(&e, &pool_address);
 
         e.events()
-            .publish((symbol!("deploy"),), pool_address.clone());
+            .publish((Symbol::new(&e, "deploy"),), pool_address.clone());
         pool_address
     }
 

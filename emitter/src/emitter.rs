@@ -2,7 +2,7 @@ use crate::{
     constants::SCALAR_7, dependencies::TokenClient, errors::EmitterError,
     lp_reader::get_lp_blend_holdings, storage,
 };
-use soroban_sdk::{contractimpl, symbol, Address, BytesN, Env};
+use soroban_sdk::{contractimpl, Address, BytesN, Env};
 
 /// Perform a distribution
 pub fn execute_distribute(e: &Env, backstop: &Address) -> Result<i128, EmitterError> {

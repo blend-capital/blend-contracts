@@ -205,7 +205,7 @@ mod tests {
         let (oracle_id, oracle_client) = create_mock_oracle(&e);
 
         // creating reserves for a pool exhausts the budget
-        e.budget().reset();
+        e.budget().reset_unlimited();
         let mut reserve_0 = create_reserve(&e);
         reserve_0.data.d_rate = 1_100_000_000;
         reserve_0.data.last_block = 50;
@@ -229,7 +229,7 @@ mod tests {
         blnd_client.mint(&bombadil, &samwise, &200_0000000);
         blnd_client.incr_allow(&samwise, &backstop, &i128::MAX);
         backstop_client.deposit(&samwise, &pool_id, &100_0000000);
-        e.budget().reset();
+        e.budget().reset_unlimited();
 
         oracle_client.set_price(&reserve_0.asset, &2_0000000);
         oracle_client.set_price(&reserve_1.asset, &4_0000000);
@@ -249,7 +249,7 @@ mod tests {
             d_token_0.mint(&pool, &backstop, &10_0000000);
             d_token_1.mint(&pool, &backstop, &2_5000000);
 
-            e.budget().reset();
+            e.budget().reset_unlimited();
             let result = create_bad_debt_auction_data(&e, &backstop).unwrap();
 
             assert_eq!(result.block, 51);
@@ -292,7 +292,7 @@ mod tests {
         let (oracle_id, oracle_client) = create_mock_oracle(&e);
 
         // creating reserves for a pool exhausts the budget
-        e.budget().reset();
+        e.budget().reset_unlimited();
         let mut reserve_0 = create_reserve(&e);
         reserve_0.data.d_rate = 1_100_000_000;
         reserve_0.data.last_block = 50;
@@ -316,7 +316,7 @@ mod tests {
         blnd_client.mint(&bombadil, &samwise, &200_0000000);
         blnd_client.incr_allow(&samwise, &backstop, &i128::MAX);
         backstop_client.deposit(&samwise, &pool_id, &95_0000000);
-        e.budget().reset();
+        e.budget().reset_unlimited();
 
         oracle_client.set_price(&reserve_0.asset, &2_0000000);
         oracle_client.set_price(&reserve_1.asset, &4_0000000);
@@ -336,7 +336,7 @@ mod tests {
             d_token_0.mint(&pool, &backstop, &10_0000000);
             d_token_1.mint(&pool, &backstop, &2_5000000);
 
-            e.budget().reset();
+            e.budget().reset_unlimited();
             let result = create_bad_debt_auction_data(&e, &backstop).unwrap();
 
             assert_eq!(result.block, 51);
@@ -379,7 +379,7 @@ mod tests {
         let (oracle_id, oracle_client) = create_mock_oracle(&e);
 
         // creating reserves for a pool exhausts the budget
-        e.budget().reset();
+        e.budget().reset_unlimited();
         let mut reserve_0 = create_reserve(&e);
         reserve_0.data.d_rate = 1_100_000_000;
         reserve_0.data.last_block = 50;
@@ -403,7 +403,7 @@ mod tests {
         blnd_client.mint(&bombadil, &samwise, &200_0000000);
         blnd_client.incr_allow(&samwise, &backstop, &i128::MAX);
         backstop_client.deposit(&samwise, &pool_id, &100_0000000);
-        e.budget().reset();
+        e.budget().reset_unlimited();
 
         oracle_client.set_price(&reserve_0.asset, &2_0000000);
         oracle_client.set_price(&reserve_1.asset, &4_0000000);
@@ -423,7 +423,7 @@ mod tests {
             d_token_0.mint(&pool, &backstop, &10_0000000);
             d_token_1.mint(&pool, &backstop, &2_5000000);
 
-            e.budget().reset();
+            e.budget().reset_unlimited();
             let result = create_bad_debt_auction_data(&e, &backstop).unwrap();
 
             assert_eq!(result.block, 151);
@@ -466,7 +466,7 @@ mod tests {
         let blnd_client = create_token_from_id(&e, &blnd_id, &bombadil);
 
         // creating reserves for a pool exhausts the budget
-        e.budget().reset();
+        e.budget().reset_unlimited();
         let mut reserve_0 = create_reserve(&e);
         reserve_0.data.d_rate = 1_100_000_000;
         reserve_0.data.last_block = 301;
@@ -487,7 +487,7 @@ mod tests {
         reserve_2.data.last_block = 301;
         reserve_2.config.index = 2;
         setup_reserve(&e, &pool_id, &bombadil, &mut reserve_2);
-        e.budget().reset();
+        e.budget().reset_unlimited();
 
         // set up user reserves
         token_0.mint(&bombadil, &samwise, &12_0000000);
@@ -523,7 +523,7 @@ mod tests {
             d_token_0.mint(&pool, &backstop, &10_0000000);
             d_token_1.mint(&pool, &backstop, &2_5000000);
 
-            e.budget().reset();
+            e.budget().reset_unlimited();
             let result = fill_bad_debt_auction(&e, &auction_data, &samwise);
 
             assert_eq!(result.lot.get_unchecked(0).unwrap(), (blnd_id, 95_2000000));

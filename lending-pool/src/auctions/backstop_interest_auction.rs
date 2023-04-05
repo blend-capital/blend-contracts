@@ -235,7 +235,7 @@ mod tests {
         let (oracle_id, oracle_client) = create_mock_oracle(&e);
 
         // creating reserves for a pool exhausts the budget
-        e.budget().reset();
+        e.budget().reset_unlimited();
         let mut reserve_0 = create_reserve(&e);
         reserve_0.b_rate = Some(1_100_000_000);
         reserve_0.data.last_block = 50;
@@ -254,7 +254,7 @@ mod tests {
         reserve_2.data.last_block = 50;
         reserve_2.config.index = 2;
         setup_reserve(&e, &pool_id, &bombadil, &mut reserve_2);
-        e.budget().reset();
+        e.budget().reset_unlimited();
 
         oracle_client.set_price(&reserve_0.asset, &2_0000000);
         oracle_client.set_price(&reserve_1.asset, &4_0000000);
@@ -274,7 +274,7 @@ mod tests {
             b_token_0.mint(&pool, &backstop, &10_0000000);
             b_token_1.mint(&pool, &backstop, &2_5000000);
 
-            e.budget().reset();
+            e.budget().reset_unlimited();
             let result = create_interest_auction_data(&e, &backstop).unwrap();
 
             assert_eq!(result.block, 51);
@@ -316,7 +316,7 @@ mod tests {
         let (oracle_id, oracle_client) = create_mock_oracle(&e);
 
         // creating reserves for a pool exhausts the budget
-        e.budget().reset();
+        e.budget().reset_unlimited();
         let mut reserve_0 = create_reserve(&e);
         reserve_0.b_rate = Some(1_100_000_000);
         reserve_0.data.last_block = 50;
@@ -335,7 +335,7 @@ mod tests {
         reserve_2.data.last_block = 50;
         reserve_2.config.index = 2;
         setup_reserve(&e, &pool_id, &bombadil, &mut reserve_2);
-        e.budget().reset();
+        e.budget().reset_unlimited();
 
         oracle_client.set_price(&reserve_0.asset, &2_0000000);
         oracle_client.set_price(&reserve_1.asset, &4_0000000);
@@ -355,7 +355,7 @@ mod tests {
             b_token_0.mint(&pool, &backstop, &10_0000000);
             b_token_1.mint(&pool, &backstop, &2_5000000);
 
-            e.budget().reset();
+            e.budget().reset_unlimited();
             let result = create_interest_auction_data(&e, &backstop).unwrap();
 
             assert_eq!(result.block, 151);
@@ -402,7 +402,7 @@ mod tests {
         let blnd_client = create_token_from_id(&e, &blnd_id, &bombadil);
 
         // creating reserves for a pool exhausts the budget
-        e.budget().reset();
+        e.budget().reset_unlimited();
         let mut reserve_0 = create_reserve(&e);
         reserve_0.b_rate = Some(1_100_000_000);
         reserve_0.data.last_block = 301;
@@ -421,7 +421,7 @@ mod tests {
         reserve_2.data.last_block = 301;
         reserve_2.config.index = 2;
         setup_reserve(&e, &pool_id, &bombadil, &mut reserve_2);
-        e.budget().reset();
+        e.budget().reset_unlimited();
 
         let pool_config = PoolConfig {
             oracle: generate_contract_id(&e),
@@ -451,7 +451,7 @@ mod tests {
             b_token_0.mint(&pool, &backstop, &10_0000000);
             b_token_1.mint(&pool, &backstop, &2_5000000);
 
-            e.budget().reset();
+            e.budget().reset_unlimited();
             let result = fill_interest_auction(&e, &auction_data, &samwise);
             // let result = calc_fill_interest_auction(&e, &auction);
 

@@ -2,7 +2,7 @@ use crate::{
     dependencies::TokenClient, emitter, errors::EmitterError, lp_reader::get_lp_blend_holdings,
     storage,
 };
-use soroban_sdk::{contractimpl, symbol, Address, BytesN, Env};
+use soroban_sdk::{contractimpl, Address, BytesN, Env, Symbol};
 
 /// ### Emitter
 ///
@@ -60,8 +60,10 @@ impl EmitterContractTrait for EmitterContract {
 
         let distribution_amount = emitter::execute_distribute(&e, &backstop)?;
 
-        e.events()
-            .publish((symbol!("distribute"),), (backstop, distribution_amount));
+        e.events().publish(
+            (Symbol::new(&e, "distribute"),),
+            (backstop, distribution_amount),
+        );
         Ok(distribution_amount)
     }
 
@@ -72,7 +74,8 @@ impl EmitterContractTrait for EmitterContract {
     fn swap_bstop(e: Env, new_backstop: Address) -> Result<(), EmitterError> {
         emitter::execute_swap_backstop(&e, new_backstop.clone())?;
 
-        e.events().publish((symbol!("swap"),), (new_backstop,));
+        e.events()
+            .publish((Symbol::new(&e, "swap"),), (new_backstop,));
         Ok(())
     }
 }

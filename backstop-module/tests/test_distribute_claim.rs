@@ -32,7 +32,7 @@ fn test_backstop_distribution_and_claim_happy_path() {
     mock_pool_factory.set_pool(&pool_1);
     mock_pool_factory.set_pool(&pool_2);
     mock_pool_factory.set_pool(&pool_3);
-
+    e.budget().reset_unlimited();
     token_client.mint(&bombadil, &samwise, &600_000_0000000);
     token_client.incr_allow(&samwise, &backstop, &i128::MAX);
 

@@ -180,6 +180,7 @@ mod tests {
             let d_token_1 = TokenClient::new(&e, &reserve_1.config.d_token);
             d_token_1.mint(&e.current_contract_address(), &samwise, &liability_amount_1);
 
+            e.budget().reset_unlimited();
             transfer_bad_debt_to_backstop(&e, &samwise, &backstop).unwrap();
 
             assert_eq!(d_token_0.balance(&samwise), 0);

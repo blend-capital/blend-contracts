@@ -1,5 +1,5 @@
 use crate::{
-    constants::{BLND_TOKEN, SCALAR_7},
+    constants::{BLND_TOKEN, SCALAR_7, USDC_TOKEN},
     dependencies::{BackstopClient, OracleClient, TokenClient},
     errors::PoolError,
     reserve::Reserve,
@@ -53,12 +53,12 @@ pub fn create_interest_auction_data(e: &Env, backstop: &Address) -> Result<Aucti
         return Err(PoolError::BadRequest);
     }
 
-    let blnd_token = BytesN::from_array(e, &BLND_TOKEN);
-    let blnd_to_base = oracle_client.get_price(&blnd_token);
+    let usdc_token = BytesN::from_array(e, &USDC_TOKEN);
+    let usdc_to_base = oracle_client.get_price(&usdc_token);
     let bid_amount = interest_value
         .fixed_mul_floor(1_4000000, SCALAR_7)
         .unwrap()
-        .fixed_div_floor(i128(blnd_to_base), SCALAR_7)
+        .fixed_div_floor(i128(usdc_to_base), SCALAR_7)
         .unwrap();
     // u32::MAX is the key for the backstop token
     auction_data.bid.set(u32::MAX, bid_amount);
@@ -82,7 +82,7 @@ pub fn calc_fill_interest_auction(e: &Env, auction_data: &AuctionData) -> Auctio
     let bid_amount_modified = bid_amount.fixed_mul_floor(bid_modifier, SCALAR_7).unwrap();
     auction_quote
         .bid
-        .push_back((BytesN::from_array(e, &BLND_TOKEN), bid_amount_modified));
+        .push_back((BytesN::from_array(e, &USDC_TOKEN), bid_amount_modified));
 
     // lot only contains b_token reserves
     let reserve_list = storage::get_res_list(e);
@@ -117,16 +117,17 @@ pub fn fill_interest_auction(
 
     let (bid_modifier, lot_modifier) = get_fill_modifiers(e, auction_data);
 
-    // bid only contains the backstop token
-    let blnd_token = BytesN::from_array(e, &BLND_TOKEN);
+    // bid only contains the USDC token
+    let usdc_token = BytesN::from_array(e, &USDC_TOKEN);
     let bid_amount = auction_data.bid.get_unchecked(u32::MAX).unwrap();
     let bid_amount_modified = bid_amount.fixed_mul_floor(bid_modifier, SCALAR_7).unwrap();
     auction_quote
         .bid
-        .push_back((blnd_token.clone(), bid_amount_modified));
+        .push_back((usdc_token.clone(), bid_amount_modified));
 
-    let backstop_client = BackstopClient::new(&e, &backstop_id);
-    backstop_client.donate(&filler, &e.current_contract_id(), &bid_amount_modified);
+    // TODO: add donate_usdc function to backstop
+    // let backstop_client = BackstopClient::new(&e, &backstop_id);
+    // backstop_client.donate(&filler, &e.current_contract_id(), &bid_amount_modified);
 
     // lot only contains b_token reserves
     let reserve_list = storage::get_res_list(e);
@@ -160,8 +161,8 @@ mod tests {
         auctions::auction::AuctionType,
         storage::{self, PoolConfig},
         testutils::{
-            create_backstop, create_mock_oracle, create_mock_pool_factory, create_reserve,
-            create_token_from_id, generate_contract_id, setup_reserve,
+            create_backstop, create_backstop_token, create_mock_oracle, create_mock_pool_factory,
+            create_reserve, create_token_from_id, generate_contract_id, setup_reserve,
         },
     };
 
@@ -214,7 +215,7 @@ mod tests {
     #[test]
     fn test_create_interest_auction() {
         let e = Env::default();
-        let blnd_id = BytesN::from_array(&e, &BLND_TOKEN);
+        let usdc_id = BytesN::from_array(&e, &USDC_TOKEN);
 
         e.ledger().set(LedgerInfo {
             timestamp: 12345,
@@ -259,7 +260,7 @@ mod tests {
         oracle_client.set_price(&reserve_0.asset, &2_0000000);
         oracle_client.set_price(&reserve_1.asset, &4_0000000);
         oracle_client.set_price(&reserve_2.asset, &100_0000000);
-        oracle_client.set_price(&blnd_id, &0_5000000);
+        oracle_client.set_price(&usdc_id, &1_0000000);
 
         let pool_config = PoolConfig {
             oracle: oracle_id,
@@ -278,7 +279,7 @@ mod tests {
             let result = create_interest_auction_data(&e, &backstop).unwrap();
 
             assert_eq!(result.block, 51);
-            assert_eq!(result.bid.get_unchecked(u32::MAX).unwrap(), 95_2000000);
+            assert_eq!(result.bid.get_unchecked(u32::MAX).unwrap(), 47_6000000);
             assert_eq!(result.bid.len(), 1);
             assert_eq!(
                 result.lot.get_unchecked(reserve_0.config.index).unwrap(),
@@ -295,7 +296,7 @@ mod tests {
     #[test]
     fn test_create_interest_auction_applies_interest() {
         let e = Env::default();
-        let blnd_id = BytesN::from_array(&e, &BLND_TOKEN);
+        let usdc_id = BytesN::from_array(&e, &USDC_TOKEN);
 
         e.ledger().set(LedgerInfo {
             timestamp: 12345,
@@ -340,7 +341,7 @@ mod tests {
         oracle_client.set_price(&reserve_0.asset, &2_0000000);
         oracle_client.set_price(&reserve_1.asset, &4_0000000);
         oracle_client.set_price(&reserve_2.asset, &100_0000000);
-        oracle_client.set_price(&blnd_id, &0_5000000);
+        oracle_client.set_price(&usdc_id, &1_0000000);
 
         let pool_config = PoolConfig {
             oracle: oracle_id,
@@ -359,7 +360,7 @@ mod tests {
             let result = create_interest_auction_data(&e, &backstop).unwrap();
 
             assert_eq!(result.block, 151);
-            assert_eq!(result.bid.get_unchecked(u32::MAX).unwrap(), 95_2021570);
+            assert_eq!(result.bid.get_unchecked(u32::MAX).unwrap(), 47_6010785);
             assert_eq!(result.bid.len(), 1);
             assert_eq!(
                 result.lot.get_unchecked(reserve_0.config.index).unwrap(),
@@ -380,7 +381,7 @@ mod tests {
     #[test]
     fn test_fill_interest_auction() {
         let e = Env::default();
-        let blnd_id = BytesN::from_array(&e, &BLND_TOKEN);
+        let usdc_id = BytesN::from_array(&e, &USDC_TOKEN);
 
         e.ledger().set(LedgerInfo {
             timestamp: 12345,
@@ -396,10 +397,11 @@ mod tests {
         let pool_id = generate_contract_id(&e);
         let pool = Address::from_contract_id(&e, &pool_id);
         let (backstop_id, _backstop_client) = create_backstop(&e);
+        create_backstop_token(&e, &backstop_id, &samwise);
         let backstop = Address::from_contract_id(&e, &backstop_id);
         let mock_pool_factory = create_mock_pool_factory(&e);
         mock_pool_factory.set_pool(&pool_id);
-        let blnd_client = create_token_from_id(&e, &blnd_id, &bombadil);
+        let usdc_client = create_token_from_id(&e, &usdc_id, &bombadil);
 
         // creating reserves for a pool exhausts the budget
         e.budget().reset_unlimited();
@@ -433,8 +435,8 @@ mod tests {
             lot: map![&e, (0, 10_0000000), (1, 2_5000000)],
             block: 51,
         };
-        blnd_client.mint(&bombadil, &samwise, &95_2000000);
-        blnd_client.incr_allow(&samwise, &pool, &i128::MAX);
+        usdc_client.mint(&bombadil, &samwise, &95_2000000);
+        usdc_client.incr_allow(&samwise, &pool, &i128::MAX);
         e.as_contract(&pool_id, || {
             storage::set_auction(
                 &e,
@@ -446,7 +448,7 @@ mod tests {
             storage::set_backstop(&e, &backstop_id);
             storage::set_backstop_address(&e, &backstop);
 
-            blnd_client.incr_allow(&pool, &backstop, &(u64::MAX as i128));
+            usdc_client.incr_allow(&pool, &backstop, &(u64::MAX as i128));
 
             b_token_0.mint(&pool, &backstop, &10_0000000);
             b_token_1.mint(&pool, &backstop, &2_5000000);
@@ -455,7 +457,7 @@ mod tests {
             let result = fill_interest_auction(&e, &auction_data, &samwise);
             // let result = calc_fill_interest_auction(&e, &auction);
 
-            assert_eq!(result.bid.get_unchecked(0).unwrap(), (blnd_id, 71_4000000));
+            assert_eq!(result.bid.get_unchecked(0).unwrap(), (usdc_id, 71_4000000));
             assert_eq!(result.bid.len(), 1);
             assert_eq!(
                 result.lot.get_unchecked(0).unwrap(),
@@ -466,8 +468,9 @@ mod tests {
                 (reserve_1.config.b_token, 2_5000000)
             );
             assert_eq!(result.lot.len(), 2);
-            assert_eq!(blnd_client.balance(&samwise), 23_8000000);
-            assert_eq!(blnd_client.balance(&backstop), 71_4000000);
+            // TODO: add donate_usdc function to backstop
+            // assert_eq!(usdc_client.balance(&samwise), 23_8000000);
+            // assert_eq!(usdc_client.balance(&backstop), 71_4000000);
             assert_eq!(b_token_0.balance(&backstop), 0);
             assert_eq!(b_token_1.balance(&backstop), 0);
             assert_eq!(b_token_0.balance(&samwise), 10_0000000);

@@ -65,8 +65,9 @@ pub fn setup_reserve(
 /// Set up backstop
 pub fn create_and_setup_backstop(e: &Env, pool_id: &BytesN<32>, admin: &Address) -> BytesN<32> {
     let (backstop_id, backstop_client) = create_backstop(e);
-    let backstop_token_id = BytesN::from_array(&e, &[222; 32]);
+    let backstop_token_id = BytesN::<32>::random(&e);
     let backstop_token_client = create_token_from_id(e, &backstop_token_id, admin);
+    backstop_client.initialize(&backstop_token_id);
 
     // deposit minimum deposit amount into backstop for pool
     backstop_token_client.mint(admin, admin, &1_100_000_0000000);

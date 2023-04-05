@@ -33,7 +33,7 @@ fn test_pool_borrow_one_stroop_insufficient_collateral_for_two() {
         &oracle_id,
         0_200_000_000,
     );
-    e.budget().reset();
+    e.budget().reset_unlimited();
 
     let (asset1_id, btoken1_id, dtoken1_id) = pool_helper::setup_reserve(
         &e,
@@ -66,7 +66,7 @@ fn test_pool_borrow_one_stroop_insufficient_collateral_for_two() {
     let b_token2_client = TokenClient::new(&e, &b_token2_id);
     asset2_client.mint(&bombadil, &frodo, &10_0000000);
     asset2_client.incr_allow(&frodo, &pool, &i128(u64::MAX));
-    e.budget().reset();
+    e.budget().reset_unlimited();
 
     // supply
     let minted_btokens = pool_client.supply(&samwise, &asset1_id, &4);

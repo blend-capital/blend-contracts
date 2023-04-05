@@ -3,7 +3,7 @@ use crate::{
     errors::BackstopError,
     storage::{self, Q4W},
 };
-use soroban_sdk::{contractimpl, symbol, Address, BytesN, Env, Vec};
+use soroban_sdk::{contractimpl, Address, BytesN, Env, Symbol, Vec};
 
 /// ### Backstop Module
 ///
@@ -213,8 +213,10 @@ impl BackstopModuleContractTrait for BackstopModuleContract {
 
         let to_mint = backstop::execute_deposit(&e, &from, &pool_address, amount)?;
 
-        e.events()
-            .publish((symbol!("deposit"), pool_address), (from, amount, to_mint));
+        e.events().publish(
+            (Symbol::new(&e, "deposit"), pool_address),
+            (from, amount, to_mint),
+        );
         Ok(to_mint)
     }
 
@@ -229,7 +231,7 @@ impl BackstopModuleContractTrait for BackstopModuleContract {
         let to_queue = backstop::execute_q_withdraw(&e, &from, &pool_address, amount)?;
 
         e.events().publish(
-            (symbol!("q_withdraw"), pool_address),
+            (Symbol::new(&e, "q_withdraw"), pool_address),
             (from, amount, to_queue.exp),
         );
         Ok(to_queue)
@@ -245,8 +247,10 @@ impl BackstopModuleContractTrait for BackstopModuleContract {
 
         backstop::execute_dequeue_q4w(&e, &from, &pool_address, amount)?;
 
-        e.events()
-            .publish((symbol!("dequeue_wd"), pool_address), (from, amount));
+        e.events().publish(
+            (Symbol::new(&e, "dequeue_wd"), pool_address),
+            (from, amount),
+        );
         Ok(())
     }
 
@@ -261,7 +265,7 @@ impl BackstopModuleContractTrait for BackstopModuleContract {
         let to_withdraw = backstop::execute_withdraw(&e, &from, &pool_address, amount)?;
 
         e.events().publish(
-            (symbol!("withdraw"), pool_address),
+            (Symbol::new(&e, "withdraw"), pool_address),
             (from, amount, to_withdraw),
         );
         Ok(to_withdraw)
@@ -303,7 +307,7 @@ impl BackstopModuleContractTrait for BackstopModuleContract {
         distributor::add_to_reward_zone(&e, to_add.clone(), to_remove.clone())?;
 
         e.events()
-            .publish((symbol!("rw_zone"),), (to_add, to_remove));
+            .publish((Symbol::new(&e, "rw_zone"),), (to_add, to_remove));
         Ok(())
     }
 
@@ -327,7 +331,7 @@ impl BackstopModuleContractTrait for BackstopModuleContract {
         backstop::execute_claim(&e, &pool_address, &to, amount)?;
 
         e.events()
-            .publish((symbol!("claim"), pool_address), (to, amount));
+            .publish((Symbol::new(&e, "claim"), pool_address), (to, amount));
         Ok(())
     }
 
@@ -345,7 +349,7 @@ impl BackstopModuleContractTrait for BackstopModuleContract {
         backstop::execute_draw(&e, &pool_address, amount, &to)?;
 
         e.events()
-            .publish((symbol!("draw"), pool_address), (to, amount));
+            .publish((Symbol::new(&e, "draw"), pool_address), (to, amount));
         Ok(())
     }
 
@@ -359,7 +363,7 @@ impl BackstopModuleContractTrait for BackstopModuleContract {
 
         backstop::execute_donate(&e, &from, &pool_address, amount)?;
         e.events()
-            .publish((symbol!("donate"), pool_address), (from, amount));
+            .publish((Symbol::new(&e, "donate"), pool_address), (from, amount));
         Ok(())
     }
 }

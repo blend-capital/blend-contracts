@@ -57,7 +57,7 @@ fn test_pool_happy_path() {
     asset1_client.incr_allow(&samwise, &pool, &i128(u64::MAX));
     assert_eq!(asset1_client.balance(&samwise), supply_amount);
 
-    e.budget().reset();
+    e.budget().reset_unlimited();
     // supply
     let minted_btokens = pool_client.supply(&samwise, &asset1_id, &supply_amount);
 

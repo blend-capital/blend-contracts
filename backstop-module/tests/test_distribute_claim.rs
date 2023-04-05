@@ -11,7 +11,7 @@ use crate::common::{create_backstop_module, create_mock_pool_factory, create_tok
 #[test]
 fn test_backstop_distribution_and_claim_happy_path() {
     let e = Env::default();
-
+    e.budget().reset_unlimited();
     let bombadil = Address::random(&e);
     let samwise = Address::random(&e);
 

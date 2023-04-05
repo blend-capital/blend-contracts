@@ -35,7 +35,6 @@ pub fn set_pool_status(e: &Env, admin: &Address, pool_status: u32) -> Result<(),
         return Err(PoolError::NotAuthorized);
     }
 
-    // TODO: Uncomment this code - will break a lot of tests
     if pool_status == 0 {
         // check the pool has met minimum backstop deposits before being turned on
         let backstop_id = storage::get_backstop(e);

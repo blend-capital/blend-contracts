@@ -4,19 +4,21 @@ use soroban_sdk::{
     Address, BytesN, Env,
 };
 
-use super::{PoolClient, ReserveConfig, ReserveMetadata};
+use super::{create_backstop, create_token_from_id, PoolClient, ReserveMetadata};
 
 /// Set up pool
 pub fn setup_pool(
     e: &Env,
+    pool_id: &BytesN<32>,
     pool_client: &PoolClient,
     admin: &Address,
     oracle_id: &BytesN<32>,
-    backstop_id: &BytesN<32>,
     bstop_rate: u64,
 ) {
     let b_token_hash = e.install_contract_wasm(B_TOKEN_WASM);
     let d_token_hash = e.install_contract_wasm(D_TOKEN_WASM);
+
+    let backstop_id = &create_and_setup_backstop(e, pool_id, admin);
     let backstop = Address::from_contract_id(e, backstop_id);
     pool_client.initialize(
         admin,
@@ -58,4 +60,17 @@ pub fn setup_reserve(
     let reserve_config = pool_client.res_config(&asset_id);
 
     return (asset_id, reserve_config.b_token, reserve_config.d_token);
+}
+
+/// Set up backstop
+pub fn create_and_setup_backstop(e: &Env, pool_id: &BytesN<32>, admin: &Address) -> BytesN<32> {
+    let (backstop_id, backstop_client) = create_backstop(e);
+    let backstop_token_id = BytesN::from_array(&e, &[222; 32]);
+    let backstop_token_client = create_token_from_id(e, &backstop_token_id, admin);
+
+    // deposit minimum deposit amount into backstop for pool
+    backstop_token_client.mint(admin, admin, &1_100_000_0000000);
+    backstop_client.deposit(admin, &pool_id, &1_100_000_0000000);
+
+    backstop_id
 }

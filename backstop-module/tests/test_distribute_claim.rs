@@ -6,9 +6,7 @@ use soroban_sdk::{
 };
 
 mod common;
-use crate::common::{
-    create_backstop_module, create_mock_pool_factory, create_token_from_id, BackstopError,
-};
+use crate::common::{create_backstop_module, create_mock_pool_factory, create_token_from_id};
 
 #[test]
 fn test_backstop_distribution_and_claim_happy_path() {
@@ -22,6 +20,7 @@ fn test_backstop_distribution_and_claim_happy_path() {
     let backstop = Address::from_contract_id(&e, &backstop_addr);
     let token_addr = BytesN::from_array(&e, &[222; 32]);
     let token_client = create_token_from_id(&e, &token_addr, &bombadil);
+    backstop_client.initialize(&token_addr);
 
     let pool_1 = generate_contract_id(&e); // in reward zone
     let pool_1_id = Address::from_contract_id(&e, &pool_1);

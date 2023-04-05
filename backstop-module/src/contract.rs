@@ -11,6 +11,15 @@ use soroban_sdk::{contractimpl, symbol, Address, BytesN, Env, Vec};
 pub struct BackstopModuleContract;
 
 pub trait BackstopModuleContractTrait {
+    /// Initialize the backstop module
+    ///
+    /// ### Arguments
+    /// * `backstop_token` - The backstop token. Is generally an LP token where 1 of the tokens is BLND.
+    ///
+    /// ### Errors
+    /// If the backstop_token has already been set
+    fn initialize(e: Env, backstop_token: BytesN<32>) -> Result<(), BackstopError>;
+
     /********** Core **********/
 
     /// Deposit backstop tokens from "from" into the backstop of a pool
@@ -92,6 +101,9 @@ pub trait BackstopModuleContractTrait {
     /// ### Arguments
     /// * `pool_address` - The address of the pool
     fn p_balance(e: Env, pool_address: BytesN<32>) -> (i128, i128, i128);
+
+    /// Fetch the backstop token for the backstop
+    fn bstp_token(e: Env) -> BytesN<32>;
 
     /********** Emissions **********/
 
@@ -180,6 +192,15 @@ pub trait BackstopModuleContractTrait {
 /// utilizes other modules to carry out contract functionality.
 #[contractimpl]
 impl BackstopModuleContractTrait for BackstopModuleContract {
+    fn initialize(e: Env, backstop_token: BytesN<32>) -> Result<(), BackstopError> {
+        if storage::has_backstop_token(&e) {
+            return Err(BackstopError::AlreadyInitialized);
+        }
+
+        storage::set_backstop_token(&e, &backstop_token);
+        Ok(())
+    }
+
     /********** Core **********/
 
     fn deposit(
@@ -260,6 +281,10 @@ impl BackstopModuleContractTrait for BackstopModuleContract {
             storage::get_pool_shares(&e, &pool),
             storage::get_pool_q4w(&e, &pool),
         )
+    }
+
+    fn bstp_token(e: Env) -> BytesN<32> {
+        storage::get_backstop_token(&e)
     }
 
     /********** Emissions **********/

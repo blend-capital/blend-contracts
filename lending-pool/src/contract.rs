@@ -179,6 +179,17 @@ pub trait PoolContractTrait {
     /// If the user has collateral posted
     fn bad_debt(e: Env, user: Address) -> Result<(), PoolError>;
 
+    /// Update the pool status based on the backstop state
+    /// * 0 = active - if the minimum backstop deposit has been reached
+    /// * 1 = on ice - if the minimum backstop deposit has not been reached
+    ///                or 25% of backstop deposits are queued for withdrawal
+    /// * 2 = frozen - if 50% of backstop deposits are queued for withdrawal
+    ///
+    /// ### Errors
+    /// If the pool is currently of status 3, "admin-freeze", where only the admin
+    /// can perform a status update via `set_status`
+    fn updt_stat(e: Env) -> Result<u32, PoolError>;
+
     /// Pool status is changed to "pool_status"
     /// * 0 = active
     /// * 1 = on ice
@@ -455,6 +466,16 @@ impl PoolContractTrait for PoolContract {
 
     fn bad_debt(e: Env, user: Address) -> Result<(), PoolError> {
         bad_debt::manage_bad_debt(&e, &user)
+    }
+
+    fn updt_stat(e: Env) -> Result<u32, PoolError> {
+        let new_status = pool::execute_update_pool_status(&e)?;
+
+        // msg.sender
+        let caller = e.call_stack().get(0).unwrap().unwrap().0;
+        e.events()
+            .publish((symbol!("set_status"), caller), new_status);
+        Ok(new_status)
     }
 
     fn set_status(e: Env, admin: Address, pool_status: u32) -> Result<(), PoolError> {

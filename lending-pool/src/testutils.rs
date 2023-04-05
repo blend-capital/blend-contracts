@@ -1,7 +1,7 @@
 #![cfg(any(test, feature = "testutils"))]
 
 use crate::{
-    constants::POOL_FACTORY,
+    constants::{BLND_TOKEN, POOL_FACTORY},
     dependencies::{
         BackstopClient, BlendTokenClient, TokenClient, BACKSTOP_WASM, B_TOKEN_WASM, D_TOKEN_WASM,
         TOKEN_WASM,
@@ -112,6 +112,14 @@ pub(crate) fn create_backstop(e: &Env) -> (BytesN<32>, BackstopClient) {
     let contract_id = generate_contract_id(e);
     e.register_contract_wasm(&contract_id, BACKSTOP_WASM);
     (contract_id.clone(), BackstopClient::new(e, &contract_id))
+}
+
+pub(crate) fn create_backstop_token(e: &Env, admin: &Address) -> TokenClient {
+    let contract_id = BytesN::from_array(e, &BLND_TOKEN);
+    e.register_contract_wasm(&contract_id, TOKEN_WASM);
+    let client = TokenClient::new(e, &contract_id);
+    client.initialize(admin, &7, &"unit".into_val(e), &"test".into_val(e));
+    client
 }
 
 //************************************************

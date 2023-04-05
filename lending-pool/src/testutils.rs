@@ -10,7 +10,10 @@ use crate::{
     storage::{self, ReserveConfig, ReserveData},
 };
 use rand::{thread_rng, RngCore};
-use soroban_sdk::{testutils::Address as AddressTestTrait, Address, BytesN, Env, IntoVal};
+use soroban_sdk::{
+    testutils::{Address as _, BytesN as _},
+    Address, BytesN, Env, IntoVal,
+};
 
 pub(crate) fn generate_contract_id(e: &Env) -> BytesN<32> {
     let mut id: [u8; 32] = Default::default();
@@ -114,12 +117,18 @@ pub(crate) fn create_backstop(e: &Env) -> (BytesN<32>, BackstopClient) {
     (contract_id.clone(), BackstopClient::new(e, &contract_id))
 }
 
-pub(crate) fn create_backstop_token(e: &Env, admin: &Address) -> TokenClient {
-    let contract_id = BytesN::from_array(e, &BLND_TOKEN);
+pub(crate) fn create_backstop_token(
+    e: &Env,
+    backstop: &BytesN<32>,
+    admin: &Address,
+) -> (BytesN<32>, TokenClient) {
+    let contract_id = BytesN::<32>::random(e);
     e.register_contract_wasm(&contract_id, TOKEN_WASM);
     let client = TokenClient::new(e, &contract_id);
-    client.initialize(admin, &7, &"unit".into_val(e), &"test".into_val(e));
-    client
+    client.initialize(&admin, &7, &"unit".into_val(e), &"test".into_val(e));
+
+    let backstop_client = BackstopClient::new(e, backstop).initialize(&contract_id);
+    (contract_id, client)
 }
 
 //************************************************

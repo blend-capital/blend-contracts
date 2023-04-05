@@ -1,9 +1,8 @@
 #![cfg(test)]
 
 use soroban_sdk::{
-    symbol,
     testutils::{Address as AddressTestTrait, Ledger, LedgerInfo},
-    Address, BytesN, Env, IntoVal,
+    Address, BytesN, Env, IntoVal, Symbol,
 };
 
 use crate::common::{create_wasm_pool_factory, generate_contract_id, lending_pool};
@@ -22,7 +21,7 @@ fn test_deploy() {
     let oracle = generate_contract_id(&e);
     // TODO: Verify this works when issues/14 is resolved
     let args = (bombadil, oracle).into_val(&e);
-    let init_func = symbol!("initialize");
+    let init_func = Symbol::new(&e, "initialize");
 
     e.ledger().set(LedgerInfo {
         timestamp: 12345,

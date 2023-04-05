@@ -1,5 +1,5 @@
 use crate::{dependencies::BackstopClient, emitter, errors::EmitterError, storage};
-use soroban_sdk::{contractimpl, symbol, Address, BytesN, Env};
+use soroban_sdk::{contractimpl, Address, BytesN, Env, Symbol};
 
 /// ### Emitter
 ///
@@ -62,8 +62,10 @@ impl EmitterContractTrait for EmitterContract {
 
         let distribution_amount = emitter::execute_distribute(&e, &backstop)?;
 
-        e.events()
-            .publish((symbol!("distribute"),), (backstop, distribution_amount));
+        e.events().publish(
+            (Symbol::new(&e, "distribute"),),
+            (backstop, distribution_amount),
+        );
         Ok(distribution_amount)
     }
 
@@ -80,7 +82,8 @@ impl EmitterContractTrait for EmitterContract {
         let backstop_token = BackstopClient::new(&e, &new_backstop_id).bstp_token();
         storage::set_backstop_token_id(&e, &backstop_token);
 
-        e.events().publish((symbol!("swap"),), (new_backstop,));
+        e.events()
+            .publish((Symbol::new(&e, "swap"),), (new_backstop,));
         Ok(())
     }
 }

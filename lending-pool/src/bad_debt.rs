@@ -1,4 +1,4 @@
-use soroban_sdk::{symbol, Address, BytesN, Env};
+use soroban_sdk::{Address, BytesN, Env, Symbol};
 
 use crate::{
     constants::BLND_TOKEN,
@@ -61,7 +61,7 @@ pub fn transfer_bad_debt_to_backstop(
         reserve.set_data(&e);
 
         e.events().publish(
-            (symbol!("bad_debt"), user),
+            (Symbol::new(&e, "bad_debt"), user),
             (res_asset_address, user_balance),
         );
     }
@@ -104,7 +104,7 @@ pub fn burn_backstop_bad_debt(e: &Env, backstop: &Address) -> Result<(), PoolErr
             reserve.set_data(&e);
 
             e.events().publish(
-                (symbol!("bad_debt"), backstop),
+                (Symbol::new(&e, "bad_debt"), backstop),
                 (res_asset_address, d_token_balance),
             );
         }
@@ -180,6 +180,7 @@ mod tests {
             let d_token_1 = TokenClient::new(&e, &reserve_1.config.d_token);
             d_token_1.mint(&e.current_contract_address(), &samwise, &liability_amount_1);
 
+            e.budget().reset_unlimited();
             transfer_bad_debt_to_backstop(&e, &samwise, &backstop).unwrap();
 
             assert_eq!(d_token_0.balance(&samwise), 0);
@@ -342,7 +343,7 @@ mod tests {
             reserve_1.set_data(&e);
             let d_token_supply_1 = reserve_1.data.d_supply;
 
-            e.budget().reset();
+            e.budget().reset_unlimited();
             burn_backstop_bad_debt(&e, &backstop).unwrap();
 
             assert_eq!(d_token_0.balance(&backstop), 0);
@@ -423,7 +424,7 @@ mod tests {
             reserve_1.add_liability(&liability_amount_1);
             reserve_1.set_data(&e);
 
-            e.budget().reset();
+            e.budget().reset_unlimited();
             let result = burn_backstop_bad_debt(&e, &backstop);
             assert_eq!(result, Err(PoolError::BadRequest));
         });
@@ -500,7 +501,7 @@ mod tests {
                 },
             );
 
-            e.budget().reset();
+            e.budget().reset_unlimited();
             let result = burn_backstop_bad_debt(&e, &backstop);
             assert_eq!(result, Err(PoolError::AuctionInProgress));
         });

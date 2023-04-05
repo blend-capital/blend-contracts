@@ -14,8 +14,8 @@ doctest = false
 testutils = ["soroban-sdk/testutils"]
 
 [dependencies]
-soroban-sdk = "0.6.0"
+soroban-sdk = "0.7.0"
 
 [dev_dependencies]
-soroban-sdk = { version = "0.6.0", features = ["testutils"] }
+soroban-sdk = { version = "0.7.0", features = ["testutils"] }
 rand = {version = "0.7.3"}

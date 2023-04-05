@@ -122,7 +122,7 @@ mod tests {
         asset_1_client.mint(&bombadil, &frodo, &500_0000000);
 
         e.as_contract(&pool_id, || {
-            e.budget().reset();
+            e.budget().reset_unlimited();
             execute_supply(&e, &samwise, &asset_id_0, 100_0000000).unwrap();
             execute_supply(&e, &frodo, &asset_id_1, 500_0000000).unwrap();
             assert_eq!(400_0000000, asset_0_client.balance(&samwise));
@@ -171,7 +171,7 @@ mod tests {
         e.as_contract(&pool_id, || {
             storage::set_pool_config(&e, &pool_config);
 
-            e.budget().reset();
+            e.budget().reset_unlimited();
             execute_supply(&e, &frodo, &reserve_1.asset, 500_0000000).unwrap(); // for samwise to borrow
             execute_supply(&e, &samwise, &reserve_0.asset, 100_0000000).unwrap();
             execute_borrow(&e, &samwise, &reserve_1.asset, 50_0000000, &samwise).unwrap();
@@ -234,7 +234,7 @@ mod tests {
         };
         e.as_contract(&pool_id, || {
             storage::set_pool_config(&e, &pool_config);
-            e.budget().reset();
+            e.budget().reset_unlimited();
 
             // can supply on ice
             execute_supply(&e, &samwise, &reserve_0.asset, 100_0000000).unwrap();

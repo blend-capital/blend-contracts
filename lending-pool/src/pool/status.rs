@@ -76,7 +76,7 @@ mod tests {
         let samwise = Address::random(&e);
 
         let (backstop_id, backstop_client) = create_backstop(&e);
-        let backstop_token_client = create_backstop_token(&e, &bombadil);
+        let (_, backstop_token_client) = create_backstop_token(&e, &backstop_id, &bombadil);
         backstop_token_client.mint(&bombadil, &samwise, &1_100_000_0000000);
         backstop_client.deposit(&samwise, &pool_id, &1_100_000_0000000);
 
@@ -108,7 +108,7 @@ mod tests {
         let sauron = Address::random(&e);
 
         let (backstop_id, backstop_client) = create_backstop(&e);
-        let backstop_token_client = create_backstop_token(&e, &bombadil);
+        let (_, backstop_token_client) = create_backstop_token(&e, &backstop_id, &bombadil);
         backstop_token_client.mint(&bombadil, &samwise, &1_100_000_0000000);
         backstop_client.deposit(&samwise, &pool_id, &1_100_000_0000000);
 
@@ -140,7 +140,7 @@ mod tests {
         let samwise = Address::random(&e);
 
         let (backstop_id, backstop_client) = create_backstop(&e);
-        let backstop_token_client = create_backstop_token(&e, &bombadil);
+        let (_, backstop_token_client) = create_backstop_token(&e, &backstop_id, &bombadil);
         backstop_token_client.mint(&bombadil, &samwise, &999_999_9999999);
         backstop_client.deposit(&samwise, &pool_id, &999_999_9999999);
 
@@ -169,7 +169,7 @@ mod tests {
         let samwise = Address::random(&e);
 
         let (backstop_id, backstop_client) = create_backstop(&e);
-        let backstop_token_client = create_backstop_token(&e, &bombadil);
+        let (_, backstop_token_client) = create_backstop_token(&e, &backstop_id, &bombadil);
         backstop_token_client.mint(&bombadil, &samwise, &1_100_000_0000000);
         backstop_client.deposit(&samwise, &pool_id, &1_100_000_0000000);
 
@@ -201,7 +201,7 @@ mod tests {
         let samwise = Address::random(&e);
 
         let (backstop_id, backstop_client) = create_backstop(&e);
-        let backstop_token_client = create_backstop_token(&e, &bombadil);
+        let (_, backstop_token_client) = create_backstop_token(&e, &backstop_id, &bombadil);
         backstop_token_client.mint(&bombadil, &samwise, &900_000_0000000);
         backstop_client.deposit(&samwise, &pool_id, &900_000_0000000);
 
@@ -233,7 +233,7 @@ mod tests {
         let samwise = Address::random(&e);
 
         let (backstop_id, backstop_client) = create_backstop(&e);
-        let backstop_token_client = create_backstop_token(&e, &bombadil);
+        let (_, backstop_token_client) = create_backstop_token(&e, &backstop_id, &bombadil);
         backstop_token_client.mint(&bombadil, &samwise, &1_100_000_0000000);
         backstop_client.deposit(&samwise, &pool_id, &1_100_000_0000000);
         backstop_client.q_withdraw(&samwise, &pool_id, &300_000_0000000);
@@ -266,7 +266,7 @@ mod tests {
         let samwise = Address::random(&e);
 
         let (backstop_id, backstop_client) = create_backstop(&e);
-        let backstop_token_client = create_backstop_token(&e, &bombadil);
+        let (_, backstop_token_client) = create_backstop_token(&e, &backstop_id, &bombadil);
         backstop_token_client.mint(&bombadil, &samwise, &1_100_000_0000000);
         backstop_client.deposit(&samwise, &pool_id, &1_100_000_0000000);
         backstop_client.q_withdraw(&samwise, &pool_id, &600_000_0000000);
@@ -299,7 +299,7 @@ mod tests {
         let samwise = Address::random(&e);
 
         let (backstop_id, backstop_client) = create_backstop(&e);
-        let backstop_token_client = create_backstop_token(&e, &bombadil);
+        let (_, backstop_token_client) = create_backstop_token(&e, &backstop_id, &bombadil);
         backstop_token_client.mint(&bombadil, &samwise, &1_100_000_0000000);
         backstop_client.deposit(&samwise, &pool_id, &1_100_000_0000000);
 

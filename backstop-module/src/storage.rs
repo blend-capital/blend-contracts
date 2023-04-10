@@ -10,6 +10,30 @@ pub struct Q4W {
     pub exp: u64,     // the expiration of the withdrawal
 }
 
+// The emission configuration for a pool's backstop
+#[derive(Clone)]
+#[contracttype]
+pub struct BackstopEmissionConfig {
+    pub expiration: u64,
+    pub eps: u64,
+}
+
+// The emission data for a pool's backstop
+#[derive(Clone)]
+#[contracttype]
+pub struct BackstopEmissionsData {
+    pub index: i128,
+    pub last_time: u64,
+}
+
+/// The user emission data for the reserve b or d token
+#[derive(Clone)]
+#[contracttype]
+pub struct UserEmissionData {
+    pub index: i128,
+    pub accrued: i128,
+}
+
 /********** Storage Key Types **********/
 
 #[derive(Clone)]
@@ -31,6 +55,9 @@ pub enum BackstopDataKey {
     RewardZone,
     PoolEPS(BytesN<32>),
     PoolEmis(BytesN<32>),
+    BEmisCfg(BytesN<32>),
+    BEmisData(BytesN<32>),
+    UEmisData(PoolUserKey),
     BckstpTkn,
 }
 
@@ -280,4 +307,103 @@ pub fn get_pool_emis(e: &Env, pool: &BytesN<32>) -> i128 {
 pub fn set_pool_emis(e: &Env, pool: &BytesN<32>, amount: &i128) {
     let key = BackstopDataKey::PoolEmis(pool.clone());
     e.storage().set::<BackstopDataKey, i128>(&key, amount);
+}
+
+/********** Backstop Depositor Emissions **********/
+
+/// Get the pool's backstop emissions config, or None if
+///
+/// ### Arguments
+/// * `pool` - The pool
+pub fn get_backstop_emis_config(e: &Env, pool: &BytesN<32>) -> Option<BackstopEmissionConfig> {
+    let key = BackstopDataKey::BEmisCfg(pool.clone());
+    let result = e
+        .storage()
+        .get::<BackstopDataKey, BackstopEmissionConfig>(&key);
+    match result {
+        Some(data) => Some(data.unwrap()),
+        None => None,
+    }
+}
+
+/// Set the pool's backstop emissions config
+///
+/// ### Arguments
+/// * `pool` - The pool
+/// * `backstop_emis_config` - The new emission data for the backstop
+pub fn set_backstop_emis_config(
+    e: &Env,
+    pool: &BytesN<32>,
+    backstop_emis_config: &BackstopEmissionConfig,
+) {
+    let key = BackstopDataKey::BEmisCfg(pool.clone());
+    e.storage()
+        .set::<BackstopDataKey, BackstopEmissionConfig>(&key, backstop_emis_config);
+}
+
+/// Get the pool's backstop emissions data
+///
+/// ### Arguments
+/// * `pool` - The pool
+pub fn get_backstop_emis_data(e: &Env, pool: &BytesN<32>) -> Option<BackstopEmissionsData> {
+    let key = BackstopDataKey::BEmisData(pool.clone());
+    let result = e
+        .storage()
+        .get::<BackstopDataKey, BackstopEmissionsData>(&key);
+    match result {
+        Some(data) => Some(data.unwrap()),
+        None => None,
+    }
+}
+
+/// Set the pool's backstop emissions data
+///
+/// ### Arguments
+/// * `pool` - The pool
+/// * `backstop_emis_data` - The new emission data for the backstop
+pub fn set_backstop_emis_data(
+    e: &Env,
+    pool: &BytesN<32>,
+    backstop_emis_data: &BackstopEmissionsData,
+) {
+    let key = BackstopDataKey::BEmisData(pool.clone());
+    e.storage()
+        .set::<BackstopDataKey, BackstopEmissionsData>(&key, backstop_emis_data);
+}
+
+/// Get the user's backstop emissions data
+///
+/// ### Arguments
+/// * `pool` - The pool whose backstop the user's emissions are for
+/// * `user` - The user's address
+pub fn get_user_emis_data(e: &Env, pool: &BytesN<32>, user: &Address) -> Option<UserEmissionData> {
+    let key = BackstopDataKey::UEmisData(PoolUserKey {
+        pool: pool.clone(),
+        user: user.clone(),
+    });
+    let result = e.storage().get::<BackstopDataKey, UserEmissionData>(&key);
+    match result {
+        Some(data) => Some(data.unwrap()),
+        None => None,
+    }
+}
+
+/// Set the user's backstop emissions data
+///
+/// ### Arguments
+/// * `pool` - The pool whose backstop the user's emissions are for
+/// * `user` - The user's address
+/// * `user_emis_data` - The new emission data for the user
+pub fn set_user_emis_data(
+    e: &Env,
+    pool: &BytesN<32>,
+    user: &Address,
+    user_emis_data: &UserEmissionData,
+) {
+    let key = BackstopDataKey::UEmisData(PoolUserKey {
+        pool: pool.clone(),
+        user: user.clone(),
+    });
+    e.storage()
+        .set::<BackstopDataKey, UserEmissionData>(&key, user_emis_data);
 }

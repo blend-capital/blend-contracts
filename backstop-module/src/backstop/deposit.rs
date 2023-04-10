@@ -1,4 +1,6 @@
-use crate::{dependencies::TokenClient, errors::BackstopError, pool::Pool, storage, user::User};
+use crate::{
+    dependencies::TokenClient, emissions, errors::BackstopError, pool::Pool, storage, user::User,
+};
 use soroban_sdk::{Address, BytesN, Env};
 
 /// Perform a deposit into the backstop module
@@ -10,6 +12,8 @@ pub fn execute_deposit(
 ) -> Result<i128, BackstopError> {
     let mut user = User::new(pool_address.clone(), from.clone());
     let mut pool = Pool::new(e, pool_address.clone());
+
+    emissions::update_emission_index(e, &mut pool, &mut user, false)?;
 
     let to_mint = pool.convert_to_shares(e, amount);
 

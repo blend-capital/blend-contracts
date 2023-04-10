@@ -1,4 +1,6 @@
-use crate::{dependencies::TokenClient, errors::BackstopError, pool::Pool, storage, user::User};
+use crate::{
+    dependencies::TokenClient, emissions, errors::BackstopError, pool::Pool, storage, user::User,
+};
 use soroban_sdk::{Address, BytesN, Env};
 
 /// Perform a queue for withdraw from the backstop module
@@ -49,6 +51,8 @@ pub fn execute_withdraw(
 ) -> Result<i128, BackstopError> {
     let mut user = User::new(pool_address.clone(), from.clone());
     let mut pool = Pool::new(e, pool_address.clone());
+
+    emissions::update_emission_index(e, &mut pool, &mut user, false)?;
 
     user.try_withdraw_shares(e, amount)?;
 

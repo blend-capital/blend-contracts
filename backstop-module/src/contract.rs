@@ -1,5 +1,5 @@
 use crate::{
-    backstop, distributor,
+    backstop, emissions,
     errors::BackstopError,
     storage::{self, Q4W},
 };
@@ -294,7 +294,7 @@ impl BackstopModuleContractTrait for BackstopModuleContract {
     /********** Emissions **********/
 
     fn dist(e: Env) -> Result<(), BackstopError> {
-        distributor::distribute(&e)?;
+        emissions::distribute(&e)?;
 
         Ok(())
     }
@@ -304,7 +304,7 @@ impl BackstopModuleContractTrait for BackstopModuleContract {
     }
 
     fn add_reward(e: Env, to_add: BytesN<32>, to_remove: BytesN<32>) -> Result<(), BackstopError> {
-        distributor::add_to_reward_zone(&e, to_add.clone(), to_remove.clone())?;
+        emissions::add_to_reward_zone(&e, to_add.clone(), to_remove.clone())?;
 
         e.events()
             .publish((Symbol::new(&e, "rw_zone"),), (to_add, to_remove));

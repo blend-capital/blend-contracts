@@ -9,7 +9,17 @@ mod pool_factory {
 
 // TODO: revert back to lending pool when issues/14 is resolved
 pub mod lending_pool {
-    soroban_sdk::contractimport!(file = "../target/wasm32-unknown-unknown/release/emitter.wasm");
+    soroban_sdk::contractimport!(
+        file = "../target/wasm32-unknown-unknown/release/lending_pool.wasm"
+    );
+}
+
+pub mod b_token {
+    soroban_sdk::contractimport!(file = "../target/wasm32-unknown-unknown/release/b_token.wasm");
+}
+
+pub mod d_token {
+    soroban_sdk::contractimport!(file = "../target/wasm32-unknown-unknown/release/d_token.wasm");
 }
 
 pub use pool_factory::Client as PoolFactoryClient;

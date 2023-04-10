@@ -139,12 +139,30 @@ pub trait BackstopModuleContractTrait {
     /// ### Errors
     /// If the pool has no emissions left to claim
     /// TODO: Require from == pool_address once sdk issue resolved: https://github.com/stellar/rs-soroban-sdk/issues/868
-    fn claim(
+    fn pool_claim(
         e: Env,
         from: Address,
         pool_address: BytesN<32>,
         to: Address,
         amount: i128,
+    ) -> Result<(), BackstopError>;
+
+    /// Claim backstop deposit emissions from a list of pools for `from`
+    ///
+    /// Returns the amount of BLND emissions claimed
+    ///
+    /// ### Arguments
+    /// * `from` - The address of the user claiming emissions
+    /// * `pool_addresses` - The Vec of addresses to claim backstop deposit emissions from
+    /// * `to` - The Address to send to emissions to
+    ///
+    /// ### Errors
+    /// If an invalid pool address is included
+    fn claim(
+        e: Env,
+        from: Address,
+        pool_addresses: Vec<BytesN<32>>,
+        to: Address,
     ) -> Result<(), BackstopError>;
 
     /********** Fund Management *********/
@@ -319,7 +337,7 @@ impl BackstopModuleContractTrait for BackstopModuleContract {
         storage::get_pool_eps(&e, &pool_address)
     }
 
-    fn claim(
+    fn pool_claim(
         e: Env,
         from: Address,
         pool_address: BytesN<32>,
@@ -328,10 +346,25 @@ impl BackstopModuleContractTrait for BackstopModuleContract {
     ) -> Result<(), BackstopError> {
         from.require_auth();
 
-        backstop::execute_claim(&e, &pool_address, &to, amount)?;
+        emissions::execute_pool_claim(&e, &pool_address, &to, amount)?;
 
         e.events()
-            .publish((Symbol::new(&e, "claim"), pool_address), (to, amount));
+            .publish((Symbol::new(&e, "pool_claim"), pool_address), (to, amount));
+        Ok(())
+    }
+
+    fn claim(
+        e: Env,
+        from: Address,
+        pool_addresses: Vec<BytesN<32>>,
+        to: Address,
+    ) -> Result<(), BackstopError> {
+        from.require_auth();
+
+        let amount = emissions::execute_claim(&e, &from, &pool_addresses, &to)?;
+
+        e.events()
+            .publish((Symbol::new(&e, "claim"), from), (to, amount));
         Ok(())
     }
 

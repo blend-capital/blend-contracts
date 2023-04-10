@@ -1,6 +1,3 @@
-mod claim;
-pub use claim::execute_claim;
-
 mod deposit;
 pub use deposit::execute_deposit;
 

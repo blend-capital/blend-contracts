@@ -1,9 +1,7 @@
 use fixed_point_math::FixedPoint;
 use soroban_sdk::{BytesN, Env};
 
-use crate::{
-    constants::POOL_FACTORY, dependencies::PoolFactoryClient, errors::BackstopError, storage,
-};
+use crate::{dependencies::PoolFactoryClient, errors::BackstopError, storage};
 
 /// A user of the backstop module with respect to a given pool
 /// Data is lazy loaded as not all struct information is required for each action
@@ -30,7 +28,7 @@ impl Pool {
     ///
     /// Returns a Result
     pub fn verify_pool(&self, e: &Env) -> Result<(), BackstopError> {
-        let pool_factory_client = PoolFactoryClient::new(e, &BytesN::from_array(&e, &POOL_FACTORY));
+        let pool_factory_client = PoolFactoryClient::new(e, &storage::get_pool_factory(e));
         if !pool_factory_client.is_pool(&self.contract_id) {
             return Err(BackstopError::NotPool);
         }
@@ -269,6 +267,8 @@ impl Pool {
 
 #[cfg(test)]
 mod tests {
+    use soroban_sdk::testutils::BytesN as _;
+
     use crate::testutils::{create_mock_pool_factory, generate_contract_id};
 
     use super::*;
@@ -279,41 +279,47 @@ mod tests {
     fn test_verify_pool_valid() {
         let e = Env::default();
 
+        let backstop_id = BytesN::<32>::random(&e);
         let pool_addr = generate_contract_id(&e);
 
-        let mock_pool_factory = create_mock_pool_factory(&e);
+        let (_, mock_pool_factory) = create_mock_pool_factory(&e, &backstop_id);
         mock_pool_factory.set_pool(&pool_addr);
 
-        let pool = Pool::new(&e, pool_addr.clone());
-        let result = pool.verify_pool(&e);
+        e.as_contract(&backstop_id, || {
+            let pool = Pool::new(&e, pool_addr.clone());
+            let result = pool.verify_pool(&e);
 
-        match result {
-            Ok(_) => {
-                assert!(true)
+            match result {
+                Ok(_) => {
+                    assert!(true)
+                }
+                Err(_) => {
+                    assert!(false)
+                }
             }
-            Err(_) => {
-                assert!(false)
-            }
-        }
+        });
     }
 
     #[test]
     fn test_verify_pool_not_valid() {
         let e = Env::default();
 
+        let backstop_id = BytesN::<32>::random(&e);
         let pool_addr = generate_contract_id(&e);
         let not_pool_addr = generate_contract_id(&e);
 
-        let mock_pool_factory = create_mock_pool_factory(&e);
+        let (_, mock_pool_factory) = create_mock_pool_factory(&e, &backstop_id);
         mock_pool_factory.set_pool(&pool_addr);
 
-        let pool = Pool::new(&e, not_pool_addr.clone());
-        let result = pool.verify_pool(&e);
+        e.as_contract(&backstop_id, || {
+            let pool = Pool::new(&e, not_pool_addr.clone());
+            let result = pool.verify_pool(&e);
 
-        match result {
-            Ok(_) => assert!(false),
-            Err(err) => assert_eq!(err, BackstopError::NotPool),
-        }
+            match result {
+                Ok(_) => assert!(false),
+                Err(err) => assert_eq!(err, BackstopError::NotPool),
+            }
+        });
     }
 
     /********** Cache / Getters / Setters **********/

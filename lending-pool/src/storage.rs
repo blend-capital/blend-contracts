@@ -121,6 +121,10 @@ pub enum PoolDataKey {
     BkstpAddr,
     // Token Hashes
     TokenHash,
+    // BLND token ID
+    BLNDTkn,
+    // USDC token ID
+    USDCTkn,
     // The config of the pool
     PoolConfig,
     // A list of the next reserve emission allocation percentages
@@ -225,6 +229,36 @@ pub fn set_token_hashes(e: &Env, b_token_hash: &BytesN<32>, d_token_hash: &Bytes
         &key,
         &(b_token_hash.clone(), d_token_hash.clone()),
     );
+}
+
+/********** External Token Contracts **********/
+
+/// Fetch the BLND token ID
+pub fn get_blnd_token(e: &Env) -> BytesN<32> {
+    e.storage().get_unchecked(&PoolDataKey::BLNDTkn).unwrap()
+}
+
+/// Set a new BLND token ID
+///
+/// ### Arguments
+/// * `blnd_token_id` - The ID of the BLND token
+pub fn set_blnd_token(e: &Env, blnd_token_id: &BytesN<32>) {
+    e.storage()
+        .set::<PoolDataKey, BytesN<32>>(&PoolDataKey::BLNDTkn, blnd_token_id);
+}
+
+/// Fetch the USDC token ID
+pub fn get_usdc_token(e: &Env) -> BytesN<32> {
+    e.storage().get_unchecked(&PoolDataKey::USDCTkn).unwrap()
+}
+
+/// Set a new USDC token ID
+///
+/// ### Arguments
+/// * `usdc_token_id` - The ID of the USDC token
+pub fn set_usdc_token(e: &Env, usdc_token_id: &BytesN<32>) {
+    e.storage()
+        .set::<PoolDataKey, BytesN<32>>(&PoolDataKey::USDCTkn, usdc_token_id);
 }
 
 /********** Pool Config **********/

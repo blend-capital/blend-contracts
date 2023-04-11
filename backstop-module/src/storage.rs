@@ -59,15 +59,51 @@ pub enum BackstopDataKey {
     BEmisData(BytesN<32>),
     UEmisData(PoolUserKey),
     BckstpTkn,
+    PoolFact,
+    BLNDTkn,
 }
 
 /****************************
 **         Storage         **
 ****************************/
 
-/********** Backstop Token **********/
+/********** External Contracts **********/
 
-/// Fetch the backstop token
+/// Fetch the pool factory id
+pub fn get_pool_factory(e: &Env) -> BytesN<32> {
+    e.storage()
+        .get::<BackstopDataKey, BytesN<32>>(&BackstopDataKey::PoolFact)
+        .unwrap()
+        .unwrap()
+}
+
+/// Set the pool factory
+///
+/// ### Arguments
+/// * `pool_factory_id` - The ID of the pool factory
+pub fn set_pool_factory(e: &Env, pool_factory_id: &BytesN<32>) {
+    e.storage()
+        .set::<BackstopDataKey, BytesN<32>>(&BackstopDataKey::PoolFact, pool_factory_id);
+}
+
+/// Fetch the BLND token id
+pub fn get_blnd_token(e: &Env) -> BytesN<32> {
+    e.storage()
+        .get::<BackstopDataKey, BytesN<32>>(&BackstopDataKey::BLNDTkn)
+        .unwrap()
+        .unwrap()
+}
+
+/// Set the BLND token id
+///
+/// ### Arguments
+/// * `blnd_token_id` - The ID of the new BLND token
+pub fn set_blnd_token(e: &Env, blnd_token_id: &BytesN<32>) {
+    e.storage()
+        .set::<BackstopDataKey, BytesN<32>>(&BackstopDataKey::BLNDTkn, blnd_token_id);
+}
+
+/// Fetch the backstop token id
 pub fn get_backstop_token(e: &Env) -> BytesN<32> {
     e.storage()
         .get::<BackstopDataKey, BytesN<32>>(&BackstopDataKey::BckstpTkn)
@@ -80,13 +116,13 @@ pub fn has_backstop_token(e: &Env) -> bool {
     e.storage().has(&BackstopDataKey::BckstpTkn)
 }
 
-/// Set the backstop token
+/// Set the backstop token id
 ///
 /// ### Arguments
-/// * `token_address` - The address of the new backstop token
-pub fn set_backstop_token(e: &Env, token_address: &BytesN<32>) {
+/// * `backstop_token_id` - The ID of the new backstop token
+pub fn set_backstop_token(e: &Env, backstop_token_id: &BytesN<32>) {
     e.storage()
-        .set::<BackstopDataKey, BytesN<32>>(&BackstopDataKey::BckstpTkn, token_address);
+        .set::<BackstopDataKey, BytesN<32>>(&BackstopDataKey::BckstpTkn, backstop_token_id);
 }
 
 /********** User Shares **********/

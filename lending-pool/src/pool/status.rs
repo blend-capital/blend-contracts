@@ -57,7 +57,7 @@ pub fn set_pool_status(e: &Env, admin: &Address, pool_status: u32) -> Result<(),
 mod tests {
     use crate::{
         storage::PoolConfig,
-        testutils::{create_backstop, create_backstop_token},
+        testutils::{create_backstop, create_token_contract, setup_backstop},
     };
 
     use super::*;
@@ -75,8 +75,15 @@ mod tests {
         let bombadil = Address::random(&e);
         let samwise = Address::random(&e);
 
+        let (backstop_token_id, backstop_token_client) = create_token_contract(&e, &bombadil);
         let (backstop_id, backstop_client) = create_backstop(&e);
-        let (_, backstop_token_client) = create_backstop_token(&e, &backstop_id, &bombadil);
+        setup_backstop(
+            &e,
+            &pool_id,
+            &backstop_id,
+            &backstop_token_id,
+            &BytesN::<32>::random(&e),
+        );
         backstop_token_client.mint(&bombadil, &samwise, &1_100_000_0000000);
         backstop_client.deposit(&samwise, &pool_id, &1_100_000_0000000);
 
@@ -88,7 +95,6 @@ mod tests {
         e.as_contract(&pool_id, || {
             storage::set_admin(&e, &bombadil);
             storage::set_pool_config(&e, &pool_config);
-            storage::set_backstop(&e, &backstop_id);
 
             set_pool_status(&e, &bombadil, 0).unwrap();
 
@@ -107,8 +113,15 @@ mod tests {
         let samwise = Address::random(&e);
         let sauron = Address::random(&e);
 
+        let (backstop_token_id, backstop_token_client) = create_token_contract(&e, &bombadil);
         let (backstop_id, backstop_client) = create_backstop(&e);
-        let (_, backstop_token_client) = create_backstop_token(&e, &backstop_id, &bombadil);
+        setup_backstop(
+            &e,
+            &pool_id,
+            &backstop_id,
+            &backstop_token_id,
+            &BytesN::<32>::random(&e),
+        );
         backstop_token_client.mint(&bombadil, &samwise, &1_100_000_0000000);
         backstop_client.deposit(&samwise, &pool_id, &1_100_000_0000000);
 
@@ -120,7 +133,6 @@ mod tests {
         e.as_contract(&pool_id, || {
             storage::set_admin(&e, &bombadil);
             storage::set_pool_config(&e, &pool_config);
-            storage::set_backstop(&e, &backstop_id);
 
             let result = set_pool_status(&e, &sauron, 0);
             assert_eq!(result, Err(PoolError::NotAuthorized));
@@ -139,8 +151,15 @@ mod tests {
         let bombadil = Address::random(&e);
         let samwise = Address::random(&e);
 
+        let (backstop_token_id, backstop_token_client) = create_token_contract(&e, &bombadil);
         let (backstop_id, backstop_client) = create_backstop(&e);
-        let (_, backstop_token_client) = create_backstop_token(&e, &backstop_id, &bombadil);
+        setup_backstop(
+            &e,
+            &pool_id,
+            &backstop_id,
+            &backstop_token_id,
+            &BytesN::<32>::random(&e),
+        );
         backstop_token_client.mint(&bombadil, &samwise, &999_999_9999999);
         backstop_client.deposit(&samwise, &pool_id, &999_999_9999999);
 
@@ -152,7 +171,6 @@ mod tests {
         e.as_contract(&pool_id, || {
             storage::set_admin(&e, &bombadil);
             storage::set_pool_config(&e, &pool_config);
-            storage::set_backstop(&e, &backstop_id);
 
             let result = set_pool_status(&e, &bombadil, 0);
             assert_eq!(result, Err(PoolError::InvalidPoolStatus));
@@ -168,8 +186,15 @@ mod tests {
         let bombadil = Address::random(&e);
         let samwise = Address::random(&e);
 
+        let (backstop_token_id, backstop_token_client) = create_token_contract(&e, &bombadil);
         let (backstop_id, backstop_client) = create_backstop(&e);
-        let (_, backstop_token_client) = create_backstop_token(&e, &backstop_id, &bombadil);
+        setup_backstop(
+            &e,
+            &pool_id,
+            &backstop_id,
+            &backstop_token_id,
+            &BytesN::<32>::random(&e),
+        );
         backstop_token_client.mint(&bombadil, &samwise, &1_100_000_0000000);
         backstop_client.deposit(&samwise, &pool_id, &1_100_000_0000000);
 
@@ -181,7 +206,6 @@ mod tests {
         e.as_contract(&pool_id, || {
             storage::set_admin(&e, &bombadil);
             storage::set_pool_config(&e, &pool_config);
-            storage::set_backstop(&e, &backstop_id);
 
             let status = execute_update_pool_status(&e).unwrap();
 
@@ -200,8 +224,15 @@ mod tests {
         let bombadil = Address::random(&e);
         let samwise = Address::random(&e);
 
+        let (backstop_token_id, backstop_token_client) = create_token_contract(&e, &bombadil);
         let (backstop_id, backstop_client) = create_backstop(&e);
-        let (_, backstop_token_client) = create_backstop_token(&e, &backstop_id, &bombadil);
+        setup_backstop(
+            &e,
+            &pool_id,
+            &backstop_id,
+            &backstop_token_id,
+            &BytesN::<32>::random(&e),
+        );
         backstop_token_client.mint(&bombadil, &samwise, &900_000_0000000);
         backstop_client.deposit(&samwise, &pool_id, &900_000_0000000);
 
@@ -213,7 +244,6 @@ mod tests {
         e.as_contract(&pool_id, || {
             storage::set_admin(&e, &bombadil);
             storage::set_pool_config(&e, &pool_config);
-            storage::set_backstop(&e, &backstop_id);
 
             let status = execute_update_pool_status(&e).unwrap();
 
@@ -232,8 +262,15 @@ mod tests {
         let bombadil = Address::random(&e);
         let samwise = Address::random(&e);
 
+        let (backstop_token_id, backstop_token_client) = create_token_contract(&e, &bombadil);
         let (backstop_id, backstop_client) = create_backstop(&e);
-        let (_, backstop_token_client) = create_backstop_token(&e, &backstop_id, &bombadil);
+        setup_backstop(
+            &e,
+            &pool_id,
+            &backstop_id,
+            &backstop_token_id,
+            &BytesN::<32>::random(&e),
+        );
         backstop_token_client.mint(&bombadil, &samwise, &1_100_000_0000000);
         backstop_client.deposit(&samwise, &pool_id, &1_100_000_0000000);
         backstop_client.q_withdraw(&samwise, &pool_id, &300_000_0000000);
@@ -246,7 +283,6 @@ mod tests {
         e.as_contract(&pool_id, || {
             storage::set_admin(&e, &bombadil);
             storage::set_pool_config(&e, &pool_config);
-            storage::set_backstop(&e, &backstop_id);
 
             let status = execute_update_pool_status(&e).unwrap();
 
@@ -265,8 +301,15 @@ mod tests {
         let bombadil = Address::random(&e);
         let samwise = Address::random(&e);
 
+        let (backstop_token_id, backstop_token_client) = create_token_contract(&e, &bombadil);
         let (backstop_id, backstop_client) = create_backstop(&e);
-        let (_, backstop_token_client) = create_backstop_token(&e, &backstop_id, &bombadil);
+        setup_backstop(
+            &e,
+            &pool_id,
+            &backstop_id,
+            &backstop_token_id,
+            &BytesN::<32>::random(&e),
+        );
         backstop_token_client.mint(&bombadil, &samwise, &1_100_000_0000000);
         backstop_client.deposit(&samwise, &pool_id, &1_100_000_0000000);
         backstop_client.q_withdraw(&samwise, &pool_id, &600_000_0000000);
@@ -279,7 +322,6 @@ mod tests {
         e.as_contract(&pool_id, || {
             storage::set_admin(&e, &bombadil);
             storage::set_pool_config(&e, &pool_config);
-            storage::set_backstop(&e, &backstop_id);
 
             let status = execute_update_pool_status(&e).unwrap();
 
@@ -298,8 +340,15 @@ mod tests {
         let bombadil = Address::random(&e);
         let samwise = Address::random(&e);
 
+        let (backstop_token_id, backstop_token_client) = create_token_contract(&e, &bombadil);
         let (backstop_id, backstop_client) = create_backstop(&e);
-        let (_, backstop_token_client) = create_backstop_token(&e, &backstop_id, &bombadil);
+        setup_backstop(
+            &e,
+            &pool_id,
+            &backstop_id,
+            &backstop_token_id,
+            &BytesN::<32>::random(&e),
+        );
         backstop_token_client.mint(&bombadil, &samwise, &1_100_000_0000000);
         backstop_client.deposit(&samwise, &pool_id, &1_100_000_0000000);
 
@@ -311,7 +360,6 @@ mod tests {
         e.as_contract(&pool_id, || {
             storage::set_admin(&e, &bombadil);
             storage::set_pool_config(&e, &pool_config);
-            storage::set_backstop(&e, &backstop_id);
 
             let result = execute_update_pool_status(&e);
             assert_eq!(result, Err(PoolError::InvalidPoolStatus));

@@ -92,7 +92,7 @@ mod tests {
         let (_, backstop_token_client) = create_backstop_token(&e, &backstop_id, &bombadil);
         backstop_token_client.mint(&bombadil, &frodo, &100_0000000);
 
-        let mock_pool_factory_client = create_mock_pool_factory(&e);
+        let (_, mock_pool_factory_client) = create_mock_pool_factory(&e, &backstop_id);
         mock_pool_factory_client.set_pool(&pool_0_id);
 
         // initialize pool 0 with funds
@@ -123,7 +123,7 @@ mod tests {
         let (_, backstop_token_client) = create_backstop_token(&e, &backstop_id, &bombadil);
         backstop_token_client.mint(&bombadil, &frodo, &100_0000000);
 
-        let mock_pool_factory_client = create_mock_pool_factory(&e);
+        let (_, mock_pool_factory_client) = create_mock_pool_factory(&e, &backstop_id);
         mock_pool_factory_client.set_pool(&pool_0_id);
 
         // initialize pool 0 with funds
@@ -151,7 +151,7 @@ mod tests {
         let (_, backstop_token_client) = create_backstop_token(&e, &backstop_id, &bombadil);
         backstop_token_client.mint(&bombadil, &frodo, &100_0000000);
 
-        let mock_pool_factory_client = create_mock_pool_factory(&e);
+        let (_, mock_pool_factory_client) = create_mock_pool_factory(&e, &backstop_id);
         mock_pool_factory_client.set_pool(&pool_0_id);
 
         // initialize pool 0 with funds

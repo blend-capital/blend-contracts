@@ -14,11 +14,18 @@ pub trait BackstopModuleContractTrait {
     /// Initialize the backstop module
     ///
     /// ### Arguments
-    /// * `backstop_token` - The backstop token. Is generally an LP token where 1 of the tokens is BLND.
+    /// * `backstop_token` - The backstop token ID - generally an LP token where 1 of the tokens is BLND
+    /// * `blnd_token` - The BLND token ID
+    /// * `pool_factory` - The pool factory ID
     ///
     /// ### Errors
-    /// If the backstop_token has already been set
-    fn initialize(e: Env, backstop_token: BytesN<32>) -> Result<(), BackstopError>;
+    /// If initialize has already been called
+    fn initialize(
+        e: Env,
+        backstop_token: BytesN<32>,
+        blnd_token: BytesN<32>,
+        pool_factory: BytesN<32>,
+    ) -> Result<(), BackstopError>;
 
     /********** Core **********/
 
@@ -210,12 +217,19 @@ pub trait BackstopModuleContractTrait {
 /// utilizes other modules to carry out contract functionality.
 #[contractimpl]
 impl BackstopModuleContractTrait for BackstopModuleContract {
-    fn initialize(e: Env, backstop_token: BytesN<32>) -> Result<(), BackstopError> {
+    fn initialize(
+        e: Env,
+        backstop_token: BytesN<32>,
+        blnd_token: BytesN<32>,
+        pool_factory: BytesN<32>,
+    ) -> Result<(), BackstopError> {
         if storage::has_backstop_token(&e) {
             return Err(BackstopError::AlreadyInitialized);
         }
 
         storage::set_backstop_token(&e, &backstop_token);
+        storage::set_blnd_token(&e, &blnd_token);
+        storage::set_pool_factory(&e, &pool_factory);
         Ok(())
     }
 

@@ -1,7 +1,6 @@
 #![cfg(any(test, feature = "testutils"))]
 
 use crate::{
-    constants::POOL_FACTORY,
     dependencies::{TokenClient, TOKEN_WASM},
     storage::{self, Q4W},
 };
@@ -21,28 +20,24 @@ pub(crate) fn generate_contract_id(e: &Env) -> BytesN<32> {
     BytesN::from_array(e, &id)
 }
 
-pub(crate) fn create_mock_pool_factory(e: &Env) -> MockPoolFactoryClient {
-    let contract_id = BytesN::from_array(&e, &POOL_FACTORY);
-    e.register_contract_wasm(&contract_id, mock_pool_factory::WASM);
-    MockPoolFactoryClient::new(e, &contract_id)
-}
-
-pub(crate) fn create_token_from_id(
-    e: &Env,
-    contract_id: &BytesN<32>,
-    admin: &Address,
-) -> TokenClient {
-    e.register_contract_wasm(contract_id, TOKEN_WASM);
-    let client = TokenClient::new(e, contract_id);
-    client.initialize(&admin, &7, &"unit".into_val(e), &"test".into_val(e));
-    client
-}
-
 pub(crate) fn create_token(e: &Env, admin: &Address) -> (BytesN<32>, TokenClient) {
     let contract_id = BytesN::<32>::random(e);
     e.register_contract_wasm(&contract_id, TOKEN_WASM);
     let client = TokenClient::new(e, &contract_id);
     client.initialize(&admin, &7, &"unit".into_val(e), &"test".into_val(e));
+    (contract_id, client)
+}
+
+pub(crate) fn create_blnd_token(
+    e: &Env,
+    backstop: &BytesN<32>,
+    admin: &Address,
+) -> (BytesN<32>, TokenClient) {
+    let (contract_id, client) = create_token(e, admin);
+
+    e.as_contract(backstop, || {
+        storage::set_blnd_token(e, &contract_id);
+    });
     (contract_id, client)
 }
 
@@ -57,6 +52,22 @@ pub(crate) fn create_backstop_token(
         storage::set_backstop_token(e, &contract_id);
     });
     (contract_id, client)
+}
+
+pub(crate) fn create_mock_pool_factory(
+    e: &Env,
+    backstop: &BytesN<32>,
+) -> (BytesN<32>, MockPoolFactoryClient) {
+    let contract_id = BytesN::<32>::random(e);
+    e.register_contract_wasm(&contract_id, mock_pool_factory::WASM);
+
+    e.as_contract(backstop, || {
+        storage::set_pool_factory(e, &contract_id);
+    });
+    (
+        contract_id.clone(),
+        MockPoolFactoryClient::new(e, &contract_id),
+    )
 }
 
 /********** Comparison Helpers **********/

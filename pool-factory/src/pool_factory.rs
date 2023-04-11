@@ -46,7 +46,7 @@ impl PoolFactoryTrait for PoolFactory {
             .deployer()
             .with_current_contract(&salt)
             .deploy(&storage::get_wasm_hash(&e));
-        // e.invoke_contract::<RawVal>(&pool_address, &init_function, args);
+        e.invoke_contract::<RawVal>(&pool_address, &init_function, args);
 
         storage::set_deployed(&e, &pool_address);
 

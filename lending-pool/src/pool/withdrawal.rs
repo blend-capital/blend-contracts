@@ -31,10 +31,7 @@ pub fn execute_withdraw(
         to_burn = b_token_client.balance(&from);
         to_return = reserve.to_asset_from_b_token(e, to_burn);
     } else {
-        to_burn = reserve.to_b_token(e, amount);
-        if to_burn == 0 {
-            to_burn = 1
-        };
+        to_burn = reserve.to_b_token_up(e, amount);
         to_return = amount;
     }
 
@@ -209,6 +206,85 @@ mod tests {
             execute_supply(&e, &frodo, &reserve_0.asset, 100_0000000).unwrap();
 
             execute_withdraw(&e, &samwise, &reserve_0.asset, 1, &samwise).unwrap();
+        });
+    }
+
+    #[test]
+    fn test_withdraw_rounds_b_tokens_up() {
+        let e = Env::default();
+        let pool_id = BytesN::<32>::random(&e);
+        let pool = Address::from_contract_id(&e, &pool_id);
+
+        let bombadil = Address::random(&e);
+        let samwise = Address::random(&e);
+        let frodo = Address::random(&e);
+        let sauron = Address::random(&e);
+
+        let mut reserve_0 = create_reserve(&e);
+        reserve_0.data.d_supply = 1_0000000;
+        reserve_0.data.b_supply = 8_0000000;
+        reserve_0.data.d_rate = 2_500000000;
+        setup_reserve(&e, &pool_id, &bombadil, &mut reserve_0);
+        let (oracle_id, oracle_client) = create_mock_oracle(&e);
+        oracle_client.set_price(&reserve_0.asset, &1_0000000);
+
+        let asset_0_client = TokenClient::new(&e, &reserve_0.asset);
+        asset_0_client.mint(&bombadil, &pool, &7_0000000); // supplied by samwise
+        asset_0_client.mint(&bombadil, &frodo, &1_0000000); //borrowed by frodo
+        asset_0_client.mint(&bombadil, &samwise, &1_0000000); //borrowed by samwise
+
+        asset_0_client.mint(&bombadil, &sauron, &8); //2 to be supplied by sauron
+        let b_token0_client = TokenClient::new(&e, &reserve_0.config.b_token);
+        b_token0_client.mint(&pool, &frodo, &8_0000000); //supplied by frodo
+        let d_token0_client = TokenClient::new(&e, &reserve_0.config.d_token);
+        d_token0_client.mint(&pool, &frodo, &1_0000000); //borrowed by samwise
+        e.budget().reset_unlimited();
+
+        let pool_config = PoolConfig {
+            oracle: oracle_id,
+            bstop_rate: 0,
+            status: 0,
+        };
+        e.as_contract(&pool_id, || {
+            storage::set_pool_config(&e, &pool_config);
+
+            e.budget().reset_unlimited();
+
+            // supply - unrounded
+            let result = execute_supply(&e, &samwise, &reserve_0.asset, 1_0000000).unwrap();
+            assert_eq!(result, 5333333);
+            assert_eq!(0, asset_0_client.balance(&samwise));
+            assert_eq!(result, b_token0_client.balance(&samwise));
+            // withdraw - unrounded
+            let result2 =
+                execute_withdraw(&e, &samwise, &reserve_0.asset, 5000000, &samwise).unwrap();
+            assert_eq!(result2, 2666667);
+            assert_eq!(5000000, asset_0_client.balance(&samwise));
+            assert_eq!(2666666, b_token0_client.balance(&samwise));
+            let result3 =
+                execute_withdraw(&e, &samwise, &reserve_0.asset, i128::MAX, &samwise).unwrap();
+            assert_eq!(result3, 2666666);
+            assert_eq!(9999998, asset_0_client.balance(&samwise));
+            assert_eq!(0, b_token0_client.balance(&samwise));
+
+            // supply - rounded
+            let result4 = execute_supply(&e, &sauron, &reserve_0.asset, 8).unwrap();
+            assert_eq!(result4, 4);
+            assert_eq!(0, asset_0_client.balance(&sauron));
+            assert_eq!(4, b_token0_client.balance(&sauron));
+            let result5 = execute_withdraw(&e, &sauron, &reserve_0.asset, 1, &sauron).unwrap();
+            assert_eq!(result5, 1);
+            assert_eq!(1, asset_0_client.balance(&sauron));
+            assert_eq!(3, b_token0_client.balance(&sauron));
+            let result6 = execute_withdraw(&e, &sauron, &reserve_0.asset, 2, &sauron).unwrap();
+            assert_eq!(result6, 2);
+            assert_eq!(3, asset_0_client.balance(&sauron));
+            assert_eq!(1, b_token0_client.balance(&sauron));
+            let result6 =
+                execute_withdraw(&e, &sauron, &reserve_0.asset, i128::MAX, &sauron).unwrap();
+            assert_eq!(result6, 1);
+            assert_eq!(4, asset_0_client.balance(&sauron));
+            assert_eq!(0, b_token0_client.balance(&sauron));
         });
     }
 

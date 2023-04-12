@@ -214,10 +214,7 @@ impl Reserve {
     /// ### Arguments
     /// * `d_tokens` - The amount of tokens to convert
     pub fn to_asset_from_d_token(&self, d_tokens: i128) -> i128 {
-        self.data
-            .d_rate
-            .fixed_mul_floor(d_tokens, SCALAR_9)
-            .unwrap()
+        self.data.d_rate.fixed_mul_ceil(d_tokens, SCALAR_9).unwrap()
     }
 
     /// Convert b_tokens to the corresponding asset value
@@ -254,19 +251,35 @@ impl Reserve {
             .unwrap()
     }
 
-    /// Convert asset tokens to the corresponding d token value
+    /// Convert asset tokens to the corresponding d token value - rounding up
     ///
     /// ### Arguments
     /// * `amount` - The amount of tokens to convert
-    pub fn to_d_token(&self, amount: i128) -> i128 {
+    pub fn to_d_token_up(&self, amount: i128) -> i128 {
+        amount.fixed_div_ceil(self.data.d_rate, SCALAR_9).unwrap()
+    }
+
+    /// Convert asset tokens to the corresponding d token value - rounding down
+    ///
+    /// ### Arguments
+    /// * `amount` - The amount of tokens to convert
+    pub fn to_d_token_down(&self, amount: i128) -> i128 {
         amount.fixed_div_floor(self.data.d_rate, SCALAR_9).unwrap()
     }
 
-    /// Convert asset tokens to the corresponding b token value
+    /// Convert asset tokens to the corresponding b token value - round up
     ///
     /// ### Arguments
     /// * `amount` - The amount of tokens to convert
-    pub fn to_b_token(&mut self, e: &Env, amount: i128) -> i128 {
+    pub fn to_b_token_up(&mut self, e: &Env, amount: i128) -> i128 {
+        amount.fixed_div_ceil(self.get_b_rate(e), SCALAR_9).unwrap()
+    }
+
+    /// Convert asset tokens to the corresponding b token value - round down
+    ///
+    /// ### Arguments
+    /// * `amount` - The amount of tokens to convert
+    pub fn to_b_token_down(&mut self, e: &Env, amount: i128) -> i128 {
         amount
             .fixed_div_floor(self.get_b_rate(e), SCALAR_9)
             .unwrap()
@@ -538,7 +551,7 @@ mod tests {
 
         let result = reserve.to_asset_from_d_token(1_1234567);
 
-        assert_eq!(result, 1_4850243);
+        assert_eq!(result, 1_4850244);
     }
 
     #[test]
@@ -567,7 +580,7 @@ mod tests {
 
         let result = reserve.to_effective_asset_from_d_token(1_1234567);
 
-        assert_eq!(result, 1_3500221);
+        assert_eq!(result, 1_3500222);
     }
 
     #[test]
@@ -596,7 +609,7 @@ mod tests {
 
         let result = reserve.total_liabilities();
 
-        assert_eq!(result, 118_5543249);
+        assert_eq!(result, 118_5543250);
     }
 
     #[test]
@@ -614,7 +627,7 @@ mod tests {
     }
 
     #[test]
-    fn test_to_d_token() {
+    fn test_to_d_token_up() {
         let e = Env::default();
 
         let mut reserve = create_reserve(&e);
@@ -622,13 +635,27 @@ mod tests {
         reserve.data.b_supply = 99_0000000;
         reserve.data.d_supply = 65_0000000;
 
-        let result = reserve.to_d_token(1_4850243);
+        let result = reserve.to_d_token_up(1_4850243);
+
+        assert_eq!(result, 1_1234567);
+    }
+
+    #[test]
+    fn test_to_d_token_down() {
+        let e = Env::default();
+
+        let mut reserve = create_reserve(&e);
+        reserve.data.d_rate = 1_321_834_961;
+        reserve.data.b_supply = 99_0000000;
+        reserve.data.d_supply = 65_0000000;
+
+        let result = reserve.to_d_token_down(1_4850243);
 
         assert_eq!(result, 1_1234566);
     }
 
     #[test]
-    fn test_to_b_token() {
+    fn test_to_b_token_up() {
         let e = Env::default();
 
         let mut reserve = create_reserve(&e);
@@ -636,7 +663,21 @@ mod tests {
         reserve.data.b_supply = 99_0000000;
         reserve.data.d_supply = 65_0000000;
 
-        let result = reserve.to_b_token(&e, 1_4850243);
+        let result = reserve.to_b_token_up(&e, 1_4850243);
+
+        assert_eq!(result, 1_1234567);
+    }
+
+    #[test]
+    fn test_to_b_token_down() {
+        let e = Env::default();
+
+        let mut reserve = create_reserve(&e);
+        reserve.b_rate = Some(1_321_834_961);
+        reserve.data.b_supply = 99_0000000;
+        reserve.data.d_supply = 65_0000000;
+
+        let result = reserve.to_b_token_down(&e, 1_4850243);
 
         assert_eq!(result, 1_1234566);
     }

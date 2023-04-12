@@ -18,21 +18,27 @@ pub trait PoolContractTrait {
     /// Initialize the pool
     ///
     /// ### Arguments
+    /// Creator supplied:
     /// * `admin` - The Address for the admin
     /// * `oracle` - The contract address of the oracle
+    /// * `backstop_take_rate` - The take rate for the backstop in stroops
+    ///
+    /// Pool Factory supplied:
     /// * `backstop_id` - The contract address of the pool's backstop module
-    /// * `backstop` - TODO: remove once BytesN <-> Address is finished
     /// * `b_token_hash` - The hash of the WASM b_token implementation
     /// * `d_token_hash` - The hash of the WASM d_token implementation
+    /// * `blnd_id` - The contract ID of the BLND token
+    /// * `usdc_id` - The contract ID of the BLND token
     fn initialize(
         e: Env,
         admin: Address,
         oracle: BytesN<32>,
-        backstop_id: BytesN<32>,
-        backstop: Address,
         bstop_rate: u64,
+        backstop_id: BytesN<32>,
         b_token_hash: BytesN<32>,
         d_token_hash: BytesN<32>,
+        blnd_id: BytesN<32>,
+        usdc_id: BytesN<32>,
     ) -> Result<(), PoolError>;
 
     /// Initialize a reserve in the pool
@@ -332,11 +338,12 @@ impl PoolContractTrait for PoolContract {
         e: Env,
         admin: Address,
         oracle: BytesN<32>,
-        backstop_id: BytesN<32>,
-        backstop: Address,
         bstop_rate: u64,
+        backstop_id: BytesN<32>,
         b_token_hash: BytesN<32>,
         d_token_hash: BytesN<32>,
+        blnd_id: BytesN<32>,
+        usdc_id: BytesN<32>,
     ) -> Result<(), PoolError> {
         admin.require_auth();
 
@@ -344,11 +351,12 @@ impl PoolContractTrait for PoolContract {
             &e,
             &admin,
             &oracle,
-            &backstop_id,
-            &backstop,
             &bstop_rate,
+            &backstop_id,
             &b_token_hash,
             &d_token_hash,
+            &blnd_id,
+            &usdc_id,
         )
     }
 

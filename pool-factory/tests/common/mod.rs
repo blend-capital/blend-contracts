@@ -7,7 +7,6 @@ mod pool_factory {
     );
 }
 
-// TODO: revert back to lending pool when issues/14 is resolved
 pub mod lending_pool {
     soroban_sdk::contractimport!(
         file = "../target/wasm32-unknown-unknown/release/lending_pool.wasm"
@@ -22,7 +21,7 @@ pub mod d_token {
     soroban_sdk::contractimport!(file = "../target/wasm32-unknown-unknown/release/d_token.wasm");
 }
 
-pub use pool_factory::Client as PoolFactoryClient;
+pub use pool_factory::{Client as PoolFactoryClient, PoolInitMeta};
 
 pub fn generate_contract_id(e: &Env) -> BytesN<32> {
     let mut id: [u8; 32] = Default::default();

@@ -61,7 +61,7 @@ impl Reserve {
         emissions::update_reserve(e, &self, res_token_type, &user)?;
 
         if to_mint > 0 {
-            let backstop = storage::get_backstop_address(e);
+            let backstop = Address::from_contract_id(e, &storage::get_backstop(e));
             TokenClient::new(&e, &self.config.b_token).mint(
                 &e.current_contract_address(),
                 &backstop,
@@ -89,7 +89,7 @@ impl Reserve {
         let to_mint = self.update_rates(e, pool_config.bstop_rate);
 
         if to_mint > 0 {
-            let backstop = storage::get_backstop_address(e);
+            let backstop = Address::from_contract_id(e, &storage::get_backstop(e));
             TokenClient::new(&e, &self.config.b_token).mint(
                 &e.current_contract_address(),
                 &backstop,
@@ -342,7 +342,6 @@ mod tests {
         e.as_contract(&pool_id, || {
             storage::set_pool_config(&e, &pool_config);
             storage::set_backstop(&e, &backstop_id);
-            storage::set_backstop_address(&e, backstop);
             storage::set_res_config(&e, &reserve.asset, &reserve.config);
             storage::set_res_data(&e, &reserve.asset, &reserve.data);
 

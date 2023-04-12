@@ -154,7 +154,6 @@ pub(crate) fn setup_backstop(
     BackstopClient::new(e, backstop_id).initialize(backstop_token, blnd_token, &pool_factory);
     e.as_contract(pool_id, || {
         storage::set_backstop(e, backstop_id);
-        storage::set_backstop_address(e, &Address::from_contract_id(e, backstop_id));
     });
 }
 

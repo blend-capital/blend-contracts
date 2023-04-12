@@ -106,7 +106,7 @@ pub fn fill_bad_debt_auction(
     let auction_quote = calc_fill_bad_debt_auction(e, auction_data);
 
     let backstop_id = storage::get_backstop(e);
-    let backstop = storage::get_backstop_address(e);
+    let backstop = Address::from_contract_id(e, &backstop_id);
 
     // bid only contains underlying assets
     for (res_asset_address, bid_amount) in auction_quote.bid.iter_unchecked() {
@@ -117,12 +117,7 @@ pub fn fill_bad_debt_auction(
     let (_, lot_amount) = auction_quote.lot.first().unwrap().unwrap();
 
     let backstop_client = BackstopClient::new(&e, &backstop_id);
-    backstop_client.draw(
-        &e.current_contract_address(),
-        &e.current_contract_id(),
-        &lot_amount,
-        &filler,
-    );
+    backstop_client.draw(&e.current_contract_id(), &lot_amount, &filler);
 
     auction_quote
 }
@@ -430,7 +425,6 @@ mod tests {
         e.as_contract(&pool_id, || {
             storage::set_pool_config(&e, &pool_config);
             storage::set_backstop(&e, &backstop_id);
-            storage::set_backstop_address(&e, &backstop);
 
             d_token_0.mint(&pool, &backstop, &10_0000000);
             d_token_1.mint(&pool, &backstop, &2_5000000);

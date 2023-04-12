@@ -12,11 +12,12 @@ pub fn execute_initialize(
     e: &Env,
     admin: &Address,
     oracle: &BytesN<32>,
-    backstop_id: &BytesN<32>,
-    backstop: &Address,
     bstop_rate: &u64,
+    backstop_id: &BytesN<32>,
     b_token_hash: &BytesN<32>,
     d_token_hash: &BytesN<32>,
+    blnd_id: &BytesN<32>,
+    usdc_id: &BytesN<32>,
 ) -> Result<(), PoolError> {
     if storage::has_admin(e) {
         return Err(PoolError::AlreadyInitialized);
@@ -24,7 +25,6 @@ pub fn execute_initialize(
 
     storage::set_admin(e, admin);
     storage::set_backstop(e, backstop_id);
-    storage::set_backstop_address(e, backstop);
     storage::set_pool_config(
         e,
         &PoolConfig {
@@ -34,6 +34,8 @@ pub fn execute_initialize(
         },
     );
     storage::set_token_hashes(e, b_token_hash, d_token_hash);
+    storage::set_blnd_token(e, blnd_id);
+    storage::set_usdc_token(e, usdc_id);
     Ok(())
 }
 

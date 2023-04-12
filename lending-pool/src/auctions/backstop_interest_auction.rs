@@ -106,8 +106,7 @@ pub fn fill_interest_auction(
     // TODO: Determine if there is a way to reuse calc code. Currently, this would result in reloads of all
     //       reserves and the minting of tokens to the backstop during previews.
     let pool_config = storage::get_pool_config(e);
-    let backstop = storage::get_backstop_address(e);
-
+    let backstop = Address::from_contract_id(e, &storage::get_backstop(e));
     let mut auction_quote = AuctionQuote {
         bid: vec![e],
         lot: vec![e],
@@ -444,7 +443,6 @@ mod tests {
             );
             storage::set_pool_config(&e, &pool_config);
             storage::set_backstop(&e, &backstop_id);
-            storage::set_backstop_address(&e, &backstop);
 
             usdc_client.incr_allow(&pool, &backstop, &(u64::MAX as i128));
 

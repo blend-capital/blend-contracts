@@ -115,10 +115,8 @@ pub struct AuctionKey {
 pub enum PoolDataKey {
     // The address that can manage the pool
     Admin,
-    // The backstop address for the pool
+    // The backstop ID for the pool
     Backstop,
-    // TODO: Remove after: https://github.com/stellar/rs-soroban-sdk/issues/868
-    BkstpAddr,
     // Token Hashes
     TokenHash,
     // BLND token ID
@@ -180,7 +178,7 @@ pub fn has_admin(e: &Env) -> bool {
 
 /********** Backstop **********/
 
-/// Fetch the backstop for the pool
+/// Fetch the backstop ID for the pool
 ///
 /// ### Errors
 /// If no backstop is set
@@ -188,24 +186,13 @@ pub fn get_backstop(e: &Env) -> BytesN<32> {
     e.storage().get_unchecked(&PoolDataKey::Backstop).unwrap()
 }
 
-/// Set a new admin
+/// Set a new backstop ID
 ///
 /// ### Arguments
 /// * `backstop` - The address of the backstop
 pub fn set_backstop(e: &Env, backstop: &BytesN<32>) {
     e.storage()
         .set::<PoolDataKey, BytesN<32>>(&PoolDataKey::Backstop, backstop);
-}
-
-/// TODO: Remove after: https://github.com/stellar/rs-soroban-sdk/issues/868
-pub fn get_backstop_address(e: &Env) -> Address {
-    e.storage().get_unchecked(&PoolDataKey::BkstpAddr).unwrap()
-}
-
-/// TODO: Remove after: https://github.com/stellar/rs-soroban-sdk/issues/868
-pub fn set_backstop_address(e: &Env, backstop: &Address) {
-    e.storage()
-        .set::<PoolDataKey, Address>(&PoolDataKey::BkstpAddr, backstop);
 }
 
 /********** Token Hashes **********/

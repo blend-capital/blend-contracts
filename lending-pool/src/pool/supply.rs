@@ -74,7 +74,8 @@ mod tests {
         let pool_id = BytesN::<32>::random(&e);
         let pool = Address::from_contract_id(&e, &pool_id);
         let backstop_id = BytesN::<32>::random(&e);
-        let backstop = Address::from_contract_id(&e, &backstop_id);
+        let blnd_id = BytesN::<32>::random(&e);
+        let usdc_id = BytesN::<32>::random(&e);
 
         let bombadil = Address::random(&e);
         let samwise = Address::random(&e);
@@ -89,11 +90,12 @@ mod tests {
                 &e,
                 &bombadil,
                 &oracle_id,
-                &backstop_id,
-                &backstop,
                 &0_200_000_000,
+                &backstop_id,
                 &b_token_hash,
                 &d_token_hash,
+                &blnd_id,
+                &usdc_id,
             )
             .unwrap();
         });

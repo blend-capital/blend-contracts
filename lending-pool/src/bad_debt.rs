@@ -9,7 +9,7 @@ use crate::{
 };
 
 pub fn manage_bad_debt(e: &Env, user: &Address) -> Result<(), PoolError> {
-    let backstop = storage::get_backstop_address(e); // TODO: rs-soroban-sdk/issues/868
+    let backstop = Address::from_contract_id(e, &storage::get_backstop(e));
     if user.clone() == backstop {
         burn_backstop_bad_debt(e, &backstop)
     } else {
@@ -167,7 +167,6 @@ mod tests {
         e.as_contract(&pool_id, || {
             storage::set_pool_config(&e, &pool_config);
             storage::set_backstop(&e, &backstop_id);
-            storage::set_backstop_address(&e, &backstop);
             let mut user_config = ReserveUsage::new(0);
             user_config.set_liability(0, true);
             user_config.set_liability(1, true);
@@ -220,7 +219,6 @@ mod tests {
         e.as_contract(&pool_id, || {
             storage::set_pool_config(&e, &pool_config);
             storage::set_backstop(&e, &backstop_id);
-            storage::set_backstop_address(&e, &backstop);
             let mut user_config = ReserveUsage::new(0);
             user_config.set_liability(0, true);
             user_config.set_liability(1, true);
@@ -263,7 +261,6 @@ mod tests {
         e.as_contract(&pool_id, || {
             storage::set_pool_config(&e, &pool_config);
             storage::set_backstop(&e, &backstop_id);
-            storage::set_backstop_address(&e, &backstop);
             let mut user_config = ReserveUsage::new(0);
             user_config.set_supply(1, true);
             storage::set_user_config(&e, &samwise, &user_config.config);
@@ -321,7 +318,6 @@ mod tests {
         e.as_contract(&pool_id, || {
             storage::set_pool_config(&e, &pool_config);
             storage::set_backstop(&e, &backstop_id);
-            storage::set_backstop_address(&e, &backstop);
 
             let d_token_0 = TokenClient::new(&e, &reserve_0.config.d_token);
             d_token_0.mint(
@@ -405,7 +401,6 @@ mod tests {
         e.as_contract(&pool_id, || {
             storage::set_pool_config(&e, &pool_config);
             storage::set_backstop(&e, &backstop_id);
-            storage::set_backstop_address(&e, &backstop);
 
             let d_token_0 = TokenClient::new(&e, &reserve_0.config.d_token);
             d_token_0.mint(
@@ -471,7 +466,6 @@ mod tests {
         e.as_contract(&pool_id, || {
             storage::set_pool_config(&e, &pool_config);
             storage::set_backstop(&e, &backstop_id);
-            storage::set_backstop_address(&e, &backstop);
 
             let d_token_0 = TokenClient::new(&e, &reserve_0.config.d_token);
             d_token_0.mint(

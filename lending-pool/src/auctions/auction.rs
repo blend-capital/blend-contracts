@@ -72,7 +72,7 @@ pub struct AuctionData {
 /// ### Errors
 /// If the auction is unable to be created
 pub fn create(e: &Env, auction_type: u32) -> Result<AuctionData, PoolError> {
-    let backstop = storage::get_backstop_address(e);
+    let backstop = Address::from_contract_id(&e, &storage::get_backstop(e));
     let auction_data = match AuctionType::from_u32(auction_type) {
         AuctionType::UserLiquidation => {
             return Err(PoolError::BadRequest);
@@ -228,17 +228,17 @@ mod tests {
     use super::*;
     use soroban_sdk::{
         map,
-        testutils::{Address as AddressTestTrait, Ledger, LedgerInfo},
+        testutils::{Address as _, BytesN as _, Ledger, LedgerInfo},
     };
 
     #[test]
     fn test_create_user_liquidation_errors() {
         let e = Env::default();
         let pool_id = generate_contract_id(&e);
-        let backstop = Address::random(&e);
+        let backstop_id = BytesN::<32>::random(&e);
 
         e.as_contract(&pool_id, || {
-            storage::set_backstop_address(&e, &backstop);
+            storage::set_backstop(&e, &backstop_id);
 
             let result = create(&e, AuctionType::UserLiquidation as u32);
 

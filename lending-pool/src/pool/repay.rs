@@ -27,7 +27,7 @@ pub fn execute_repay(
         to_burn = d_token_client.balance(&from);
         to_repay = reserve.to_asset_from_d_token(to_burn);
     } else {
-        to_burn = reserve.to_d_token(amount);
+        to_burn = reserve.to_d_token_down(amount);
         to_repay = amount;
     }
 
@@ -58,6 +58,8 @@ pub fn execute_repay(
 
 #[cfg(test)]
 mod tests {
+    use std::println;
+
     use crate::{
         auctions::AuctionData,
         dependencies::TokenClient,
@@ -168,6 +170,92 @@ mod tests {
             assert_eq!(res_1_d_token_client.balance(&samwise), 0);
             let config = ReserveUsage::new(storage::get_user_config(&e, &samwise));
             assert!(!config.is_liability(1));
+        });
+    }
+
+    #[test]
+    fn test_repay_rounds_d_tokens_down() {
+        let e = Env::default();
+        let pool_id = BytesN::<32>::random(&e);
+        let pool = Address::from_contract_id(&e, &pool_id);
+
+        let bombadil = Address::random(&e);
+        let samwise = Address::random(&e);
+        let sauron = Address::random(&e);
+
+        let mut reserve_0 = create_reserve(&e);
+        reserve_0.data.d_supply = 2_0000002;
+        reserve_0.data.b_supply = 8_0000000;
+        reserve_0.data.d_rate = 1_250000000;
+        setup_reserve(&e, &pool_id, &bombadil, &mut reserve_0);
+        let (_oracle_id, oracle_client) = create_mock_oracle(&e);
+        oracle_client.set_price(&reserve_0.asset, &1_0000000);
+
+        let asset_0_client = TokenClient::new(&e, &reserve_0.asset);
+        asset_0_client.mint(&bombadil, &pool, &6_1999998); // supplied by samwise
+        asset_0_client.mint(&bombadil, &samwise, &(1_8000000 + 7000000)); //borrowed by samwise + extra for repayment
+        asset_0_client.mint(&bombadil, &sauron, &(2 + 3)); //2 borrowed by sauron + extra for repayment
+        let b_token0_client = TokenClient::new(&e, &reserve_0.config.b_token);
+        b_token0_client.mint(&pool, &samwise, &8_0000000); //supplied by samwise
+        let d_token0_client = TokenClient::new(&e, &reserve_0.config.d_token);
+        d_token0_client.mint(&pool, &samwise, &2_0000000); //borrowed by samwise
+        d_token0_client.mint(&pool, &sauron, &2); //borrowed by sauron
+        e.budget().reset_unlimited();
+
+        let mut reserve_1 = create_reserve(&e);
+        reserve_1.data.d_supply = 0;
+        reserve_1.data.b_supply = 0;
+        setup_reserve(&e, &pool_id, &bombadil, &mut reserve_1);
+
+        let (oracle_id, oracle_client) = create_mock_oracle(&e);
+        oracle_client.set_price(&reserve_1.asset, &1_0000000);
+
+        let asset_1_client = TokenClient::new(&e, &reserve_1.asset);
+        asset_1_client.mint(&bombadil, &samwise, &10_0000000); //collateral for samwise
+        asset_1_client.incr_allow(&samwise, &pool, &i128::MAX);
+        asset_1_client.mint(&bombadil, &sauron, &10_0000000); //collateral for sauron
+        asset_1_client.incr_allow(&sauron, &pool, &i128::MAX);
+
+        let pool_config = PoolConfig {
+            oracle: oracle_id,
+            bstop_rate: 0,
+            status: 0,
+        };
+        e.as_contract(&pool_id, || {
+            println!("in test");
+            storage::set_pool_config(&e, &pool_config);
+
+            e.budget().reset_unlimited();
+
+            //supply as collateral
+            execute_supply(&e, &sauron, &reserve_1.asset, 10_0000000).unwrap();
+            execute_supply(&e, &samwise, &reserve_1.asset, 10_0000000).unwrap();
+
+            //repay - unrounded
+            let result =
+                execute_repay(&e, &samwise, &reserve_0.asset, 1_0000000, &samwise).unwrap();
+            assert_eq!(result, 8000000);
+            assert_eq!(8000000 + 7000000, asset_0_client.balance(&samwise));
+            assert_eq!(1_2000000, d_token0_client.balance(&samwise));
+            let result2 =
+                execute_repay(&e, &samwise, &reserve_0.asset, i128::MAX, &samwise).unwrap();
+            assert_eq!(result2, 1_2000000);
+            assert_eq!(0, asset_0_client.balance(&samwise));
+            assert_eq!(1_2000000 - result2, d_token0_client.balance(&samwise));
+
+            // borrow - rounded
+            let result3 = execute_repay(&e, &sauron, &reserve_0.asset, 1, &sauron).unwrap();
+            assert_eq!(result3, 0);
+            assert_eq!(4, asset_0_client.balance(&sauron));
+            assert_eq!(2, d_token0_client.balance(&sauron));
+            let result4 = execute_repay(&e, &sauron, &reserve_0.asset, 2, &sauron).unwrap();
+            assert_eq!(result4, 1);
+            assert_eq!(2, asset_0_client.balance(&sauron));
+            assert_eq!(1, d_token0_client.balance(&sauron));
+            let result4 = execute_repay(&e, &sauron, &reserve_0.asset, i128::MAX, &sauron).unwrap();
+            assert_eq!(result4, 1);
+            assert_eq!(0, asset_0_client.balance(&sauron));
+            assert_eq!(0, d_token0_client.balance(&sauron));
         });
     }
 

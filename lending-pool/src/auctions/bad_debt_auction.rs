@@ -430,14 +430,14 @@ mod tests {
             assert_eq!(result.block, 151);
             assert_eq!(
                 result.bid.get_unchecked(reserve_0.config.index).unwrap(),
-                11_0000431
+                11_0000432
             );
             assert_eq!(
                 result.bid.get_unchecked(reserve_1.config.index).unwrap(),
-                3_0000206
+                3_0000207
             );
             assert_eq!(result.bid.len(), 2);
-            assert_eq!(result.lot.get_unchecked(u32::MAX).unwrap(), 95_2004720);
+            assert_eq!(result.lot.get_unchecked(u32::MAX).unwrap(), 95_2004736);
             assert_eq!(result.lot.len(), 1);
         });
     }

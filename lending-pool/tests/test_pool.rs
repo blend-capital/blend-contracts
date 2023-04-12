@@ -103,10 +103,9 @@ fn test_pool_happy_path() {
     assert_eq!(pool_client.config(&samwise), 3);
 
     // repay interest
-    let interest_accrued = 0_0600000;
+    let interest_accrued = 0_0600001;
     asset1_client.mint(&bombadil, &samwise, &(interest_accrued));
     let burnt_dtokens_interest = pool_client.repay(&samwise, &asset1_id, &i128::MAX, &samwise);
-
     assert_eq!(asset1_client.balance(&samwise), 0);
     assert_eq!(
         asset1_client.balance(&pool),
@@ -130,8 +129,8 @@ fn test_pool_happy_path() {
         asset1_client.balance(&samwise),
         (supply_amount + user_interest_accrued)
     );
-    // the remaining funds due to the backstop based on the 20% backstop_rate
-    assert_eq!(asset1_client.balance(&pool), 122862);
+    // the remaining funds due to the backstop based on the 20% backstop_rate, +1 because of rounding
+    assert_eq!(asset1_client.balance(&pool), 122862 + 1);
     assert_eq!(b_token1_client.balance(&samwise), 0);
     assert_eq!(burnt_btokens, minted_btokens);
     assert_eq!(pool_client.config(&samwise), 0);

@@ -403,7 +403,7 @@ mod tests {
         };
         e.as_contract(&pool_id, || {
             let user_data = UserData::load(&e, &pool_config, &samwise, &user_action);
-            assert_eq!(user_data.liability_base, 190_8570660); //TODO: leaving this as failing because I can't figure out why the rounding change is resulting in a 5 stroop dif
+            assert_eq!(user_data.liability_base, 190_8570670);
             assert_eq!(user_data.collateral_base, 188_1741780);
         });
     }

@@ -75,7 +75,7 @@ pub fn create_user_liq_auction_data(
                 scaled_cf += to_sell_amt_base
                     .fixed_mul_floor(i128(reserve.config.c_factor) * 100, SCALAR_7)
                     .unwrap();
-                let to_sell_b_tokens = reserve.to_b_token(e, to_sell_amt);
+                let to_sell_b_tokens = reserve.to_b_token_down(e, to_sell_amt);
                 if to_sell_b_tokens > b_token_balance {
                     return Err(PoolError::InvalidLot);
                 } else if to_sell_b_tokens < b_token_balance {
@@ -109,7 +109,7 @@ pub fn create_user_liq_auction_data(
                 scaled_lf += to_buy_amt_base
                     .fixed_mul_floor(i128(reserve.config.l_factor) * 100, SCALAR_7)
                     .unwrap();
-                let to_buy_d_tokens = reserve.to_d_token(to_buy_amt);
+                let to_buy_d_tokens = reserve.to_d_token_down(to_buy_amt);
                 if to_buy_d_tokens > d_token_balance {
                     return Err(PoolError::InvalidBids);
                 } else if to_buy_d_tokens < d_token_balance {
@@ -1341,7 +1341,7 @@ mod tests {
             });
             //liquidate user
             let auction_data = AuctionData {
-                bid: map![&e, (reserve_1.config.index, 1)],
+                bid: map![&e, (reserve_1.config.index, 0)],
                 lot: map![&e, (reserve_0.config.index, 2)],
                 block: 50,
             };

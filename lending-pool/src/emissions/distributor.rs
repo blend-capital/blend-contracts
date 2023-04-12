@@ -22,7 +22,7 @@ pub fn execute_claim(
     if to_claim > 0 {
         let bkstp_addr = storage::get_backstop(e);
         let backstop = BackstopClient::new(&e, &bkstp_addr);
-        backstop.claim(
+        backstop.pool_claim(
             &e.current_contract_address(),
             &e.current_contract_id(),
             &to,

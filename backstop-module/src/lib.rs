@@ -7,7 +7,7 @@ mod backstop;
 mod constants;
 mod contract;
 mod dependencies;
-mod distributor;
+mod emissions;
 mod errors;
 mod pool;
 mod storage;

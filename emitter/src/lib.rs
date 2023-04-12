@@ -7,8 +7,8 @@ mod constants;
 mod contract;
 mod emitter;
 mod errors;
-mod lp_reader;
 mod storage;
+mod test_auth;
 
 mod dependencies;
 

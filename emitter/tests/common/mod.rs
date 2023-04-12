@@ -1,5 +1,5 @@
 use rand::{thread_rng, RngCore};
-use soroban_sdk::{Address, BytesN, Env, IntoVal};
+use soroban_sdk::{Address, BytesN, Env};
 
 // Generics
 

@@ -1,8 +1,10 @@
 use crate::{
-    constants::SCALAR_7, dependencies::TokenClient, errors::EmitterError,
-    lp_reader::get_lp_blend_holdings, storage,
+    constants::SCALAR_7,
+    dependencies::{BackstopClient, TokenClient},
+    errors::EmitterError,
+    storage,
 };
-use soroban_sdk::{Address, Env};
+use soroban_sdk::{Address, BytesN, Env};
 
 /// Perform a distribution
 pub fn execute_distribute(e: &Env, backstop: &Address) -> Result<i128, EmitterError> {
@@ -23,25 +25,18 @@ pub fn execute_distribute(e: &Env, backstop: &Address) -> Result<i128, EmitterEr
 }
 
 /// Perform a backstop swap
-pub fn execute_swap_backstop(e: &Env, new_backstop: Address) -> Result<(), EmitterError> {
-    let blend_id = storage::get_blend_id(e);
-    let blend_client = TokenClient::new(e, &blend_id);
+pub fn execute_swap_backstop(e: &Env, new_backstop_id: BytesN<32>) -> Result<(), EmitterError> {
+    let backstop = storage::get_backstop(e);
+    let backstop_token = BackstopClient::new(&e, &backstop).bstp_token();
+    let backstop_token_client = TokenClient::new(&e, &backstop_token);
 
-    let old_backstop = storage::get_backstop(e);
-    let old_backstop_blend_balance = blend_client.balance(&old_backstop);
-    let old_backstop_blend_lp_balance = get_lp_blend_holdings(&e, old_backstop.clone());
-    let effective_old_backstop_blend =
-        (old_backstop_blend_balance / 4) + old_backstop_blend_lp_balance;
-
-    let new_backstop_blend_balance = blend_client.balance(&new_backstop);
-    let new_backstop_blend_lp_balance = get_lp_blend_holdings(&e, new_backstop.clone());
-    let effective_new_backstop_blend =
-        (new_backstop_blend_balance / 4) + new_backstop_blend_lp_balance;
-
-    if effective_new_backstop_blend <= effective_old_backstop_blend {
-        return Err(EmitterError::InsufficientBLND);
+    let backstop_balance = backstop_token_client.balance(&Address::from_contract_id(&e, &backstop));
+    let new_backstop_balance =
+        backstop_token_client.balance(&Address::from_contract_id(&e, &new_backstop_id));
+    if new_backstop_balance > backstop_balance {
+        storage::set_backstop(e, &new_backstop_id);
+        Ok(())
+    } else {
+        return Err(EmitterError::InsufficientBackstopSize);
     }
-
-    storage::set_backstop(e, &new_backstop);
-    Ok(())
 }

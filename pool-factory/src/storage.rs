@@ -4,30 +4,42 @@ use soroban_sdk::{contracttype, BytesN, Env};
 #[contracttype]
 pub enum PoolFactoryDataKey {
     Contracts(BytesN<32>),
-    Wasm,
+    PoolInitMeta,
 }
 
-/// Fetch the factory's WASM hash
-pub fn get_wasm_hash(e: &Env) -> BytesN<32> {
+#[derive(Clone)]
+#[contracttype]
+pub struct PoolInitMeta {
+    pub pool_hash: BytesN<32>,
+    pub b_token_hash: BytesN<32>,
+    pub d_token_hash: BytesN<32>,
+    pub backstop: BytesN<32>,
+    pub blnd_id: BytesN<32>,
+    pub usdc_id: BytesN<32>,
+}
+
+/// Fetch the pool initialization metadata
+pub fn get_pool_init_meta(e: &Env) -> PoolInitMeta {
     e.storage()
-        .get::<PoolFactoryDataKey, BytesN<32>>(&PoolFactoryDataKey::Wasm)
+        .get::<PoolFactoryDataKey, PoolInitMeta>(&PoolFactoryDataKey::PoolInitMeta)
         .unwrap()
         .unwrap()
 }
 
-/// Set the factory's WASM hash
+/// Set the pool initialization metadata
 ///
 /// ### Arguments
-/// * `wasm_hash` - The WASM hash the factory uses to deploy new contracts
-pub fn set_wasm_hash(e: &Env, wasm_hash: &BytesN<32>) {
+/// * `pool_init_meta` - The metadata to initialize pools
+pub fn set_pool_init_meta(e: &Env, pool_init_meta: &PoolInitMeta) {
     e.storage()
-        .set::<PoolFactoryDataKey, BytesN<32>>(&PoolFactoryDataKey::Wasm, wasm_hash)
+        .set::<PoolFactoryDataKey, PoolInitMeta>(&PoolFactoryDataKey::PoolInitMeta, pool_init_meta)
 }
 
 /// Check if the factory has a WASM hash set
-pub fn has_wasm_hash(e: &Env) -> bool {
-    e.storage().has(&PoolFactoryDataKey::Wasm)
+pub fn has_pool_init_meta(e: &Env) -> bool {
+    e.storage().has(&PoolFactoryDataKey::PoolInitMeta)
 }
+
 /// Check if a given contract_id was deployed by the factory
 ///
 /// ### Arguments

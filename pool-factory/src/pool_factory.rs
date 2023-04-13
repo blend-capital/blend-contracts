@@ -1,5 +1,5 @@
-use crate::storage;
-use soroban_sdk::{contractimpl, BytesN, Env, RawVal, Symbol, Vec};
+use crate::storage::{self, PoolInitMeta};
+use soroban_sdk::{contractimpl, vec, Address, BytesN, Env, IntoVal, RawVal, Symbol, Vec};
 
 pub struct PoolFactory;
 
@@ -7,46 +7,58 @@ pub trait PoolFactoryTrait {
     /// Setup the pool factory
     ///
     /// ### Arguments
-    /// * `wasm_hash` - The WASM hash of the lending pool's WASM code
-    fn initialize(e: Env, wasm_hash: BytesN<32>);
+    /// * `pool_init_meta` - The pool initialization metadata
+    fn initialize(e: Env, pool_init_meta: PoolInitMeta);
 
     /// Deploys and initializes a lending pool
     ///
     /// # Arguments
-    /// * 'init_function' - The name of the pool's initialization function
-    /// * 'args' - The vectors of args for pool initialization
-    fn deploy(e: Env, init_function: Symbol, args: Vec<RawVal>) -> BytesN<32>;
+    /// * `admin` - The admin address for the pool
+    /// * `oracle` - The oracle BytesN<32> ID for the pool
+    /// * `backstop_take_rate` - The backstop take rate for the pool
+    fn deploy(e: Env, admin: Address, oracle: BytesN<32>, backstop_take_rate: u64) -> BytesN<32>;
 
     /// Checks if contract address was deployed by the factory
     ///
     /// Returns true if pool was deployed by factory and false otherwise
     ///
     /// # Arguments
-    /// * 'pool_address' - The contract address to be checked
-    fn is_pool(e: Env, pool_address: BytesN<32>) -> bool;
+    /// * `pool_id` - The contract BytesN<32> ID to be checked
+    fn is_pool(e: Env, pool_id: BytesN<32>) -> bool;
 }
 
 #[contractimpl]
 impl PoolFactoryTrait for PoolFactory {
-    fn initialize(e: Env, wasm_hash: BytesN<32>) {
-        if storage::has_wasm_hash(&e) {
+    fn initialize(e: Env, pool_init_meta: PoolInitMeta) {
+        if storage::has_pool_init_meta(&e) {
             panic!("already initialized");
         }
-        storage::set_wasm_hash(&e, &wasm_hash);
+        storage::set_pool_init_meta(&e, &pool_init_meta);
     }
 
-    fn deploy(e: Env, init_function: Symbol, args: Vec<RawVal>) -> BytesN<32> {
+    fn deploy(e: Env, admin: Address, oracle: BytesN<32>, backstop_take_rate: u64) -> BytesN<32> {
         let mut salt: [u8; 32] = [0; 32];
         let sequence_as_bytes = e.ledger().sequence().to_be_bytes();
         for n in 0..sequence_as_bytes.len() {
             salt[n] = sequence_as_bytes[n];
         }
 
+        let pool_init_meta = storage::get_pool_init_meta(&e);
+
+        let mut init_args: Vec<RawVal> = vec![&e];
+        init_args.push_back(admin.to_raw());
+        init_args.push_back(oracle.to_raw());
+        init_args.push_back(backstop_take_rate.into_val(&e));
+        init_args.push_back(pool_init_meta.backstop.to_raw());
+        init_args.push_back(pool_init_meta.b_token_hash.to_raw());
+        init_args.push_back(pool_init_meta.d_token_hash.to_raw());
+        init_args.push_back(pool_init_meta.blnd_id.to_raw());
+        init_args.push_back(pool_init_meta.usdc_id.to_raw());
         let pool_address = e
             .deployer()
             .with_current_contract(&salt)
-            .deploy(&storage::get_wasm_hash(&e));
-        e.invoke_contract::<RawVal>(&pool_address, &init_function, args);
+            .deploy(&pool_init_meta.pool_hash);
+        e.invoke_contract::<RawVal>(&pool_address, &Symbol::new(&e, "initialize"), init_args);
 
         storage::set_deployed(&e, &pool_address);
 

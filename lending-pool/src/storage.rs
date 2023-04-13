@@ -115,12 +115,14 @@ pub struct AuctionKey {
 pub enum PoolDataKey {
     // The address that can manage the pool
     Admin,
-    // The backstop address for the pool
+    // The backstop ID for the pool
     Backstop,
-    // TODO: Remove after: https://github.com/stellar/rs-soroban-sdk/issues/868
-    BkstpAddr,
     // Token Hashes
     TokenHash,
+    // BLND token ID
+    BLNDTkn,
+    // USDC token ID
+    USDCTkn,
     // The config of the pool
     PoolConfig,
     // A list of the next reserve emission allocation percentages
@@ -176,7 +178,7 @@ pub fn has_admin(e: &Env) -> bool {
 
 /********** Backstop **********/
 
-/// Fetch the backstop for the pool
+/// Fetch the backstop ID for the pool
 ///
 /// ### Errors
 /// If no backstop is set
@@ -184,24 +186,13 @@ pub fn get_backstop(e: &Env) -> BytesN<32> {
     e.storage().get_unchecked(&PoolDataKey::Backstop).unwrap()
 }
 
-/// Set a new admin
+/// Set a new backstop ID
 ///
 /// ### Arguments
 /// * `backstop` - The address of the backstop
 pub fn set_backstop(e: &Env, backstop: &BytesN<32>) {
     e.storage()
         .set::<PoolDataKey, BytesN<32>>(&PoolDataKey::Backstop, backstop);
-}
-
-/// TODO: Remove after: https://github.com/stellar/rs-soroban-sdk/issues/868
-pub fn get_backstop_address(e: &Env) -> Address {
-    e.storage().get_unchecked(&PoolDataKey::BkstpAddr).unwrap()
-}
-
-/// TODO: Remove after: https://github.com/stellar/rs-soroban-sdk/issues/868
-pub fn set_backstop_address(e: &Env, backstop: &Address) {
-    e.storage()
-        .set::<PoolDataKey, Address>(&PoolDataKey::BkstpAddr, backstop);
 }
 
 /********** Token Hashes **********/
@@ -225,6 +216,36 @@ pub fn set_token_hashes(e: &Env, b_token_hash: &BytesN<32>, d_token_hash: &Bytes
         &key,
         &(b_token_hash.clone(), d_token_hash.clone()),
     );
+}
+
+/********** External Token Contracts **********/
+
+/// Fetch the BLND token ID
+pub fn get_blnd_token(e: &Env) -> BytesN<32> {
+    e.storage().get_unchecked(&PoolDataKey::BLNDTkn).unwrap()
+}
+
+/// Set a new BLND token ID
+///
+/// ### Arguments
+/// * `blnd_token_id` - The ID of the BLND token
+pub fn set_blnd_token(e: &Env, blnd_token_id: &BytesN<32>) {
+    e.storage()
+        .set::<PoolDataKey, BytesN<32>>(&PoolDataKey::BLNDTkn, blnd_token_id);
+}
+
+/// Fetch the USDC token ID
+pub fn get_usdc_token(e: &Env) -> BytesN<32> {
+    e.storage().get_unchecked(&PoolDataKey::USDCTkn).unwrap()
+}
+
+/// Set a new USDC token ID
+///
+/// ### Arguments
+/// * `usdc_token_id` - The ID of the USDC token
+pub fn set_usdc_token(e: &Env, usdc_token_id: &BytesN<32>) {
+    e.storage()
+        .set::<PoolDataKey, BytesN<32>>(&PoolDataKey::USDCTkn, usdc_token_id);
 }
 
 /********** Pool Config **********/

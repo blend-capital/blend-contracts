@@ -14,11 +14,18 @@ pub trait BackstopModuleContractTrait {
     /// Initialize the backstop module
     ///
     /// ### Arguments
-    /// * `backstop_token` - The backstop token. Is generally an LP token where 1 of the tokens is BLND.
+    /// * `backstop_token` - The backstop token ID - generally an LP token where 1 of the tokens is BLND
+    /// * `blnd_token` - The BLND token ID
+    /// * `pool_factory` - The pool factory ID
     ///
     /// ### Errors
-    /// If the backstop_token has already been set
-    fn initialize(e: Env, backstop_token: BytesN<32>) -> Result<(), BackstopError>;
+    /// If initialize has already been called
+    fn initialize(
+        e: Env,
+        backstop_token: BytesN<32>,
+        blnd_token: BytesN<32>,
+        pool_factory: BytesN<32>,
+    ) -> Result<(), BackstopError>;
 
     /********** Core **********/
 
@@ -138,10 +145,8 @@ pub trait BackstopModuleContractTrait {
     ///
     /// ### Errors
     /// If the pool has no emissions left to claim
-    /// TODO: Require from == pool_address once sdk issue resolved: https://github.com/stellar/rs-soroban-sdk/issues/868
     fn pool_claim(
         e: Env,
-        from: Address,
         pool_address: BytesN<32>,
         to: Address,
         amount: i128,
@@ -177,10 +182,8 @@ pub trait BackstopModuleContractTrait {
     ///
     /// ### Errors
     /// If the pool does not have enough backstop tokens
-    /// TODO: Require from == pool_address once sdk issue resolved: https://github.com/stellar/rs-soroban-sdk/issues/868
     fn draw(
         e: Env,
-        from: Address,
         pool_address: BytesN<32>,
         amount: i128,
         to: Address,
@@ -210,12 +213,19 @@ pub trait BackstopModuleContractTrait {
 /// utilizes other modules to carry out contract functionality.
 #[contractimpl]
 impl BackstopModuleContractTrait for BackstopModuleContract {
-    fn initialize(e: Env, backstop_token: BytesN<32>) -> Result<(), BackstopError> {
+    fn initialize(
+        e: Env,
+        backstop_token: BytesN<32>,
+        blnd_token: BytesN<32>,
+        pool_factory: BytesN<32>,
+    ) -> Result<(), BackstopError> {
         if storage::has_backstop_token(&e) {
             return Err(BackstopError::AlreadyInitialized);
         }
 
         storage::set_backstop_token(&e, &backstop_token);
+        storage::set_blnd_token(&e, &blnd_token);
+        storage::set_pool_factory(&e, &pool_factory);
         Ok(())
     }
 
@@ -339,12 +349,13 @@ impl BackstopModuleContractTrait for BackstopModuleContract {
 
     fn pool_claim(
         e: Env,
-        from: Address,
         pool_address: BytesN<32>,
         to: Address,
         amount: i128,
     ) -> Result<(), BackstopError> {
-        from.require_auth();
+        // TODO: Unit test this once `env.recorded_top_authorizations()`
+        //       can be executed from WASM, or add `test_auth` file
+        Address::from_contract_id(&e, &pool_address).require_auth();
 
         emissions::execute_pool_claim(&e, &pool_address, &to, amount)?;
 
@@ -372,12 +383,13 @@ impl BackstopModuleContractTrait for BackstopModuleContract {
 
     fn draw(
         e: Env,
-        from: Address,
         pool_address: BytesN<32>,
         amount: i128,
         to: Address,
     ) -> Result<(), BackstopError> {
-        from.require_auth();
+        // TODO: Unit test this once `env.recorded_top_authorizations()`
+        //       can be executed from WASM, or add `test_auth` file
+        Address::from_contract_id(&e, &pool_address).require_auth();
 
         backstop::execute_draw(&e, &pool_address, amount, &to)?;
 

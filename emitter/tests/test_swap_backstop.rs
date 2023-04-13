@@ -1,81 +1,50 @@
 #![cfg(test)]
 
 use common::create_backstop;
-use soroban_sdk::{testutils::Address as AddressTestTrait, Address, Env, Status};
+use soroban_sdk::{
+    testutils::{Address as _, BytesN as _},
+    Address, BytesN, Env,
+};
 
 mod common;
-use crate::common::{create_token, create_wasm_emitter, generate_contract_id, EmitterError};
+use crate::common::{create_token, create_wasm_emitter, EmitterError};
 
 #[test]
 fn test_swap_backstop() {
     let e = Env::default();
 
-    let (backstop_id, backstop_client) = create_backstop(&e);
-    let backstop = Address::from_contract_id(&e, &backstop_id);
-    let backstop_token_id = generate_contract_id(&e);
-    backstop_client.initialize(&backstop_token_id);
-
-    let (new_backstop_id, new_backstop_client) = create_backstop(&e);
-    let new_backstop = Address::from_contract_id(&e, &new_backstop_id);
-    let new_backstop_token_id = generate_contract_id(&e);
-    new_backstop_client.initialize(&new_backstop_token_id);
+    let bombadil = Address::random(&e);
 
     let (emitter_id, emitter_client) = create_wasm_emitter(&e);
     let emitter = Address::from_contract_id(&e, &emitter_id);
-    let (blend_id, blend_client) = create_token(&e, &emitter);
-    emitter_client.initialize(&backstop, &backstop_id, &blend_id);
-
-    // mint backstop blend
-    blend_client.mint(&emitter, &backstop, &100);
-
-    // mint new backstop blend - NOTE: we mint 104 here just to check we're dividing raw Blend balance by 4
-    blend_client.mint(&emitter, &new_backstop, &104);
-
-    let result = emitter_client.try_swap_bstop(&new_backstop, &new_backstop_id);
-
-    match result {
-        Ok(_) => {
-            let emitter_bstop = emitter_client.get_bstop();
-            assert_eq!(emitter_bstop, new_backstop);
-        }
-        Err(_) => assert!(false),
-    }
-}
-
-#[test]
-fn test_swap_backstop_fails_with_insufficient_blend() {
-    let e = Env::default();
+    let (blnd_id, blnd_client) = create_token(&e, &emitter);
+    let (backstop_token_id, backstop_token_client) = create_token(&e, &bombadil);
 
     let (backstop_id, backstop_client) = create_backstop(&e);
     let backstop = Address::from_contract_id(&e, &backstop_id);
-    let backstop_token_id = generate_contract_id(&e);
-    backstop_client.initialize(&backstop_token_id);
+    backstop_client.initialize(&backstop_token_id, &blnd_id, &BytesN::<32>::random(&e));
 
     let (new_backstop_id, new_backstop_client) = create_backstop(&e);
     let new_backstop = Address::from_contract_id(&e, &new_backstop_id);
-    let new_backstop_token_id = generate_contract_id(&e);
-    new_backstop_client.initialize(&new_backstop_token_id);
+    new_backstop_client.initialize(&backstop_token_id, &blnd_id, &BytesN::<32>::random(&e));
 
-    let (emitter_id, emitter_client) = create_wasm_emitter(&e);
-    let emitter = Address::from_contract_id(&e, &emitter_id);
-    let (blend_id, blend_client) = create_token(&e, &emitter);
-    emitter_client.initialize(&backstop, &backstop_id, &blend_id);
+    emitter_client.initialize(&backstop_id, &blnd_id);
 
-    // mint backstop blend
-    blend_client.mint(&emitter, &backstop, &100);
+    blnd_client.mint(&emitter, &backstop, &500_000_0000000);
+    backstop_token_client.mint(&bombadil, &backstop, &123_1234567);
 
-    // mint new backstop blend - NOTE: we mint 103 here just to check we're dividing raw Blend balance by 4
-    blend_client.mint(&emitter, &new_backstop, &103);
+    backstop_token_client.mint(&bombadil, &new_backstop, &123_1234567);
 
-    let result = emitter_client.try_swap_bstop(&new_backstop, &new_backstop_id);
-
+    // verify swaps fail if balance is at most equal
+    let result = emitter_client.try_swap_bstop(&new_backstop_id);
     match result {
-        Ok(_) => {
-            assert!(false);
-        }
-        Err(error) => match error {
-            Ok(p_error) => assert_eq!(p_error, EmitterError::InsufficientBLND),
-            Err(s_error) => assert_eq!(s_error, Status::from_contract_error(2)),
-        },
+        Ok(_) => assert!(false),
+        Err(err) => assert_eq!(err, Ok(EmitterError::InsufficientBackstopSize)),
     }
+
+    // mint an additional stroop and verify swap succeeds
+    backstop_token_client.mint(&bombadil, &new_backstop, &1);
+    emitter_client.swap_bstop(&new_backstop_id);
+
+    assert_eq!(emitter_client.get_bstop(), new_backstop_id);
 }

@@ -8,7 +8,8 @@ use soroban_sdk::{
 
 mod common;
 use crate::common::{
-    create_mock_oracle, create_wasm_lending_pool, pool_helper, BlendTokenClient, TokenClient,
+    create_mock_oracle, create_token, create_wasm_lending_pool, pool_helper, BlendTokenClient,
+    TokenClient,
 };
 
 //TODO: IDK if this test is appropriate here
@@ -22,6 +23,9 @@ fn test_pool_borrow_one_stroop_insufficient_collateral_for_two() {
 
     let (oracle_id, mock_oracle_client) = create_mock_oracle(&e);
 
+    let (blnd_id, _) = create_token(&e, &bombadil);
+    let (usdc_id, _) = create_token(&e, &bombadil);
+
     let (pool_id, pool_client) = create_wasm_lending_pool(&e);
     let pool = Address::from_contract_id(&e, &pool_id);
     pool_helper::setup_pool(
@@ -31,12 +35,13 @@ fn test_pool_borrow_one_stroop_insufficient_collateral_for_two() {
         &bombadil,
         &oracle_id,
         0_200_000_000,
+        &blnd_id,
+        &usdc_id,
     );
     e.budget().reset_unlimited();
 
     let (asset1_id, btoken1_id, dtoken1_id) = pool_helper::setup_reserve(
         &e,
-        &pool,
         &pool_client,
         &bombadil,
         &pool_helper::default_reserve_metadata(),
@@ -53,7 +58,6 @@ fn test_pool_borrow_one_stroop_insufficient_collateral_for_two() {
 
     let (asset2_id, b_token2_id, _d_token2_id) = pool_helper::setup_reserve(
         &e,
-        &pool,
         &pool_client,
         &bombadil,
         &pool_helper::default_reserve_metadata(),

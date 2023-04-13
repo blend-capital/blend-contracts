@@ -7,7 +7,8 @@ use soroban_sdk::{
 
 mod common;
 use crate::common::{
-    create_mock_oracle, create_wasm_lending_pool, pool_helper, BlendTokenClient, TokenClient,
+    create_mock_oracle, create_token, create_wasm_lending_pool, pool_helper, BlendTokenClient,
+    TokenClient,
 };
 
 // TODO: Investigate if mint / burn semantics will be better (operate in bTokens)
@@ -29,6 +30,8 @@ fn test_pool_happy_path() {
     let samwise = Address::random(&e);
 
     let (oracle_id, mock_oracle_client) = create_mock_oracle(&e);
+    let (blnd_id, _) = create_token(&e, &bombadil);
+    let (usdc_id, _) = create_token(&e, &bombadil);
 
     let (pool_id, pool_client) = create_wasm_lending_pool(&e);
     let pool = Address::from_contract_id(&e, &pool_id);
@@ -39,11 +42,12 @@ fn test_pool_happy_path() {
         &bombadil,
         &oracle_id,
         0_200_000_000,
+        &blnd_id,
+        &usdc_id,
     );
 
     let (asset1_id, btoken1_id, dtoken1_id) = pool_helper::setup_reserve(
         &e,
-        &pool,
         &pool_client,
         &bombadil,
         &pool_helper::default_reserve_metadata(),

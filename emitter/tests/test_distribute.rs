@@ -1,17 +1,15 @@
 #![cfg(test)]
 
 use soroban_sdk::{
-    testutils::{Address as AddressTestTrait, Ledger, LedgerInfo},
-    Address, Env, Status,
+    testutils::{Address as _, BytesN as _, Ledger, LedgerInfo},
+    Address, BytesN, Env,
 };
 
 mod common;
-use crate::common::{
-    create_backstop, create_token, create_wasm_emitter, generate_contract_id, EmitterError,
-};
+use crate::common::{create_backstop, create_token, create_wasm_emitter};
 
 #[test]
-fn test_distribute_from_backstop() {
+fn test_distribute() {
     let e = Env::default();
     e.ledger().set(LedgerInfo {
         timestamp: 100,
@@ -21,20 +19,20 @@ fn test_distribute_from_backstop() {
         base_reserve: 10,
     });
 
-    // let bombadil = Address::random(&e);
+    let bombadil = Address::random(&e);
 
+    let (emitter_id, emitter_client) = create_wasm_emitter(&e);
+    let emitter = Address::from_contract_id(&e, &emitter_id);
+
+    let (blnd_id, blnd_client) = create_token(&e, &emitter);
+    let (backstop_token_id, _) = create_token(&e, &bombadil);
     let (backstop_id, backstop_client) = create_backstop(&e);
     let backstop = Address::from_contract_id(&e, &backstop_id);
-    let backstop_token_id = generate_contract_id(&e);
-    backstop_client.initialize(&backstop_token_id);
+    backstop_client.initialize(&backstop_token_id, &blnd_id, &BytesN::<32>::random(&e));
 
-    let (emitter, emitter_client) = create_wasm_emitter(&e);
-    let emitter_id = Address::from_contract_id(&e, &emitter);
-    let (blend_id, _) = create_token(&e, &emitter_id);
-    emitter_client.initialize(&backstop, &backstop_id, &blend_id);
+    emitter_client.initialize(&backstop_id, &blnd_id);
 
-    // pass some time
-    let seconds_passed = 10000;
+    let seconds_passed = 12345;
     e.ledger().set(LedgerInfo {
         timestamp: 100 + seconds_passed,
         protocol_version: 1,
@@ -43,55 +41,11 @@ fn test_distribute_from_backstop() {
         base_reserve: 10,
     });
 
-    // Note: this function is not currently working properly - wait for- https://github.com/stellar/rs-soroban-sdk/issues/868
-    // let result = emitter_client.try_distribute() (&backstop).distribute();
+    e.as_contract(&backstop_id, || {
+        let result = emitter_client.distribute();
 
-    // let expected_emissions = BigInt::from_u64(&e, seconds_passed * 1_0000000);
-
-    // assert_eq!(result, expected_emissions);
-    // assert_eq!(blend_client.balance(&backstop_id), expected_emissions);
-}
-
-#[test]
-fn test_distribute_from_non_backstop_panics() {
-    let e = Env::default();
-    e.ledger().set(LedgerInfo {
-        timestamp: 100,
-        protocol_version: 1,
-        sequence_number: 10,
-        network_id: Default::default(),
-        base_reserve: 10,
+        let expected_emissions: i128 = (seconds_passed * 1_0000000) as i128;
+        assert_eq!(result, expected_emissions);
+        assert_eq!(blnd_client.balance(&backstop), expected_emissions);
     });
-
-    let (backstop_id, backstop_client) = create_backstop(&e);
-    let backstop = Address::from_contract_id(&e, &backstop_id);
-    let backstop_token_id = generate_contract_id(&e);
-    backstop_client.initialize(&backstop_token_id);
-
-    let (emitter, emitter_client) = create_wasm_emitter(&e);
-    let emitter_id = Address::from_contract_id(&e, &emitter);
-    let (blend_id, _) = create_token(&e, &emitter_id);
-    emitter_client.initialize(&backstop, &backstop_id, &blend_id);
-
-    // pass some time
-    let seconds_passed = 10000;
-    e.ledger().set(LedgerInfo {
-        timestamp: 100 + seconds_passed,
-        protocol_version: 1,
-        sequence_number: 10,
-        base_reserve: 10,
-        network_id: Default::default(),
-    });
-
-    let result = emitter_client.try_distribute();
-
-    match result {
-        Ok(_) => {
-            assert!(true); // TODO: auth (see `distribute`)
-        }
-        Err(error) => match error {
-            Ok(p_error) => assert_eq!(p_error, EmitterError::NotAuthorized),
-            Err(s_error) => assert_eq!(s_error, Status::from_contract_error(1)),
-        },
-    }
 }

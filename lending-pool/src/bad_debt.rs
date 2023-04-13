@@ -1,7 +1,6 @@
-use soroban_sdk::{Address, BytesN, Env, Symbol};
+use soroban_sdk::{Address, Env, Symbol};
 
 use crate::{
-    constants::BLND_TOKEN,
     dependencies::TokenClient,
     errors::PoolError,
     reserve::Reserve,
@@ -10,7 +9,7 @@ use crate::{
 };
 
 pub fn manage_bad_debt(e: &Env, user: &Address) -> Result<(), PoolError> {
-    let backstop = storage::get_backstop_address(e); // TODO: rs-soroban-sdk/issues/868
+    let backstop = Address::from_contract_id(e, &storage::get_backstop(e));
     if user.clone() == backstop {
         burn_backstop_bad_debt(e, &backstop)
     } else {
@@ -80,8 +79,7 @@ pub fn burn_backstop_bad_debt(e: &Env, backstop: &Address) -> Result<(), PoolErr
     }
 
     // TODO: Determine a healthy number for this
-    let backstop_balance =
-        TokenClient::new(e, &BytesN::from_array(e, &BLND_TOKEN)).balance(backstop);
+    let backstop_balance = TokenClient::new(e, &storage::get_blnd_token(e)).balance(backstop);
     if backstop_balance > 10_000_0000000 {
         return Err(PoolError::BadRequest);
     }
@@ -118,13 +116,13 @@ mod tests {
     use crate::{
         auctions::AuctionData,
         storage::PoolConfig,
-        testutils::{create_reserve, create_token_from_id, generate_contract_id, setup_reserve},
+        testutils::{create_blnd_token, create_reserve, setup_reserve},
     };
 
     use super::*;
     use soroban_sdk::{
         map,
-        testutils::{Address as AddressTestTrait, BytesN as _, Ledger, LedgerInfo},
+        testutils::{Address as _, BytesN as _, Ledger, LedgerInfo},
         BytesN,
     };
 
@@ -142,8 +140,8 @@ mod tests {
             base_reserve: 10,
         });
 
-        let pool_id = generate_contract_id(&e);
-        let backstop_id = generate_contract_id(&e);
+        let pool_id = BytesN::<32>::random(&e);
+        let backstop_id = BytesN::<32>::random(&e);
         let backstop = Address::from_contract_id(&e, &backstop_id);
 
         let samwise = Address::random(&e);
@@ -157,7 +155,7 @@ mod tests {
         setup_reserve(&e, &pool_id, &bombadil, &mut reserve_1);
 
         let pool_config = PoolConfig {
-            oracle: generate_contract_id(&e),
+            oracle: BytesN::<32>::random(&e),
             bstop_rate: 0_100_000_000,
             status: 0,
         };
@@ -169,7 +167,6 @@ mod tests {
         e.as_contract(&pool_id, || {
             storage::set_pool_config(&e, &pool_config);
             storage::set_backstop(&e, &backstop_id);
-            storage::set_backstop_address(&e, &backstop);
             let mut user_config = ReserveUsage::new(0);
             user_config.set_liability(0, true);
             user_config.set_liability(1, true);
@@ -199,8 +196,8 @@ mod tests {
     fn test_transfer_bad_debt_with_collateral_errors() {
         let e = Env::default();
 
-        let pool_id = generate_contract_id(&e);
-        let backstop_id = generate_contract_id(&e);
+        let pool_id = BytesN::<32>::random(&e);
+        let backstop_id = BytesN::<32>::random(&e);
         let backstop = Address::from_contract_id(&e, &backstop_id);
 
         let samwise = Address::random(&e);
@@ -214,7 +211,7 @@ mod tests {
         setup_reserve(&e, &pool_id, &bombadil, &mut reserve_1);
 
         let pool_config = PoolConfig {
-            oracle: generate_contract_id(&e),
+            oracle: BytesN::<32>::random(&e),
             bstop_rate: 0_100_000_000,
             status: 0,
         };
@@ -222,7 +219,6 @@ mod tests {
         e.as_contract(&pool_id, || {
             storage::set_pool_config(&e, &pool_config);
             storage::set_backstop(&e, &backstop_id);
-            storage::set_backstop_address(&e, &backstop);
             let mut user_config = ReserveUsage::new(0);
             user_config.set_liability(0, true);
             user_config.set_liability(1, true);
@@ -242,8 +238,8 @@ mod tests {
     fn test_transfer_bad_debt_without_liability_errors() {
         let e = Env::default();
 
-        let pool_id = generate_contract_id(&e);
-        let backstop_id = generate_contract_id(&e);
+        let pool_id = BytesN::<32>::random(&e);
+        let backstop_id = BytesN::<32>::random(&e);
         let backstop = Address::from_contract_id(&e, &backstop_id);
 
         let samwise = Address::random(&e);
@@ -257,7 +253,7 @@ mod tests {
         setup_reserve(&e, &pool_id, &bombadil, &mut reserve_1);
 
         let pool_config = PoolConfig {
-            oracle: generate_contract_id(&e),
+            oracle: BytesN::<32>::random(&e),
             bstop_rate: 0_100_000_000,
             status: 0,
         };
@@ -265,7 +261,6 @@ mod tests {
         e.as_contract(&pool_id, || {
             storage::set_pool_config(&e, &pool_config);
             storage::set_backstop(&e, &backstop_id);
-            storage::set_backstop_address(&e, &backstop);
             let mut user_config = ReserveUsage::new(0);
             user_config.set_supply(1, true);
             storage::set_user_config(&e, &samwise, &user_config.config);
@@ -293,11 +288,13 @@ mod tests {
             base_reserve: 10,
         });
 
+        let bombadil = Address::random(&e);
+
         let pool_id = BytesN::<32>::random(&e);
         let backstop_id = BytesN::<32>::random(&e);
         let backstop = Address::from_contract_id(&e, &backstop_id);
 
-        let bombadil = Address::random(&e);
+        let (_, blnd_client) = create_blnd_token(&e, &pool_id, &bombadil);
 
         let mut reserve_0 = create_reserve(&e);
         setup_reserve(&e, &pool_id, &bombadil, &mut reserve_0);
@@ -306,11 +303,10 @@ mod tests {
         reserve_1.config.index = 1;
         setup_reserve(&e, &pool_id, &bombadil, &mut reserve_1);
 
-        let blnd_client = create_token_from_id(&e, &BytesN::from_array(&e, &BLND_TOKEN), &bombadil);
         blnd_client.mint(&bombadil, &backstop, &123);
 
         let pool_config = PoolConfig {
-            oracle: generate_contract_id(&e),
+            oracle: BytesN::<32>::random(&e),
             bstop_rate: 0_100_000_000,
             status: 0,
         };
@@ -322,7 +318,6 @@ mod tests {
         e.as_contract(&pool_id, || {
             storage::set_pool_config(&e, &pool_config);
             storage::set_backstop(&e, &backstop_id);
-            storage::set_backstop_address(&e, &backstop);
 
             let d_token_0 = TokenClient::new(&e, &reserve_0.config.d_token);
             d_token_0.mint(
@@ -376,11 +371,13 @@ mod tests {
             base_reserve: 10,
         });
 
+        let bombadil = Address::random(&e);
+
         let pool_id = BytesN::<32>::random(&e);
         let backstop_id = BytesN::<32>::random(&e);
         let backstop = Address::from_contract_id(&e, &backstop_id);
 
-        let bombadil = Address::random(&e);
+        let (_, blnd_client) = create_blnd_token(&e, &pool_id, &bombadil);
 
         let mut reserve_0 = create_reserve(&e);
         setup_reserve(&e, &pool_id, &bombadil, &mut reserve_0);
@@ -389,11 +386,10 @@ mod tests {
         reserve_1.config.index = 1;
         setup_reserve(&e, &pool_id, &bombadil, &mut reserve_1);
 
-        let blnd_client = create_token_from_id(&e, &BytesN::from_array(&e, &BLND_TOKEN), &bombadil);
         blnd_client.mint(&bombadil, &backstop, &10_000_0000001);
 
         let pool_config = PoolConfig {
-            oracle: generate_contract_id(&e),
+            oracle: BytesN::<32>::random(&e),
             bstop_rate: 0_100_000_000,
             status: 0,
         };
@@ -405,7 +401,6 @@ mod tests {
         e.as_contract(&pool_id, || {
             storage::set_pool_config(&e, &pool_config);
             storage::set_backstop(&e, &backstop_id);
-            storage::set_backstop_address(&e, &backstop);
 
             let d_token_0 = TokenClient::new(&e, &reserve_0.config.d_token);
             d_token_0.mint(
@@ -442,11 +437,14 @@ mod tests {
             base_reserve: 10,
         });
 
+        let bombadil = Address::random(&e);
+
         let pool_id = BytesN::<32>::random(&e);
         let backstop_id = BytesN::<32>::random(&e);
         let backstop = Address::from_contract_id(&e, &backstop_id);
 
-        let bombadil = Address::random(&e);
+        create_blnd_token(&e, &pool_id, &bombadil);
+        let backstop_id = BytesN::<32>::random(&e);
 
         let mut reserve_0 = create_reserve(&e);
         setup_reserve(&e, &pool_id, &bombadil, &mut reserve_0);
@@ -455,10 +453,8 @@ mod tests {
         reserve_1.config.index = 1;
         setup_reserve(&e, &pool_id, &bombadil, &mut reserve_1);
 
-        create_token_from_id(&e, &BytesN::from_array(&e, &BLND_TOKEN), &bombadil);
-
         let pool_config = PoolConfig {
-            oracle: generate_contract_id(&e),
+            oracle: BytesN::<32>::random(&e),
             bstop_rate: 0_100_000_000,
             status: 0,
         };
@@ -470,7 +466,6 @@ mod tests {
         e.as_contract(&pool_id, || {
             storage::set_pool_config(&e, &pool_config);
             storage::set_backstop(&e, &backstop_id);
-            storage::set_backstop_address(&e, &backstop);
 
             let d_token_0 = TokenClient::new(&e, &reserve_0.config.d_token);
             d_token_0.mint(

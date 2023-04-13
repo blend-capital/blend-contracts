@@ -1,13 +1,13 @@
 use crate::{
-    constants::{BLND_TOKEN, SCALAR_7, USDC_TOKEN},
-    dependencies::{BackstopClient, OracleClient, TokenClient},
+    constants::SCALAR_7,
+    dependencies::{OracleClient, TokenClient},
     errors::PoolError,
     reserve::Reserve,
     storage,
 };
 use cast::i128;
 use fixed_point_math::FixedPoint;
-use soroban_sdk::{map, vec, Address, BytesN, Env};
+use soroban_sdk::{map, vec, Address, Env};
 
 use super::{get_fill_modifiers, AuctionData, AuctionQuote, AuctionType};
 
@@ -53,7 +53,7 @@ pub fn create_interest_auction_data(e: &Env, backstop: &Address) -> Result<Aucti
         return Err(PoolError::BadRequest);
     }
 
-    let usdc_token = BytesN::from_array(e, &USDC_TOKEN);
+    let usdc_token = storage::get_usdc_token(e);
     let usdc_to_base = oracle_client.get_price(&usdc_token);
     let bid_amount = interest_value
         .fixed_mul_floor(1_4000000, SCALAR_7)
@@ -82,7 +82,7 @@ pub fn calc_fill_interest_auction(e: &Env, auction_data: &AuctionData) -> Auctio
     let bid_amount_modified = bid_amount.fixed_mul_floor(bid_modifier, SCALAR_7).unwrap();
     auction_quote
         .bid
-        .push_back((BytesN::from_array(e, &USDC_TOKEN), bid_amount_modified));
+        .push_back((storage::get_usdc_token(e), bid_amount_modified));
 
     // lot only contains b_token reserves
     let reserve_list = storage::get_res_list(e);
@@ -106,9 +106,7 @@ pub fn fill_interest_auction(
     // TODO: Determine if there is a way to reuse calc code. Currently, this would result in reloads of all
     //       reserves and the minting of tokens to the backstop during previews.
     let pool_config = storage::get_pool_config(e);
-    let backstop_id = storage::get_backstop(e);
-    let backstop = storage::get_backstop_address(e);
-
+    let backstop = Address::from_contract_id(e, &storage::get_backstop(e));
     let mut auction_quote = AuctionQuote {
         bid: vec![e],
         lot: vec![e],
@@ -118,7 +116,7 @@ pub fn fill_interest_auction(
     let (bid_modifier, lot_modifier) = get_fill_modifiers(e, auction_data);
 
     // bid only contains the USDC token
-    let usdc_token = BytesN::from_array(e, &USDC_TOKEN);
+    let usdc_token = storage::get_usdc_token(e);
     let bid_amount = auction_data.bid.get_unchecked(u32::MAX).unwrap();
     let bid_amount_modified = bid_amount.fixed_mul_floor(bid_modifier, SCALAR_7).unwrap();
     auction_quote
@@ -161,14 +159,14 @@ mod tests {
         auctions::auction::AuctionType,
         storage::{self, PoolConfig},
         testutils::{
-            create_backstop, create_backstop_token, create_mock_oracle, create_mock_pool_factory,
-            create_reserve, create_token_from_id, generate_contract_id, setup_reserve,
+            create_backstop, create_mock_oracle, create_reserve, create_usdc_token, setup_backstop,
+            setup_reserve,
         },
     };
 
     use super::*;
     use soroban_sdk::{
-        testutils::{Address as AddressTestTrait, Ledger, LedgerInfo},
+        testutils::{Address as _, BytesN as _, Ledger, LedgerInfo},
         Address, BytesN,
     };
 
@@ -176,8 +174,8 @@ mod tests {
     fn test_create_interest_auction_already_in_progress() {
         let e = Env::default();
 
-        let pool_id = generate_contract_id(&e);
-        let backstop_id = generate_contract_id(&e);
+        let pool_id = BytesN::<32>::random(&e);
+        let backstop_id = BytesN::<32>::random(&e);
         let backstop = Address::from_contract_id(&e, &backstop_id);
 
         e.ledger().set(LedgerInfo {
@@ -194,8 +192,6 @@ mod tests {
             block: 50,
         };
         e.as_contract(&pool_id, || {
-            storage::set_backstop(&e, &backstop_id);
-            storage::set_backstop_address(&e, &backstop);
             storage::set_auction(
                 &e,
                 &(AuctionType::InterestAuction as u32),
@@ -215,7 +211,7 @@ mod tests {
     #[test]
     fn test_create_interest_auction() {
         let e = Env::default();
-        let usdc_id = BytesN::from_array(&e, &USDC_TOKEN);
+        e.budget().reset_unlimited(); // setup exhausts budget
 
         e.ledger().set(LedgerInfo {
             timestamp: 12345,
@@ -227,16 +223,20 @@ mod tests {
 
         let bombadil = Address::random(&e);
 
-        let pool_id = generate_contract_id(&e);
+        let pool_id = BytesN::<32>::random(&e);
         let pool = Address::from_contract_id(&e, &pool_id);
+        let (usdc_id, _) = create_usdc_token(&e, &pool_id, &bombadil);
         let (backstop_id, _backstop_client) = create_backstop(&e);
         let backstop = Address::from_contract_id(&e, &backstop_id);
-        let mock_pool_factory = create_mock_pool_factory(&e);
-        mock_pool_factory.set_pool(&pool_id);
+        setup_backstop(
+            &e,
+            &pool_id,
+            &backstop_id,
+            &BytesN::<32>::random(&e),
+            &BytesN::<32>::random(&e),
+        );
         let (oracle_id, oracle_client) = create_mock_oracle(&e);
 
-        // creating reserves for a pool exhausts the budget
-        e.budget().reset_unlimited();
         let mut reserve_0 = create_reserve(&e);
         reserve_0.b_rate = Some(1_100_000_000);
         reserve_0.data.last_block = 50;
@@ -255,7 +255,6 @@ mod tests {
         reserve_2.data.last_block = 50;
         reserve_2.config.index = 2;
         setup_reserve(&e, &pool_id, &bombadil, &mut reserve_2);
-        e.budget().reset_unlimited();
 
         oracle_client.set_price(&reserve_0.asset, &2_0000000);
         oracle_client.set_price(&reserve_1.asset, &4_0000000);
@@ -269,13 +268,10 @@ mod tests {
         };
         e.as_contract(&pool_id, || {
             storage::set_pool_config(&e, &pool_config);
-            storage::set_backstop(&e, &backstop_id);
-            storage::set_backstop_address(&e, &backstop);
 
             b_token_0.mint(&pool, &backstop, &10_0000000);
             b_token_1.mint(&pool, &backstop, &2_5000000);
 
-            e.budget().reset_unlimited();
             let result = create_interest_auction_data(&e, &backstop).unwrap();
 
             assert_eq!(result.block, 51);
@@ -296,7 +292,7 @@ mod tests {
     #[test]
     fn test_create_interest_auction_applies_interest() {
         let e = Env::default();
-        let usdc_id = BytesN::from_array(&e, &USDC_TOKEN);
+        e.budget().reset_unlimited(); // setup exhausts budget
 
         e.ledger().set(LedgerInfo {
             timestamp: 12345,
@@ -308,16 +304,20 @@ mod tests {
 
         let bombadil = Address::random(&e);
 
-        let pool_id = generate_contract_id(&e);
+        let pool_id = BytesN::<32>::random(&e);
         let pool = Address::from_contract_id(&e, &pool_id);
+        let (usdc_id, _) = create_usdc_token(&e, &pool_id, &bombadil);
         let (backstop_id, _backstop_client) = create_backstop(&e);
         let backstop = Address::from_contract_id(&e, &backstop_id);
-        let mock_pool_factory = create_mock_pool_factory(&e);
-        mock_pool_factory.set_pool(&pool_id);
+        setup_backstop(
+            &e,
+            &pool_id,
+            &backstop_id,
+            &BytesN::<32>::random(&e),
+            &BytesN::<32>::random(&e),
+        );
         let (oracle_id, oracle_client) = create_mock_oracle(&e);
 
-        // creating reserves for a pool exhausts the budget
-        e.budget().reset_unlimited();
         let mut reserve_0 = create_reserve(&e);
         reserve_0.b_rate = Some(1_100_000_000);
         reserve_0.data.last_block = 50;
@@ -336,7 +336,6 @@ mod tests {
         reserve_2.data.last_block = 50;
         reserve_2.config.index = 2;
         setup_reserve(&e, &pool_id, &bombadil, &mut reserve_2);
-        e.budget().reset_unlimited();
 
         oracle_client.set_price(&reserve_0.asset, &2_0000000);
         oracle_client.set_price(&reserve_1.asset, &4_0000000);
@@ -350,13 +349,10 @@ mod tests {
         };
         e.as_contract(&pool_id, || {
             storage::set_pool_config(&e, &pool_config);
-            storage::set_backstop(&e, &backstop_id);
-            storage::set_backstop_address(&e, &backstop);
 
             b_token_0.mint(&pool, &backstop, &10_0000000);
             b_token_1.mint(&pool, &backstop, &2_5000000);
 
-            e.budget().reset_unlimited();
             let result = create_interest_auction_data(&e, &backstop).unwrap();
 
             assert_eq!(result.block, 151);
@@ -381,7 +377,7 @@ mod tests {
     #[test]
     fn test_fill_interest_auction() {
         let e = Env::default();
-        let usdc_id = BytesN::from_array(&e, &USDC_TOKEN);
+        e.budget().reset_unlimited(); // setup exhausts budget
 
         e.ledger().set(LedgerInfo {
             timestamp: 12345,
@@ -394,17 +390,19 @@ mod tests {
         let bombadil = Address::random(&e);
         let samwise = Address::random(&e);
 
-        let pool_id = generate_contract_id(&e);
+        let pool_id = BytesN::<32>::random(&e);
         let pool = Address::from_contract_id(&e, &pool_id);
+        let (usdc_id, usdc_client) = create_usdc_token(&e, &pool_id, &bombadil);
         let (backstop_id, _backstop_client) = create_backstop(&e);
-        create_backstop_token(&e, &backstop_id, &samwise);
         let backstop = Address::from_contract_id(&e, &backstop_id);
-        let mock_pool_factory = create_mock_pool_factory(&e);
-        mock_pool_factory.set_pool(&pool_id);
-        let usdc_client = create_token_from_id(&e, &usdc_id, &bombadil);
+        setup_backstop(
+            &e,
+            &pool_id,
+            &backstop_id,
+            &BytesN::<32>::random(&e),
+            &BytesN::<32>::random(&e),
+        );
 
-        // creating reserves for a pool exhausts the budget
-        e.budget().reset_unlimited();
         let mut reserve_0 = create_reserve(&e);
         reserve_0.b_rate = Some(1_100_000_000);
         reserve_0.data.last_block = 301;
@@ -423,10 +421,9 @@ mod tests {
         reserve_2.data.last_block = 301;
         reserve_2.config.index = 2;
         setup_reserve(&e, &pool_id, &bombadil, &mut reserve_2);
-        e.budget().reset_unlimited();
 
         let pool_config = PoolConfig {
-            oracle: generate_contract_id(&e),
+            oracle: BytesN::<32>::random(&e),
             bstop_rate: 0_100_000_000,
             status: 0,
         };
@@ -446,7 +443,6 @@ mod tests {
             );
             storage::set_pool_config(&e, &pool_config);
             storage::set_backstop(&e, &backstop_id);
-            storage::set_backstop_address(&e, &backstop);
 
             usdc_client.incr_allow(&pool, &backstop, &(u64::MAX as i128));
 

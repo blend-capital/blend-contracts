@@ -1,7 +1,4 @@
-use crate::{
-    constants::BLND_TOKEN, dependencies::TokenClient, errors::BackstopError, pool::Pool, storage,
-    user::User,
-};
+use crate::{dependencies::TokenClient, errors::BackstopError, pool::Pool, storage, user::User};
 use soroban_sdk::{Address, BytesN, Env, Vec};
 
 use super::update_emission_index;
@@ -21,7 +18,7 @@ pub fn execute_pool_claim(
     pool.write_emissions(&e);
 
     if amount > 0 {
-        let blnd_token = TokenClient::new(e, &BytesN::from_array(e, &BLND_TOKEN));
+        let blnd_token = TokenClient::new(e, &storage::get_blnd_token(e));
         blnd_token.xfer(&e.current_contract_address(), &to, &amount);
     }
 
@@ -48,7 +45,7 @@ pub fn execute_claim(
     }
 
     if claimed > 0 {
-        let blnd_token = TokenClient::new(e, &BytesN::from_array(e, &BLND_TOKEN));
+        let blnd_token = TokenClient::new(e, &storage::get_blnd_token(e));
         blnd_token.xfer(&e.current_contract_address(), &to, &claimed);
     }
 
@@ -59,7 +56,7 @@ pub fn execute_claim(
 mod tests {
     use crate::{
         storage::{BackstopEmissionConfig, BackstopEmissionsData, UserEmissionData},
-        testutils::{create_mock_pool_factory, create_token_from_id},
+        testutils::{create_blnd_token, create_mock_pool_factory},
     };
 
     use super::*;
@@ -81,11 +78,10 @@ mod tests {
         let backstop_addr = Address::from_contract_id(&e, &backstop_id);
         let not_pool_id = BytesN::<32>::random(&e);
         let pool_1_id = BytesN::<32>::random(&e);
-        let pool_factory = create_mock_pool_factory(&e);
+        let (_, pool_factory) = create_mock_pool_factory(&e, &backstop_id);
         pool_factory.set_pool(&pool_1_id);
 
-        let blnd_token_client =
-            create_token_from_id(&e, &BytesN::from_array(&e, &BLND_TOKEN), &bombadil);
+        let (_, blnd_token_client) = create_blnd_token(&e, &backstop_id, &bombadil);
         blnd_token_client.mint(&bombadil, &backstop_addr, &100_000_0000000);
 
         e.as_contract(&backstop_id, || {
@@ -129,8 +125,7 @@ mod tests {
         let samwise = Address::random(&e);
         let frodo = Address::random(&e);
 
-        let blnd_token_client =
-            create_token_from_id(&e, &BytesN::from_array(&e, &BLND_TOKEN), &bombadil);
+        let (_, blnd_token_client) = create_blnd_token(&e, &backstop_id, &bombadil);
         blnd_token_client.mint(&bombadil, &backstop_addr, &100_0000000);
 
         let backstop_1_emissions_config = BackstopEmissionConfig {
@@ -223,8 +218,7 @@ mod tests {
         let samwise = Address::random(&e);
         let frodo = Address::random(&e);
 
-        let blnd_token_client =
-            create_token_from_id(&e, &BytesN::from_array(&e, &BLND_TOKEN), &bombadil);
+        let (_, blnd_token_client) = create_blnd_token(&e, &backstop_id, &bombadil);
         blnd_token_client.mint(&bombadil, &backstop_addr, &100_0000000);
 
         let backstop_1_emissions_config = BackstopEmissionConfig {

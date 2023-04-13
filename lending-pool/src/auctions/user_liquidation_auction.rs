@@ -902,7 +902,6 @@ mod tests {
         let (oracle_id, oracle_client) = create_mock_oracle(&e);
 
         let backstop_id = generate_contract_id(&e);
-        let backstop = Address::from_contract_id(&e, &backstop_id);
 
         // creating reserves for a pool exhausts the budget
         e.budget().reset_unlimited();
@@ -949,7 +948,6 @@ mod tests {
             storage::set_user_config(&e, &samwise, &user_config.config);
             storage::set_pool_config(&e, &pool_config);
             storage::set_backstop(&e, &backstop_id);
-            storage::set_backstop_address(&e, &backstop);
 
             b_token_0.mint(&pool, &samwise, &3000_0000000);
             d_token_1.mint(&pool, &samwise, &200_7500000_0000000);
@@ -1028,7 +1026,6 @@ mod tests {
         let (oracle_id, oracle_client) = create_mock_oracle(&e);
 
         let backstop_id = generate_contract_id(&e);
-        let backstop = Address::from_contract_id(&e, &backstop_id);
 
         // creating reserves for a pool exhausts the budget
         e.budget().reset_unlimited();
@@ -1075,7 +1072,6 @@ mod tests {
             storage::set_user_config(&e, &samwise, &user_config.config);
             storage::set_pool_config(&e, &pool_config);
             storage::set_backstop(&e, &backstop_id);
-            storage::set_backstop_address(&e, &backstop);
 
             b_token_0.mint(&pool, &samwise, &00_0000001);
             d_token_1.mint(&pool, &samwise, &02_7500000);
@@ -1146,7 +1142,6 @@ mod tests {
         let (oracle_id, oracle_client) = create_mock_oracle(&e);
 
         let backstop_id = generate_contract_id(&e);
-        let backstop = Address::from_contract_id(&e, &backstop_id);
 
         // creating reserves for a pool exhausts the budget
         e.budget().reset_unlimited();
@@ -1193,7 +1188,6 @@ mod tests {
             storage::set_user_config(&e, &samwise, &user_config.config);
             storage::set_pool_config(&e, &pool_config);
             storage::set_backstop(&e, &backstop_id);
-            storage::set_backstop_address(&e, &backstop);
 
             b_token_0.mint(&pool, &samwise, &3000_0000000);
             d_token_1.mint(&pool, &samwise, &200_7500000_0000000);
@@ -1272,7 +1266,6 @@ mod tests {
         let (oracle_id, oracle_client) = create_mock_oracle(&e);
 
         let backstop_id = generate_contract_id(&e);
-        let backstop = Address::from_contract_id(&e, &backstop_id);
 
         // creating reserves for a pool exhausts the budget
         e.budget().reset_unlimited();
@@ -1317,7 +1310,6 @@ mod tests {
             storage::set_user_config(&e, &samwise, &user_config.config);
             storage::set_pool_config(&e, &pool_config);
             storage::set_backstop(&e, &backstop_id);
-            storage::set_backstop_address(&e, &backstop);
 
             b_token_0.mint(&pool, &samwise, &2);
             d_token_1.mint(&pool, &samwise, &1);

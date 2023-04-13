@@ -48,12 +48,6 @@ pub fn generate_contract_id(e: &Env) -> BytesN<32> {
     BytesN::from_array(e, &id)
 }
 
-pub fn create_stellar_token(e: &Env, admin: &Address) -> (BytesN<32>, TokenClient) {
-    let contract_id = e.register_stellar_asset_contract(admin.clone());
-    let client = TokenClient::new(e, &contract_id);
-    (contract_id, client)
-}
-
 pub fn create_token(e: &Env, admin: &Address) -> (BytesN<32>, TokenClient) {
     let contract_id = generate_contract_id(e);
     e.register_contract_wasm(&contract_id, token::WASM);

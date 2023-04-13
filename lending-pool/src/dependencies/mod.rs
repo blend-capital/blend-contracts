@@ -8,11 +8,6 @@ pub use token::Client as TokenClient;
 #[cfg(any(test, feature = "testutils"))]
 pub use token::WASM as TOKEN_WASM;
 
-mod emitter;
-pub use emitter::Client as EmitterClient;
-#[cfg(any(test, feature = "testutils"))]
-pub use emitter::WASM as EMITTER_WASM;
-
 mod backstop;
 pub use backstop::Client as BackstopClient;
 #[cfg(any(test, feature = "testutils"))]

@@ -1,3 +1,7 @@
 /target
 .DS_Store
 /emitter/.DS_Store
+
+# JS
+*/node_modules
+local.*

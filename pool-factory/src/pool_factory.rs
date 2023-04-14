@@ -16,7 +16,13 @@ pub trait PoolFactoryTrait {
     /// * `admin` - The admin address for the pool
     /// * `oracle` - The oracle BytesN<32> ID for the pool
     /// * `backstop_take_rate` - The backstop take rate for the pool
-    fn deploy(e: Env, admin: Address, oracle: BytesN<32>, backstop_take_rate: u64) -> BytesN<32>;
+    fn deploy(
+        e: Env,
+        admin: Address,
+        salt: BytesN<32>,
+        oracle: BytesN<32>,
+        backstop_take_rate: u64,
+    ) -> BytesN<32>;
 
     /// Checks if contract address was deployed by the factory
     ///
@@ -34,15 +40,16 @@ impl PoolFactoryTrait for PoolFactory {
             panic!("already initialized");
         }
         storage::set_pool_init_meta(&e, &pool_init_meta);
+        storage::set_salt(&e, &0);
     }
 
-    fn deploy(e: Env, admin: Address, oracle: BytesN<32>, backstop_take_rate: u64) -> BytesN<32> {
-        let mut salt: [u8; 32] = [0; 32];
-        let sequence_as_bytes = e.ledger().sequence().to_be_bytes();
-        for n in 0..sequence_as_bytes.len() {
-            salt[n] = sequence_as_bytes[n];
-        }
-
+    fn deploy(
+        e: Env,
+        admin: Address,
+        salt: BytesN<32>,
+        oracle: BytesN<32>,
+        backstop_take_rate: u64,
+    ) -> BytesN<32> {
         let pool_init_meta = storage::get_pool_init_meta(&e);
 
         let mut init_args: Vec<RawVal> = vec![&e];

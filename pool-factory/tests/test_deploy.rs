@@ -1,7 +1,7 @@
 #![cfg(test)]
 
 use soroban_sdk::{
-    testutils::{Address as AddressTestTrait, Ledger, LedgerInfo},
+    testutils::{Address as AddressTestTrait, BytesN as _, Ledger, LedgerInfo},
     Address, BytesN, Env,
 };
 
@@ -39,14 +39,9 @@ fn test_deploy() {
     };
     pool_factory_client.initialize(&pool_init_meta);
 
-    e.ledger().set(LedgerInfo {
-        timestamp: 12345,
-        protocol_version: 1,
-        sequence_number: 100,
-        network_id: Default::default(),
-        base_reserve: 10,
-    });
-    let deployed_pool_address_1 = pool_factory_client.deploy(&bombadil, &oracle, &backstop_rate);
+    let salt = BytesN::<32>::random(&e);
+    let deployed_pool_address_1 =
+        pool_factory_client.deploy(&bombadil, &salt, &oracle, &backstop_rate);
 
     e.ledger().set(LedgerInfo {
         timestamp: 12345,
@@ -55,7 +50,9 @@ fn test_deploy() {
         network_id: Default::default(),
         base_reserve: 10,
     });
-    let deployed_pool_address_2 = pool_factory_client.deploy(&bombadil, &oracle, &backstop_rate);
+    let salt = BytesN::<32>::random(&e);
+    let deployed_pool_address_2 =
+        pool_factory_client.deploy(&bombadil, &salt, &oracle, &backstop_rate);
 
     let zero_address = BytesN::from_array(&e, &[0; 32]);
     e.as_contract(&deployed_pool_address_1, || {

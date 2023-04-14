@@ -43,13 +43,6 @@ fn test_deploy() {
     let deployed_pool_address_1 =
         pool_factory_client.deploy(&bombadil, &salt, &oracle, &backstop_rate);
 
-    e.ledger().set(LedgerInfo {
-        timestamp: 12345,
-        protocol_version: 1,
-        sequence_number: 101,
-        network_id: Default::default(),
-        base_reserve: 10,
-    });
     let salt = BytesN::<32>::random(&e);
     let deployed_pool_address_2 =
         pool_factory_client.deploy(&bombadil, &salt, &oracle, &backstop_rate);

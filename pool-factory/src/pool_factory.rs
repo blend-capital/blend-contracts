@@ -40,7 +40,6 @@ impl PoolFactoryTrait for PoolFactory {
             panic!("already initialized");
         }
         storage::set_pool_init_meta(&e, &pool_init_meta);
-        storage::set_salt(&e, &0);
     }
 
     fn deploy(

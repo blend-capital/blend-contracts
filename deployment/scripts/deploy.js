@@ -49,7 +49,7 @@ export async function installWasm(stellarRpc, config) {
     txBuilder.addOperation(createInstallOperation(WasmKeys[contract], config));
     await signAndSubmitTransaction(stellarRpc, txBuilder.build(), bombadil);
     config.writeToFile();
-    console.log(`DONE: installing ${WasmKeys[contract]} contract`);
+    console.log(`DONE: installing ${WasmKeys[contract]} contract\n`);
   }
   console.log("All WASM installed\n");
 }

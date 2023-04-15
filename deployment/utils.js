@@ -1,4 +1,4 @@
-import { Transaction, Server, TransactionBuilder } from "soroban-client";
+import { Transaction, Server, TransactionBuilder, xdr } from "soroban-client";
 
 export const WasmKeys = {
   token: "token",

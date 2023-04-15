@@ -8,7 +8,7 @@ import { Config } from "../config.js";
 const CONTRACT_REL_PATH = {
   token: "/../../soroban_token_contract.wasm",
   bToken: "/../../target/wasm32-unknown-unknown/optimized/b_token.wasm",
-  dToken: "/../../arget/wasm32-unknown-unknown/optimized/d_token.wasm",
+  dToken: "/../../target/wasm32-unknown-unknown/optimized/d_token.wasm",
   oracle: "/../../target/wasm32-unknown-unknown/release/mock_blend_oracle.wasm",
   emitter: "/../../target/wasm32-unknown-unknown/release/emitter.wasm",
   poolFactory:

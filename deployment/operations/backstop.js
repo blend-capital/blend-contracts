@@ -15,10 +15,9 @@ export function createInitialize(
   blndTokenId,
   poolFactoryId
 ) {
-  let tokenContract = new Contract(address);
-  return tokenContract.call(
+  let backstopContract = new Contract(address);
+  return backstopContract.call(
     "initialize",
-    new Address(admin).toScVal(),
     xdr.ScVal.scvBytes(Buffer.from(backstopTokenId, "hex")),
     xdr.ScVal.scvBytes(Buffer.from(blndTokenId, "hex")),
     xdr.ScVal.scvBytes(Buffer.from(poolFactoryId, "hex"))

@@ -9,11 +9,10 @@ import { Contract, xdr, Address } from "soroban-client";
  * @returns {xdr.Operation<Operation.InvokeHostFunction>}
  */
 export function createInitialize(address, backstopId, blndTokenId) {
-  let tokenContract = new Contract(address);
-  return tokenContract.call(
+  let emitterContract = new Contract(address);
+  return emitterContract.call(
     "initialize",
-    new Address(admin).toScVal(),
     xdr.ScVal.scvBytes(Buffer.from(backstopId, "hex")),
-    xdr.ScVal.scvBytes(Buffer.from(blndTokenId, "hex"))
+    xdr.ScVal.scvBytes(Buffer.from(blndTokenId, "hex")),
   );
 }

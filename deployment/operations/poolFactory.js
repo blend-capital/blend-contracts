@@ -9,12 +9,18 @@ import { Contract, xdr, Address } from "soroban-client";
  */
 export function createInitialize(address, config) {
   // TODO: build PoolInitMeta from config
-  let tokenContract = new Contract(address);
-  return tokenContract.call(
+  let poolInitMeta = []
+  for (const key of Object.keys(config).sort()) {
+    poolInitMeta.push(new xdr.ScMapEntry(
+      {
+        key: xdr.ScVal.scvSymbol(key), val: xdr.ScVal.scvBytes(Buffer.from(config[key], "hex"))
+      }
+    ));
+  };
+  let poolFactoryContract = new Contract(address);
+  return poolFactoryContract.call(
     "initialize",
-    new Address(admin).toScVal(),
-    xdr.ScVal.scvBytes(Buffer.from(backstopTokenId, "hex")),
-    xdr.ScVal.scvBytes(Buffer.from(blndTokenId, "hex")),
-    xdr.ScVal.scvBytes(Buffer.from(poolFactoryId, "hex"))
+    xdr.ScVal.scvMap(poolInitMeta),
   );
+
 }

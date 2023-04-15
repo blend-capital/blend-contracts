@@ -1,25 +1,18 @@
 import { Contract, xdr, Address } from "soroban-client";
+import { Config } from "../config.js";
 
 /********** Operation Builders **********/
 
 /**
- * @param {string} address
- * @param {string} backstopTokenId
- * @param {string} blndTokenId
- * @param {string} poolFactoryId
+ * @param {Config} config
  * @returns {xdr.Operation<Operation.InvokeHostFunction>}
  */
-export function createInitialize(
-  address,
-  backstopTokenId,
-  blndTokenId,
-  poolFactoryId
-) {
-  let backstopContract = new Contract(address);
+export function createInitialize(config) {
+  let backstopContract = new Contract(config.getContractId("backstop"));
   return backstopContract.call(
     "initialize",
-    xdr.ScVal.scvBytes(Buffer.from(backstopTokenId, "hex")),
-    xdr.ScVal.scvBytes(Buffer.from(blndTokenId, "hex")),
-    xdr.ScVal.scvBytes(Buffer.from(poolFactoryId, "hex"))
+    xdr.ScVal.scvBytes(Buffer.from(config.getContractId("BLNDUSDC"), "hex")),
+    xdr.ScVal.scvBytes(Buffer.from(config.getContractId("BLND"), "hex")),
+    xdr.ScVal.scvBytes(Buffer.from(config.getContractId("poolFactory"), "hex"))
   );
 }

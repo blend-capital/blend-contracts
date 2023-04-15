@@ -1,18 +1,17 @@
-import { Contract, xdr, Address } from "soroban-client";
+import { Contract, xdr } from "soroban-client";
+import { Config } from "../config.js";
 
 /********** Operation Builders **********/
 
 /**
- * @param {string} address
- * @param {string} backstopId
- * @param {string} blndTokenId
+ * @param {Config} config
  * @returns {xdr.Operation<Operation.InvokeHostFunction>}
  */
-export function createInitialize(address, backstopId, blndTokenId) {
-  let emitterContract = new Contract(address);
+export function createInitialize(config) {
+  let emitterContract = new Contract(config.getContractId("emitter"));
   return emitterContract.call(
     "initialize",
-    xdr.ScVal.scvBytes(Buffer.from(backstopId, "hex")),
-    xdr.ScVal.scvBytes(Buffer.from(blndTokenId, "hex")),
+    xdr.ScVal.scvBytes(Buffer.from(config.getContractId("backstop"), "hex")),
+    xdr.ScVal.scvBytes(Buffer.from(config.getContractId("BLND"), "hex"))
   );
 }

@@ -15,6 +15,7 @@ import * as token from "../operations/token.js";
 import * as emitter from "../operations/emitter.js";
 import * as backstop from "../operations/backstop.js";
 import * as poolFactory from "../operations/poolFactory.js";
+import BigNumber from "bignumber.js";
 
 /**
  * @param {Server} stellarRpc
@@ -195,4 +196,48 @@ export async function initBlendContracts(stellarRpc, config) {
     bombadil
   );
   console.log("DONE: initialize pool factory contract\n");
+}
+
+/**
+ * @param {Server} stellarRpc
+ * @param {Config} config
+ */
+export async function transferBLNDToEmitter(stellarRpc, config) {
+  let bombadil = config.getAddress("bombadil");
+  let network = config.network.passphrase;
+  let blndToken = config.getContractId("BLND");
+
+  console.log("START: Mint extra BLND and transfer BLND admin to Emitter");
+  let txBuilder = await createTxBuilder(stellarRpc, network, bombadil);
+  txBuilder.addOperation(
+    token.createMint(
+      blndToken,
+      bombadil.publicKey(),
+      bombadil.publicKey(),
+      BigNumber(10_000_000e7)
+    )
+  );
+  await signPrepareAndSubmitTransaction(
+    stellarRpc,
+    network,
+    txBuilder.build(),
+    bombadil
+  );
+  console.log("minted 10m BLND for testing...");
+
+  txBuilder = await createTxBuilder(stellarRpc, network, bombadil);
+  txBuilder.addOperation(
+    token.createSetAdminToContract(
+      blndToken,
+      bombadil.publicKey(),
+      config.getContractId("emitter")
+    )
+  );
+  await signPrepareAndSubmitTransaction(
+    stellarRpc,
+    network,
+    txBuilder.build(),
+    bombadil
+  );
+  console.log("DONE: Emitter is now the BLND admin\n");
 }

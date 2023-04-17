@@ -1,6 +1,7 @@
 import { Contract, Server, xdr, Address } from "soroban-client";
 import BigNumber from "bignumber.js";
 import * as convert from "@soroban-react/utils";
+import { Config } from "../config.js";
 
 /********** Operation Builders **********/
 
@@ -18,6 +19,21 @@ export function createInitialize(address, admin, symbol) {
     xdr.ScVal.scvU32(7),
     xdr.ScVal.scvBytes(Buffer.from(symbol + " Token")),
     xdr.ScVal.scvBytes(Buffer.from(symbol))
+  );
+}
+
+/**
+ * @param {string} address
+ * @param {string} oldAdmin
+ * @param {string} newAdmin
+ * @returns {xdr.Operation<Operation.InvokeHostFunction>}
+ */
+export function createSetAdminToContract(address, oldAdmin, newAdmin) {
+  let tokenContract = new Contract(address);
+  return tokenContract.call(
+    "set_admin",
+    new Address(oldAdmin).toScVal(),
+    Address.contract(Buffer.from(newAdmin, "hex")).toScVal()
   );
 }
 

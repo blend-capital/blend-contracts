@@ -65,12 +65,19 @@ mod tests {
     use super::*;
     use soroban_sdk::{
         map,
-        testutils::{Address as _, BytesN as _},
+        testutils::{Address as _, BytesN as _, LedgerInfo, Ledger},
     };
 
     #[test]
     fn test_supply() {
         let e = Env::default();
+        e.ledger().set(LedgerInfo {
+            timestamp: 12345,
+            protocol_version: 1,
+            sequence_number: 100,
+            network_id: Default::default(),
+            base_reserve: 10,
+        });
         let pool_id = BytesN::<32>::random(&e);
         let pool = Address::from_contract_id(&e, &pool_id);
         let backstop_id = BytesN::<32>::random(&e);
@@ -122,6 +129,14 @@ mod tests {
         oracle_client.set_price(&asset_id_1, &1_0000000);
         asset_0_client.mint(&bombadil, &samwise, &500_0000000);
         asset_1_client.mint(&bombadil, &frodo, &500_0000000);
+
+        e.ledger().set(LedgerInfo {
+            timestamp: 14345,
+            protocol_version: 1,
+            sequence_number: 200,
+            network_id: Default::default(),
+            base_reserve: 10,
+        });
 
         e.as_contract(&pool_id, || {
             e.budget().reset_unlimited();

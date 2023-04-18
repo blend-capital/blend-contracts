@@ -115,11 +115,18 @@ impl Reserve {
         if e.ledger().sequence() == self.data.last_block {
             return 0;
         }
+        let total_supply = self.total_supply(e);
+        // if the reserve does not have any supply, don't update rates
+        // but accrue the block as this was a valid interaction
+        if total_supply == 0 {
+            self.data.last_block = e.ledger().sequence();
+            return 0;
+        }
 
         // accrue interest to current block
         let cur_util = self
             .total_liabilities()
-            .fixed_div_floor(self.total_supply(e), SCALAR_7)
+            .fixed_div_floor(total_supply, SCALAR_7)
             .unwrap();
         let (loan_accrual, new_ir_mod) = calc_accrual(
             e,
@@ -135,16 +142,13 @@ impl Reserve {
                 .fixed_mul_floor(i128(cur_util), SCALAR_7)
                 .unwrap();
             bstop_amount = b_accrual
-                .fixed_mul_floor(self.total_supply(e), SCALAR_9)
+                .fixed_mul_floor(total_supply, SCALAR_9)
                 .unwrap()
                 .fixed_mul_floor(backstop_rate, SCALAR_9)
                 .unwrap();
             self.add_supply(&bstop_amount);
         }
 
-        // self.get_b_rate(e) = b_rate_accrual
-        //     .fixed_mul_floor(self.get_b_rate(e), SCALAR_9)
-        //     .unwrap();
         self.data.d_rate = loan_accrual
             .fixed_mul_ceil(self.data.d_rate, SCALAR_9)
             .unwrap();
@@ -378,6 +382,31 @@ mod tests {
         reserve.data.b_supply = 99_0000000;
         reserve.data.d_supply = 65_0000000;
         reserve.data.last_block = 123;
+
+        e.ledger().set(LedgerInfo {
+            timestamp: 12345,
+            protocol_version: 1,
+            sequence_number: 123,
+            network_id: Default::default(),
+            base_reserve: 10,
+        });
+
+        let to_mint = reserve.update_rates(&e, 0_200_000_000);
+
+        assert_eq!(reserve.data.d_rate, 1_000_000_000);
+        assert_eq!(reserve.data.ir_mod, 1_000_000_000);
+        assert_eq!(reserve.data.last_block, 123);
+        assert_eq!(to_mint, 0);
+    }
+
+    #[test]
+    fn test_update_state_no_supply_skips() {
+        let e = Env::default();
+
+        let mut reserve = create_reserve(&e);
+        reserve.data.b_supply = 0;
+        reserve.data.d_supply = 0;
+        reserve.data.last_block = 100;
 
         e.ledger().set(LedgerInfo {
             timestamp: 12345,

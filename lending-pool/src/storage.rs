@@ -1,4 +1,4 @@
-use soroban_sdk::{contracttype, vec, Address, BytesN, Env, Map, Vec};
+use soroban_sdk::{contracttype, map, vec, Address, BytesN, Env, Map, Vec};
 
 use crate::auctions::AuctionData;
 
@@ -493,7 +493,7 @@ pub fn get_pool_emissions(e: &Env) -> Map<u32, u64> {
     let key = PoolDataKey::PoolEmis;
     e.storage()
         .get::<PoolDataKey, Map<u32, u64>>(&key)
-        .unwrap()
+        .unwrap_or(Ok(map![e]))
         .unwrap()
 }
 
@@ -512,7 +512,10 @@ pub fn get_pool_emission_config(e: &Env) -> PoolEmissionConfig {
     let key = PoolDataKey::PEConfig;
     e.storage()
         .get::<PoolDataKey, PoolEmissionConfig>(&key)
-        .unwrap()
+        .unwrap_or(Ok(PoolEmissionConfig {
+            config: 0,
+            last_time: 0,
+        }))
         .unwrap()
 }
 

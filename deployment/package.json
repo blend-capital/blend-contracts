@@ -1,0 +1,17 @@
+{
+  "name": "deployment",
+  "version": "0.0.0",
+  "description": "Scripts for deploying and interacting with the Blend Protocol",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "license": "AGPL-3.0-or-later",
+  "dependencies": {
+    "@soroban-react/utils": "^4.1.0",
+    "bignumber.js": "^9.1.1",
+    "soroban-client": "^0.5.0",
+    "tslib": "^2.5.0"
+  }
+}

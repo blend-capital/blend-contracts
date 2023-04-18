@@ -581,10 +581,6 @@ mod tests {
 
         let pool_id = generate_contract_id(&e);
 
-        let pool_emission_config = PoolEmissionConfig {
-            last_time: 1000,
-            config: 0b000_011_000,
-        };
         let pool_emissions: Map<u32, u64> = map![&e, (2, 0_7500000),];
 
         let res_emission_metadata: Vec<ReserveEmissionMetadata> = vec![
@@ -602,7 +598,6 @@ mod tests {
         ];
 
         e.as_contract(&pool_id, || {
-            storage::set_pool_emission_config(&e, &pool_emission_config);
             storage::set_pool_emissions(&e, &pool_emissions);
 
             set_pool_emissions(&e, res_emission_metadata).unwrap();
@@ -610,7 +605,7 @@ mod tests {
             let new_pool_emission_config = storage::get_pool_emission_config(&e);
             assert_eq!(
                 new_pool_emission_config.last_time,
-                pool_emission_config.last_time
+                0
             );
             assert_eq!(new_pool_emission_config.config, 0b001_000_000_010);
             let new_pool_emissions = storage::get_pool_emissions(&e);

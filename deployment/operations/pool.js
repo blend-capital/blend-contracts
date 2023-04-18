@@ -1,5 +1,6 @@
 import { Contract, xdr, Address, hash } from "soroban-client";
 import { Config } from "../config.js";
+import * as convert from "@soroban-react/utils";
 
 /********** Object Builders **********/
 

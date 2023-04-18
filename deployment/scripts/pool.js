@@ -41,7 +41,7 @@ export async function deployAndSetupPool(stellarRpc, config, poolName) {
   console.log("START Initialize Reserves");
   txBuilder = await createTxBuilder(stellarRpc, network, bombadil);
   let reserveMetaXLM = pool.createDefaultReserveMetadata();
-  reserveMetaXLM.c_factor = 800000;
+  reserveMetaXLM.c_factor = 8000000;
   txBuilder.addOperation(
     pool.createInitReserve(
       poolName,
@@ -62,9 +62,9 @@ export async function deployAndSetupPool(stellarRpc, config, poolName) {
 
   txBuilder = await createTxBuilder(stellarRpc, network, bombadil);
   let reserveMetaUSDC = pool.createDefaultReserveMetadata();
-  reserveMetaUSDC.c_factor = 900000;
-  reserveMetaUSDC.l_factor = 950000;
-  reserveMetaUSDC.util = 850000;
+  reserveMetaUSDC.c_factor = 9000000;
+  reserveMetaUSDC.l_factor = 9500000;
+  reserveMetaUSDC.util = 8500000;
   txBuilder.addOperation(
     pool.createInitReserve(
       poolName,
@@ -246,4 +246,109 @@ export async function distribute(stellarRpc, config, poolName) {
   console.log("pool distributed...");
 
   console.log("DONE: backstop and pool emissions started\n");
+}
+
+/**
+ * @param {Server} stellarRpc
+ * @param {Config} config
+ * @param {string} poolName
+ */
+export async function addWhale(stellarRpc, config, poolName) {
+  let network = config.network.passphrase;
+  let bombadil = config.getAddress("bombadil");
+  let frodo = config.getAddress("frodo");
+
+  console.log("START: Setting up pool with USDC and XLM positions");
+  let txBuilder = await createTxBuilder(stellarRpc, network, bombadil);
+  txBuilder.addOperation(
+    token.createMint(
+      config.getContractId("USDC"),
+      bombadil.publicKey(),
+      frodo.publicKey(),
+      new BigNumber(1000000e7)
+    )
+  );
+  await signPrepareAndSubmitTransaction(
+    stellarRpc,
+    network,
+    txBuilder.build(),
+    bombadil
+  );
+  console.log("minted USDC...\n");
+
+  txBuilder = await createTxBuilder(stellarRpc, network, frodo);
+  txBuilder.addOperation(
+    pool.createSupply(
+      config,
+      poolName,
+      frodo.publicKey(),
+      "XLM",
+      new BigNumber(5000e7)
+    )
+  );
+  await signPrepareAndSubmitTransaction(
+    stellarRpc,
+    network,
+    txBuilder.build(),
+    frodo
+  );
+  console.log("supplied XLM...\n");
+
+  txBuilder = await createTxBuilder(stellarRpc, network, frodo);
+  txBuilder.addOperation(
+    pool.createSupply(
+      config,
+      poolName,
+      frodo.publicKey(),
+      "USDC",
+      new BigNumber(10000e7)
+    )
+  );
+  await signPrepareAndSubmitTransaction(
+    stellarRpc,
+    network,
+    txBuilder.build(),
+    frodo
+  );
+  console.log("supplied USDC...\n");
+
+  txBuilder = await createTxBuilder(stellarRpc, network, frodo);
+  txBuilder.addOperation(
+    pool.createBorrow(
+      config,
+      poolName,
+      frodo.publicKey(),
+      "XLM",
+      new BigNumber(2000e7),
+      frodo.publicKey()
+    )
+  );
+  await signPrepareAndSubmitTransaction(
+    stellarRpc,
+    network,
+    txBuilder.build(),
+    frodo
+  );
+  console.log("borrowed XLM...\n");
+
+  txBuilder = await createTxBuilder(stellarRpc, network, frodo);
+  txBuilder.addOperation(
+    pool.createBorrow(
+      config,
+      poolName,
+      frodo.publicKey(),
+      "USDC",
+      new BigNumber(5000e7),
+      frodo.publicKey()
+    )
+  );
+  await signPrepareAndSubmitTransaction(
+    stellarRpc,
+    network,
+    txBuilder.build(),
+    frodo
+  );
+  console.log("borrowed USDC...\n");
+
+  console.log("DONE: Set up pool with USDC and XLM positions\n");
 }

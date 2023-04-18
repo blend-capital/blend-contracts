@@ -127,15 +127,12 @@ export function createTransfer(address, from, to, amount) {
 /**
  * @param {Server} stellarRpc
  * @param {string} address
- * @param {string} from
+ * @param {xdr.ScVal} from
  * @returns {Promise<BigNumber>}
  */
 export async function getBalance(stellarRpc, address, from) {
   try {
-    let contract_key = xdr.ScVal.scvVec([
-      xdr.ScVal.scvSymbol("Balance"),
-      new Address(from).toScVal(),
-    ]);
+    let contract_key = xdr.ScVal.scvVec([xdr.ScVal.scvSymbol("Balance"), from]);
     let scValResp = await stellarRpc.getContractData(address, contract_key);
     let entryData = xdr.LedgerEntryData.fromXDR(
       scValResp.xdr,

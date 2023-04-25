@@ -12,6 +12,7 @@ members = [
     "mocks/mock-pool-factory",
     "oracle",
     "pool-factory",
+    "test-suites"
 ]
 
 [profile.release-with-logs]

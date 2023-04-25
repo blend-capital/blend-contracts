@@ -5,12 +5,13 @@ use crate::{
     reserve::Reserve,
     storage::{self, PoolConfig, ReserveConfig, ReserveData, ReserveMetadata},
 };
-use soroban_sdk::{Address, BytesN, Env, IntoVal};
+use soroban_sdk::{Address, BytesN, Env, IntoVal, Symbol};
 
 /// Initialize the pool
 pub fn execute_initialize(
     e: &Env,
     admin: &Address,
+    name: &Symbol,
     oracle: &BytesN<32>,
     bstop_rate: &u64,
     backstop_id: &BytesN<32>,
@@ -24,6 +25,7 @@ pub fn execute_initialize(
     }
 
     storage::set_admin(e, admin);
+    storage::set_name(e, name);
     storage::set_backstop(e, backstop_id);
     storage::set_pool_config(
         e,

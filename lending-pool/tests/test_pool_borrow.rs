@@ -3,7 +3,7 @@ use cast::i128;
 use soroban_sdk::{
     map,
     testutils::{Address as AddressTestTrait, Ledger, LedgerInfo},
-    Address, Env,
+    Address, Env, Symbol,
 };
 
 mod common;
@@ -28,11 +28,13 @@ fn test_pool_borrow_one_stroop_insufficient_collateral_for_two() {
 
     let (pool_id, pool_client) = create_wasm_lending_pool(&e);
     let pool = Address::from_contract_id(&e, &pool_id);
+    let name: Symbol = Symbol::new(&e, "pool1");
     pool_helper::setup_pool(
         &e,
         &pool_id,
         &pool_client,
         &bombadil,
+        &name,
         &oracle_id,
         0_200_000_000,
         &blnd_id,

@@ -2,7 +2,7 @@
 
 use soroban_sdk::{
     testutils::{Address as AddressTestTrait, BytesN as _, Ledger, LedgerInfo},
-    Address, BytesN, Env,
+    Address, BytesN, Env, Symbol,
 };
 
 mod common;
@@ -38,14 +38,16 @@ fn test_deploy() {
         usdc_id: usdc_id.clone(),
     };
     pool_factory_client.initialize(&pool_init_meta);
+    let name1 = Symbol::new(&e, "pool1");
+    let name2 = Symbol::new(&e, "pool2");
 
     let salt = BytesN::<32>::random(&e);
     let deployed_pool_address_1 =
-        pool_factory_client.deploy(&bombadil, &salt, &oracle, &backstop_rate);
+        pool_factory_client.deploy(&bombadil, &name1, &salt, &oracle, &backstop_rate);
 
     let salt = BytesN::<32>::random(&e);
     let deployed_pool_address_2 =
-        pool_factory_client.deploy(&bombadil, &salt, &oracle, &backstop_rate);
+        pool_factory_client.deploy(&bombadil, &name2, &salt, &oracle, &backstop_rate);
 
     let zero_address = BytesN::from_array(&e, &[0; 32]);
     e.as_contract(&deployed_pool_address_1, || {

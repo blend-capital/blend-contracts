@@ -1,4 +1,4 @@
-use soroban_sdk::{testutils::BytesN as _, Address, BytesN, Env, Vec};
+use soroban_sdk::{testutils::BytesN as _, Address, BytesN, Env, Symbol, Vec};
 
 use crate::{
     b_token, backstop, d_token, emitter, mock_oracle,
@@ -90,8 +90,9 @@ fn mock_protocol(
     //deploy and setup pool
     let pool_factory_client = PoolFactoryClient::new(&e, &pool_factory_id);
     let salt = BytesN::<32>::random(&e);
+    let name: Symbol = Symbol::new(&e, "pool1");
     let backstop_take_rate = 1000000;
-    let pool_id = pool_factory_client.deploy(&admin, &salt, &oracle_id, &backstop_take_rate);
+    let pool_id = pool_factory_client.deploy(&admin, &name, &salt, &oracle_id, &backstop_take_rate);
     let pool_client = pool::PoolClient::new(&e, &pool_id);
     let mut usdc_metadata = default_reserve_metadata();
     usdc_metadata.c_factor = 9000000;

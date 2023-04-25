@@ -9,6 +9,7 @@ pub use pool_contract::{
     AuctionData, Client as PoolClient, LiquidationMetadata, PoolError, ReserveConfig, ReserveData,
     ReserveMetadata, WASM as POOL_WASM,
 };
+use soroban_sdk::Symbol;
 use soroban_sdk::{Address, BytesN, Env};
 
 pub fn setup_pool(
@@ -16,6 +17,7 @@ pub fn setup_pool(
     pool_id: &BytesN<32>,
     pool_client: &PoolClient,
     admin: &Address,
+    name: &Symbol,
     oracle_id: &BytesN<32>,
     bstop_rate: u64,
     blnd_id: &BytesN<32>,
@@ -27,6 +29,7 @@ pub fn setup_pool(
 
     pool_client.initialize(
         admin,
+        name,
         oracle_id,
         &bstop_rate,
         backstop_id,

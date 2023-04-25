@@ -65,7 +65,8 @@ mod tests {
     use super::*;
     use soroban_sdk::{
         map,
-        testutils::{Address as _, BytesN as _, LedgerInfo, Ledger},
+        testutils::{Address as _, BytesN as _, Ledger, LedgerInfo},
+        Symbol,
     };
 
     #[test]
@@ -78,6 +79,7 @@ mod tests {
             network_id: Default::default(),
             base_reserve: 10,
         });
+        let name: Symbol = Symbol::new(&e, "pool1");
         let pool_id = BytesN::<32>::random(&e);
         let pool = Address::from_contract_id(&e, &pool_id);
         let backstop_id = BytesN::<32>::random(&e);
@@ -96,6 +98,7 @@ mod tests {
             execute_initialize(
                 &e,
                 &bombadil,
+                &name,
                 &oracle_id,
                 &0_200_000_000,
                 &backstop_id,

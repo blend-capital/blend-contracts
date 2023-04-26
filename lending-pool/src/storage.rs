@@ -1,4 +1,4 @@
-use soroban_sdk::{contracttype, map, vec, Address, BytesN, Env, Map, Vec};
+use soroban_sdk::{contracttype, map, vec, Address, BytesN, Env, Map, Symbol, Vec};
 
 use crate::auctions::AuctionData;
 
@@ -115,6 +115,8 @@ pub struct AuctionKey {
 pub enum PoolDataKey {
     // The address that can manage the pool
     Admin,
+    // The name of the pool
+    Name,
     // The backstop ID for the pool
     Backstop,
     // Token Hashes
@@ -174,6 +176,25 @@ pub fn set_admin(e: &Env, new_admin: &Address) {
 /// Checks if an admin is set
 pub fn has_admin(e: &Env) -> bool {
     e.storage().has(&PoolDataKey::Admin)
+}
+
+/********** Metadata **********/
+
+// Fetch the pools name
+///
+/// ### Errors
+/// If the name does not exist
+pub fn get_name(e: &Env) -> Symbol {
+    e.storage().get_unchecked(&PoolDataKey::Name).unwrap()
+}
+
+/// Set a pool name
+///
+/// ### Arguments
+/// * `name` - The Name of the pool
+pub fn set_name(e: &Env, name: &Symbol) {
+    e.storage()
+        .set::<PoolDataKey, Symbol>(&PoolDataKey::Name, name);
 }
 
 /********** Backstop **********/

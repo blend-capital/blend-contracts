@@ -603,10 +603,7 @@ mod tests {
             set_pool_emissions(&e, res_emission_metadata).unwrap();
 
             let new_pool_emission_config = storage::get_pool_emission_config(&e);
-            assert_eq!(
-                new_pool_emission_config.last_time,
-                0
-            );
+            assert_eq!(new_pool_emission_config.last_time, 0);
             assert_eq!(new_pool_emission_config.config, 0b001_000_000_010);
             let new_pool_emissions = storage::get_pool_emissions(&e);
             assert_eq!(new_pool_emissions.len(), 2);

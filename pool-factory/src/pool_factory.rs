@@ -1,5 +1,5 @@
 use crate::storage::{self, PoolInitMeta};
-use soroban_sdk::{contractimpl, vec, Address, BytesN, Env, IntoVal, RawVal, Symbol, Vec};
+use soroban_sdk::{contractimpl, vec, Address, BytesN, Env, IntoVal, RawVal, String, Symbol, Vec};
 
 pub struct PoolFactory;
 
@@ -14,11 +14,13 @@ pub trait PoolFactoryTrait {
     ///
     /// # Arguments
     /// * `admin` - The admin address for the pool
+    /// * `name` - The name of the pool
     /// * `oracle` - The oracle BytesN<32> ID for the pool
     /// * `backstop_take_rate` - The backstop take rate for the pool
     fn deploy(
         e: Env,
         admin: Address,
+        name: Symbol,
         salt: BytesN<32>,
         oracle: BytesN<32>,
         backstop_take_rate: u64,
@@ -45,6 +47,7 @@ impl PoolFactoryTrait for PoolFactory {
     fn deploy(
         e: Env,
         admin: Address,
+        name: Symbol,
         salt: BytesN<32>,
         oracle: BytesN<32>,
         backstop_take_rate: u64,
@@ -53,6 +56,7 @@ impl PoolFactoryTrait for PoolFactory {
 
         let mut init_args: Vec<RawVal> = vec![&e];
         init_args.push_back(admin.to_raw());
+        init_args.push_back(name.to_raw());
         init_args.push_back(oracle.to_raw());
         init_args.push_back(backstop_take_rate.into_val(&e));
         init_args.push_back(pool_init_meta.backstop.to_raw());

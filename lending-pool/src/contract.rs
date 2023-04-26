@@ -20,6 +20,7 @@ pub trait PoolContractTrait {
     /// ### Arguments
     /// Creator supplied:
     /// * `admin` - The Address for the admin
+    /// * `name` - The name of the pool
     /// * `oracle` - The contract address of the oracle
     /// * `backstop_take_rate` - The take rate for the backstop in stroops
     ///
@@ -32,6 +33,7 @@ pub trait PoolContractTrait {
     fn initialize(
         e: Env,
         admin: Address,
+        name: Symbol,
         oracle: BytesN<32>,
         bstop_rate: u64,
         backstop_id: BytesN<32>,
@@ -212,6 +214,10 @@ pub trait PoolContractTrait {
     /// * 2 = frozen
     fn status(e: Env) -> u32;
 
+    /// Fetch the name of the pool
+    ///
+    fn get_name(e: Env) -> Symbol;
+
     /********* Emission Functions **********/
 
     /// Fetch the next emission configuration
@@ -337,6 +343,7 @@ impl PoolContractTrait for PoolContract {
     fn initialize(
         e: Env,
         admin: Address,
+        name: Symbol,
         oracle: BytesN<32>,
         bstop_rate: u64,
         backstop_id: BytesN<32>,
@@ -350,6 +357,7 @@ impl PoolContractTrait for PoolContract {
         pool::execute_initialize(
             &e,
             &admin,
+            &name,
             &oracle,
             &bstop_rate,
             &backstop_id,
@@ -509,6 +517,11 @@ impl PoolContractTrait for PoolContract {
     // @dev: view
     fn status(e: Env) -> u32 {
         storage::get_pool_config(&e).status
+    }
+
+    // @dev: view
+    fn get_name(e: Env) -> Symbol {
+        storage::get_name(&e)
     }
 
     /********* Emission Functions **********/

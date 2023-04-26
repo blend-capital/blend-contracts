@@ -1,5 +1,5 @@
 use crate::common::{create_token, B_TOKEN_WASM, D_TOKEN_WASM};
-use soroban_sdk::{testutils::BytesN as _, Address, BytesN, Env};
+use soroban_sdk::{testutils::BytesN as _, Address, BytesN, Env, Symbol};
 
 use super::{create_backstop, create_token_from_id, PoolClient, ReserveMetadata};
 
@@ -9,6 +9,7 @@ pub fn setup_pool(
     pool_id: &BytesN<32>,
     pool_client: &PoolClient,
     admin: &Address,
+    name: &Symbol,
     oracle_id: &BytesN<32>,
     bstop_rate: u64,
     blnd_id: &BytesN<32>,
@@ -20,6 +21,7 @@ pub fn setup_pool(
     let backstop_id = &create_and_setup_backstop(e, pool_id, admin, blnd_id);
     pool_client.initialize(
         admin,
+        name,
         oracle_id,
         &bstop_rate,
         backstop_id,

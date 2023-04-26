@@ -1,5 +1,6 @@
 use crate::{
-    dependencies::TokenClient, emissions, errors::BackstopError, pool::Pool, storage, user::User,
+    contract::require_nonnegative, dependencies::TokenClient, emissions, errors::BackstopError,
+    pool::Pool, storage, user::User,
 };
 use soroban_sdk::{Address, BytesN, Env};
 
@@ -10,6 +11,7 @@ pub fn execute_deposit(
     pool_address: &BytesN<32>,
     amount: i128,
 ) -> Result<i128, BackstopError> {
+    require_nonnegative(amount)?;
     let mut user = User::new(pool_address.clone(), from.clone());
     let mut pool = Pool::new(e, pool_address.clone());
 
@@ -100,6 +102,31 @@ mod tests {
 
             // TODO: Handle token errors gracefully
             assert!(false);
+        });
+    }
+
+    #[test]
+    fn test_execute_deposit_negative_tokens() {
+        let e = Env::default();
+
+        let backstop_id = BytesN::<32>::random(&e);
+        let pool_0_id = BytesN::<32>::random(&e);
+        let bombadil = Address::random(&e);
+        let samwise = Address::random(&e);
+
+        let (_, backstop_token_client) = create_backstop_token(&e, &backstop_id, &bombadil);
+        backstop_token_client.mint(&bombadil, &samwise, &100_0000000);
+
+        e.as_contract(&backstop_id, || {
+            let res = execute_deposit(&e, &samwise, &pool_0_id, -100);
+
+            match res {
+                Ok(_) => assert!(false),
+                Err(err) => match err {
+                    BackstopError::NegativeAmount => assert!(true),
+                    _ => assert!(false),
+                },
+            }
         });
     }
 }

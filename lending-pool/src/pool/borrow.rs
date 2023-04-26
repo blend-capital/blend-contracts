@@ -5,7 +5,7 @@ use crate::{
     reserve_usage::ReserveUsage,
     storage,
     user_data::UserAction,
-    validator::{require_hf, require_util_under_cap},
+    validator::{require_hf, require_nonnegative, require_util_under_cap},
 };
 use soroban_sdk::{Address, BytesN, Env};
 
@@ -19,6 +19,7 @@ pub fn execute_borrow(
     amount: i128,
     to: &Address,
 ) -> Result<i128, PoolError> {
+    require_nonnegative(amount)?;
     let pool_config = storage::get_pool_config(e);
 
     if pool_config.status > 0 {
@@ -78,6 +79,42 @@ mod tests {
         map,
         testutils::{Address as _, BytesN as _},
     };
+
+    #[test]
+    fn test_borrow_negative_amount() {
+        let e = Env::default();
+        let pool_id = BytesN::<32>::random(&e);
+
+        let bombadil = Address::random(&e);
+        let samwise = Address::random(&e);
+        let frodo = Address::random(&e);
+
+        let mut reserve_0 = create_reserve(&e);
+        reserve_0.data.d_supply = 0;
+        reserve_0.data.b_supply = 0;
+        setup_reserve(&e, &pool_id, &bombadil, &mut reserve_0);
+
+        let (oracle_id, oracle_client) = create_mock_oracle(&e);
+        oracle_client.set_price(&reserve_0.asset, &1_0000000);
+
+        let asset_0_client = TokenClient::new(&e, &reserve_0.asset);
+        asset_0_client.mint(&bombadil, &frodo, &500_0000000); // for samwise to borrow
+
+        let pool_config = PoolConfig {
+            oracle: oracle_id,
+            bstop_rate: 0,
+            status: 0,
+        };
+        e.as_contract(&pool_id, || {
+            storage::set_pool_config(&e, &pool_config);
+
+            e.budget().reset_unlimited();
+            execute_supply(&e, &frodo, &reserve_0.asset, 100_0000000).unwrap();
+
+            let result = execute_borrow(&e, &samwise, &reserve_0.asset, -1, &samwise);
+            assert_eq!(result, Err(PoolError::NegativeAmount));
+        });
+    }
 
     #[test]
     fn test_borrow_no_collateral() {

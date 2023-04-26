@@ -412,3 +412,17 @@ impl BackstopModuleContractTrait for BackstopModuleContract {
         Ok(())
     }
 }
+
+/// Require that an incoming amount is not negative
+///
+/// ### Arguments
+/// * `amount` - The amount
+///
+/// ### Errors
+/// If the number is negative
+pub fn require_nonnegative(amount: i128) -> Result<(), BackstopError> {
+    if amount.is_negative() {
+        return Err(BackstopError::NegativeAmount);
+    }
+    Ok(())
+}

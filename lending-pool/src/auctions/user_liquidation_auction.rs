@@ -6,6 +6,7 @@ use crate::auctions::auction::AuctionData;
 use crate::constants::{SCALAR_7, SCALAR_9};
 use crate::pool;
 use crate::reserve_usage::ReserveUsage;
+use crate::validator::require_nonnegative;
 use crate::{
     dependencies::{OracleClient, TokenClient},
     errors::PoolError,
@@ -64,6 +65,7 @@ pub fn create_user_liq_auction_data(
                 .unwrap();
             if let Some(to_sell_entry) = liq_data.collateral.get(res_asset_address.clone()) {
                 let to_sell_amt = to_sell_entry.unwrap();
+                require_nonnegative(to_sell_amt)?;
                 liq_data
                     .collateral
                     .remove_unchecked(res_asset_address.clone());
@@ -99,6 +101,7 @@ pub fn create_user_liq_auction_data(
                 .unwrap();
             if let Some(to_buy_entry) = liq_data.liability.get(res_asset_address.clone()) {
                 let to_buy_amt = to_buy_entry.unwrap();
+                require_nonnegative(to_buy_amt)?;
                 liq_data
                     .liability
                     .remove_unchecked(res_asset_address.clone());
@@ -439,6 +442,180 @@ mod tests {
                 20_0000000
             );
             assert_eq!(result.lot.len(), 1);
+        });
+    }
+
+    #[test]
+    fn test_create_user_liquidation_auction_negative_lot_amount() {
+        let e = Env::default();
+
+        e.ledger().set(LedgerInfo {
+            timestamp: 12345,
+            protocol_version: 1,
+            sequence_number: 50,
+            network_id: Default::default(),
+            base_reserve: 10,
+        });
+
+        let bombadil = Address::random(&e);
+        let samwise = Address::random(&e);
+
+        let pool_id = generate_contract_id(&e);
+        let pool = Address::from_contract_id(&e, &pool_id);
+        let (oracle_id, oracle_client) = create_mock_oracle(&e);
+
+        // creating reserves for a pool exhausts the budget
+        e.budget().reset_unlimited();
+        let mut reserve_0 = create_reserve(&e);
+        reserve_0.b_rate = Some(1_100_000_000);
+        reserve_0.data.last_block = 50;
+        reserve_0.config.c_factor = 0_8500000;
+        reserve_0.config.l_factor = 0_9000000;
+        reserve_0.config.index = 0;
+        setup_reserve(&e, &pool_id, &bombadil, &mut reserve_0);
+        let b_token_0 = TokenClient::new(&e, &reserve_0.config.b_token);
+
+        let mut reserve_1 = create_reserve(&e);
+        reserve_1.b_rate = Some(1_200_000_000);
+        reserve_1.data.last_block = 50;
+        reserve_1.config.c_factor = 0_7500000;
+        reserve_1.config.l_factor = 0_7500000;
+        reserve_1.config.index = 1;
+        setup_reserve(&e, &pool_id, &bombadil, &mut reserve_1);
+        let b_token_1 = TokenClient::new(&e, &reserve_1.config.b_token);
+
+        let mut reserve_2 = create_reserve(&e);
+        reserve_2.data.last_block = 50;
+        reserve_2.config.c_factor = 0_0000000;
+        reserve_2.config.l_factor = 0_7000000;
+        reserve_2.config.index = 2;
+        setup_reserve(&e, &pool_id, &bombadil, &mut reserve_2);
+        let d_token_2 = TokenClient::new(&e, &reserve_2.config.d_token);
+        e.budget().reset_unlimited();
+
+        oracle_client.set_price(&reserve_0.asset, &2_0000000);
+        oracle_client.set_price(&reserve_1.asset, &4_0000000);
+        oracle_client.set_price(&reserve_2.asset, &50_0000000);
+
+        let liquidation_data = LiquidationMetadata {
+            collateral: map![
+                &e,
+                (reserve_0.asset, 26_0000000),
+                (reserve_1.asset, -1_0000000)
+            ],
+            liability: map![&e, (reserve_2.asset, 0_7000000)],
+        };
+        let pool_config = PoolConfig {
+            oracle: oracle_id,
+            bstop_rate: 0_100_000_000,
+            status: 0,
+        };
+        e.as_contract(&pool_id, || {
+            let mut user_config = ReserveUsage::new(0);
+            user_config.set_supply(0, true);
+            user_config.set_supply(1, true);
+            user_config.set_liability(2, true);
+            storage::set_user_config(&e, &samwise, &user_config.config);
+            storage::set_pool_config(&e, &pool_config);
+
+            b_token_0.mint(&pool, &samwise, &90_9100000);
+            b_token_1.mint(&pool, &samwise, &04_5800000);
+            d_token_2.mint(&pool, &samwise, &02_7500000);
+
+            e.budget().reset_unlimited();
+            let result = create_user_liq_auction_data(&e, &samwise, liquidation_data);
+            match result {
+                Ok(_) => assert!(false),
+                Err(err) => match err {
+                    PoolError::NegativeAmount => assert!(true),
+                    _ => assert!(false),
+                },
+            }
+        });
+    }
+
+    #[test]
+    fn test_create_user_liquidation_auction_negative_bid_amount() {
+        let e = Env::default();
+
+        e.ledger().set(LedgerInfo {
+            timestamp: 12345,
+            protocol_version: 1,
+            sequence_number: 50,
+            network_id: Default::default(),
+            base_reserve: 10,
+        });
+
+        let bombadil = Address::random(&e);
+        let samwise = Address::random(&e);
+
+        let pool_id = generate_contract_id(&e);
+        let pool = Address::from_contract_id(&e, &pool_id);
+        let (oracle_id, oracle_client) = create_mock_oracle(&e);
+
+        // creating reserves for a pool exhausts the budget
+        e.budget().reset_unlimited();
+        let mut reserve_0 = create_reserve(&e);
+        reserve_0.b_rate = Some(1_100_000_000);
+        reserve_0.data.last_block = 50;
+        reserve_0.config.c_factor = 0_8500000;
+        reserve_0.config.l_factor = 0_9000000;
+        reserve_0.config.index = 0;
+        setup_reserve(&e, &pool_id, &bombadil, &mut reserve_0);
+        let b_token_0 = TokenClient::new(&e, &reserve_0.config.b_token);
+
+        let mut reserve_1 = create_reserve(&e);
+        reserve_1.b_rate = Some(1_200_000_000);
+        reserve_1.data.last_block = 50;
+        reserve_1.config.c_factor = 0_7500000;
+        reserve_1.config.l_factor = 0_7500000;
+        reserve_1.config.index = 1;
+        setup_reserve(&e, &pool_id, &bombadil, &mut reserve_1);
+        let b_token_1 = TokenClient::new(&e, &reserve_1.config.b_token);
+
+        let mut reserve_2 = create_reserve(&e);
+        reserve_2.data.last_block = 50;
+        reserve_2.config.c_factor = 0_0000000;
+        reserve_2.config.l_factor = 0_7000000;
+        reserve_2.config.index = 2;
+        setup_reserve(&e, &pool_id, &bombadil, &mut reserve_2);
+        let d_token_2 = TokenClient::new(&e, &reserve_2.config.d_token);
+        e.budget().reset_unlimited();
+
+        oracle_client.set_price(&reserve_0.asset, &2_0000000);
+        oracle_client.set_price(&reserve_1.asset, &4_0000000);
+        oracle_client.set_price(&reserve_2.asset, &50_0000000);
+
+        let liquidation_data = LiquidationMetadata {
+            collateral: map![&e, (reserve_0.asset, 22_0000000),],
+            liability: map![&e, (reserve_2.asset, -0_7000000)],
+        };
+        let pool_config = PoolConfig {
+            oracle: oracle_id,
+            bstop_rate: 0_100_000_000,
+            status: 0,
+        };
+        e.as_contract(&pool_id, || {
+            let mut user_config = ReserveUsage::new(0);
+            user_config.set_supply(0, true);
+            user_config.set_supply(1, true);
+            user_config.set_liability(2, true);
+            storage::set_user_config(&e, &samwise, &user_config.config);
+            storage::set_pool_config(&e, &pool_config);
+
+            b_token_0.mint(&pool, &samwise, &90_9100000);
+            b_token_1.mint(&pool, &samwise, &04_5800000);
+            d_token_2.mint(&pool, &samwise, &02_7500000);
+
+            e.budget().reset_unlimited();
+            let result = create_user_liq_auction_data(&e, &samwise, liquidation_data);
+            match result {
+                Ok(_) => assert!(false),
+                Err(err) => match err {
+                    PoolError::NegativeAmount => assert!(true),
+                    _ => assert!(false),
+                },
+            }
         });
     }
 

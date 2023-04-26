@@ -1,4 +1,7 @@
-use crate::{dependencies::TokenClient, errors::BackstopError, pool::Pool, storage, user::User};
+use crate::{
+    contract::require_nonnegative, dependencies::TokenClient, errors::BackstopError, pool::Pool,
+    storage, user::User,
+};
 use soroban_sdk::{Address, BytesN, Env, Vec};
 
 use super::update_emission_index;
@@ -12,6 +15,8 @@ pub fn execute_pool_claim(
     to: &Address,
     amount: i128,
 ) -> Result<(), BackstopError> {
+    require_nonnegative(amount)?;
+
     let mut pool = Pool::new(e, pool_address.clone());
     pool.verify_pool(&e)?;
     pool.claim(e, amount)?;
@@ -100,6 +105,35 @@ mod tests {
                 storage::get_pool_emis(&e, &pool_1_id),
                 50_000_0000000 - 42_000_0000000
             );
+        });
+    }
+    #[test]
+    fn test_pool_claim_negative_amount() {
+        let e = Env::default();
+
+        let bombadil = Address::random(&e);
+        let samwise = Address::random(&e);
+
+        let backstop_id = BytesN::<32>::random(&e);
+        let backstop_addr = Address::from_contract_id(&e, &backstop_id);
+        let pool_1_id = BytesN::<32>::random(&e);
+        let (_, pool_factory) = create_mock_pool_factory(&e, &backstop_id);
+        pool_factory.set_pool(&pool_1_id);
+
+        let (_, blnd_token_client) = create_blnd_token(&e, &backstop_id, &bombadil);
+        blnd_token_client.mint(&bombadil, &backstop_addr, &100_000_0000000);
+
+        e.as_contract(&backstop_id, || {
+            storage::set_pool_emis(&e, &pool_1_id, &50_000_0000000);
+
+            let result = execute_pool_claim(&e, &pool_1_id, &samwise, -42_000_0000000);
+            match result {
+                Ok(_) => assert!(false),
+                Err(err) => match err {
+                    BackstopError::NegativeAmount => assert!(true),
+                    _ => assert!(false),
+                },
+            }
         });
     }
 

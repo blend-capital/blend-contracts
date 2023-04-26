@@ -1,4 +1,7 @@
-use crate::{dependencies::TokenClient, errors::BackstopError, pool::Pool, storage};
+use crate::{
+    contract::require_nonnegative, dependencies::TokenClient, errors::BackstopError, pool::Pool,
+    storage,
+};
 use soroban_sdk::{Address, BytesN, Env};
 
 /// Perform a draw from a pool's backstop
@@ -8,6 +11,7 @@ pub fn execute_draw(
     amount: i128,
     to: &Address,
 ) -> Result<(), BackstopError> {
+    require_nonnegative(amount)?;
     let mut pool = Pool::new(e, pool_address.clone()); // TODO: Fix
     pool.verify_pool(&e)?;
 
@@ -27,6 +31,7 @@ pub fn execute_donate(
     pool_address: &BytesN<32>,
     amount: i128,
 ) -> Result<(), BackstopError> {
+    require_nonnegative(amount)?;
     let mut pool = Pool::new(e, pool_address.clone());
 
     let backstop_token = TokenClient::new(e, &storage::get_backstop_token(e));
@@ -75,6 +80,37 @@ mod tests {
             execute_donate(&e, &samwise, &pool_0_id, 30_0000000).unwrap();
             assert_eq!(storage::get_pool_shares(&e, &pool_0_id), 25_0000000);
             assert_eq!(storage::get_pool_tokens(&e, &pool_0_id), 55_0000000);
+        });
+    }
+
+    #[test]
+    fn test_execute_donate_negative_amount() {
+        let e = Env::default();
+
+        let backstop_id = BytesN::<32>::random(&e);
+        let pool_0_id = BytesN::<32>::random(&e);
+        let bombadil = Address::random(&e);
+        let samwise = Address::random(&e);
+        let frodo = Address::random(&e);
+
+        let (_, backstop_token_client) = create_backstop_token(&e, &backstop_id, &bombadil);
+        backstop_token_client.mint(&bombadil, &samwise, &100_0000000);
+        backstop_token_client.mint(&bombadil, &frodo, &100_0000000);
+
+        // initialize pool 0 with funds
+        e.as_contract(&backstop_id, || {
+            execute_deposit(&e, &frodo, &pool_0_id, 25_0000000).unwrap();
+        });
+
+        e.as_contract(&backstop_id, || {
+            let res = execute_donate(&e, &samwise, &pool_0_id, -30_0000000);
+            match res {
+                Ok(_) => assert!(false),
+                Err(err) => match err {
+                    BackstopError::NegativeAmount => assert!(true),
+                    _ => assert!(false),
+                },
+            }
         });
     }
 
@@ -163,6 +199,39 @@ mod tests {
         e.as_contract(&backstop_id, || {
             let result = execute_draw(&e, &pool_0_id, 51_0000000, &samwise);
             assert_eq!(result, Err(BackstopError::InsufficientFunds));
+        });
+    }
+
+    #[test]
+    fn test_execute_draw_negative_amount() {
+        let e = Env::default();
+
+        let backstop_id = BytesN::<32>::random(&e);
+        let pool_0_id = BytesN::<32>::random(&e);
+        let bombadil = Address::random(&e);
+        let samwise = Address::random(&e);
+        let frodo = Address::random(&e);
+
+        let (_, backstop_token_client) = create_backstop_token(&e, &backstop_id, &bombadil);
+        backstop_token_client.mint(&bombadil, &frodo, &100_0000000);
+
+        let (_, mock_pool_factory_client) = create_mock_pool_factory(&e, &backstop_id);
+        mock_pool_factory_client.set_pool(&pool_0_id);
+
+        // initialize pool 0 with funds
+        e.as_contract(&backstop_id, || {
+            execute_deposit(&e, &frodo, &pool_0_id, 50_0000000).unwrap();
+        });
+
+        e.as_contract(&backstop_id, || {
+            let res = execute_draw(&e, &pool_0_id, -30_0000000, &samwise);
+            match res {
+                Ok(_) => assert!(false),
+                Err(err) => match err {
+                    BackstopError::NegativeAmount => assert!(true),
+                    _ => assert!(false),
+                },
+            }
         });
     }
 }

@@ -12,4 +12,5 @@ pub enum BackstopError {
     InsufficientFunds = 6,
     AlreadyInitialized = 7,
     NotPool = 10,
+    NegativeAmount = 11,
 }

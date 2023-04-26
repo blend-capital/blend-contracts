@@ -1,6 +1,11 @@
 use crate::{
-    dependencies::TokenClient, errors::PoolError, reserve::Reserve, reserve_usage::ReserveUsage,
-    storage, user_data::UserAction, validator::require_hf,
+    dependencies::TokenClient,
+    errors::PoolError,
+    reserve::Reserve,
+    reserve_usage::ReserveUsage,
+    storage,
+    user_data::UserAction,
+    validator::{require_hf, require_nonnegative},
 };
 use soroban_sdk::{Address, BytesN, Env};
 
@@ -14,6 +19,7 @@ pub fn execute_withdraw(
     amount: i128,
     to: &Address,
 ) -> Result<i128, PoolError> {
+    require_nonnegative(amount)?;
     let pool_config = storage::get_pool_config(e);
 
     if storage::has_auction(e, &0, &from) {
@@ -333,6 +339,63 @@ mod tests {
             // withdrawal - fail HF check
             let result = execute_withdraw(&e, &samwise, &reserve_0.asset, 10_1000000, &samwise);
             assert_eq!(result, Err(PoolError::InvalidHf));
+
+            // withdrawal - pass HF check
+            execute_withdraw(&e, &samwise, &reserve_0.asset, 9_9000000, &samwise).unwrap();
+            assert_eq!(asset_0_client.balance(&samwise), 450_0000000 + 9_9000000);
+            assert_eq!(asset_0_client.balance(&pool), 50_0000000 - 9_9000000);
+            assert_eq!(
+                TokenClient::new(&e, &reserve_0.config.b_token).balance(&samwise),
+                50_0000000 - 9_9000000
+            );
+        });
+    }
+
+    #[test]
+    fn test_pool_withdrawal_negative_amount() {
+        let e = Env::default();
+        let pool_id = BytesN::<32>::random(&e);
+        let pool = Address::from_contract_id(&e, &pool_id);
+
+        let bombadil = Address::random(&e);
+        let samwise = Address::random(&e);
+        let frodo = Address::random(&e);
+
+        let mut reserve_0 = create_reserve(&e);
+        reserve_0.data.d_supply = 0;
+        reserve_0.data.b_supply = 0;
+        setup_reserve(&e, &pool_id, &bombadil, &mut reserve_0);
+
+        let mut reserve_1 = create_reserve(&e);
+        reserve_1.data.d_supply = 0;
+        reserve_1.data.b_supply = 0;
+        setup_reserve(&e, &pool_id, &bombadil, &mut reserve_1);
+
+        let (oracle_id, oracle_client) = create_mock_oracle(&e);
+        oracle_client.set_price(&reserve_0.asset, &2_0000000);
+        oracle_client.set_price(&reserve_1.asset, &1_0000000);
+
+        let asset_0_client = TokenClient::new(&e, &reserve_0.asset);
+        let asset_1_client = TokenClient::new(&e, &reserve_1.asset);
+        asset_0_client.mint(&bombadil, &samwise, &500_0000000);
+        asset_1_client.mint(&bombadil, &frodo, &500_0000000); // for samwise to borrow
+
+        let pool_config = PoolConfig {
+            oracle: oracle_id,
+            bstop_rate: 0,
+            status: 0,
+        };
+        e.as_contract(&pool_id, || {
+            storage::set_pool_config(&e, &pool_config);
+
+            e.budget().reset_unlimited();
+            execute_supply(&e, &frodo, &reserve_1.asset, 100_0000000).unwrap();
+            execute_supply(&e, &samwise, &reserve_0.asset, 50_0000000).unwrap();
+            execute_borrow(&e, &samwise, &reserve_1.asset, 45_0000000, &samwise).unwrap();
+
+            // withdrawal - fail HF check
+            let result = execute_withdraw(&e, &samwise, &reserve_0.asset, -10_1000000, &samwise);
+            assert_eq!(result, Err(PoolError::NegativeAmount));
 
             // withdrawal - pass HF check
             execute_withdraw(&e, &samwise, &reserve_0.asset, 9_9000000, &samwise).unwrap();

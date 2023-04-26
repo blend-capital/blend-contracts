@@ -68,6 +68,20 @@ pub fn require_util_under_cap(
     Ok(())
 }
 
+/// Require that an incoming amount is not negative
+///
+/// ### Arguments
+/// * `amount` - The amount
+///
+/// ### Errors
+/// If the number is negative
+pub fn require_nonnegative(amount: i128) -> Result<(), PoolError> {
+    if amount.is_negative() {
+        return Err(PoolError::NegativeAmount);
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use soroban_sdk::testutils::Address as _;

@@ -9,7 +9,6 @@ import {
 } from "./scripts/pool.js";
 import { transferBLNDToEmitter } from "./scripts/deploy.js";
 import { setAssetPrices } from "./scripts/oracle.js";
-import BigNumber from "bignumber.js";
 
 console.log("starting mock data creation script...");
 
@@ -28,8 +27,9 @@ await setupPoolBackstop(stellarRpc, config, poolName);
 await distribute(stellarRpc, config, poolName);
 
 await setAssetPrices(stellarRpc, config, [
-  { price: new BigNumber(1e7), assetKey: "USDC" },
-  { price: new BigNumber(0.09e7), assetKey: "XLM" },
+  { price: BigInt(1e7), assetKey: "USDC" },
+  { price: BigInt(0.1e7), assetKey: "XLM" },
+  { price: BigInt(20000e7), assetKey: "WETH" },
 ]);
 
 await addWhale(stellarRpc, config, poolName);

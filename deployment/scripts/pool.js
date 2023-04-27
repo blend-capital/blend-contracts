@@ -6,7 +6,6 @@ import * as backstop from "../operations/backstop.js";
 import * as token from "../operations/token.js";
 import * as pool from "../operations/pool.js";
 import * as poolFactory from "../operations/poolFactory.js";
-import BigNumber from "bignumber.js";
 
 /**
  * @param {Server} stellarRpc
@@ -16,7 +15,7 @@ import BigNumber from "bignumber.js";
 export async function deployAndSetupPool(stellarRpc, config, poolName) {
   let bombadil = config.getAddress("bombadil");
   let network = config.network.passphrase;
-  let backstopTakeRate = "20000000"; // 20% - 9 decimals
+  let backstopTakeRate = "10000000"; // 10% - 9 decimals
 
   console.log("START Create Pool: ", poolName);
   let txBuilder = await createTxBuilder(stellarRpc, network, bombadil);
@@ -41,7 +40,9 @@ export async function deployAndSetupPool(stellarRpc, config, poolName) {
   console.log("START Initialize Reserves");
   txBuilder = await createTxBuilder(stellarRpc, network, bombadil);
   let reserveMetaXLM = pool.createDefaultReserveMetadata();
-  reserveMetaXLM.c_factor = 8000000;
+  reserveMetaXLM.c_factor = 850_0000;
+  reserveMetaXLM.c_factor = 800_0000;
+  reserveMetaXLM.util = 500_0000;
   txBuilder.addOperation(
     pool.createInitReserve(
       poolName,
@@ -62,9 +63,12 @@ export async function deployAndSetupPool(stellarRpc, config, poolName) {
 
   txBuilder = await createTxBuilder(stellarRpc, network, bombadil);
   let reserveMetaUSDC = pool.createDefaultReserveMetadata();
-  reserveMetaUSDC.c_factor = 9000000;
-  reserveMetaUSDC.l_factor = 9500000;
-  reserveMetaUSDC.util = 8500000;
+  reserveMetaUSDC.c_factor = 975_0000;
+  reserveMetaUSDC.l_factor = 950_0000;
+  reserveMetaUSDC.util = 850_0000;
+  reserveMetaUSDC.r_one = 30_0000;
+  reserveMetaUSDC.r_two = 200_0000;
+  reserveMetaUSDC.r_three = 1_000_0000;
   txBuilder.addOperation(
     pool.createInitReserve(
       poolName,
@@ -82,6 +86,27 @@ export async function deployAndSetupPool(stellarRpc, config, poolName) {
   );
   config.writeToFile();
   console.log("created reserve for USDC in ", poolName, "\n");
+
+  txBuilder = await createTxBuilder(stellarRpc, network, bombadil);
+  let reserveMetaETH = pool.createDefaultReserveMetadata();
+  reserveMetaETH.util = 700_0000;
+  txBuilder.addOperation(
+    pool.createInitReserve(
+      poolName,
+      config,
+      bombadil.publicKey(),
+      "WETH",
+      reserveMetaETH
+    )
+  );
+  await signPrepareAndSubmitTransaction(
+    stellarRpc,
+    network,
+    txBuilder.build(),
+    bombadil
+  );
+  config.writeToFile();
+  console.log("created reserve for WETH in ", poolName, "\n");
 
   console.log("DONE: deployed pool ", poolName, "\n");
 
@@ -137,7 +162,7 @@ export async function setupPoolBackstop(stellarRpc, config, poolName) {
       backstopToken,
       bombadil.publicKey(),
       frodo.publicKey(),
-      new BigNumber(1_000_000e7)
+      BigInt(2_000_000e7)
     )
   );
   await signPrepareAndSubmitTransaction(
@@ -156,7 +181,7 @@ export async function setupPoolBackstop(stellarRpc, config, poolName) {
       config,
       poolName,
       frodo.publicKey(),
-      new BigNumber(1_000_000e7)
+      BigInt(1_000_000e7)
     )
   );
   await signPrepareAndSubmitTransaction(
@@ -224,7 +249,7 @@ export async function distribute(stellarRpc, config, poolName) {
       blndToken,
       bombadil.publicKey(),
       Address.contract(Buffer.from(backstopId, "hex")).toString(),
-      new BigNumber(500_000e7)
+      BigInt(500_000e7)
     )
   );
   await signPrepareAndSubmitTransaction(
@@ -258,14 +283,14 @@ export async function addWhale(stellarRpc, config, poolName) {
   let bombadil = config.getAddress("bombadil");
   let frodo = config.getAddress("frodo");
 
-  console.log("START: Setting up pool with USDC and XLM positions");
+  console.log("START: Setting up pool with USDC, WETH XLM positions");
   let txBuilder = await createTxBuilder(stellarRpc, network, bombadil);
   txBuilder.addOperation(
     token.createMint(
       config.getContractId("USDC"),
       bombadil.publicKey(),
       frodo.publicKey(),
-      new BigNumber(1000000e7)
+      BigInt(1_000_000e7)
     )
   );
   await signPrepareAndSubmitTransaction(
@@ -276,6 +301,23 @@ export async function addWhale(stellarRpc, config, poolName) {
   );
   console.log("minted USDC...\n");
 
+  txBuilder = await createTxBuilder(stellarRpc, network, bombadil);
+  txBuilder.addOperation(
+    token.createMint(
+      config.getContractId("WETH"),
+      bombadil.publicKey(),
+      frodo.publicKey(),
+      BigInt(100e7)
+    )
+  );
+  await signPrepareAndSubmitTransaction(
+    stellarRpc,
+    network,
+    txBuilder.build(),
+    bombadil
+  );
+  console.log("minted WETH...\n");
+
   txBuilder = await createTxBuilder(stellarRpc, network, frodo);
   txBuilder.addOperation(
     pool.createSupply(
@@ -283,7 +325,7 @@ export async function addWhale(stellarRpc, config, poolName) {
       poolName,
       frodo.publicKey(),
       "XLM",
-      new BigNumber(5000e7)
+      BigInt(5000e7)
     )
   );
   await signPrepareAndSubmitTransaction(
@@ -296,12 +338,24 @@ export async function addWhale(stellarRpc, config, poolName) {
 
   txBuilder = await createTxBuilder(stellarRpc, network, frodo);
   txBuilder.addOperation(
+    pool.createSupply(config, poolName, frodo.publicKey(), "WETH", BigInt(5e7))
+  );
+  await signPrepareAndSubmitTransaction(
+    stellarRpc,
+    network,
+    txBuilder.build(),
+    frodo
+  );
+  console.log("supplied WETH...\n");
+
+  txBuilder = await createTxBuilder(stellarRpc, network, frodo);
+  txBuilder.addOperation(
     pool.createSupply(
       config,
       poolName,
       frodo.publicKey(),
       "USDC",
-      new BigNumber(10000e7)
+      BigInt(10_000e7)
     )
   );
   await signPrepareAndSubmitTransaction(
@@ -319,7 +373,7 @@ export async function addWhale(stellarRpc, config, poolName) {
       poolName,
       frodo.publicKey(),
       "XLM",
-      new BigNumber(2000e7),
+      BigInt(3000e7),
       frodo.publicKey()
     )
   );
@@ -338,7 +392,7 @@ export async function addWhale(stellarRpc, config, poolName) {
       poolName,
       frodo.publicKey(),
       "USDC",
-      new BigNumber(5000e7),
+      BigInt(8500e7),
       frodo.publicKey()
     )
   );
@@ -350,5 +404,24 @@ export async function addWhale(stellarRpc, config, poolName) {
   );
   console.log("borrowed USDC...\n");
 
-  console.log("DONE: Set up pool with USDC and XLM positions\n");
+  txBuilder = await createTxBuilder(stellarRpc, network, frodo);
+  txBuilder.addOperation(
+    pool.createBorrow(
+      config,
+      poolName,
+      frodo.publicKey(),
+      "WETH",
+      BigInt(2e7),
+      frodo.publicKey()
+    )
+  );
+  await signPrepareAndSubmitTransaction(
+    stellarRpc,
+    network,
+    txBuilder.build(),
+    frodo
+  );
+  console.log("borrowed WETH...\n");
+
+  console.log("DONE: Set up pool with USDC, WETH and XLM positions\n");
 }

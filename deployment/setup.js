@@ -26,6 +26,7 @@ await installWasm(stellarRpc, config);
 //***** Tokens *****//
 await deployAndInitToken(stellarRpc, config, "USDC");
 await deployAndInitToken(stellarRpc, config, "BLND");
+await deployAndInitToken(stellarRpc, config, "WETH");
 await deployAndInitToken(stellarRpc, config, "BLNDUSDC");
 await deployAndInitStellarToken(stellarRpc, config, Asset.native());
 

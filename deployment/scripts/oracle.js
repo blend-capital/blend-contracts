@@ -1,11 +1,10 @@
 import { Contract, xdr, Address, hash } from "soroban-client";
 import { Config } from "../config.js";
-import BigNumber from "bignumber.js";
 import { createTxBuilder, signPrepareAndSubmitTransaction } from "../utils.js";
 
 /**
  * @typedef AssetPrice
- * @property {BigNumber} price - 7 decimals
+ * @property {BigInt} price - 7 decimals
  * @property {string} assetKey
  *
  * @param {Server} stellarRpc

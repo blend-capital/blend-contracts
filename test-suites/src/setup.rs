@@ -4,7 +4,10 @@ use soroban_sdk::{
 };
 
 use crate::{
-    pool::{default_reserve_metadata, ReserveEmissionMetadata},
+    pool::{
+        default_reserve_metadata, PoolDataKey, ReserveEmissionMetadata, ReserveEmissionsConfig,
+        UserEmissionData, UserReserveKey,
+    },
     test_fixture::{TestFixture, TokenIndex, SCALAR_7},
 };
 
@@ -44,7 +47,7 @@ pub fn create_fixture_with_data() -> (TestFixture, Address) {
         },
         ReserveEmissionMetadata {
             res_index: 1, // XLM
-            res_type: 0,  // b_token
+            res_type: 1,  // b_token
             share: 0_400_0000
         },
     ];
@@ -89,7 +92,38 @@ pub fn create_fixture_with_data() -> (TestFixture, Address) {
     pool_fixture.pool.updt_emis();
 
     fixture.jump(60);
-
+    println!(
+        "XLM allocated emissions_pre_supply: {:?}",
+        &pool_fixture
+            .pool
+            .res_emis(&fixture.tokens[TokenIndex::XLM as usize].contract_id, &1)
+    );
+    fixture.env.as_contract(&pool_fixture.pool.contract_id, || {
+        println!(
+            "frodo emissions pre supply,{:?}",
+            fixture
+                .env
+                .storage()
+                .get::<_, Option<UserEmissionData>>(&PoolDataKey::UserEmis(UserReserveKey {
+                    user: frodo.clone(),
+                    reserve_id: 4,
+                }))
+                .unwrap_or(Ok(None))
+                .unwrap()
+        );
+    });
+    fixture.env.as_contract(&pool_fixture.pool.contract_id, || {
+        println!(
+            "emissions config pre supply,{:?}",
+            fixture
+                .env
+                .storage()
+                .get::<_, Option<ReserveEmissionsConfig>>(&PoolDataKey::EmisConfig(4))
+                .unwrap_or(Ok(None))
+                .unwrap()
+        );
+    });
+    println!("");
     // supply and borrow all assets from whale
     pool_fixture.pool.supply(
         &frodo,
@@ -101,6 +135,38 @@ pub fn create_fixture_with_data() -> (TestFixture, Address) {
         &fixture.tokens[TokenIndex::XLM as usize].contract_id,
         &(100_000 * SCALAR_7),
     );
+    println!(
+        "XLM allocated emissions_post_supply: {:?}",
+        &pool_fixture
+            .pool
+            .res_emis(&fixture.tokens[TokenIndex::XLM as usize].contract_id, &1)
+    );
+    fixture.env.as_contract(&pool_fixture.pool.contract_id, || {
+        println!(
+            "frodo emissions post supply,{:?}",
+            fixture
+                .env
+                .storage()
+                .get::<_, Option<UserEmissionData>>(&PoolDataKey::UserEmis(UserReserveKey {
+                    user: frodo.clone(),
+                    reserve_id: 4,
+                }))
+                .unwrap_or(Ok(None))
+                .unwrap()
+        );
+    });
+    fixture.env.as_contract(&pool_fixture.pool.contract_id, || {
+        println!(
+            "emissions config post supply,{:?}",
+            fixture
+                .env
+                .storage()
+                .get::<_, Option<ReserveEmissionsConfig>>(&PoolDataKey::EmisConfig(4))
+                .unwrap_or(Ok(None))
+                .unwrap()
+        );
+    });
+    println!("");
     pool_fixture.pool.supply(
         &frodo,
         &fixture.tokens[TokenIndex::WETH as usize].contract_id,

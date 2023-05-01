@@ -152,7 +152,7 @@ pub fn update_emission_data(
     .unwrap();
     let new_data = ReserveEmissionsData {
         index: additional_idx + token_emission_data.index,
-        last_time: ledger_timestamp,
+        last_time: e.ledger().timestamp(),
     };
     storage::set_res_emis_data(e, &res_token_index, &new_data);
     Ok(Some(new_data))
@@ -893,7 +893,7 @@ mod tests {
                 Some(_) => {
                     let new_reserve_emission_data =
                         storage::get_res_emis_data(&e, &res_token_index).unwrap();
-                    assert_eq!(new_reserve_emission_data.last_time, 1600000001);
+                    assert_eq!(new_reserve_emission_data.last_time, 1700000000);
                     assert_eq!(new_reserve_emission_data.index, 10012_3457789);
                 }
                 None => assert!(false),

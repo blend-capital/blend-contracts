@@ -121,62 +121,6 @@ fn test_classic_asset_pool_happy_path() {
     // Let three days pass
     fixture.jump(60 * 60 * 24 * 3);
 
-    // //supply token
-    // pool_fixture.pool.supply(
-    //     &frodo,
-    //     &fixture.tokens[TokenIndex::XLM as usize].contract_id,
-    //     &(1 * SCALAR_7),
-    // );
-    // // borrow token
-    // pool_fixture.pool.borrow(
-    //     &frodo,
-    //     &fixture.tokens[TokenIndex::USDC as usize].contract_id,
-    //     &(1 * SCALAR_7),
-    //     &frodo,
-    // );
-    // println!(
-    //     "XLM allocated emissions post third supply &jump: {:?}",
-    //     &pool_fixture
-    //         .pool
-    //         .res_emis(&fixture.tokens[TokenIndex::XLM as usize].contract_id, &1)
-    // );
-    // println!(
-    //     "USDC allocated emissions post third supply &jump: {:?}",
-    //     &pool_fixture
-    //         .pool
-    //         .res_emis(&fixture.tokens[TokenIndex::USDC as usize].contract_id, &0)
-    // );
-    // fixture.env.as_contract(&pool_fixture.pool.contract_id, || {
-    //     println!(
-    //         "frodo emissions post third supply & jump,XLM:{:?}",
-    //         fixture
-    //             .env
-    //             .storage()
-    //             .get::<_, UserEmissionData>(&PoolDataKey::UserEmis(UserReserveKey {
-    //                 user: frodo.clone(),
-    //                 reserve_id: 4,
-    //             }))
-    //             .unwrap()
-    //             .unwrap()
-    //     );
-    // });
-    // fixture.env.as_contract(&pool_fixture.pool.contract_id, || {
-    //     println!(
-    //         "frodo emissions post third supply & jump,USDC:{:?}",
-    //         fixture
-    //             .env
-    //             .storage()
-    //             .get::<_, UserEmissionData>(&PoolDataKey::UserEmis(UserReserveKey {
-    //                 user: frodo.clone(),
-    //                 reserve_id: 0,
-    //             }))
-    //             .unwrap()
-    //             .unwrap()
-    //     );
-    // });
-    // println!("timestamp:{}", fixture.env.ledger().timestamp());
-    // println!("");
-
     // claim 3 day emissions
     // * Frodo should receive  60*60*24*3*(100_000/2_000_000)*.4*.3 + 60*60*24*3*(8_000/120_000)*.6*.3 = 4665_6184000 blnd from the pool
     // * Sam should roughly receive 60*60*24*3*(1_900_000/2_000_000)*.4*.3 + 60*60*24*3*(112_000/120_000)*.6*.3 = 73094_2787677 blnd from the pool
@@ -280,53 +224,8 @@ fn test_classic_asset_pool_happy_path() {
     // Let one month pass
     fixture.jump(60 * 60 * 24 * 30);
 
-    //supply token
-    // pool_fixture.pool.supply(
-    //     &frodo,
-    //     &fixture.tokens[TokenIndex::XLM as usize].contract_id,
-    //     &(1 * SCALAR_7),
-    // );
-    // println!(
-    //     "XLM allocated emissions post third supply &jump: {:?}",
-    //     &pool_fixture
-    //         .pool
-    //         .res_emis(&fixture.tokens[TokenIndex::XLM as usize].contract_id, &1)
-    // );
-    // fixture.env.as_contract(&pool_fixture.pool.contract_id, || {
-    //     println!(
-    //         "frodo emissions post third supply & jump,{:?}",
-    //         fixture
-    //             .env
-    //             .storage()
-    //             .get::<_, UserEmissionData>(&PoolDataKey::UserEmis(UserReserveKey {
-    //                 user: frodo.clone(),
-    //                 reserve_id: 4,
-    //             }))
-    //             .unwrap()
-    //             .unwrap()
-    //     );
-    // });
-    // println!("");
     //distribute emissions
-    println!(
-        "XLM allocated emissions pre 30 day jump: {:?}",
-        &pool_fixture
-            .pool
-            .res_emis(&fixture.tokens[TokenIndex::XLM as usize].contract_id, &1)
-    );
-    fixture.env.as_contract(&fixture.backstop.contract_id, || {
-        println!(
-            "backstop emission last_time pre jump,{:?}",
-            fixture
-                .env
-                .storage()
-                .get::<_, BackstopEmissionsData>(&BackstopDataKey::BEmisData(
-                    pool_fixture.pool.contract_id.clone()
-                ))
-                .unwrap()
-                .unwrap()
-        );
-    });
+
     fixture.emitter.distribute();
     fixture.backstop.dist();
     pool_fixture.pool.updt_emis();
@@ -336,52 +235,21 @@ fn test_classic_asset_pool_happy_path() {
     // * Frodo should receive (60 * 60 * 24 * 30)*.7 = 1814400_0000000 blnd from the backstop
     // * Sam should roughly receive 60*60*24*365*(1_900_000/2_000_000)*.4*.3 + 60*60*24*365*(112_000/120_000)*.6*.3 = 8893152 blnd from the pool
     fixture.env.as_contract(&fixture.backstop.contract_id, || {
-        println!(
-            "backstop emission last_time,{:?}",
-            fixture
-                .env
-                .storage()
-                .get::<_, BackstopEmissionsData>(&BackstopDataKey::BEmisData(
-                    pool_fixture.pool.contract_id.clone()
-                ))
-                .unwrap()
-                .unwrap()
-        );
-    });
-    println!(
-        "XLM allocated emissions post 30 day jump: {:?}",
-        &pool_fixture
-            .pool
-            .res_emis(&fixture.tokens[TokenIndex::XLM as usize].contract_id, &1)
-    );
+
     let _frodo_pool_claim_3 = pool_fixture
         .pool
         .claim(&frodo, &vec![&fixture.env, 0, 4], &frodo);
-    // assert_eq!(
-    //     frodo_pool_claim_3,
-    //     11918_5532000 - 1097_9900000 - 4665_6184000
-    // );
-    // assert_eq!(
-    //     fixture.tokens[TokenIndex::BLND as usize].balance(&frodo,) - 2562_0000000,
-    //     119185632000
-    // );
+
     fixture.backstop.claim(
         &frodo,
         &vec![&fixture.env, pool_fixture.pool.contract_id.clone()],
         &frodo,
     );
-    // assert_eq!(
-    //     fixture.tokens[TokenIndex::BLND as usize].balance(&frodo,) - 11918_5632000,
-    //     423360_0000000
-    // );
+
     let _sam_pool_claim_2 = pool_fixture
         .pool
         .claim(&samwise, &vec![&fixture.env, 0, 4], &samwise);
-    // assert_eq!(sam_pool_claim_2, 97459_2000000);
-    // assert_eq!(
-    //     fixture.tokens[TokenIndex::BLND as usize].balance(&samwise),
-    //     170553_6000000
-    // );
+
     //let a year go by and call update every week
     for _ in 0..52 {
         //let one week pass
@@ -399,23 +267,11 @@ fn test_classic_asset_pool_happy_path() {
         &vec![&fixture.env, pool_fixture.pool.contract_id.clone()],
         &frodo,
     );
-    // assert_eq!(
-    //     fixture.tokens[TokenIndex::BLND as usize].balance(&frodo,) - 11918_5632000 - 423360_0000000,
-    //     22014720_0000000
-    // );
+
     //frodo claims a year worth of pool emissions
     let _frodo_pool_claim_4 = pool_fixture
         .pool
         .claim(&frodo, &vec![&fixture.env, 0, 4], &frodo);
-    // assert_eq!(frodo_pool_claim_4, 566092_8000000);
-    // assert_eq!(
-    //     fixture.tokens[TokenIndex::BLND as usize].balance(&frodo,)
-    //         - 11918_5632000
-    //         - 423360_0000000
-    //         - 22014720_0000000,
-    //     566092_8000000
-    // );
-    //sam claims a year worth of pool emissions
 
     //sam and merry trade some tokens
     fixture.tokens[TokenIndex::USDC as usize].xfer(&merry, &samwise, &(60_000 * SCALAR_7));
@@ -449,7 +305,6 @@ fn test_classic_asset_pool_happy_path() {
     );
     assert_eq!(pool_fixture.reserves[1].d_token.balance(&merry), 0);
     let _merry_xlm_balance = fixture.tokens[TokenIndex::XLM as usize].balance(&merry);
-    // assert!((merry_xlm_balance > 469_700 * SCALAR_7) & (merry_xlm_balance < 470_000 * SCALAR_7));
     assert_eq!(
         merry_burned_d_tokens_2,
         merry_d_tokens - merry_burned_d_tokens
@@ -465,7 +320,6 @@ fn test_classic_asset_pool_happy_path() {
     assert_eq!(pool_fixture.reserves[1].b_token.balance(&samwise), 0);
     assert_eq!(sam_burned_b_tokens_2, sam_b_tokens - sam_burned_b_tokens);
     let _sam_xlm_balance = fixture.tokens[TokenIndex::XLM as usize].balance(&samwise);
-    //    assert!((sam_xlm_balance < (2020000 * SCALAR_7)) & (sam_xlm_balance > (2018000 * SCALAR_7)));
 
     // Merry withdraws all of his USDC
     let merry_burned_b_tokens_2 = pool_fixture.pool.withdraw(
@@ -480,8 +334,4 @@ fn test_classic_asset_pool_happy_path() {
         merry_b_tokens - merry_burned_b_tokens
     );
     let _merry_usdc_balance = fixture.tokens[TokenIndex::USDC as usize].balance(&merry);
-    // assert!(
-    //     (merry_usdc_balance < (191_000 * SCALAR_7))
-    //         & (merry_burned_b_tokens > (190_000 * SCALAR_7))
-    // );
 }

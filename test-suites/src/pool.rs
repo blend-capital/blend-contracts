@@ -4,8 +4,9 @@ mod pool_contract {
     );
 }
 pub use pool_contract::{
-    AuctionData, Client as PoolClient, LiquidationMetadata, PoolError, ReserveConfig, ReserveData,
-    ReserveEmissionMetadata, ReserveMetadata, WASM as POOL_WASM,
+    AuctionData, Client as PoolClient, LiquidationMetadata, PoolDataKey, PoolError, ReserveConfig,
+    ReserveData, ReserveEmissionMetadata, ReserveEmissionsConfig, ReserveMetadata,
+    UserEmissionData, UserReserveKey, WASM as POOL_WASM,
 };
 
 pub fn default_reserve_metadata() -> ReserveMetadata {

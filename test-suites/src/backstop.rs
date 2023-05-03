@@ -5,7 +5,9 @@ mod backstop_contract {
         file = "../target/wasm32-unknown-unknown/optimized/backstop_module.wasm"
     );
 }
-pub use backstop_contract::{BackstopDataKey, Client as BackstopClient, WASM as BACKSTOP_WASM};
+pub use backstop_contract::{
+    BackstopDataKey, BackstopEmissionsData, Client as BackstopClient, WASM as BACKSTOP_WASM,
+};
 
 pub fn create_backstop(e: &Env) -> (BytesN<32>, BackstopClient) {
     let contract_id = BytesN::<32>::random(e);

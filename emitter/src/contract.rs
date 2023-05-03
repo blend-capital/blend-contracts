@@ -47,7 +47,7 @@ impl EmitterContractTrait for EmitterContract {
         storage::set_backstop(&e, &backstop);
         storage::set_blend_id(&e, &blnd_token_id);
         // TODO: Determine if setting the last distro time here is appropriate, since it means tokens immediately start being distributed
-        storage::set_last_distro_time(&e, &e.ledger().timestamp());
+        storage::set_last_distro_time(&e, &(e.ledger().timestamp() - 7 * 24 * 60 * 60));
     }
 
     fn distribute(e: Env) -> Result<i128, EmitterError> {

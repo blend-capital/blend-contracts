@@ -1,7 +1,7 @@
 #![cfg(test)]
 
 use soroban_sdk::{
-    testutils::{Address as AddressTestTrait, BytesN as _, Ledger, LedgerInfo},
+    testutils::{Address as AddressTestTrait, BytesN as _},
     Address, BytesN, Env, Symbol,
 };
 

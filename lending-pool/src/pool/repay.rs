@@ -64,7 +64,6 @@ pub fn execute_repay(
 
 #[cfg(test)]
 mod tests {
-    use std::println;
 
     use crate::{
         auctions::AuctionData,
@@ -228,7 +227,6 @@ mod tests {
             status: 0,
         };
         e.as_contract(&pool_id, || {
-            println!("in test");
             storage::set_pool_config(&e, &pool_config);
 
             e.budget().reset_unlimited();

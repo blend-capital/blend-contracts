@@ -13,7 +13,7 @@ use soroban_sdk::{
 fn test_distribute_requires_auth() {
     let e = Env::default();
     e.ledger().set(LedgerInfo {
-        timestamp: 100,
+        timestamp: 100000000,
         protocol_version: 1,
         sequence_number: 10,
         network_id: Default::default(),
@@ -34,7 +34,7 @@ fn test_distribute_requires_auth() {
 
     let seconds_passed = 12345;
     e.ledger().set(LedgerInfo {
-        timestamp: 100 + seconds_passed,
+        timestamp: 100000000 + seconds_passed,
         protocol_version: 1,
         sequence_number: 10,
         network_id: Default::default(),
@@ -44,7 +44,7 @@ fn test_distribute_requires_auth() {
     let result = emitter_client.distribute();
     let authorizations = e.recorded_top_authorizations();
 
-    let expected_emissions: i128 = (seconds_passed * 1_0000000) as i128;
+    let expected_emissions: i128 = ((seconds_passed + 7 * 24 * 60 * 60) * 1_0000000) as i128;
     assert_eq!(result, expected_emissions);
     assert_eq!(blnd_client.balance(&backstop), expected_emissions);
 

@@ -56,9 +56,9 @@ impl Reserve {
         res_token_type: u32,
         user: Address,
     ) -> Result<(), PoolError> {
-        let to_mint = self.update_rates(e, pool_config.bstop_rate);
-
         emissions::update_reserve(e, &self, res_token_type, &user)?;
+
+        let to_mint = self.update_rates(e, pool_config.bstop_rate);
 
         if to_mint > 0 {
             let backstop = Address::from_contract_id(e, &storage::get_backstop(e));

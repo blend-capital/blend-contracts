@@ -133,7 +133,7 @@ fn update_backstop_emission_index_with_config(
         .unwrap();
     let new_data = BackstopEmissionsData {
         index: additional_idx + emis_data.index,
-        last_time: max_timestamp,
+        last_time: e.ledger().timestamp(),
     };
     storage::set_backstop_emis_data(e, &pool_id, &new_data);
     Ok(Some(new_data.index))

@@ -4,7 +4,10 @@ use soroban_sdk::{
 };
 
 use crate::{
-    pool::{default_reserve_metadata, ReserveEmissionMetadata},
+    pool::{
+        default_reserve_metadata, PoolDataKey, ReserveEmissionMetadata, ReserveEmissionsConfig,
+        UserEmissionData, UserReserveKey,
+    },
     test_fixture::{TestFixture, TokenIndex, SCALAR_7},
 };
 
@@ -44,7 +47,7 @@ pub fn create_fixture_with_data() -> (TestFixture, Address) {
         },
         ReserveEmissionMetadata {
             res_index: 1, // XLM
-            res_type: 0,  // b_token
+            res_type: 1,  // b_token
             share: 0_400_0000
         },
     ];
@@ -101,6 +104,7 @@ pub fn create_fixture_with_data() -> (TestFixture, Address) {
         &fixture.tokens[TokenIndex::XLM as usize].contract_id,
         &(100_000 * SCALAR_7),
     );
+
     pool_fixture.pool.supply(
         &frodo,
         &fixture.tokens[TokenIndex::WETH as usize].contract_id,

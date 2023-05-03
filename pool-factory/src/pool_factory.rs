@@ -1,5 +1,5 @@
 use crate::storage::{self, PoolInitMeta};
-use soroban_sdk::{contractimpl, vec, Address, BytesN, Env, IntoVal, RawVal, String, Symbol, Vec};
+use soroban_sdk::{contractimpl, vec, Address, BytesN, Env, IntoVal, RawVal, Symbol, Vec};
 
 pub struct PoolFactory;
 

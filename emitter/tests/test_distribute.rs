@@ -12,7 +12,7 @@ use crate::common::{create_backstop, create_token, create_wasm_emitter};
 fn test_distribute() {
     let e = Env::default();
     e.ledger().set(LedgerInfo {
-        timestamp: 100,
+        timestamp: 10000000,
         protocol_version: 1,
         sequence_number: 10,
         network_id: Default::default(),
@@ -34,7 +34,7 @@ fn test_distribute() {
 
     let seconds_passed = 12345;
     e.ledger().set(LedgerInfo {
-        timestamp: 100 + seconds_passed,
+        timestamp: 10000000 + seconds_passed,
         protocol_version: 1,
         sequence_number: 10,
         network_id: Default::default(),
@@ -44,8 +44,25 @@ fn test_distribute() {
     e.as_contract(&backstop_id, || {
         let result = emitter_client.distribute();
 
-        let expected_emissions: i128 = (seconds_passed * 1_0000000) as i128;
+        let expected_emissions: i128 = ((seconds_passed + 7 * 24 * 60 * 60) * 1_0000000) as i128;
         assert_eq!(result, expected_emissions);
         assert_eq!(blnd_client.balance(&backstop), expected_emissions);
+    });
+
+    e.ledger().set(LedgerInfo {
+        timestamp: 10000000 + seconds_passed * 2,
+        protocol_version: 1,
+        sequence_number: 10,
+        network_id: Default::default(),
+        base_reserve: 10,
+    });
+
+    e.as_contract(&backstop_id, || {
+        let pre_balance = blnd_client.balance(&backstop);
+        let result = emitter_client.distribute();
+
+        let expected_emissions: i128 = (seconds_passed * 1_0000000) as i128;
+        assert_eq!(result, expected_emissions);
+        assert_eq!(blnd_client.balance(&backstop), expected_emissions + pre_balance);
     });
 }

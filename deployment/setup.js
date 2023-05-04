@@ -16,6 +16,7 @@ let config = Config.loadFromFile();
 let stellarRpc = new Server(config.network.rpc, {
   allowHttp: true,
 });
+let bombadil = config.getAddress("bombadil");
 
 //***** Env Setup *****//
 await airdropAccounts(stellarRpc, config);
@@ -24,10 +25,16 @@ await airdropAccounts(stellarRpc, config);
 await installWasm(stellarRpc, config);
 
 //***** Tokens *****//
-await deployAndInitToken(stellarRpc, config, "USDC");
+await deployAndInitToken(stellarRpc, config, "WBTC");
 await deployAndInitToken(stellarRpc, config, "BLND");
 await deployAndInitToken(stellarRpc, config, "WETH");
 await deployAndInitToken(stellarRpc, config, "BLNDUSDC");
+// NOTE: Must deploy Stellar Assets manually via Stellar Lab -> USDC:BOMBADIL
+await deployAndInitStellarToken(
+  stellarRpc,
+  config,
+  new Asset("USDC", bombadil.publicKey())
+);
 await deployAndInitStellarToken(stellarRpc, config, Asset.native());
 
 //***** External Contracts *****//

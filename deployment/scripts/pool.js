@@ -11,8 +11,23 @@ import * as poolFactory from "../operations/poolFactory.js";
  * @param {Server} stellarRpc
  * @param {Config} config
  * @param {string} poolName
+ * @param {string[]} assets
+ * @param {pool.ReserveMetadata[]} metadata
+ * @param {pool.ReserveEmissionMetadata[]} emissionMetadata
  */
-export async function deployAndSetupPool(stellarRpc, config, poolName) {
+export async function deployAndSetupPool(
+  stellarRpc,
+  config,
+  poolName,
+  assets,
+  metadata,
+  emissionMetadata
+) {
+  if (assets.length !== metadata.length) {
+    console.log("Unable to deploy");
+    return;
+  }
+
   let bombadil = config.getAddress("bombadil");
   let network = config.network.passphrase;
   let backstopTakeRate = "10000000"; // 10% - 9 decimals
@@ -37,99 +52,40 @@ export async function deployAndSetupPool(stellarRpc, config, poolName) {
   config.writeToFile();
   console.log("deployed ", poolName, "\n");
 
-  console.log("START Initialize Reserves");
-  txBuilder = await createTxBuilder(stellarRpc, network, bombadil);
-  let reserveMetaXLM = pool.createDefaultReserveMetadata();
-  reserveMetaXLM.c_factor = 850_0000;
-  reserveMetaXLM.c_factor = 800_0000;
-  reserveMetaXLM.util = 500_0000;
-  txBuilder.addOperation(
-    pool.createInitReserve(
-      poolName,
-      config,
-      bombadil.publicKey(),
-      "XLM",
-      reserveMetaXLM
-    )
-  );
-  await signPrepareAndSubmitTransaction(
-    stellarRpc,
-    network,
-    txBuilder.build(),
-    bombadil
-  );
-  config.writeToFile();
-  console.log("created reserve for XLM in ", poolName, "\n");
+  for (let i = 0; i < assets.length; i++) {
+    let assetKey = assets[i];
+    let reserveMeta = metadata[i];
 
-  txBuilder = await createTxBuilder(stellarRpc, network, bombadil);
-  let reserveMetaUSDC = pool.createDefaultReserveMetadata();
-  reserveMetaUSDC.c_factor = 975_0000;
-  reserveMetaUSDC.l_factor = 950_0000;
-  reserveMetaUSDC.util = 850_0000;
-  reserveMetaUSDC.r_one = 30_0000;
-  reserveMetaUSDC.r_two = 200_0000;
-  reserveMetaUSDC.r_three = 1_000_0000;
-  txBuilder.addOperation(
-    pool.createInitReserve(
-      poolName,
-      config,
-      bombadil.publicKey(),
-      "USDC",
-      reserveMetaUSDC
-    )
-  );
-  await signPrepareAndSubmitTransaction(
-    stellarRpc,
-    network,
-    txBuilder.build(),
-    bombadil
-  );
-  config.writeToFile();
-  console.log("created reserve for USDC in ", poolName, "\n");
-
-  txBuilder = await createTxBuilder(stellarRpc, network, bombadil);
-  let reserveMetaETH = pool.createDefaultReserveMetadata();
-  reserveMetaETH.util = 700_0000;
-  txBuilder.addOperation(
-    pool.createInitReserve(
-      poolName,
-      config,
-      bombadil.publicKey(),
-      "WETH",
-      reserveMetaETH
-    )
-  );
-  await signPrepareAndSubmitTransaction(
-    stellarRpc,
-    network,
-    txBuilder.build(),
-    bombadil
-  );
-  config.writeToFile();
-  console.log("created reserve for WETH in ", poolName, "\n");
-
+    console.log("START Initialize Reserve: ", assetKey);
+    txBuilder = await createTxBuilder(stellarRpc, network, bombadil);
+    txBuilder.addOperation(
+      pool.createInitReserve(
+        poolName,
+        config,
+        bombadil.publicKey(),
+        assetKey,
+        reserveMeta
+      )
+    );
+    await signPrepareAndSubmitTransaction(
+      stellarRpc,
+      network,
+      txBuilder.build(),
+      bombadil
+    );
+    config.writeToFile();
+    console.log("created reserve for: ", assetKey, "\n");
+  }
   console.log("DONE: deployed pool ", poolName, "\n");
 
-  console.log("START: Enable emissions to both supplied XLM and borrowed USDC");
+  console.log("START: Enable emissions");
   txBuilder = await createTxBuilder(stellarRpc, network, bombadil);
-  let reserveEmissionsMetadata = [
-    {
-      res_index: 0, // XLM
-      res_type: 1, // b_token
-      share: 0.4e7, // 40%
-    },
-    {
-      res_index: 1, // USDC
-      res_type: 0, // d_token
-      share: 0.6e7, // 60%
-    },
-  ];
   txBuilder.addOperation(
     pool.createSetEmissions(
       config,
       poolName,
       bombadil.publicKey(),
-      reserveEmissionsMetadata
+      emissionMetadata
     )
   );
   await signPrepareAndSubmitTransaction(
@@ -162,7 +118,7 @@ export async function setupPoolBackstop(stellarRpc, config, poolName) {
       backstopToken,
       bombadil.publicKey(),
       frodo.publicKey(),
-      BigInt(2_000_000e7)
+      BigInt(1_000_000e7)
     )
   );
   await signPrepareAndSubmitTransaction(
@@ -224,9 +180,9 @@ export async function setupPoolBackstop(stellarRpc, config, poolName) {
 /**
  * @param {Server} stellarRpc
  * @param {Config} config
- * @param {string} poolName
+ * @param {string[]} poolNames
  */
-export async function distribute(stellarRpc, config, poolName) {
+export async function distribute(stellarRpc, config, poolNames) {
   let network = config.network.passphrase;
   let bombadil = config.getAddress("bombadil");
   let blndToken = config.getContractId("BLND");
@@ -243,185 +199,120 @@ export async function distribute(stellarRpc, config, poolName) {
   );
   console.log("backstop distributed...");
 
-  txBuilder = await createTxBuilder(stellarRpc, network, bombadil);
-  txBuilder.addOperation(
-    token.createTransfer(
-      blndToken,
-      bombadil.publicKey(),
-      Address.contract(Buffer.from(backstopId, "hex")).toString(),
-      BigInt(500_000e7)
-    )
-  );
-  await signPrepareAndSubmitTransaction(
-    stellarRpc,
-    network,
-    txBuilder.build(),
-    bombadil
-  );
-  console.log("extra tokens given to backstop...");
-
-  txBuilder = await createTxBuilder(stellarRpc, network, bombadil);
-  txBuilder.addOperation(pool.createUpdateEmissions(config, poolName));
-  await signPrepareAndSubmitTransaction(
-    stellarRpc,
-    network,
-    txBuilder.build(),
-    bombadil
-  );
-  console.log("pool distributed...");
+  for (const poolName of poolNames) {
+    txBuilder = await createTxBuilder(stellarRpc, network, bombadil);
+    txBuilder.addOperation(pool.createUpdateEmissions(config, poolName));
+    await signPrepareAndSubmitTransaction(
+      stellarRpc,
+      network,
+      txBuilder.build(),
+      bombadil
+    );
+    console.log("pool distributed...", poolName);
+  }
 
   console.log("DONE: backstop and pool emissions started\n");
+}
+
+/**
+ * @typedef Amount
+ * @property {string} key
+ * @property {bigint} amount
+ *
+ * @param {Server} stellarRpc
+ * @param {Config} config
+ * @param {Amount[]} amounts
+ */
+export async function mintWhale(stellarRpc, config, amounts) {
+  let network = config.network.passphrase;
+  let bombadil = config.getAddress("bombadil");
+  let frodo = config.getAddress("frodo");
+
+  console.log("START: Minting tokens");
+
+  for (const toMint of amounts) {
+    let txBuilder = await createTxBuilder(stellarRpc, network, bombadil);
+    txBuilder.addOperation(
+      token.createMint(
+        config.getContractId(toMint.key),
+        bombadil.publicKey(),
+        frodo.publicKey(),
+        toMint.amount
+      )
+    );
+    await signPrepareAndSubmitTransaction(
+      stellarRpc,
+      network,
+      txBuilder.build(),
+      bombadil
+    );
+    console.log(`minted ${toMint.amount} of ${toMint.key}...\n`);
+  }
+
+  console.log("DONE: Minted positions\n");
 }
 
 /**
  * @param {Server} stellarRpc
  * @param {Config} config
  * @param {string} poolName
+ * @param {Amount[]} supplies
+ * @param {Amount[]} borrows
  */
-export async function addWhale(stellarRpc, config, poolName) {
+export async function addWhale(
+  stellarRpc,
+  config,
+  poolName,
+  supplies,
+  borrows
+) {
   let network = config.network.passphrase;
-  let bombadil = config.getAddress("bombadil");
   let frodo = config.getAddress("frodo");
 
-  console.log("START: Setting up pool with USDC, WETH XLM positions");
-  let txBuilder = await createTxBuilder(stellarRpc, network, bombadil);
-  txBuilder.addOperation(
-    token.createMint(
-      config.getContractId("USDC"),
-      bombadil.publicKey(),
-      frodo.publicKey(),
-      BigInt(1_000_000e7)
-    )
-  );
-  await signPrepareAndSubmitTransaction(
-    stellarRpc,
-    network,
-    txBuilder.build(),
-    bombadil
-  );
-  console.log("minted USDC...\n");
+  console.log("START: Supplying tokens");
+  for (const supply of supplies) {
+    let txBuilder = await createTxBuilder(stellarRpc, network, frodo);
+    txBuilder.addOperation(
+      pool.createSupply(
+        config,
+        poolName,
+        frodo.publicKey(),
+        supply.key,
+        supply.amount
+      )
+    );
+    await signPrepareAndSubmitTransaction(
+      stellarRpc,
+      network,
+      txBuilder.build(),
+      frodo
+    );
+    console.log(`supplied ${supply.amount} of ${supply.key}...\n`);
+  }
+  console.log("DONE: Supplying tokens");
 
-  txBuilder = await createTxBuilder(stellarRpc, network, bombadil);
-  txBuilder.addOperation(
-    token.createMint(
-      config.getContractId("WETH"),
-      bombadil.publicKey(),
-      frodo.publicKey(),
-      BigInt(100e7)
-    )
-  );
-  await signPrepareAndSubmitTransaction(
-    stellarRpc,
-    network,
-    txBuilder.build(),
-    bombadil
-  );
-  console.log("minted WETH...\n");
+  console.log("START: Borrowing tokens");
+  for (const borrow of borrows) {
+    let txBuilder = await createTxBuilder(stellarRpc, network, frodo);
+    txBuilder.addOperation(
+      pool.createBorrow(
+        config,
+        poolName,
+        frodo.publicKey(),
+        borrow.key,
+        borrow.amount,
+        frodo.publicKey()
+      )
+    );
+    await signPrepareAndSubmitTransaction(
+      stellarRpc,
+      network,
+      txBuilder.build(),
+      frodo
+    );
+    console.log(`borrowed ${borrow.amount} of ${borrow.key}...\n`);
+  }
+  console.log("DONE: Borrowing tokens");
 
-  txBuilder = await createTxBuilder(stellarRpc, network, frodo);
-  txBuilder.addOperation(
-    pool.createSupply(
-      config,
-      poolName,
-      frodo.publicKey(),
-      "XLM",
-      BigInt(5000e7)
-    )
-  );
-  await signPrepareAndSubmitTransaction(
-    stellarRpc,
-    network,
-    txBuilder.build(),
-    frodo
-  );
-  console.log("supplied XLM...\n");
-
-  txBuilder = await createTxBuilder(stellarRpc, network, frodo);
-  txBuilder.addOperation(
-    pool.createSupply(config, poolName, frodo.publicKey(), "WETH", BigInt(5e7))
-  );
-  await signPrepareAndSubmitTransaction(
-    stellarRpc,
-    network,
-    txBuilder.build(),
-    frodo
-  );
-  console.log("supplied WETH...\n");
-
-  txBuilder = await createTxBuilder(stellarRpc, network, frodo);
-  txBuilder.addOperation(
-    pool.createSupply(
-      config,
-      poolName,
-      frodo.publicKey(),
-      "USDC",
-      BigInt(10_000e7)
-    )
-  );
-  await signPrepareAndSubmitTransaction(
-    stellarRpc,
-    network,
-    txBuilder.build(),
-    frodo
-  );
-  console.log("supplied USDC...\n");
-
-  txBuilder = await createTxBuilder(stellarRpc, network, frodo);
-  txBuilder.addOperation(
-    pool.createBorrow(
-      config,
-      poolName,
-      frodo.publicKey(),
-      "XLM",
-      BigInt(3000e7),
-      frodo.publicKey()
-    )
-  );
-  await signPrepareAndSubmitTransaction(
-    stellarRpc,
-    network,
-    txBuilder.build(),
-    frodo
-  );
-  console.log("borrowed XLM...\n");
-
-  txBuilder = await createTxBuilder(stellarRpc, network, frodo);
-  txBuilder.addOperation(
-    pool.createBorrow(
-      config,
-      poolName,
-      frodo.publicKey(),
-      "USDC",
-      BigInt(8500e7),
-      frodo.publicKey()
-    )
-  );
-  await signPrepareAndSubmitTransaction(
-    stellarRpc,
-    network,
-    txBuilder.build(),
-    frodo
-  );
-  console.log("borrowed USDC...\n");
-
-  txBuilder = await createTxBuilder(stellarRpc, network, frodo);
-  txBuilder.addOperation(
-    pool.createBorrow(
-      config,
-      poolName,
-      frodo.publicKey(),
-      "WETH",
-      BigInt(2e7),
-      frodo.publicKey()
-    )
-  );
-  await signPrepareAndSubmitTransaction(
-    stellarRpc,
-    network,
-    txBuilder.build(),
-    frodo
-  );
-  console.log("borrowed WETH...\n");
-
-  console.log("DONE: Set up pool with USDC, WETH and XLM positions\n");
+  console.log("DONE: Added whale to pool: ", frodo.publicKey(), "\n");
 }

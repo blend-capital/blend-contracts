@@ -26,7 +26,7 @@ export async function airdropAccounts(stellarRpc, config) {
     try {
       await stellarRpc.requestAirdrop(
         pubKey,
-        "http://ec2-3-89-215-1.compute-1.amazonaws.com/friendbot"
+        "http://ec2-3-89-215-1.compute-1.amazonaws.com:80/friendbot"
       );
       console.log("Funded: ", pubKey);
     } catch (e) {

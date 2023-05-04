@@ -132,13 +132,14 @@ export async function getBalance(stellarRpc, address, from) {
   try {
     let contract_key = xdr.ScVal.scvVec([xdr.ScVal.scvSymbol("Balance"), from]);
     let scValResp = await stellarRpc.getContractData(address, contract_key);
+    console.log("entryData: ", scValResp.xdr);
     let entryData = xdr.LedgerEntryData.fromXDR(scValResp.xdr, "base64")
       .contractData()
       .val();
     return scvalToBigInt(entryData);
   } catch (e) {
     if (e.message.includes("not found")) {
-      return new BigInt(0);
+      return BigInt(0);
     }
     console.error(e);
     throw e;

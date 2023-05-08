@@ -148,7 +148,7 @@ export function createDeployStellarAssetOperation(asset, config) {
       })
     ),
   ];
-  if (asset.isNative()) {
+  if (!asset.isNative()) {
     readWrite.push(
       xdr.LedgerKey.contractData(
         new xdr.LedgerKeyContractData({

@@ -1,7 +1,5 @@
 import { Contract, Server, xdr, Address } from "soroban-client";
-import BigNumber from "bignumber.js";
-import * as convert from "@soroban-react/utils";
-import { Config } from "../config.js";
+import { bigintToI128, scvalToBigInt } from "../utils.js";
 
 /********** Operation Builders **********/
 
@@ -41,7 +39,7 @@ export function createSetAdminToContract(address, oldAdmin, newAdmin) {
  * @param {string} address
  * @param {string} admin
  * @param {string} to
- * @param {BigNumber} amount
+ * @param {BigInt} amount
  * @returns {xdr.Operation<Operation.InvokeHostFunction>}
  */
 export function createMint(address, admin, to, amount) {
@@ -50,7 +48,7 @@ export function createMint(address, admin, to, amount) {
     "mint",
     new Address(admin).toScVal(),
     new Address(to).toScVal(),
-    convert.bigNumberToI128(amount)
+    bigintToI128(amount)
   );
 }
 
@@ -58,7 +56,7 @@ export function createMint(address, admin, to, amount) {
  * @param {string} address
  * @param {string} admin
  * @param {string} from
- * @param {BigNumber} amount
+ * @param {BigInt} amount
  * @returns {xdr.Operation<Operation.InvokeHostFunction>}
  */
 export function createBurn(address, admin, from, amount) {
@@ -67,7 +65,7 @@ export function createBurn(address, admin, from, amount) {
     "clawback",
     new Address(admin.publicKey()).toScVal(),
     new Address(from).toScVal(),
-    convert.bigNumberToI128(amount)
+    bigintToI128(amount)
   );
 }
 
@@ -75,7 +73,7 @@ export function createBurn(address, admin, from, amount) {
  * @param {string} address
  * @param {string} from
  * @param {string} spender
- * @param {BigNumber} amount
+ * @param {BigInt} amount
  * @returns {xdr.Operation<Operation.InvokeHostFunction>}
  */
 export function createIncrAllow(address, from, spender, amount) {
@@ -84,7 +82,7 @@ export function createIncrAllow(address, from, spender, amount) {
     "incr_allow",
     new Address(from).toScVal(),
     new Address(spender).toScVal(),
-    convert.bigNumberToI128(amount)
+    bigintToI128(amount)
   );
 }
 
@@ -92,7 +90,7 @@ export function createIncrAllow(address, from, spender, amount) {
  * @param {string} address
  * @param {string} from
  * @param {string} spender
- * @param {BigNumber} amount
+ * @param {BigInt} amount
  * @returns {xdr.Operation<Operation.InvokeHostFunction>}
  */
 export function createDecrAllow(address, from, spender, amount) {
@@ -101,7 +99,7 @@ export function createDecrAllow(address, from, spender, amount) {
     "decr_allow",
     new Address(from).toScVal(),
     new Address(spender).toScVal(),
-    convert.bigNumberToI128(amount)
+    bigintToI128(amount)
   );
 }
 
@@ -109,7 +107,7 @@ export function createDecrAllow(address, from, spender, amount) {
  * @param {string} address
  * @param {string} from
  * @param {string} to
- * @param {BigNumber} amount
+ * @param {BigInt} amount
  * @returns {xdr.Operation<Operation.InvokeHostFunction>}
  */
 export function createTransfer(address, from, to, amount) {
@@ -118,7 +116,7 @@ export function createTransfer(address, from, to, amount) {
     "xfer",
     new Address(from).toScVal(),
     new Address(to).toScVal(),
-    convert.bigNumberToI128(amount)
+    bigintToI128(amount)
   );
 }
 
@@ -128,20 +126,20 @@ export function createTransfer(address, from, to, amount) {
  * @param {Server} stellarRpc
  * @param {string} address
  * @param {xdr.ScVal} from
- * @returns {Promise<BigNumber>}
+ * @returns {Promise<BigInt>}
  */
 export async function getBalance(stellarRpc, address, from) {
   try {
     let contract_key = xdr.ScVal.scvVec([xdr.ScVal.scvSymbol("Balance"), from]);
     let scValResp = await stellarRpc.getContractData(address, contract_key);
-    let entryData = xdr.LedgerEntryData.fromXDR(
-      scValResp.xdr,
-      "base64"
-    ).contractData();
-    return convert.scvalToBigNumber(entryData.val());
+    console.log("entryData: ", scValResp.xdr);
+    let entryData = xdr.LedgerEntryData.fromXDR(scValResp.xdr, "base64")
+      .contractData()
+      .val();
+    return scvalToBigInt(entryData);
   } catch (e) {
     if (e.message.includes("not found")) {
-      return new BigNumber(0);
+      return BigInt(0);
     }
     console.error(e);
     throw e;

@@ -2,7 +2,7 @@
 
 use common::create_backstop;
 use soroban_sdk::{
-    testutils::{Address as _, BytesN as _},
+    testutils::{Address as _, BytesN as _, LedgerInfo, Ledger},
     Address, BytesN, Env,
 };
 
@@ -12,6 +12,14 @@ use crate::common::{create_token, create_wasm_emitter, EmitterError};
 #[test]
 fn test_swap_backstop() {
     let e = Env::default();
+
+    e.ledger().set(LedgerInfo {
+        timestamp: 10000000,
+        protocol_version: 1,
+        sequence_number: 10,
+        network_id: Default::default(),
+        base_reserve: 10,
+    });
 
     let bombadil = Address::random(&e);
 

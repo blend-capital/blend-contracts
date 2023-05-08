@@ -234,8 +234,6 @@ fn test_classic_asset_pool_happy_path() {
     // * Frodo should the remainder of 11918_5532000 blnd from the pool - the remaining emissions until the specified expiration
     // * Frodo should receive (60 * 60 * 24 * 30)*.7 = 1814400_0000000 blnd from the backstop
     // * Sam should roughly receive 60*60*24*365*(1_900_000/2_000_000)*.4*.3 + 60*60*24*365*(112_000/120_000)*.6*.3 = 8893152 blnd from the pool
-    fixture.env.as_contract(&fixture.backstop.contract_id, || {
-
     let _frodo_pool_claim_3 = pool_fixture
         .pool
         .claim(&frodo, &vec![&fixture.env, 0, 4], &frodo);

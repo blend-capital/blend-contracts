@@ -15,7 +15,6 @@ import * as token from "../operations/token.js";
 import * as emitter from "../operations/emitter.js";
 import * as backstop from "../operations/backstop.js";
 import * as poolFactory from "../operations/poolFactory.js";
-import BigNumber from "bignumber.js";
 
 /**
  * @param {Server} stellarRpc
@@ -27,7 +26,7 @@ export async function airdropAccounts(stellarRpc, config) {
     try {
       await stellarRpc.requestAirdrop(
         pubKey,
-        "http://localhost:8000/friendbot"
+        "http://ec2-3-89-215-1.compute-1.amazonaws.com:80/friendbot"
       );
       console.log("Funded: ", pubKey);
     } catch (e) {
@@ -45,8 +44,8 @@ export async function installWasm(stellarRpc, config) {
   let bombadil = config.getAddress("bombadil");
   let network = config.network.passphrase;
   for (let contract in WasmKeys) {
-    let txBuilder = await createTxBuilder(stellarRpc, network, bombadil);
     console.log(`START: installing ${WasmKeys[contract]} contract`);
+    let txBuilder = await createTxBuilder(stellarRpc, network, bombadil);
     txBuilder.addOperation(createInstallOperation(WasmKeys[contract], config));
     await signAndSubmitTransaction(stellarRpc, txBuilder.build(), bombadil);
     config.writeToFile();
@@ -214,7 +213,7 @@ export async function transferBLNDToEmitter(stellarRpc, config) {
       blndToken,
       bombadil.publicKey(),
       bombadil.publicKey(),
-      BigNumber(10_000_000e7)
+      BigInt(10_000_000e7)
     )
   );
   await signPrepareAndSubmitTransaction(

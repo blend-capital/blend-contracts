@@ -1,6 +1,6 @@
 import { Contract, xdr, Address, hash } from "soroban-client";
 import { Config } from "../config.js";
-import * as convert from "@soroban-react/utils";
+import { bigintToI128 } from "../utils.js";
 
 /********** Object Builders **********/
 
@@ -27,7 +27,7 @@ export function createDefaultReserveMetadata() {
     r_one: 500000,
     r_three: 15000000,
     r_two: 5000000,
-    reactivity: 10000,
+    reactivity: 1000,
     util: 7500000,
   };
 }
@@ -177,7 +177,7 @@ export function createUpdateState(config, poolKey) {
  * @param {string} poolKey
  * @param {string} from
  * @param {string} assetKey
- * @param {BigNumber} amount
+ * @param {BigInt} amount
  * @returns {xdr.Operation<Operation.InvokeHostFunction>}
  */
 export function createSupply(config, poolKey, from, assetKey, amount) {
@@ -186,7 +186,7 @@ export function createSupply(config, poolKey, from, assetKey, amount) {
     "supply",
     new Address(from).toScVal(),
     xdr.ScVal.scvBytes(Buffer.from(config.getContractId(assetKey), "hex")),
-    convert.bigNumberToI128(amount)
+    bigintToI128(amount)
   );
 }
 
@@ -195,7 +195,7 @@ export function createSupply(config, poolKey, from, assetKey, amount) {
  * @param {string} poolKey
  * @param {string} from
  * @param {string} assetKey
- * @param {BigNumber} amount
+ * @param {BigInt} amount
  * @param {string} to
  * @returns {xdr.Operation<Operation.InvokeHostFunction>}
  */
@@ -205,7 +205,7 @@ export function createWithdraw(config, poolKey, from, assetKey, amount, to) {
     "withdraw",
     new Address(from).toScVal(),
     xdr.ScVal.scvBytes(Buffer.from(config.getContractId(assetKey), "hex")),
-    convert.bigNumberToI128(amount),
+    bigintToI128(amount),
     new Address(to).toScVal()
   );
 }
@@ -215,7 +215,7 @@ export function createWithdraw(config, poolKey, from, assetKey, amount, to) {
  * @param {string} poolKey
  * @param {string} from
  * @param {string} assetKey
- * @param {BigNumber} amount
+ * @param {BigInt} amount
  * @param {string} to
  * @returns {xdr.Operation<Operation.InvokeHostFunction>}
  */
@@ -225,7 +225,7 @@ export function createBorrow(config, poolKey, from, assetKey, amount, to) {
     "borrow",
     new Address(from).toScVal(),
     xdr.ScVal.scvBytes(Buffer.from(config.getContractId(assetKey), "hex")),
-    convert.bigNumberToI128(amount),
+    bigintToI128(amount),
     new Address(to).toScVal()
   );
 }
@@ -235,7 +235,7 @@ export function createBorrow(config, poolKey, from, assetKey, amount, to) {
  * @param {string} poolKey
  * @param {string} from
  * @param {string} assetKey
- * @param {BigNumber} amount
+ * @param {BigInt} amount
  * @param {string} onBehalfOf
  * @returns {xdr.Operation<Operation.InvokeHostFunction>}
  */
@@ -252,7 +252,7 @@ export function createRepay(
     "repay",
     new Address(from).toScVal(),
     xdr.ScVal.scvBytes(Buffer.from(config.getContractId(assetKey), "hex")),
-    convert.bigNumberToI128(amount),
+    bigintToI128(amount),
     new Address(onBehalfOf).toScVal()
   );
 }

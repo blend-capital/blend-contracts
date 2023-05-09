@@ -19,7 +19,7 @@ fn test_pool_happy_path() {
     e.budget().reset_unlimited();
 
     e.ledger().set(LedgerInfo {
-        timestamp: 12345,
+        timestamp: 0,
         protocol_version: 1,
         sequence_number: 0,
         network_id: Default::default(),
@@ -91,7 +91,7 @@ fn test_pool_happy_path() {
     // allow interest to accumulate
     // IR -> 6%
     e.ledger().set(LedgerInfo {
-        timestamp: 12345,
+        timestamp: 6307200 * 5,
         protocol_version: 1,
         sequence_number: 6307200, // 1 year
         network_id: Default::default(),

@@ -264,15 +264,15 @@ mod tests {
         ];
 
         let mut reserve_0 = create_reserve(&e);
-        reserve_0.data.last_block = 100;
+        reserve_0.data.last_time = 1499900000;
         setup_reserve(&e, &pool_id, &bombadil, &mut reserve_0);
         let mut reserve_1 = create_reserve(&e);
         reserve_1.config.index = 1;
-        reserve_1.data.last_block = 100;
+        reserve_1.data.last_time = 1499900000;
         setup_reserve(&e, &pool_id, &bombadil, &mut reserve_1);
         let mut reserve_2 = create_reserve(&e);
         reserve_2.config.index = 2;
-        reserve_2.data.last_block = 100;
+        reserve_2.data.last_time = 1499900000;
         setup_reserve(&e, &pool_id, &bombadil, &mut reserve_2);
 
         e.as_contract(&pool_id, || {
@@ -355,17 +355,17 @@ mod tests {
         };
 
         let mut reserve_0 = create_reserve(&e);
-        reserve_0.data.last_block = 100;
+        reserve_0.data.last_time = 1499900000;
         reserve_0.data.b_supply = 100_0000000;
         reserve_0.data.d_supply = 50_0000000;
         setup_reserve(&e, &pool_id, &bombadil, &mut reserve_0);
         let mut reserve_1 = create_reserve(&e);
         reserve_1.config.index = 1;
-        reserve_1.data.last_block = 100;
+        reserve_1.data.last_time = 1499900000;
         setup_reserve(&e, &pool_id, &bombadil, &mut reserve_1);
         let mut reserve_2 = create_reserve(&e);
         reserve_2.config.index = 2;
-        reserve_2.data.last_block = 100;
+        reserve_2.data.last_time = 1499900000;
         reserve_2.data.b_supply = 100_0000000;
         reserve_2.data.d_supply = 50_0000000;
         setup_reserve(&e, &pool_id, &bombadil, &mut reserve_2);
@@ -452,17 +452,17 @@ mod tests {
         };
 
         let mut reserve_0 = create_reserve(&e);
-        reserve_0.data.last_block = 100;
+        reserve_0.data.last_time = 1499900000;
         reserve_0.data.b_supply = 100_0000000;
         reserve_0.data.d_supply = 50_0000000;
         setup_reserve(&e, &pool_id, &bombadil, &mut reserve_0);
         let mut reserve_1 = create_reserve(&e);
         reserve_1.config.index = 1;
-        reserve_1.data.last_block = 100;
+        reserve_1.data.last_time = 1499900000;
         setup_reserve(&e, &pool_id, &bombadil, &mut reserve_1);
         let mut reserve_2 = create_reserve(&e);
         reserve_2.config.index = 2;
-        reserve_2.data.last_block = 100;
+        reserve_2.data.last_time = 1499900000;
         reserve_2.data.b_supply = 100_0000000;
         reserve_2.data.d_supply = 50_0000000;
         setup_reserve(&e, &pool_id, &bombadil, &mut reserve_2);

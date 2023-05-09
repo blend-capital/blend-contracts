@@ -383,7 +383,7 @@ mod tests {
         });
 
         e.ledger().set(LedgerInfo {
-            timestamp: 12345,
+            timestamp: 123456 * 5,
             protocol_version: 1,
             sequence_number: 123456,
             network_id: Default::default(),

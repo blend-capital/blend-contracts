@@ -112,14 +112,14 @@ impl Reserve {
     ///        `pre_action` if an action is being taken
     pub fn update_rates(&mut self, e: &Env, bstop_rate: u64) -> i128 {
         // if updating has already happened this block, don't repeat
-        if e.ledger().sequence() == self.data.last_block {
+        if e.ledger().timestamp() == self.data.last_time {
             return 0;
         }
         let total_supply = self.total_supply(e);
         // if the reserve does not have any supply, don't update rates
         // but accrue the block as this was a valid interaction
         if total_supply == 0 {
-            self.data.last_block = e.ledger().sequence();
+            self.data.last_time = e.ledger().timestamp();
             return 0;
         }
 
@@ -133,7 +133,7 @@ impl Reserve {
             &self.config,
             cur_util,
             self.data.ir_mod,
-            self.data.last_block,
+            self.data.last_time,
         );
         let mut bstop_amount: i128 = 0;
         if bstop_rate > 0 {
@@ -155,7 +155,7 @@ impl Reserve {
         self.data.ir_mod = new_ir_mod;
         self.b_rate = None;
 
-        self.data.last_block = e.ledger().sequence();
+        self.data.last_time = e.ledger().timestamp();
         e.events().publish(
             (Symbol::new(&e, "updt_rate"), self.asset.clone()),
             (self.data.d_rate, self.data.ir_mod),
@@ -343,7 +343,7 @@ mod tests {
         let b_token_client = TokenClient::new(&e, &reserve.config.b_token);
 
         e.ledger().set(LedgerInfo {
-            timestamp: 12345,
+            timestamp: 123456 * 5,
             protocol_version: 1,
             sequence_number: 123456,
             network_id: Default::default(),
@@ -367,7 +367,7 @@ mod tests {
             // assert_eq!(reserve.data.b_rate, 1_125_547_118);
             assert_eq!(reserve.data.d_rate, 1_349_657_792);
             assert_eq!(reserve.data.ir_mod, 1_044_981_440);
-            assert_eq!(reserve.data.last_block, 123456);
+            assert_eq!(reserve.data.last_time, 617280);
             assert_eq!(b_token_client.balance(&backstop), 0_051_735_6);
         });
     }
@@ -381,10 +381,10 @@ mod tests {
         let mut reserve = create_reserve(&e);
         reserve.data.b_supply = 99_0000000;
         reserve.data.d_supply = 65_0000000;
-        reserve.data.last_block = 123;
+        reserve.data.last_time = 123;
 
         e.ledger().set(LedgerInfo {
-            timestamp: 12345,
+            timestamp: 123,
             protocol_version: 1,
             sequence_number: 123,
             network_id: Default::default(),
@@ -395,7 +395,7 @@ mod tests {
 
         assert_eq!(reserve.data.d_rate, 1_000_000_000);
         assert_eq!(reserve.data.ir_mod, 1_000_000_000);
-        assert_eq!(reserve.data.last_block, 123);
+        assert_eq!(reserve.data.last_time, 123);
         assert_eq!(to_mint, 0);
     }
 
@@ -406,10 +406,10 @@ mod tests {
         let mut reserve = create_reserve(&e);
         reserve.data.b_supply = 0;
         reserve.data.d_supply = 0;
-        reserve.data.last_block = 100;
+        reserve.data.last_time = 100;
 
         e.ledger().set(LedgerInfo {
-            timestamp: 12345,
+            timestamp: 123 * 5,
             protocol_version: 1,
             sequence_number: 123,
             network_id: Default::default(),
@@ -420,7 +420,7 @@ mod tests {
 
         assert_eq!(reserve.data.d_rate, 1_000_000_000);
         assert_eq!(reserve.data.ir_mod, 1_000_000_000);
-        assert_eq!(reserve.data.last_block, 123);
+        assert_eq!(reserve.data.last_time, 123 * 5);
         assert_eq!(to_mint, 0);
     }
 
@@ -433,10 +433,10 @@ mod tests {
         reserve.data.b_supply = 100_0000000;
         reserve.data.d_supply = 5_0000000;
         reserve.data.ir_mod = 0_100_000_000;
-        reserve.data.last_block = 99;
+        reserve.data.last_time = 99;
 
         e.ledger().set(LedgerInfo {
-            timestamp: 12345,
+            timestamp: 100,
             protocol_version: 1,
             sequence_number: 100,
             network_id: Default::default(),
@@ -449,7 +449,7 @@ mod tests {
             // assert_eq!(reserve.data.b_rate, 1_000_000_000);
             assert_eq!(reserve.data.d_rate, 1_000_000_001);
             assert_eq!(reserve.data.ir_mod, 0_100_000_000);
-            assert_eq!(reserve.data.last_block, 100);
+            assert_eq!(reserve.data.last_time, 100);
             assert_eq!(to_mint, 0);
         });
     }
@@ -462,10 +462,10 @@ mod tests {
         let mut reserve = create_reserve(&e);
         reserve.data.b_supply = 99_0000000;
         reserve.data.d_supply = 65_0000000;
-        reserve.data.last_block = 0;
+        reserve.data.last_time = 0;
 
         e.ledger().set(LedgerInfo {
-            timestamp: 12345,
+            timestamp: 100 * 5,
             protocol_version: 1,
             sequence_number: 100,
             network_id: Default::default(),
@@ -477,7 +477,7 @@ mod tests {
             // assert_eq!(reserve.data.b_rate, 1_000_000_448);
             assert_eq!(reserve.data.d_rate, 1_000_000_853);
             assert_eq!(reserve.data.ir_mod, 0_999_906_566);
-            assert_eq!(reserve.data.last_block, 100);
+            assert_eq!(reserve.data.last_time, 100 * 5);
             assert_eq!(to_mint, 0_0000110);
         });
     }
@@ -492,10 +492,10 @@ mod tests {
         reserve.data.d_rate = 1_345_678_123;
         reserve.data.b_supply = 99_0000000;
         reserve.data.d_supply = 65_0000000;
-        reserve.data.last_block = 0;
+        reserve.data.last_time = 0;
 
         e.ledger().set(LedgerInfo {
-            timestamp: 12345,
+            timestamp: 123456 * 5,
             protocol_version: 1,
             sequence_number: 123456,
             network_id: Default::default(),
@@ -508,7 +508,7 @@ mod tests {
             // assert_eq!(reserve.data.b_rate, 1_125_547_118);
             assert_eq!(reserve.data.d_rate, 1_349_657_792);
             assert_eq!(reserve.data.ir_mod, 1_044_981_440);
-            assert_eq!(reserve.data.last_block, 123456);
+            assert_eq!(reserve.data.last_time, 123456 * 5);
             assert_eq!(to_mint, 0_051_735_6);
         });
     }

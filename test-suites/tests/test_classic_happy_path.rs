@@ -230,10 +230,10 @@ fn test_classic_asset_pool_happy_path() {
     let frodo_pool_claim_3 = pool_fixture
         .pool
         .claim(&frodo, &vec![&fixture.env, 0, 4], &frodo);
-    assert_eq!(frodo_pool_claim_3, 116724740000);
+    assert_eq!(frodo_pool_claim_3, 116724748000);
     assert_eq!(
         fixture.tokens[TokenIndex::BLND as usize].balance(&frodo,) - 2562_0000000,
-        17436_1124000
+        17436_1132000
     );
     fixture.backstop.claim(
         &frodo,
@@ -242,16 +242,16 @@ fn test_classic_asset_pool_happy_path() {
     );
 
     assert_eq!(
-        fixture.tokens[TokenIndex::BLND as usize].balance(&frodo,) - 17436_1124000,
+        fixture.tokens[TokenIndex::BLND as usize].balance(&frodo,) - 17436_1132000,
         423360_0000000
     );
     let sam_pool_claim_2 = pool_fixture
         .pool
         .claim(&samwise, &vec![&fixture.env, 0, 4], &samwise);
-    assert_eq!(sam_pool_claim_2, 90902_5688013);
+    assert_eq!(sam_pool_claim_2 - 73094_3066649, 17808_2688770);
     assert_eq!(
         fixture.tokens[TokenIndex::BLND as usize].balance(&samwise),
-        163996_8754662
+        163996_8822068
     );
 
     // Let a year go by and call update every week
@@ -271,7 +271,7 @@ fn test_classic_asset_pool_happy_path() {
         &frodo,
     );
     assert_eq!(
-        fixture.tokens[TokenIndex::BLND as usize].balance(&frodo,) - 423360_0000000 - 17436_1124000,
+        fixture.tokens[TokenIndex::BLND as usize].balance(&frodo,) - 423360_0000000 - 17436_1132000,
         22014720_0000000
     );
 
@@ -282,7 +282,7 @@ fn test_classic_asset_pool_happy_path() {
     assert_eq!(frodo_pool_claim_4, 1073564_6896000);
     assert_eq!(
         fixture.tokens[TokenIndex::BLND as usize].balance(&frodo,)
-            - 17436_1124000
+            - 17436_1132000
             - 423360_0000000
             - 22014720_0000000,
         1073564_6896000
@@ -292,10 +292,10 @@ fn test_classic_asset_pool_happy_path() {
     let sam_pool_claim_3 = pool_fixture
         .pool
         .claim(&samwise, &vec![&fixture.env, 0, 4], &samwise);
-    assert_eq!(sam_pool_claim_3, 8360677_3999776);
+    assert_eq!(sam_pool_claim_3, 8360677_4955065);
     assert_eq!(
-        fixture.tokens[TokenIndex::BLND as usize].balance(&samwise,) - 163996_8754662,
-        8360677_3999776
+        fixture.tokens[TokenIndex::BLND as usize].balance(&samwise,) - 163996_8822068,
+        8360677_4955065
     );
 
     // Sam and merry trade some tokens
@@ -319,7 +319,7 @@ fn test_classic_asset_pool_happy_path() {
     );
     assert_eq!(pool_fixture.reserves[0].d_token.balance(&samwise), 0);
     let sam_usdc_balance = fixture.tokens[TokenIndex::USDC as usize].balance(&samwise);
-    assert!((sam_usdc_balance > 56_800 * SCALAR_7) & (sam_usdc_balance < 57_000 * SCALAR_7));
+    assert!((sam_usdc_balance > 56_800 * SCALAR_7) & (sam_usdc_balance < 57_100 * SCALAR_7));
     assert_eq!(sam_burned_d_tokens_2, sam_d_tokens - sam_burned_d_tokens);
 
     // Merry repays his loan

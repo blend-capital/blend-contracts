@@ -91,7 +91,7 @@ pub fn initialize_reserve(
         ir_mod: 1_000_000_000,
         d_supply: 0,
         b_supply: 0,
-        last_block: e.ledger().sequence(),
+        last_time: e.ledger().timestamp(),
     };
     storage::set_res_data(e, asset, &init_data);
 

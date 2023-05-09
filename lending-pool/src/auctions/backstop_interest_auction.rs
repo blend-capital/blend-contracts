@@ -239,20 +239,20 @@ mod tests {
 
         let mut reserve_0 = create_reserve(&e);
         reserve_0.b_rate = Some(1_100_000_000);
-        reserve_0.data.last_block = 50;
+        reserve_0.data.last_time = 12345;
         reserve_0.config.index = 0;
         setup_reserve(&e, &pool_id, &bombadil, &mut reserve_0);
         let b_token_0 = TokenClient::new(&e, &reserve_0.config.b_token);
 
         let mut reserve_1 = create_reserve(&e);
         reserve_1.b_rate = Some(1_200_000_000);
-        reserve_1.data.last_block = 50;
+        reserve_1.data.last_time = 12345;
         reserve_1.config.index = 1;
         setup_reserve(&e, &pool_id, &bombadil, &mut reserve_1);
         let b_token_1 = TokenClient::new(&e, &reserve_1.config.b_token);
 
         let mut reserve_2 = create_reserve(&e);
-        reserve_2.data.last_block = 50;
+        reserve_2.data.last_time = 12345;
         reserve_2.config.index = 2;
         setup_reserve(&e, &pool_id, &bombadil, &mut reserve_2);
 
@@ -320,20 +320,20 @@ mod tests {
 
         let mut reserve_0 = create_reserve(&e);
         reserve_0.b_rate = Some(1_100_000_000);
-        reserve_0.data.last_block = 50;
+        reserve_0.data.last_time = 11845;
         reserve_0.config.index = 0;
         setup_reserve(&e, &pool_id, &bombadil, &mut reserve_0);
         let b_token_0 = TokenClient::new(&e, &reserve_0.config.b_token);
 
         let mut reserve_1 = create_reserve(&e);
         reserve_1.b_rate = Some(1_200_000_000);
-        reserve_1.data.last_block = 50;
+        reserve_1.data.last_time = 11845;
         reserve_1.config.index = 1;
         setup_reserve(&e, &pool_id, &bombadil, &mut reserve_1);
         let b_token_1 = TokenClient::new(&e, &reserve_1.config.b_token);
 
         let mut reserve_2 = create_reserve(&e);
-        reserve_2.data.last_block = 50;
+        reserve_2.data.last_time = 11845;
         reserve_2.config.index = 2;
         setup_reserve(&e, &pool_id, &bombadil, &mut reserve_2);
 
@@ -380,7 +380,7 @@ mod tests {
         e.budget().reset_unlimited(); // setup exhausts budget
 
         e.ledger().set(LedgerInfo {
-            timestamp: 12345,
+            timestamp: 12350,
             protocol_version: 1,
             sequence_number: 301, // 75% bid, 100% lot
             network_id: Default::default(),
@@ -405,20 +405,20 @@ mod tests {
 
         let mut reserve_0 = create_reserve(&e);
         reserve_0.b_rate = Some(1_100_000_000);
-        reserve_0.data.last_block = 301;
+        reserve_0.data.last_time = 12345;
         reserve_0.config.index = 0;
         setup_reserve(&e, &pool_id, &bombadil, &mut reserve_0);
         let b_token_0 = TokenClient::new(&e, &reserve_0.config.b_token);
 
         let mut reserve_1 = create_reserve(&e);
         reserve_1.b_rate = Some(1_200_000_000);
-        reserve_1.data.last_block = 301;
+        reserve_1.data.last_time = 12345;
         reserve_1.config.index = 1;
         setup_reserve(&e, &pool_id, &bombadil, &mut reserve_1);
         let b_token_1 = TokenClient::new(&e, &reserve_1.config.b_token);
 
         let mut reserve_2 = create_reserve(&e);
-        reserve_2.data.last_block = 301;
+        reserve_2.data.last_time = 12345;
         reserve_2.config.index = 2;
         setup_reserve(&e, &pool_id, &bombadil, &mut reserve_2);
 

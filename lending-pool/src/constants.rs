@@ -14,3 +14,6 @@ pub const SCALAR_7: i128 = 1_0000000;
 
 /// Average number of blocks per year based on 5 second finality
 pub const BLOCKS_PER_YEAR: i128 = 6307200;
+
+// seconds per year
+pub const SECONDS_PER_YEAR: i128 = 31536000;

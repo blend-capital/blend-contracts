@@ -86,7 +86,7 @@ fn test_pool_borrow_one_stroop_insufficient_collateral_for_two() {
     // allow interest to accumulate
     // IR -> 3.5%
     e.ledger().set(LedgerInfo {
-        timestamp: 12345,
+        timestamp: 6307200 * 90 * 5,
         protocol_version: 1,
         sequence_number: 6307200 * 90, // 90 years
         network_id: Default::default(),

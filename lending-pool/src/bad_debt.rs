@@ -187,8 +187,8 @@ mod tests {
 
             let reserve_0_data = storage::get_res_data(&e, &reserve_0.asset);
             let reserve_1_data = storage::get_res_data(&e, &reserve_1.asset);
-            assert_eq!(reserve_0_data.last_block, 123);
-            assert_eq!(reserve_1_data.last_block, 123);
+            assert_eq!(reserve_0_data.last_time, 1500000000);
+            assert_eq!(reserve_1_data.last_time, 1500000000);
         });
     }
 
@@ -346,12 +346,12 @@ mod tests {
 
             let reserve_0_data = storage::get_res_data(&e, &reserve_0.asset);
             let reserve_1_data = storage::get_res_data(&e, &reserve_1.asset);
-            assert_eq!(reserve_0_data.last_block, 123);
+            assert_eq!(reserve_0_data.last_time, 1500000000);
             assert_eq!(
                 reserve_0_data.d_supply,
                 d_token_supply_0 - liability_amount_0
             );
-            assert_eq!(reserve_1_data.last_block, 123);
+            assert_eq!(reserve_1_data.last_time, 1500000000);
             assert_eq!(
                 reserve_1_data.d_supply,
                 d_token_supply_1 - liability_amount_1

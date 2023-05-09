@@ -12,6 +12,7 @@ pub fn execute_distribute(e: &Env, backstop: &Address) -> Result<i128, EmitterEr
     let seconds_since_last_distro = timestamp - storage::get_last_distro_time(e);
     // Blend tokens are distributed at a rate of 1 token per second
     let distribution_amount = (seconds_since_last_distro as i128) * SCALAR_7;
+    storage::set_last_distro_time(e, &timestamp);
 
     let blend_id = storage::get_blend_id(e);
     let blend_client = TokenClient::new(e, &blend_id);

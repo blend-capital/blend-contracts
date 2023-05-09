@@ -55,6 +55,7 @@ export function createDeployPool(config, poolAdmin, salt, backstopRate, name) {
   return contract.call(
     "deploy",
     new Address(poolAdmin).toScVal(),
+    xdr.ScVal.scvSymbol(name),
     xdr.ScVal.scvBytes(salt),
     xdr.ScVal.scvBytes(Buffer.from(config.getContractId("oracle"), "hex")),
     xdr.ScVal.scvU64(xdr.Uint64.fromString(backstopRate))

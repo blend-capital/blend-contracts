@@ -1,7 +1,6 @@
 import { Contract, xdr, Address } from "soroban-client";
-import * as convert from "@soroban-react/utils";
 import { Config } from "../config.js";
-import BigNumber from "bignumber.js";
+import { bigintToI128 } from "../utils.js";
 
 /********** Operation Builders **********/
 
@@ -23,7 +22,7 @@ export function createInitialize(config) {
  * @param {Config} config
  * @param {string} poolName
  * @param {string} from
- * @param {BigNumber} amount
+ * @param {BigInt} amount
  * @returns {xdr.Operation<Operation.InvokeHostFunction>}
  */
 export function createDeposit(config, poolName, from, amount) {
@@ -32,7 +31,7 @@ export function createDeposit(config, poolName, from, amount) {
     "deposit",
     new Address(from).toScVal(),
     xdr.ScVal.scvBytes(Buffer.from(config.getContractId(poolName), "hex")),
-    convert.bigNumberToI128(amount)
+    bigintToI128(amount)
   );
 }
 
@@ -40,7 +39,7 @@ export function createDeposit(config, poolName, from, amount) {
  * @param {Config} config
  * @param {string} poolName
  * @param {string} from
- * @param {BigNumber} amount
+ * @param {BigInt} amount
  * @returns {xdr.Operation<Operation.InvokeHostFunction>}
  */
 export function createQueueWithdraw(config, poolName, from, amount) {
@@ -49,7 +48,7 @@ export function createQueueWithdraw(config, poolName, from, amount) {
     "q_withdraw",
     new Address(from).toScVal(),
     xdr.ScVal.scvBytes(Buffer.from(config.getContractId(poolName), "hex")),
-    convert.bigNumberToI128(amount)
+    bigintToI128(amount)
   );
 }
 
@@ -57,7 +56,7 @@ export function createQueueWithdraw(config, poolName, from, amount) {
  * @param {Config} config
  * @param {string} poolName
  * @param {string} from
- * @param {BigNumber} amount
+ * @param {BigInt} amount
  * @returns {xdr.Operation<Operation.InvokeHostFunction>}
  */
 export function createDequeueWithdraw(config, poolName, from, amount) {
@@ -66,7 +65,7 @@ export function createDequeueWithdraw(config, poolName, from, amount) {
     "dequeue_wd",
     new Address(from).toScVal(),
     xdr.ScVal.scvBytes(Buffer.from(config.getContractId(poolName), "hex")),
-    convert.bigNumberToI128(amount)
+    bigintToI128(amount)
   );
 }
 
@@ -74,7 +73,7 @@ export function createDequeueWithdraw(config, poolName, from, amount) {
  * @param {Config} config
  * @param {string} poolName
  * @param {string} from
- * @param {BigNumber} amount
+ * @param {BigInt} amount
  * @returns {xdr.Operation<Operation.InvokeHostFunction>}
  */
 export function createWithdraw(config, poolName, from, amount) {
@@ -83,7 +82,7 @@ export function createWithdraw(config, poolName, from, amount) {
     "withdraw",
     new Address(from).toScVal(),
     xdr.ScVal.scvBytes(Buffer.from(config.getContractId(poolName), "hex")),
-    convert.bigNumberToI128(amount)
+    bigintToI128(amount)
   );
 }
 

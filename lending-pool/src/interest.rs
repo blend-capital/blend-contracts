@@ -3,7 +3,7 @@ use fixed_point_math::{FixedPoint, STROOP};
 use soroban_sdk::Env;
 
 use crate::{
-    constants::{BLOCKS_PER_YEAR, SCALAR_9},
+    constants::{BLOCKS_PER_YEAR, SCALAR_9, SECONDS_PER_YEAR},
     storage::ReserveConfig,
 };
 
@@ -23,7 +23,7 @@ pub fn calc_accrual(
     config: &ReserveConfig,
     cur_util: i128,
     ir_mod: i128,
-    last_block: u32,
+    last_time: u64,
 ) -> (i128, i128) {
     let cur_ir: i128;
     let target_util: i128 = i128(config.util);
@@ -62,12 +62,12 @@ pub fn calc_accrual(
 
     // update rate_modifier
     // scale delta blocks and util dif to 9 decimals
-    let delta_blocks_scaled = i128(e.ledger().sequence() - last_block) * SCALAR_9;
+    let delta_time_scaled = i128(e.ledger().timestamp() - last_time) * SCALAR_9;
     let util_dif_scaled = (cur_util - target_util) * 100;
     let new_ir_mod: i128;
     if util_dif_scaled >= 0 {
         // rate modifier increasing
-        let util_error = delta_blocks_scaled
+        let util_error = delta_time_scaled
             .fixed_mul_floor(util_dif_scaled, SCALAR_9)
             .unwrap();
         let rate_dif = util_error
@@ -81,7 +81,7 @@ pub fn calc_accrual(
         }
     } else {
         // rate modifier decreasing
-        let util_error = delta_blocks_scaled
+        let util_error = delta_time_scaled
             .fixed_mul_ceil(util_dif_scaled, SCALAR_9)
             .unwrap();
         let rate_dif = util_error
@@ -96,9 +96,9 @@ pub fn calc_accrual(
     }
 
     // calc accrual amount over blocks
-    let block_weight = delta_blocks_scaled / BLOCKS_PER_YEAR;
+    let time_weight = delta_time_scaled / SECONDS_PER_YEAR;
     (
-        1_000_000_000 + block_weight.fixed_mul_ceil(cur_ir * 100, SCALAR_9).unwrap(),
+        1_000_000_000 + time_weight.fixed_mul_ceil(cur_ir * 100, SCALAR_9).unwrap(),
         new_ir_mod,
     )
 }
@@ -121,7 +121,7 @@ mod tests {
         reserve.data.d_supply = 65_0000000;
 
         e.ledger().set(LedgerInfo {
-            timestamp: 12345,
+            timestamp: 500,
             protocol_version: 1,
             sequence_number: 100,
             network_id: Default::default(),
@@ -146,7 +146,7 @@ mod tests {
         reserve.data.d_supply = 79_0000000;
 
         e.ledger().set(LedgerInfo {
-            timestamp: 12345,
+            timestamp: 500,
             protocol_version: 1,
             sequence_number: 100,
             network_id: Default::default(),
@@ -171,7 +171,7 @@ mod tests {
         reserve.data.d_supply = 96_0000000;
 
         e.ledger().set(LedgerInfo {
-            timestamp: 12345,
+            timestamp: 500,
             protocol_version: 1,
             sequence_number: 100,
             network_id: Default::default(),
@@ -222,7 +222,7 @@ mod tests {
         reserve.data.d_supply = 20_0000000;
 
         e.ledger().set(LedgerInfo {
-            timestamp: 12345,
+            timestamp: 10000 * 5,
             protocol_version: 1,
             sequence_number: 10000,
             network_id: Default::default(),
@@ -247,7 +247,7 @@ mod tests {
         reserve.data.d_supply = 20_0000000;
 
         e.ledger().set(LedgerInfo {
-            timestamp: 12345,
+            timestamp: 501,
             protocol_version: 1,
             sequence_number: 100,
             network_id: Default::default(),
@@ -259,7 +259,7 @@ mod tests {
             &reserve.config,
             0_0500000,
             i128(reserve.data.ir_mod),
-            99,
+            500,
         );
 
         assert_eq!(accrual, 1_000_000_001);

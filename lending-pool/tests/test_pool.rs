@@ -140,9 +140,9 @@ fn test_pool_wasm_smoke() {
     // allow interest to accumulate
     // IR -> 6%
     e.ledger().set(LedgerInfo {
-        timestamp: START_TIME + 12345,
+        timestamp: START_TIME + 31536000, // 1 year
         protocol_version: 1,
-        sequence_number: 6307200, // 1 year
+        sequence_number: 6307200,
         network_id: Default::default(),
         base_reserve: 10,
     });

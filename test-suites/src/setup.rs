@@ -4,10 +4,7 @@ use soroban_sdk::{
 };
 
 use crate::{
-    pool::{
-        default_reserve_metadata, PoolDataKey, ReserveEmissionMetadata, ReserveEmissionsConfig,
-        UserEmissionData, UserReserveKey,
-    },
+    pool::{default_reserve_metadata, ReserveEmissionMetadata},
     test_fixture::{TestFixture, TokenIndex, SCALAR_7},
 };
 
@@ -28,16 +25,17 @@ pub fn create_fixture_with_data() -> (TestFixture, Address) {
     xlm_meta.c_factor = 0_750_0000;
     xlm_meta.l_factor = 0_750_0000;
     xlm_meta.util = 0_500_0000;
-    fixture.create_pool_reserve(0, TokenIndex::XLM as usize, &usdc_meta);
+    fixture.create_pool_reserve(0, TokenIndex::XLM as usize, &xlm_meta);
 
     let mut weth_meta = default_reserve_metadata();
     weth_meta.c_factor = 0_800_0000;
     weth_meta.l_factor = 0_800_0000;
     weth_meta.util = 0_700_0000;
-    fixture.create_pool_reserve(0, TokenIndex::WETH as usize, &usdc_meta);
+    fixture.create_pool_reserve(0, TokenIndex::WETH as usize, &weth_meta);
 
     // enable emissions for pool
     let pool_fixture = &fixture.pools[0];
+
     let reserve_emissions: soroban_sdk::Vec<ReserveEmissionMetadata> = soroban_sdk::vec![
         &fixture.env,
         ReserveEmissionMetadata {
@@ -137,6 +135,7 @@ pub fn create_fixture_with_data() -> (TestFixture, Address) {
 
 #[cfg(test)]
 mod tests {
+
     use super::*;
 
     #[test]

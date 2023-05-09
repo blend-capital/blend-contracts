@@ -379,7 +379,7 @@ mod tests {
         e.budget().reset_unlimited();
         let mut reserve_0 = create_reserve(&e);
         reserve_0.b_rate = Some(1_100_000_000);
-        reserve_0.data.last_block = 50;
+        reserve_0.data.last_time = 12345;
         reserve_0.config.c_factor = 0_8500000;
         reserve_0.config.l_factor = 0_9000000;
         reserve_0.config.index = 0;
@@ -388,7 +388,7 @@ mod tests {
 
         let mut reserve_1 = create_reserve(&e);
         reserve_1.b_rate = Some(1_200_000_000);
-        reserve_1.data.last_block = 50;
+        reserve_1.data.last_time = 12345;
         reserve_1.config.c_factor = 0_7500000;
         reserve_1.config.l_factor = 0_7500000;
         reserve_1.config.index = 1;
@@ -396,7 +396,7 @@ mod tests {
         let b_token_1 = TokenClient::new(&e, &reserve_1.config.b_token);
 
         let mut reserve_2 = create_reserve(&e);
-        reserve_2.data.last_block = 50;
+        reserve_2.data.last_time = 12345;
         reserve_2.config.c_factor = 0_0000000;
         reserve_2.config.l_factor = 0_7000000;
         reserve_2.config.index = 2;
@@ -468,7 +468,7 @@ mod tests {
         e.budget().reset_unlimited();
         let mut reserve_0 = create_reserve(&e);
         reserve_0.b_rate = Some(1_100_000_000);
-        reserve_0.data.last_block = 50;
+        reserve_0.data.last_time = 12345;
         reserve_0.config.c_factor = 0_8500000;
         reserve_0.config.l_factor = 0_9000000;
         reserve_0.config.index = 0;
@@ -477,7 +477,7 @@ mod tests {
 
         let mut reserve_1 = create_reserve(&e);
         reserve_1.b_rate = Some(1_200_000_000);
-        reserve_1.data.last_block = 50;
+        reserve_1.data.last_time = 12345;
         reserve_1.config.c_factor = 0_7500000;
         reserve_1.config.l_factor = 0_7500000;
         reserve_1.config.index = 1;
@@ -485,7 +485,7 @@ mod tests {
         let b_token_1 = TokenClient::new(&e, &reserve_1.config.b_token);
 
         let mut reserve_2 = create_reserve(&e);
-        reserve_2.data.last_block = 50;
+        reserve_2.data.last_time = 12345;
         reserve_2.config.c_factor = 0_0000000;
         reserve_2.config.l_factor = 0_7000000;
         reserve_2.config.index = 2;
@@ -557,7 +557,7 @@ mod tests {
         e.budget().reset_unlimited();
         let mut reserve_0 = create_reserve(&e);
         reserve_0.b_rate = Some(1_100_000_000);
-        reserve_0.data.last_block = 50;
+        reserve_0.data.last_time = 12345;
         reserve_0.config.c_factor = 0_8500000;
         reserve_0.config.l_factor = 0_9000000;
         reserve_0.config.index = 0;
@@ -566,7 +566,7 @@ mod tests {
 
         let mut reserve_1 = create_reserve(&e);
         reserve_1.b_rate = Some(1_200_000_000);
-        reserve_1.data.last_block = 50;
+        reserve_1.data.last_time = 12345;
         reserve_1.config.c_factor = 0_7500000;
         reserve_1.config.l_factor = 0_7500000;
         reserve_1.config.index = 1;
@@ -574,7 +574,7 @@ mod tests {
         let b_token_1 = TokenClient::new(&e, &reserve_1.config.b_token);
 
         let mut reserve_2 = create_reserve(&e);
-        reserve_2.data.last_block = 50;
+        reserve_2.data.last_time = 12345;
         reserve_2.config.c_factor = 0_0000000;
         reserve_2.config.l_factor = 0_7000000;
         reserve_2.config.index = 2;
@@ -642,7 +642,7 @@ mod tests {
         e.budget().reset_unlimited();
         let mut reserve_0 = create_reserve(&e);
         reserve_0.b_rate = Some(1_100_000_000);
-        reserve_0.data.last_block = 50;
+        reserve_0.data.last_time = 12345;
         reserve_0.config.c_factor = 0_8500000;
         reserve_0.config.l_factor = 0_9000000;
         reserve_0.config.index = 0;
@@ -651,7 +651,7 @@ mod tests {
 
         let mut reserve_1 = create_reserve(&e);
         reserve_1.b_rate = Some(1_200_000_000);
-        reserve_1.data.last_block = 50;
+        reserve_1.data.last_time = 12345;
         reserve_1.config.c_factor = 0_7500000;
         reserve_1.config.l_factor = 0_7500000;
         reserve_1.config.index = 1;
@@ -659,7 +659,7 @@ mod tests {
         let b_token_1 = TokenClient::new(&e, &reserve_1.config.b_token);
 
         let mut reserve_2 = create_reserve(&e);
-        reserve_2.data.last_block = 50;
+        reserve_2.data.last_time = 12345;
         reserve_2.config.c_factor = 0_0000000;
         reserve_2.config.l_factor = 0_7000000;
         reserve_2.config.index = 2;
@@ -729,7 +729,7 @@ mod tests {
         e.budget().reset_unlimited();
         let mut reserve_0 = create_reserve(&e);
         reserve_0.b_rate = Some(1_100_000_000);
-        reserve_0.data.last_block = 50;
+        reserve_0.data.last_time = 12345;
         reserve_0.config.c_factor = 0_8500000;
         reserve_0.config.l_factor = 0_9000000;
         reserve_0.config.index = 0;
@@ -738,7 +738,7 @@ mod tests {
 
         let mut reserve_1 = create_reserve(&e);
         reserve_1.b_rate = Some(1_200_000_000);
-        reserve_1.data.last_block = 50;
+        reserve_1.data.last_time = 12345;
         reserve_1.config.c_factor = 0_7500000;
         reserve_1.config.l_factor = 0_7500000;
         reserve_1.config.index = 1;
@@ -746,7 +746,7 @@ mod tests {
         let b_token_1 = TokenClient::new(&e, &reserve_1.config.b_token);
 
         let mut reserve_2 = create_reserve(&e);
-        reserve_2.data.last_block = 50;
+        reserve_2.data.last_time = 12345;
         reserve_2.config.c_factor = 0_0000000;
         reserve_2.config.l_factor = 0_7000000;
         reserve_2.config.index = 2;
@@ -812,7 +812,7 @@ mod tests {
         e.budget().reset_unlimited();
         let mut reserve_0 = create_reserve(&e);
         reserve_0.b_rate = Some(1_100_000_000);
-        reserve_0.data.last_block = 50;
+        reserve_0.data.last_time = 12345;
         reserve_0.config.c_factor = 0_8500000;
         reserve_0.config.l_factor = 0_9000000;
         reserve_0.config.index = 0;
@@ -821,7 +821,7 @@ mod tests {
 
         let mut reserve_1 = create_reserve(&e);
         reserve_1.b_rate = Some(1_200_000_000);
-        reserve_1.data.last_block = 50;
+        reserve_1.data.last_time = 12345;
         reserve_1.config.c_factor = 0_7500000;
         reserve_1.config.l_factor = 0_7500000;
         reserve_1.config.index = 1;
@@ -829,7 +829,7 @@ mod tests {
         let b_token_1 = TokenClient::new(&e, &reserve_1.config.b_token);
 
         let mut reserve_2 = create_reserve(&e);
-        reserve_2.data.last_block = 50;
+        reserve_2.data.last_time = 12345;
         reserve_2.config.c_factor = 0_0000000;
         reserve_2.config.l_factor = 0_7000000;
         reserve_2.config.index = 2;
@@ -895,7 +895,7 @@ mod tests {
         e.budget().reset_unlimited();
         let mut reserve_0 = create_reserve(&e);
         reserve_0.b_rate = Some(1_100_000_000);
-        reserve_0.data.last_block = 50;
+        reserve_0.data.last_time = 12345;
         reserve_0.config.c_factor = 0_8500000;
         reserve_0.config.l_factor = 0_9000000;
         reserve_0.config.index = 0;
@@ -904,7 +904,7 @@ mod tests {
 
         let mut reserve_1 = create_reserve(&e);
         reserve_1.b_rate = Some(1_200_000_000);
-        reserve_1.data.last_block = 50;
+        reserve_1.data.last_time = 12345;
         reserve_1.config.c_factor = 0_7500000;
         reserve_1.config.l_factor = 0_7500000;
         reserve_1.config.index = 1;
@@ -912,7 +912,7 @@ mod tests {
         let b_token_1 = TokenClient::new(&e, &reserve_1.config.b_token);
 
         let mut reserve_2 = create_reserve(&e);
-        reserve_2.data.last_block = 50;
+        reserve_2.data.last_time = 12345;
         reserve_2.config.c_factor = 0_0000000;
         reserve_2.config.l_factor = 0_7000000;
         reserve_2.config.index = 2;
@@ -979,7 +979,7 @@ mod tests {
         e.budget().reset_unlimited();
         let mut reserve_0 = create_reserve(&e);
         reserve_0.b_rate = Some(1_100_000_000);
-        reserve_0.data.last_block = 175;
+        reserve_0.data.last_time = 12345;
         reserve_0.config.c_factor = 0_8500000;
         reserve_0.config.l_factor = 0_9000000;
         reserve_0.config.index = 0;
@@ -988,7 +988,7 @@ mod tests {
 
         let mut reserve_1 = create_reserve(&e);
         reserve_1.b_rate = Some(1_200_000_000);
-        reserve_1.data.last_block = 175;
+        reserve_1.data.last_time = 12345;
         reserve_1.config.c_factor = 0_7500000;
         reserve_1.config.l_factor = 0_7500000;
         reserve_1.config.index = 1;
@@ -996,7 +996,7 @@ mod tests {
         let b_token_1 = TokenClient::new(&e, &reserve_1.config.b_token);
 
         let mut reserve_2 = create_reserve(&e);
-        reserve_2.data.last_block = 175;
+        reserve_2.data.last_time = 12345;
         reserve_2.config.c_factor = 0_0000000;
         reserve_2.config.l_factor = 0_7000000;
         reserve_2.config.index = 2;
@@ -1085,7 +1085,7 @@ mod tests {
 
         let mut reserve_0 = create_reserve(&e);
         reserve_0.b_rate = Some(1_000_000_000);
-        reserve_0.data.last_block = 50;
+        reserve_0.data.last_time = 12345;
         reserve_0.config.c_factor = 0_8500000;
         reserve_0.config.l_factor = 0_9000000;
         reserve_0.config.index = 0;
@@ -1094,7 +1094,7 @@ mod tests {
 
         let mut reserve_1 = create_reserve(&e);
         reserve_1.b_rate = Some(1_000_000_000);
-        reserve_1.data.last_block = 50;
+        reserve_1.data.last_time = 12345;
         reserve_1.config.c_factor = 0_0000000;
         reserve_1.config.l_factor = 0_7000000;
         reserve_1.config.index = 1;
@@ -1146,7 +1146,7 @@ mod tests {
             assert_eq!(result.lot.len(), 1);
             //scale up modifiers
             e.ledger().set(LedgerInfo {
-                timestamp: 12345,
+                timestamp: 12345 + 399 * 5,
                 protocol_version: 1,
                 sequence_number: 50 + 399,
                 network_id: Default::default(),
@@ -1209,7 +1209,7 @@ mod tests {
 
         let mut reserve_0 = create_reserve(&e);
         reserve_0.b_rate = Some(2_100_000_000);
-        reserve_0.data.last_block = 50;
+        reserve_0.data.last_time = 12345;
         reserve_0.config.c_factor = 0_8500000;
         reserve_0.config.l_factor = 0_9000000;
         reserve_0.config.index = 0;
@@ -1218,7 +1218,7 @@ mod tests {
 
         let mut reserve_1 = create_reserve(&e);
         reserve_1.b_rate = Some(1_000_000_000);
-        reserve_1.data.last_block = 50;
+        reserve_1.data.last_time = 12345;
         reserve_1.config.c_factor = 0_0000000;
         reserve_1.config.l_factor = 0_7000000;
         reserve_1.config.index = 1;
@@ -1325,7 +1325,7 @@ mod tests {
 
         let mut reserve_0 = create_reserve(&e);
         reserve_0.b_rate = Some(1_000_000_000);
-        reserve_0.data.last_block = 50;
+        reserve_0.data.last_time = 12345;
         reserve_0.config.c_factor = 0_8500000;
         reserve_0.config.l_factor = 0_9000000;
         reserve_0.config.index = 0;
@@ -1334,7 +1334,7 @@ mod tests {
 
         let mut reserve_1 = create_reserve(&e);
         reserve_1.b_rate = Some(1_000_000_000);
-        reserve_1.data.last_block = 50;
+        reserve_1.data.last_time = 12345;
         reserve_1.config.c_factor = 0_0000000;
         reserve_1.config.l_factor = 0_7000000;
         reserve_1.config.index = 1;
@@ -1386,7 +1386,7 @@ mod tests {
             assert_eq!(result.lot.len(), 1);
             //scale up modifiers
             e.ledger().set(LedgerInfo {
-                timestamp: 12345,
+                timestamp: 12345 + 399 * 5,
                 protocol_version: 1,
                 sequence_number: 50 + 399,
                 network_id: Default::default(),
@@ -1449,7 +1449,7 @@ mod tests {
 
         let mut reserve_0 = create_reserve(&e);
         reserve_0.b_rate = Some(1_300_000_000);
-        reserve_0.data.last_block = 50;
+        reserve_0.data.last_time = 12345;
         reserve_0.config.c_factor = 0_8500000;
         reserve_0.config.l_factor = 0_9000000;
         reserve_0.config.index = 0;
@@ -1459,7 +1459,7 @@ mod tests {
         let mut reserve_1 = create_reserve(&e);
         reserve_1.b_rate = Some(1_600_000_000);
         reserve_1.data.d_rate = 2_100_000_000;
-        reserve_1.data.last_block = 50;
+        reserve_1.data.last_time = 12345;
         reserve_1.config.c_factor = 0_1000000;
         reserve_1.config.l_factor = 0_7000000;
         reserve_1.config.index = 1;

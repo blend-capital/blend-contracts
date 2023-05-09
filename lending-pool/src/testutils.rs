@@ -177,7 +177,7 @@ pub(crate) fn create_reserve(e: &Env) -> Reserve {
             r_one: 0_0500000,
             r_two: 0_5000000,
             r_three: 1_5000000,
-            reactivity: 0_000_010_000, // 10e-5
+            reactivity: 0_000_002_000, // 10e-5
             index: 0,
         },
         data: ReserveData {
@@ -185,7 +185,7 @@ pub(crate) fn create_reserve(e: &Env) -> Reserve {
             ir_mod: 1_000_000_000,
             b_supply: 100_0000000,
             d_supply: 75_0000000,
-            last_block: 0,
+            last_time: 0,
         },
         b_rate: Some(1_000_000_000),
     }

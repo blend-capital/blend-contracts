@@ -64,7 +64,7 @@ pub struct ReserveData {
     // TODO: Remove or fix these once final choice on totalSupply for native or custom tokens added
     pub b_supply: i128, // the total supply of b tokens - TODO: File issue to support u128 (likely added on token update to u128)
     pub d_supply: i128, // the total supply of d tokens
-    pub last_block: u32, // the last block the data was updated
+    pub last_time: u64, // the last block the data was updated
 }
 
 /// The configuration of emissions for the reserve b or d token

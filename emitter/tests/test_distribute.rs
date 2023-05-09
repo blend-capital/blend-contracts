@@ -2,7 +2,7 @@
 
 use soroban_sdk::{
     testutils::{Address as _, BytesN as _, Ledger, LedgerInfo},
-    Address, BytesN, Env,
+    vec, Address, BytesN, Env, Symbol,
 };
 
 mod common;
@@ -41,13 +41,20 @@ fn test_distribute() {
         base_reserve: 10,
     });
 
-    e.as_contract(&backstop_id, || {
-        let result = emitter_client.distribute();
+    let result = emitter_client.distribute();
+    assert_eq!(
+        e.recorded_top_authorizations()[0],
+        (
+            backstop.clone(),
+            emitter_id.clone(),
+            Symbol::new(&e, "distribute"),
+            vec![&e]
+        )
+    );
 
-        let expected_emissions: i128 = ((seconds_passed + 7 * 24 * 60 * 60) * 1_0000000) as i128;
-        assert_eq!(result, expected_emissions);
-        assert_eq!(blnd_client.balance(&backstop), expected_emissions);
-    });
+    let expected_emissions: i128 = ((seconds_passed + 7 * 24 * 60 * 60) * 1_0000000) as i128;
+    assert_eq!(result, expected_emissions);
+    assert_eq!(blnd_client.balance(&backstop), expected_emissions);
 
     e.ledger().set(LedgerInfo {
         timestamp: 10000000 + seconds_passed * 2,
@@ -57,12 +64,13 @@ fn test_distribute() {
         base_reserve: 10,
     });
 
-    e.as_contract(&backstop_id, || {
-        let pre_balance = blnd_client.balance(&backstop);
-        let result = emitter_client.distribute();
+    let pre_balance = blnd_client.balance(&backstop);
+    let result = emitter_client.distribute();
 
-        let expected_emissions: i128 = (seconds_passed * 1_0000000) as i128;
-        assert_eq!(result, expected_emissions);
-        assert_eq!(blnd_client.balance(&backstop), expected_emissions + pre_balance);
-    });
+    let expected_emissions: i128 = (seconds_passed * 1_0000000) as i128;
+    assert_eq!(result, expected_emissions);
+    assert_eq!(
+        blnd_client.balance(&backstop),
+        expected_emissions + pre_balance
+    );
 }

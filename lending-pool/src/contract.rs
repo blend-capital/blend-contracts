@@ -555,6 +555,8 @@ impl PoolContractTrait for PoolContract {
         reserve_token_ids: Vec<u32>,
         to: Address,
     ) -> Result<i128, PoolError> {
+        from.require_auth();
+
         let amount_claimed = emissions::execute_claim(&e, &from, &reserve_token_ids, &to)?;
 
         e.events().publish(
@@ -620,6 +622,8 @@ impl PoolContractTrait for PoolContract {
         auction_type: u32,
         user: Address,
     ) -> Result<AuctionQuote, PoolError> {
+        from.require_auth();
+
         let auction_quote = auctions::fill(&e, auction_type, &user, &from)?;
 
         e.events()

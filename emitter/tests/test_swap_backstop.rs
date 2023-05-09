@@ -2,7 +2,7 @@
 
 use common::create_backstop;
 use soroban_sdk::{
-    testutils::{Address as _, BytesN as _, LedgerInfo, Ledger},
+    testutils::{Address as _, BytesN as _, Ledger, LedgerInfo},
     Address, BytesN, Env,
 };
 
@@ -53,6 +53,7 @@ fn test_swap_backstop() {
     // mint an additional stroop and verify swap succeeds
     backstop_token_client.mint(&bombadil, &new_backstop, &1);
     emitter_client.swap_bstop(&new_backstop_id);
+    assert_eq!(e.recorded_top_authorizations(), []);
 
     assert_eq!(emitter_client.get_bstop(), new_backstop_id);
 }

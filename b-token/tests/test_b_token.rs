@@ -1,6 +1,6 @@
 use soroban_sdk::{
     testutils::{Address as _, BytesN as _},
-    Address, BytesN, Env, IntoVal, Status,
+    vec, Address, BytesN, Env, IntoVal, Status, Symbol,
 };
 
 mod common;
@@ -24,13 +24,28 @@ fn test_mint() {
 
     let pool_id = BytesN::<32>::random(&e);
     let pool = Address::from_contract_id(&e, &pool_id);
-    let (_, b_token_client) = create_and_init_b_token(&e, &pool, &pool_id, &2);
+    let (b_token_id, b_token_client) = create_and_init_b_token(&e, &pool, &pool_id, &2);
 
     let samwise = Address::random(&e);
     let sauron = Address::random(&e);
 
     // verify happy path
     b_token_client.mint(&pool, &samwise, &123456789);
+    let authorizations = e.recorded_top_authorizations();
+    assert_eq!(
+        authorizations[0],
+        (
+            pool.clone(),
+            b_token_id.clone(),
+            Symbol::new(&e, "mint"),
+            vec![
+                &e,
+                pool.clone().to_raw(),
+                samwise.clone().to_raw(),
+                123456789_i128.into_val(&e)
+            ]
+        )
+    );
     assert_eq!(123456789, b_token_client.balance(&samwise));
 
     // verify only pool can mint
@@ -54,7 +69,7 @@ fn test_clawback() {
 
     let pool_id = BytesN::<32>::random(&e);
     let pool = Address::from_contract_id(&e, &pool_id);
-    let (_, b_token_client) = create_and_init_b_token(&e, &pool, &pool_id, &2);
+    let (b_token_id, b_token_client) = create_and_init_b_token(&e, &pool, &pool_id, &2);
 
     let samwise = Address::random(&e);
     let sauron = Address::random(&e);
@@ -64,6 +79,21 @@ fn test_clawback() {
     assert_eq!(123456789, b_token_client.balance(&samwise));
 
     b_token_client.clawback(&pool, &samwise, &23456789);
+    let authorizations = e.recorded_top_authorizations();
+    assert_eq!(
+        authorizations[0],
+        (
+            pool.clone(),
+            b_token_id.clone(),
+            Symbol::new(&e, "clawback"),
+            vec![
+                &e,
+                pool.clone().to_raw(),
+                samwise.clone().to_raw(),
+                23456789_i128.into_val(&e)
+            ]
+        )
+    );
     assert_eq!(100000000, b_token_client.balance(&samwise));
 
     // verify only pool can clawback
@@ -88,13 +118,28 @@ fn test_incr_allow() {
     let res_index = 7;
     let pool_id = BytesN::<32>::random(&e);
     let pool = Address::from_contract_id(&e, &pool_id);
-    let (_, b_token_client) = create_and_init_b_token(&e, &pool, &pool_id, &res_index);
+    let (b_token_id, b_token_client) = create_and_init_b_token(&e, &pool, &pool_id, &res_index);
 
     let samwise = Address::random(&e);
     let spender = Address::random(&e);
 
     // verify happy path
     b_token_client.incr_allow(&samwise, &spender, &123456789);
+    let authorizations = e.recorded_top_authorizations();
+    assert_eq!(
+        authorizations[0],
+        (
+            samwise.clone(),
+            b_token_id.clone(),
+            Symbol::new(&e, "incr_allow"),
+            vec![
+                &e,
+                samwise.clone().to_raw(),
+                spender.clone().to_raw(),
+                123456789_i128.into_val(&e)
+            ]
+        )
+    );
     assert_eq!(123456789, b_token_client.allowance(&samwise, &spender));
 
     // verify negative balance cannot be used
@@ -112,7 +157,7 @@ fn test_decr_allow() {
     let res_index = 7;
     let pool_id = BytesN::<32>::random(&e);
     let pool = Address::from_contract_id(&e, &pool_id);
-    let (_, b_token_client) = create_and_init_b_token(&e, &pool, &pool_id, &res_index);
+    let (b_token_id, b_token_client) = create_and_init_b_token(&e, &pool, &pool_id, &res_index);
 
     let samwise = Address::random(&e);
     let spender = Address::random(&e);
@@ -120,6 +165,21 @@ fn test_decr_allow() {
     // verify happy path
     b_token_client.incr_allow(&samwise, &spender, &123456789);
     b_token_client.decr_allow(&samwise, &spender, &23456789);
+    let authorizations = e.recorded_top_authorizations();
+    assert_eq!(
+        authorizations[0],
+        (
+            samwise.clone(),
+            b_token_id.clone(),
+            Symbol::new(&e, "decr_allow"),
+            vec![
+                &e,
+                samwise.clone().to_raw(),
+                spender.clone().to_raw(),
+                23456789_i128.into_val(&e)
+            ]
+        )
+    );
     assert_eq!(100000000, b_token_client.allowance(&samwise, &spender));
 
     // verify negative balance cannot be used
@@ -137,7 +197,7 @@ fn test_xfer() {
     let res_index = 7;
     let (pool_id, pool_client) = create_lending_pool(&e);
     let pool = Address::from_contract_id(&e, &pool_id);
-    let (_, b_token_client) = create_and_init_b_token(&e, &pool, &pool_id, &res_index);
+    let (b_token_id, b_token_client) = create_and_init_b_token(&e, &pool, &pool_id, &res_index);
 
     let samwise = Address::random(&e);
     let frodo = Address::random(&e);
@@ -148,6 +208,21 @@ fn test_xfer() {
     pool_client.set_collat(&samwise, &res_index, &false);
 
     b_token_client.xfer(&samwise, &frodo, &23456789);
+    let authorizations = e.recorded_top_authorizations();
+    assert_eq!(
+        authorizations[0],
+        (
+            samwise.clone(),
+            b_token_id.clone(),
+            Symbol::new(&e, "xfer"),
+            vec![
+                &e,
+                samwise.clone().to_raw(),
+                frodo.clone().to_raw(),
+                23456789_i128.into_val(&e)
+            ]
+        )
+    );
     assert_eq!(100000000, b_token_client.balance(&samwise));
     assert_eq!(23456789, b_token_client.balance(&frodo));
 
@@ -174,7 +249,7 @@ fn test_xfer_from() {
     let res_index = 7;
     let (pool_id, pool_client) = create_lending_pool(&e);
     let pool = Address::from_contract_id(&e, &pool_id);
-    let (_, b_token_client) = create_and_init_b_token(&e, &pool, &pool_id, &res_index);
+    let (b_token_id, b_token_client) = create_and_init_b_token(&e, &pool, &pool_id, &res_index);
 
     let samwise = Address::random(&e);
     let frodo = Address::random(&e);
@@ -187,6 +262,22 @@ fn test_xfer_from() {
 
     b_token_client.incr_allow(&samwise, &spender, &223456789);
     b_token_client.xfer_from(&spender, &samwise, &frodo, &23456789);
+    let authorizations = e.recorded_top_authorizations();
+    assert_eq!(
+        authorizations[0],
+        (
+            spender.clone(),
+            b_token_id.clone(),
+            Symbol::new(&e, "xfer_from"),
+            vec![
+                &e,
+                spender.clone().to_raw(),
+                samwise.clone().to_raw(),
+                frodo.clone().to_raw(),
+                23456789_i128.into_val(&e)
+            ]
+        )
+    );
     assert_eq!(100000000, b_token_client.balance(&samwise));
     assert_eq!(23456789, b_token_client.balance(&frodo));
     assert_eq!(200000000, b_token_client.allowance(&samwise, &spender));

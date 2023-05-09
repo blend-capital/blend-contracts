@@ -89,7 +89,7 @@ impl CAP4606 for Token {
     }
 
     fn xfer_from(e: Env, spender: Address, from: Address, to: Address, amount: i128) {
-        from.require_auth();
+        spender.require_auth();
 
         require_nonnegative(&e, amount);
         require_noncollateralized(&e, &from);

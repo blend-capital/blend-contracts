@@ -25,7 +25,7 @@ mod pool {
 }
 pub use pool::{
     AuctionData, Client as PoolClient, LiquidationMetadata, PoolError, ReserveConfig, ReserveData,
-    ReserveMetadata,
+    ReserveEmissionMetadata, ReserveMetadata,
 };
 
 mod backstop {
@@ -41,6 +41,13 @@ mod mock_blend_oracle {
     );
 }
 pub use mock_blend_oracle::{Client as MockOracleClient, OracleError};
+
+mod mock_pool_factory {
+    soroban_sdk::contractimport!(
+        file = "../target/wasm32-unknown-unknown/release/mock_pool_factory.wasm"
+    );
+}
+pub use mock_pool_factory::Client as MockPoolFactoryClient;
 
 pub fn generate_contract_id(e: &Env) -> BytesN<32> {
     let mut id: [u8; 32] = Default::default();
@@ -79,6 +86,15 @@ pub fn create_mock_oracle(e: &Env) -> (BytesN<32>, MockOracleClient) {
     let contract_id = generate_contract_id(e);
     e.register_contract_wasm(&contract_id, mock_blend_oracle::WASM);
     (contract_id.clone(), MockOracleClient::new(e, &contract_id))
+}
+
+pub fn create_mock_pool_factory(e: &Env) -> (BytesN<32>, MockPoolFactoryClient) {
+    let contract_id = generate_contract_id(e);
+    e.register_contract_wasm(&contract_id, mock_pool_factory::WASM);
+    (
+        contract_id.clone(),
+        MockPoolFactoryClient::new(e, &contract_id),
+    )
 }
 
 // Contract specific test functions

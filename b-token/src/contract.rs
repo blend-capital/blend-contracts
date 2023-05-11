@@ -32,7 +32,7 @@ impl CAP4606 for Token {
         admin.require_auth();
 
         require_nonnegative(&e, amount);
-        balance::spend_balance(&e, &from, &amount).unwrap();
+        balance::spend_balance_no_auth(&e, &from, &amount).unwrap();
 
         events::clawback(&e, admin, from, amount);
     }

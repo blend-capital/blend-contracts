@@ -1,6 +1,6 @@
 use soroban_sdk::{Address, Env};
 
-use crate::{errors::TokenError, storage, interface::TokenClient};
+use crate::{errors::TokenError, interface::TokenClient, storage};
 
 /// Spend "amount" of tokens from "user"
 ///
@@ -8,7 +8,7 @@ use crate::{errors::TokenError, storage, interface::TokenClient};
 /// or if the user is not authorized by the underlying asset
 pub fn spend_balance(e: &Env, user: &Address, amount: &i128) -> Result<(), TokenError> {
     is_authorized(e, user)?;
-    spend_balance_unauthorized(e, user, amount)
+    spend_balance_no_auth(e, user, amount)
 }
 
 /// Receive "amount" of tokens to "user"
@@ -29,7 +29,7 @@ pub fn receive_balance(e: &Env, user: &Address, amount: &i128) -> Result<(), Tok
 ///
 /// Errors if their is not enough balance to spend, if the resulting balance is negative
 /// or if the user is not authorized by the underlying asset
-pub fn spend_balance_unauthorized(e: &Env, user: &Address, amount: &i128) -> Result<(), TokenError> {
+pub fn spend_balance_no_auth(e: &Env, user: &Address, amount: &i128) -> Result<(), TokenError> {
     let mut balance = storage::read_balance(e, user);
     balance -= amount;
     if balance.is_negative() {
@@ -73,7 +73,13 @@ mod tests {
         let starting_balance: i128 = 123456789;
         let amount: i128 = starting_balance - 1;
         e.as_contract(&token_id, || {
-            storage::write_asset(&e, &Asset {id: underlying_id.clone(), res_index: 0});
+            storage::write_asset(
+                &e,
+                &Asset {
+                    id: underlying_id.clone(),
+                    res_index: 0,
+                },
+            );
             storage::write_balance(&e, &user, &starting_balance);
 
             spend_balance(&e, &user, &amount).unwrap();
@@ -97,7 +103,13 @@ mod tests {
         let starting_balance: i128 = 123456789;
         let amount: i128 = starting_balance + 1;
         e.as_contract(&token_id, || {
-            storage::write_asset(&e, &Asset {id: underlying_id.clone(), res_index: 0});
+            storage::write_asset(
+                &e,
+                &Asset {
+                    id: underlying_id.clone(),
+                    res_index: 0,
+                },
+            );
             storage::write_balance(&e, &user, &starting_balance);
 
             let result = spend_balance(&e, &user, &amount);
@@ -119,7 +131,13 @@ mod tests {
         let starting_balance: i128 = 123456789;
         let amount: i128 = starting_balance - 1;
         e.as_contract(&token_id, || {
-            storage::write_asset(&e, &Asset {id: underlying_id.clone(), res_index: 0});
+            storage::write_asset(
+                &e,
+                &Asset {
+                    id: underlying_id.clone(),
+                    res_index: 0,
+                },
+            );
             storage::write_balance(&e, &user, &starting_balance);
 
             let result = spend_balance(&e, &user, &amount);
@@ -128,7 +146,7 @@ mod tests {
     }
 
     #[test]
-    fn test_spend_balance_unauthorized() {
+    fn test_spend_balance_no_authorization() {
         let e = Env::default();
 
         let token_id = BytesN::<32>::random(&e);
@@ -141,10 +159,16 @@ mod tests {
         let starting_balance: i128 = 123456789;
         let amount: i128 = starting_balance - 1;
         e.as_contract(&token_id, || {
-            storage::write_asset(&e, &Asset {id: underlying_id.clone(), res_index: 0});
+            storage::write_asset(
+                &e,
+                &Asset {
+                    id: underlying_id.clone(),
+                    res_index: 0,
+                },
+            );
             storage::write_balance(&e, &user, &starting_balance);
 
-            spend_balance_unauthorized(&e, &user, &amount).unwrap();
+            spend_balance_no_auth(&e, &user, &amount).unwrap();
             let balance = storage::read_balance(&e, &user);
             assert_eq!(balance, 1);
         });
@@ -163,7 +187,13 @@ mod tests {
 
         let amount: i128 = 123456789;
         e.as_contract(&token_id, || {
-            storage::write_asset(&e, &Asset {id: underlying_id.clone(), res_index: 0});
+            storage::write_asset(
+                &e,
+                &Asset {
+                    id: underlying_id.clone(),
+                    res_index: 0,
+                },
+            );
             receive_balance(&e, &user, &amount).unwrap();
 
             let balance = storage::read_balance(&e, &user);
@@ -184,7 +214,13 @@ mod tests {
 
         let amount: i128 = 123456789;
         e.as_contract(&token_id, || {
-            storage::write_asset(&e, &Asset {id: underlying_id.clone(), res_index: 0});
+            storage::write_asset(
+                &e,
+                &Asset {
+                    id: underlying_id.clone(),
+                    res_index: 0,
+                },
+            );
             receive_balance(&e, &user, &amount).unwrap();
             let result = receive_balance(&e, &user, &i128::MAX);
             assert_eq!(result, Err(TokenError::OverflowError));
@@ -203,7 +239,13 @@ mod tests {
         TokenClient::new(&e, &underlying_id).set_auth(&bombadil, &user, &false);
 
         e.as_contract(&token_id, || {
-            storage::write_asset(&e, &Asset {id: underlying_id.clone(), res_index: 0});
+            storage::write_asset(
+                &e,
+                &Asset {
+                    id: underlying_id.clone(),
+                    res_index: 0,
+                },
+            );
 
             let result = receive_balance(&e, &user, &i128::MAX);
             assert_eq!(result, Err(TokenError::BalanceDeauthorizedError));

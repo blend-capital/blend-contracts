@@ -1,8 +1,5 @@
 use common::create_d_token;
-use soroban_sdk::{
-    testutils::{Address as _, BytesN as _},
-    Address, Bytes, BytesN, Env, IntoVal, Status,
-};
+use soroban_sdk::{testutils::BytesN as _, Address, Bytes, BytesN, Env, IntoVal, Status};
 
 mod common;
 use crate::common::TokenError;

@@ -1,5 +1,10 @@
-use crate::storage::{self, PoolInitMeta};
-use soroban_sdk::{contractimpl, vec, Address, BytesN, Env, IntoVal, RawVal, Symbol, Vec};
+use crate::{
+    errors::PoolFactoryError,
+    storage::{self, PoolInitMeta},
+};
+use soroban_sdk::{
+    contractimpl, panic_with_error, vec, Address, BytesN, Env, IntoVal, RawVal, Symbol, Vec,
+};
 
 pub struct PoolFactory;
 
@@ -53,6 +58,11 @@ impl PoolFactoryTrait for PoolFactory {
         backstop_take_rate: u64,
     ) -> BytesN<32> {
         let pool_init_meta = storage::get_pool_init_meta(&e);
+
+        // verify backstop take rate is within [0,1) with 9 decimals
+        if backstop_take_rate >= 1_000_000_000 {
+            panic_with_error!(&e, PoolFactoryError::InvalidPoolInitArgs);
+        }
 
         let mut init_args: Vec<RawVal> = vec![&e];
         init_args.push_back(admin.to_raw());

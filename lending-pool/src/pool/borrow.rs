@@ -271,6 +271,8 @@ mod tests {
     #[test]
     fn test_borrow_rounds_d_tokens_up() {
         let e = Env::default();
+        e.budget().reset_unlimited();
+
         let pool_id = BytesN::<32>::random(&e);
         let pool = Address::from_contract_id(&e, &pool_id);
 
@@ -314,8 +316,6 @@ mod tests {
         };
         e.as_contract(&pool_id, || {
             storage::set_pool_config(&e, &pool_config);
-
-            e.budget().reset_unlimited();
 
             //supply as collateral
             execute_supply(&e, &sauron, &reserve_1.asset, 10_0000000).unwrap();

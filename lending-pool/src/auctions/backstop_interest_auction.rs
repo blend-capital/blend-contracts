@@ -60,7 +60,7 @@ pub fn create_interest_auction_data(e: &Env, backstop: &Address) -> Result<Aucti
         .unwrap()
         .fixed_div_floor(i128(usdc_to_base), SCALAR_7)
         .unwrap();
-    // u32::MAX is the key for the backstop token
+    // u32::MAX is the key for the the USDC lot
     auction_data.bid.set(u32::MAX, bid_amount);
 
     Ok(auction_data)

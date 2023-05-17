@@ -197,7 +197,7 @@ fn validate_reserve_metadata(e: &Env, metadata: &ReserveMetadata) -> Result<(), 
     if metadata.decimals > 18
         || metadata.c_factor > 1_0000000
         || metadata.l_factor > 1_0000000
-        || (metadata.util > 0_9500000 || metadata.util < 0_5000000)
+        || metadata.util > 0_9500000
         || (metadata.max_util > 1_0000000 || metadata.max_util <= metadata.util)
         || (metadata.r_one > metadata.r_two || metadata.r_two > metadata.r_three)
         || (metadata.reactivity > 0_0005000)
@@ -209,8 +209,6 @@ fn validate_reserve_metadata(e: &Env, metadata: &ReserveMetadata) -> Result<(), 
 
 #[cfg(test)]
 mod tests {
-    use std::println;
-
     use crate::{
         dependencies::{B_TOKEN_WASM, D_TOKEN_WASM},
         testutils::{create_reserve, create_token_contract, setup_reserve},
@@ -493,11 +491,6 @@ mod tests {
 
         // util
         metadata.util = 0_9500001;
-        assert_eq!(
-            validate_reserve_metadata(&e, &metadata),
-            Err(PoolError::InvalidReserveMetadata)
-        );
-        metadata.util = 0_4999999;
         assert_eq!(
             validate_reserve_metadata(&e, &metadata),
             Err(PoolError::InvalidReserveMetadata)

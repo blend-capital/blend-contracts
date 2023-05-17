@@ -10,6 +10,8 @@ pub enum PoolError {
     BadRequest = 2,
     AlreadyInitialized = 3,
     NegativeAmount = 4,
+    InvalidPoolInitArgs = 5,
+    InvalidReserveMetadata = 6,
     // Pool State Errors (10-19)
     InvalidHf = 10,
     InvalidPoolStatus = 11,

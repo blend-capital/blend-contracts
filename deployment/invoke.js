@@ -9,7 +9,7 @@ import {
   Account,
 } from "soroban-client";
 import { Config } from "./config.js";
-import { createTxBuilder } from "./utils.js";
+import { createTxBuilder, signPrepareAndSubmitTransaction } from "./utils.js";
 import * as token from "./operations/token.js";
 import { setAssetPrices } from "./scripts/oracle.js";
 import { airdropAccounts } from "./scripts/deploy.js";
@@ -29,17 +29,38 @@ let pool_id = config.getContractId(poolName);
 
 let frodo_id = config.getAddress("frodo");
 let bombadil_id = config.getAddress("bombadil");
+let samwise_id = config.getAddress("samwise");
 console.log("frodo: ", frodo_id.publicKey());
 console.log("bombadil_id: ", bombadil_id.publicKey());
+console.log("samwise_id: ", samwise_id.publicKey());
 
 console.log(frodo_id.publicKey());
 let address_frodo = new Address(frodo_id.publicKey());
 let address_pool = Address.contract(Buffer.from(pool_id, "hex"));
 let scval_frodo = address_frodo.toScVal();
 let scval_pool = address_pool.toScVal();
+let backstopToken = config.getContractId("BLNDUSDC");
+
+console.log("START: Mint frodo required tokens...");
+let txBuilder = await createTxBuilder(stellarRpc, network, bombadil_id);
+txBuilder.addOperation(
+  token.createMint(
+    backstopToken,
+    bombadil_id.publicKey(),
+    samwise_id.publicKey(),
+    BigInt(567_000e7)
+  )
+);
+await signPrepareAndSubmitTransaction(
+  stellarRpc,
+  network,
+  txBuilder.build(),
+  bombadil_id
+);
+console.log("minted backstop tokens...");
 
 //***** Env Setup *****//
-await airdropAccounts(stellarRpc, config);
+//await airdropAccounts(stellarRpc, config);
 
 // await setAssetPrices(stellarRpc, config, [
 //   { price: BigInt(1e7), assetKey: "USDC" },

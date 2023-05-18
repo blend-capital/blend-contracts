@@ -10,11 +10,12 @@ fn create_and_init_b_token(
     e: &Env,
     pool: &Address,
     pool_id: &BytesN<32>,
+    asset: &BytesN<32>,
     index: &u32,
 ) -> (BytesN<32>, DTokenClient) {
     let (b_token_id, b_token_client) = create_b_token(e);
     b_token_client.initialize(pool, &7, &"name".into_val(e), &"symbol".into_val(e));
-    b_token_client.init_asset(pool, pool_id, &BytesN::<32>::random(&e), index);
+    b_token_client.init_asset(pool, pool_id, &asset, index);
     (b_token_id, b_token_client)
 }
 
@@ -22,9 +23,13 @@ fn create_and_init_b_token(
 fn test_mint() {
     let e = Env::default();
 
+    let bombadil = Address::random(&e);
+    let underlying = e.register_stellar_asset_contract(bombadil);
+
     let pool_id = BytesN::<32>::random(&e);
     let pool = Address::from_contract_id(&e, &pool_id);
-    let (b_token_id, b_token_client) = create_and_init_b_token(&e, &pool, &pool_id, &2);
+    let (b_token_id, b_token_client) =
+        create_and_init_b_token(&e, &pool, &pool_id, &underlying, &2);
 
     let samwise = Address::random(&e);
     let sauron = Address::random(&e);
@@ -67,9 +72,13 @@ fn test_mint() {
 fn test_clawback() {
     let e = Env::default();
 
+    let bombadil = Address::random(&e);
+    let underlying = e.register_stellar_asset_contract(bombadil);
+
     let pool_id = BytesN::<32>::random(&e);
     let pool = Address::from_contract_id(&e, &pool_id);
-    let (b_token_id, b_token_client) = create_and_init_b_token(&e, &pool, &pool_id, &2);
+    let (b_token_id, b_token_client) =
+        create_and_init_b_token(&e, &pool, &pool_id, &underlying, &2);
 
     let samwise = Address::random(&e);
     let sauron = Address::random(&e);
@@ -115,10 +124,14 @@ fn test_clawback() {
 fn test_incr_allow() {
     let e = Env::default();
 
+    let bombadil = Address::random(&e);
+    let underlying = e.register_stellar_asset_contract(bombadil);
+
     let res_index = 7;
     let pool_id = BytesN::<32>::random(&e);
     let pool = Address::from_contract_id(&e, &pool_id);
-    let (b_token_id, b_token_client) = create_and_init_b_token(&e, &pool, &pool_id, &res_index);
+    let (b_token_id, b_token_client) =
+        create_and_init_b_token(&e, &pool, &pool_id, &underlying, &res_index);
 
     let samwise = Address::random(&e);
     let spender = Address::random(&e);
@@ -154,10 +167,14 @@ fn test_incr_allow() {
 fn test_decr_allow() {
     let e = Env::default();
 
+    let bombadil = Address::random(&e);
+    let underlying = e.register_stellar_asset_contract(bombadil);
+
     let res_index = 7;
     let pool_id = BytesN::<32>::random(&e);
     let pool = Address::from_contract_id(&e, &pool_id);
-    let (b_token_id, b_token_client) = create_and_init_b_token(&e, &pool, &pool_id, &res_index);
+    let (b_token_id, b_token_client) =
+        create_and_init_b_token(&e, &pool, &pool_id, &underlying, &res_index);
 
     let samwise = Address::random(&e);
     let spender = Address::random(&e);
@@ -194,10 +211,14 @@ fn test_decr_allow() {
 fn test_xfer() {
     let e = Env::default();
 
+    let bombadil = Address::random(&e);
+    let underlying = e.register_stellar_asset_contract(bombadil);
+
     let res_index = 7;
     let (pool_id, pool_client) = create_lending_pool(&e);
     let pool = Address::from_contract_id(&e, &pool_id);
-    let (b_token_id, b_token_client) = create_and_init_b_token(&e, &pool, &pool_id, &res_index);
+    let (b_token_id, b_token_client) =
+        create_and_init_b_token(&e, &pool, &pool_id, &underlying, &res_index);
 
     let samwise = Address::random(&e);
     let frodo = Address::random(&e);
@@ -246,10 +267,14 @@ fn test_xfer() {
 fn test_xfer_from() {
     let e = Env::default();
 
+    let bombadil = Address::random(&e);
+    let underlying = e.register_stellar_asset_contract(bombadil);
+
     let res_index = 7;
     let (pool_id, pool_client) = create_lending_pool(&e);
     let pool = Address::from_contract_id(&e, &pool_id);
-    let (b_token_id, b_token_client) = create_and_init_b_token(&e, &pool, &pool_id, &res_index);
+    let (b_token_id, b_token_client) =
+        create_and_init_b_token(&e, &pool, &pool_id, &underlying, &res_index);
 
     let samwise = Address::random(&e);
     let frodo = Address::random(&e);

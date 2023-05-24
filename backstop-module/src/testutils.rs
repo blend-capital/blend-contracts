@@ -4,8 +4,7 @@ use crate::{
     dependencies::{TokenClient, TOKEN_WASM},
     storage::{self, Q4W},
 };
-use rand::{thread_rng, RngCore};
-use soroban_sdk::{testutils::Address as _, Address, BytesN, Env, IntoVal, Vec};
+use soroban_sdk::{testutils::Address as _, Address, Env, IntoVal, Vec};
 
 mod mock_pool_factory {
     soroban_sdk::contractimport!(
@@ -13,12 +12,6 @@ mod mock_pool_factory {
     );
 }
 pub use mock_pool_factory::Client as MockPoolFactoryClient;
-
-pub(crate) fn generate_contract_address(e: &Env) -> Address {
-    let mut id: [u8; 32] = Default::default();
-    thread_rng().fill_bytes(&mut id);
-    Address::from_contract_id(&BytesN::from_array(e, &id))
-}
 
 pub(crate) fn create_token<'a>(e: &Env, admin: &Address) -> (Address, TokenClient<'a>) {
     let contract_address = Address::random(e);

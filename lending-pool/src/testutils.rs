@@ -8,8 +8,7 @@ use crate::{
     reserve::Reserve,
     storage::{self, ReserveConfig, ReserveData},
 };
-use rand::{thread_rng, RngCore};
-use soroban_sdk::{testutils::Address as _, Address, BytesN, Env, IntoVal};
+use soroban_sdk::{testutils::Address as _, Address, Env, IntoVal};
 
 //************************************************
 //           External Contract Helpers

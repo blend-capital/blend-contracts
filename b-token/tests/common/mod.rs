@@ -1,4 +1,4 @@
-use soroban_sdk::{testutils::Address as _, Address, BytesN, Env};
+use soroban_sdk::{testutils::Address as _, Address, Env};
 
 mod b_token {
     soroban_sdk::contractimport!(file = "../target/wasm32-unknown-unknown/release/b_token.wasm");

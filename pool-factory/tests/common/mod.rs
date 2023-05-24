@@ -23,14 +23,8 @@ pub mod d_token {
 
 pub use pool_factory::{Client as PoolFactoryClient, PoolInitMeta};
 
-pub fn generate_contract_address(e: &Env) -> Address {
-    let mut id: [u8; 32] = Default::default();
-    thread_rng().fill_bytes(&mut id);
-    Address::from_contract_id(&BytesN::from_array(e, &id))
-}
-
 pub fn create_wasm_pool_factory(e: &Env) -> (Address, PoolFactoryClient) {
-    let contract_address = generate_contract_address(e);
+    let contract_address = Address::random(&e);
     e.register_contract_wasm(&contract_address, pool_factory::WASM);
     (
         contract_address.clone(),

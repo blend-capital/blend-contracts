@@ -22,7 +22,7 @@ pub fn execute_claim(
     if to_claim > 0 {
         let bkstp_addr = storage::get_backstop(e);
         let backstop = BackstopClient::new(&e, &bkstp_addr);
-        backstop.pool_claim(&e.current_contract_id(), &to, &to_claim);
+        backstop.pool_claim(&e.current_contract_address(), &to, &to_claim);
     }
 
     Ok(to_claim)
@@ -251,7 +251,7 @@ fn set_user_emissions(
 mod tests {
     use crate::{
         storage::ReserveEmissionsConfig,
-        testutils::{create_reserve, generate_contract_id, setup_reserve},
+        testutils::{create_reserve, setup_reserve},
     };
 
     use super::*;
@@ -265,8 +265,8 @@ mod tests {
     #[test]
     fn test_update_happy_path() {
         let e = Env::default();
-        let pool_id = generate_contract_id(&e);
-        let pool = Address::from_contract_id(&e, &pool_id);
+        e.mock_all_auths();
+        let pool_address = Address::random(&e);
 
         let samwise = Address::random(&e);
         let bombadil = Address::random(&e);
@@ -282,12 +282,12 @@ mod tests {
         let mut reserve = create_reserve(&e);
         reserve.data.b_supply = 100_0000000;
         reserve.data.d_supply = 50_0000000;
-        setup_reserve(&e, &pool_id, &bombadil, &mut reserve);
+        setup_reserve(&e, &pool_address, &bombadil, &mut reserve);
 
         let res_token_client = TokenClient::new(&e, &reserve.config.d_token);
-        res_token_client.mint(&pool, &samwise, &2_0000000);
+        res_token_client.mint(&samwise, &2_0000000);
 
-        e.as_contract(&pool_id, || {
+        e.as_contract(&pool_address, || {
             let reserve_emission_config = ReserveEmissionsConfig {
                 expiration: 1600000000,
                 eps: 0_0100000,
@@ -326,7 +326,8 @@ mod tests {
     #[test]
     fn test_update_no_config_ignores() {
         let e = Env::default();
-        let pool_id = generate_contract_id(&e);
+        e.mock_all_auths();
+        let pool_address = Address::random(&e);
 
         let samwise = Address::random(&e);
         let bombadil = Address::random(&e);
@@ -342,9 +343,9 @@ mod tests {
         let mut reserve = create_reserve(&e);
         reserve.data.b_supply = 100_0000000;
         reserve.data.d_supply = 50_0000000;
-        setup_reserve(&e, &pool_id, &bombadil, &mut reserve);
+        setup_reserve(&e, &pool_address, &bombadil, &mut reserve);
 
-        e.as_contract(&pool_id, || {
+        e.as_contract(&pool_address, || {
             let res_token_type = 1;
             let res_token_index = reserve.config.index * 3 + res_token_type;
 
@@ -364,9 +365,10 @@ mod tests {
     #[test]
     fn test_calc_claim_happy_path() {
         let e = Env::default();
+        e.mock_all_auths();
 
-        let pool_id = generate_contract_id(&e);
-        let pool = Address::from_contract_id(&e, &pool_id);
+        let pool_address = Address::random(&e);
+
         let samwise = Address::random(&e);
         let bombadil = Address::random(&e);
 
@@ -381,21 +383,21 @@ mod tests {
         let mut reserve_0 = create_reserve(&e);
         reserve_0.data.b_supply = 100_0000000;
         reserve_0.data.d_supply = 50_0000000;
-        setup_reserve(&e, &pool_id, &bombadil, &mut reserve_0);
+        setup_reserve(&e, &pool_address, &bombadil, &mut reserve_0);
 
         let mut reserve_1 = create_reserve(&e);
         reserve_1.config.index = 1;
         reserve_1.data.b_supply = 100_0000000;
         reserve_1.data.d_supply = 50_0000000;
-        setup_reserve(&e, &pool_id, &bombadil, &mut reserve_1);
+        setup_reserve(&e, &pool_address, &bombadil, &mut reserve_1);
 
         let res_token_client_0 = TokenClient::new(&e, &reserve_0.config.d_token);
-        res_token_client_0.mint(&pool, &samwise, &2_0000000);
+        res_token_client_0.mint(&samwise, &2_0000000);
 
         let res_token_client_1 = TokenClient::new(&e, &reserve_1.config.b_token);
-        res_token_client_1.mint(&pool, &samwise, &2_0000000);
+        res_token_client_1.mint(&samwise, &2_0000000);
 
-        e.as_contract(&pool_id, || {
+        e.as_contract(&pool_address, || {
             let reserve_emission_config_0 = ReserveEmissionsConfig {
                 expiration: 1600000000,
                 eps: 0_0100000,
@@ -464,9 +466,10 @@ mod tests {
     #[test]
     fn test_calc_claim_with_invalid_reserve_panics() {
         let e = Env::default();
+        e.mock_all_auths();
 
-        let pool_id = generate_contract_id(&e);
-        let pool = Address::from_contract_id(&e, &pool_id);
+        let pool_address = Address::random(&e);
+
         let samwise = Address::random(&e);
         let bombadil = Address::random(&e);
 
@@ -481,21 +484,21 @@ mod tests {
         let mut reserve_0 = create_reserve(&e);
         reserve_0.data.b_supply = 100_0000000;
         reserve_0.data.d_supply = 50_0000000;
-        setup_reserve(&e, &pool_id, &bombadil, &mut reserve_0);
+        setup_reserve(&e, &pool_address, &bombadil, &mut reserve_0);
 
         let mut reserve_1 = create_reserve(&e);
         reserve_1.config.index = 1;
         reserve_1.data.b_supply = 100_0000000;
         reserve_1.data.d_supply = 50_0000000;
-        setup_reserve(&e, &pool_id, &bombadil, &mut reserve_1);
+        setup_reserve(&e, &pool_address, &bombadil, &mut reserve_1);
 
         let res_token_client_0 = TokenClient::new(&e, &reserve_0.config.d_token);
-        res_token_client_0.mint(&pool, &samwise, &2_0000000);
+        res_token_client_0.mint(&samwise, &2_0000000);
 
         let res_token_client_1 = TokenClient::new(&e, &reserve_1.config.b_token);
-        res_token_client_1.mint(&pool, &samwise, &2_0000000);
+        res_token_client_1.mint(&samwise, &2_0000000);
 
-        e.as_contract(&pool_id, || {
+        e.as_contract(&pool_address, || {
             let reserve_emission_config_0 = ReserveEmissionsConfig {
                 expiration: 1600000000,
                 eps: 0_0100000,
@@ -550,9 +553,10 @@ mod tests {
     #[test]
     fn test_update_and_claim_happy_path() {
         let e = Env::default();
+        e.mock_all_auths();
 
-        let pool_id = generate_contract_id(&e);
-        let pool = Address::from_contract_id(&e, &pool_id);
+        let pool_address = Address::random(&e);
+
         let samwise = Address::random(&e);
         let bombadil = Address::random(&e);
 
@@ -567,12 +571,12 @@ mod tests {
         let mut reserve = create_reserve(&e);
         reserve.data.b_supply = 100_0000000;
         reserve.data.d_supply = 50_0000000;
-        setup_reserve(&e, &pool_id, &bombadil, &mut reserve);
+        setup_reserve(&e, &pool_address, &bombadil, &mut reserve);
 
         let res_token_client = TokenClient::new(&e, &reserve.config.d_token);
-        res_token_client.mint(&pool, &samwise, &2_0000000);
+        res_token_client.mint(&samwise, &2_0000000);
 
-        e.as_contract(&pool_id, || {
+        e.as_contract(&pool_address, || {
             let reserve_emission_config = ReserveEmissionsConfig {
                 expiration: 1600000000,
                 eps: 0_0100000,
@@ -614,8 +618,9 @@ mod tests {
     #[test]
     fn test_update_emission_data_no_config_ignores() {
         let e = Env::default();
+        e.mock_all_auths();
 
-        let pool_id = generate_contract_id(&e);
+        let pool_address = Address::random(&e);
         let bombadil = Address::random(&e);
 
         e.ledger().set(LedgerInfo {
@@ -629,9 +634,9 @@ mod tests {
         let mut reserve = create_reserve(&e);
         reserve.data.b_supply = 100_0000000;
         reserve.data.d_supply = 50_0000000;
-        setup_reserve(&e, &pool_id, &bombadil, &mut reserve);
+        setup_reserve(&e, &pool_address, &bombadil, &mut reserve);
 
-        e.as_contract(&pool_id, || {
+        e.as_contract(&pool_address, || {
             let res_token_type = 1;
             let res_token_index = reserve.config.index * 3 + res_token_type;
             // no emission information stored
@@ -652,8 +657,9 @@ mod tests {
     #[test]
     fn test_update_emission_data_expired_returns_old() {
         let e = Env::default();
+        e.mock_all_auths();
 
-        let pool_id = generate_contract_id(&e);
+        let pool_address = Address::random(&e);
         let bombadil = Address::random(&e);
 
         e.ledger().set(LedgerInfo {
@@ -667,9 +673,9 @@ mod tests {
         let mut reserve = create_reserve(&e);
         reserve.data.b_supply = 100_0000000;
         reserve.data.d_supply = 50_0000000;
-        setup_reserve(&e, &pool_id, &bombadil, &mut reserve);
+        setup_reserve(&e, &pool_address, &bombadil, &mut reserve);
 
-        e.as_contract(&pool_id, || {
+        e.as_contract(&pool_address, || {
             let reserve_emission_config = ReserveEmissionsConfig {
                 expiration: 1600000000,
                 eps: 0_0100000,
@@ -703,8 +709,9 @@ mod tests {
     #[test]
     fn test_update_emission_data_updated_this_block_returns_old() {
         let e = Env::default();
+        e.mock_all_auths();
 
-        let pool_id = generate_contract_id(&e);
+        let pool_address = Address::random(&e);
         let bombadil = Address::random(&e);
 
         e.ledger().set(LedgerInfo {
@@ -718,9 +725,9 @@ mod tests {
         let mut reserve = create_reserve(&e);
         reserve.data.b_supply = 100_0000000;
         reserve.data.d_supply = 50_0000000;
-        setup_reserve(&e, &pool_id, &bombadil, &mut reserve);
+        setup_reserve(&e, &pool_address, &bombadil, &mut reserve);
 
-        e.as_contract(&pool_id, || {
+        e.as_contract(&pool_address, || {
             let reserve_emission_config = ReserveEmissionsConfig {
                 expiration: 1600000000,
                 eps: 0_0100000,
@@ -754,8 +761,9 @@ mod tests {
     #[test]
     fn test_update_emission_data_no_eps_returns_old() {
         let e = Env::default();
+        e.mock_all_auths();
 
-        let pool_id = generate_contract_id(&e);
+        let pool_address = Address::random(&e);
         let bombadil = Address::random(&e);
 
         e.ledger().set(LedgerInfo {
@@ -769,9 +777,9 @@ mod tests {
         let mut reserve = create_reserve(&e);
         reserve.data.b_supply = 100_0000000;
         reserve.data.d_supply = 50_0000000;
-        setup_reserve(&e, &pool_id, &bombadil, &mut reserve);
+        setup_reserve(&e, &pool_address, &bombadil, &mut reserve);
 
-        e.as_contract(&pool_id, || {
+        e.as_contract(&pool_address, || {
             let reserve_emission_config = ReserveEmissionsConfig {
                 expiration: 1600000000,
                 eps: 0,
@@ -805,8 +813,9 @@ mod tests {
     #[test]
     fn test_update_emission_data_no_supply_returns_old() {
         let e = Env::default();
+        e.mock_all_auths();
 
-        let pool_id = generate_contract_id(&e);
+        let pool_address = Address::random(&e);
         let bombadil = Address::random(&e);
 
         e.ledger().set(LedgerInfo {
@@ -820,9 +829,9 @@ mod tests {
         let mut reserve = create_reserve(&e);
         reserve.data.b_supply = 0;
         reserve.data.d_supply = 0;
-        setup_reserve(&e, &pool_id, &bombadil, &mut reserve);
+        setup_reserve(&e, &pool_address, &bombadil, &mut reserve);
 
-        e.as_contract(&pool_id, || {
+        e.as_contract(&pool_address, || {
             let reserve_emission_config = ReserveEmissionsConfig {
                 expiration: 1600000000,
                 eps: 0_0100000,
@@ -856,8 +865,9 @@ mod tests {
     #[test]
     fn test_update_emission_data_d_token_past_exp() {
         let e = Env::default();
+        e.mock_all_auths();
 
-        let pool_id = generate_contract_id(&e);
+        let pool_address = Address::random(&e);
         let bombadil = Address::random(&e);
 
         e.ledger().set(LedgerInfo {
@@ -871,9 +881,9 @@ mod tests {
         let mut reserve = create_reserve(&e);
         reserve.data.b_supply = 200_0000000;
         reserve.data.d_supply = 100_0000000;
-        setup_reserve(&e, &pool_id, &bombadil, &mut reserve);
+        setup_reserve(&e, &pool_address, &bombadil, &mut reserve);
 
-        e.as_contract(&pool_id, || {
+        e.as_contract(&pool_address, || {
             let reserve_emission_config = ReserveEmissionsConfig {
                 expiration: 1600000001,
                 eps: 0_0100000,
@@ -904,8 +914,9 @@ mod tests {
     #[test]
     fn test_update_emission_data_b_token_rounds_down() {
         let e = Env::default();
+        e.mock_all_auths();
 
-        let pool_id = generate_contract_id(&e);
+        let pool_address = Address::random(&e);
         let bombadil = Address::random(&e);
 
         e.ledger().set(LedgerInfo {
@@ -919,9 +930,9 @@ mod tests {
         let mut reserve = create_reserve(&e);
         reserve.data.b_supply = 100_0001111;
         reserve.data.d_supply = 0;
-        setup_reserve(&e, &pool_id, &bombadil, &mut reserve);
+        setup_reserve(&e, &pool_address, &bombadil, &mut reserve);
 
-        e.as_contract(&pool_id, || {
+        e.as_contract(&pool_address, || {
             let reserve_emission_config = ReserveEmissionsConfig {
                 expiration: 1600000000,
                 eps: 0_0100000,
@@ -954,8 +965,9 @@ mod tests {
     #[test]
     fn test_update_user_emissions_first_time() {
         let e = Env::default();
+        e.mock_all_auths();
 
-        let pool_id = generate_contract_id(&e);
+        let pool_address = Address::random(&e);
         let samwise = Address::random(&e);
         let bombadil = Address::random(&e);
 
@@ -970,9 +982,9 @@ mod tests {
         let mut reserve = create_reserve(&e);
         reserve.data.b_supply = 100_0000000;
         reserve.data.d_supply = 50_0000000;
-        setup_reserve(&e, &pool_id, &bombadil, &mut reserve);
+        setup_reserve(&e, &pool_address, &bombadil, &mut reserve);
 
-        e.as_contract(&pool_id, || {
+        e.as_contract(&pool_address, || {
             let reserve_emission_data = ReserveEmissionsData {
                 index: 123456789,
                 last_time: 1500000000,
@@ -1000,9 +1012,10 @@ mod tests {
     #[test]
     fn test_update_user_emissions_first_time_had_tokens() {
         let e = Env::default();
+        e.mock_all_auths();
 
-        let pool_id = generate_contract_id(&e);
-        let pool = Address::from_contract_id(&e, &pool_id);
+        let pool_address = Address::random(&e);
+
         let samwise = Address::random(&e);
         let bombadil = Address::random(&e);
 
@@ -1017,12 +1030,12 @@ mod tests {
         let mut reserve = create_reserve(&e);
         reserve.data.b_supply = 100_0000000;
         reserve.data.d_supply = 50_0000000;
-        setup_reserve(&e, &pool_id, &bombadil, &mut reserve);
+        setup_reserve(&e, &pool_address, &bombadil, &mut reserve);
 
         let res_token_client = TokenClient::new(&e, &reserve.config.d_token);
-        res_token_client.mint(&pool, &samwise, &0_5000000);
+        res_token_client.mint(&samwise, &0_5000000);
 
-        e.as_contract(&pool_id, || {
+        e.as_contract(&pool_address, || {
             let reserve_emission_data = ReserveEmissionsData {
                 index: 123456789,
                 last_time: 1500000000,
@@ -1050,7 +1063,8 @@ mod tests {
     #[test]
     fn test_update_user_emissions_no_bal_no_accrual() {
         let e = Env::default();
-        let pool_id = generate_contract_id(&e);
+        e.mock_all_auths();
+        let pool_address = Address::random(&e);
 
         let samwise = Address::random(&e);
         let bombadil = Address::random(&e);
@@ -1066,9 +1080,9 @@ mod tests {
         let mut reserve = create_reserve(&e);
         reserve.data.b_supply = 60_0000000;
         reserve.data.d_supply = 50_0000000;
-        setup_reserve(&e, &pool_id, &bombadil, &mut reserve);
+        setup_reserve(&e, &pool_address, &bombadil, &mut reserve);
 
-        e.as_contract(&pool_id, || {
+        e.as_contract(&pool_address, || {
             let reserve_emission_data = ReserveEmissionsData {
                 index: 123456789,
                 last_time: 1500000000,
@@ -1102,9 +1116,10 @@ mod tests {
     #[test]
     fn test_update_user_emissions_if_accrued_skips() {
         let e = Env::default();
+        e.mock_all_auths();
 
-        let pool_id = generate_contract_id(&e);
-        let pool = Address::from_contract_id(&e, &pool_id);
+        let pool_address = Address::random(&e);
+
         let samwise = Address::random(&e);
         let bombadil = Address::random(&e);
 
@@ -1119,12 +1134,12 @@ mod tests {
         let mut reserve = create_reserve(&e);
         reserve.data.b_supply = 100_0000000;
         reserve.data.d_supply = 50_0000000;
-        setup_reserve(&e, &pool_id, &bombadil, &mut reserve);
+        setup_reserve(&e, &pool_address, &bombadil, &mut reserve);
 
         let res_token_client = TokenClient::new(&e, &reserve.config.d_token);
-        res_token_client.mint(&pool, &samwise, &0_5000000);
+        res_token_client.mint(&samwise, &0_5000000);
 
-        e.as_contract(&pool_id, || {
+        e.as_contract(&pool_address, || {
             let reserve_emission_data = ReserveEmissionsData {
                 index: 123456789,
                 last_time: 1500000000,
@@ -1158,9 +1173,10 @@ mod tests {
     #[test]
     fn test_update_user_emissions_accrues() {
         let e = Env::default();
+        e.mock_all_auths();
 
-        let pool_id = generate_contract_id(&e);
-        let pool = Address::from_contract_id(&e, &pool_id);
+        let pool_address = Address::random(&e);
+
         let samwise = Address::random(&e);
         let bombadil = Address::random(&e);
 
@@ -1175,12 +1191,12 @@ mod tests {
         let mut reserve = create_reserve(&e);
         reserve.data.b_supply = 60_0000000;
         reserve.data.d_supply = 50_0000000;
-        setup_reserve(&e, &pool_id, &bombadil, &mut reserve);
+        setup_reserve(&e, &pool_address, &bombadil, &mut reserve);
 
         let res_token_client = TokenClient::new(&e, &reserve.config.b_token);
-        res_token_client.mint(&pool, &samwise, &0_5000000);
+        res_token_client.mint(&samwise, &0_5000000);
 
-        e.as_contract(&pool_id, || {
+        e.as_contract(&pool_address, || {
             let reserve_emission_data = ReserveEmissionsData {
                 index: 123456789,
                 last_time: 1500000000,
@@ -1214,9 +1230,10 @@ mod tests {
     #[test]
     fn test_update_user_emissions_claim_returns_accrual() {
         let e = Env::default();
+        e.mock_all_auths();
 
-        let pool_id = generate_contract_id(&e);
-        let pool = Address::from_contract_id(&e, &pool_id);
+        let pool_address = Address::random(&e);
+
         let samwise = Address::random(&e);
         let bombadil = Address::random(&e);
 
@@ -1231,12 +1248,12 @@ mod tests {
         let mut reserve = create_reserve(&e);
         reserve.data.b_supply = 60_0000000;
         reserve.data.d_supply = 50_0000000;
-        setup_reserve(&e, &pool_id, &bombadil, &mut reserve);
+        setup_reserve(&e, &pool_address, &bombadil, &mut reserve);
 
         let res_token_client = TokenClient::new(&e, &reserve.config.b_token);
-        res_token_client.mint(&pool, &samwise, &0_5000000);
+        res_token_client.mint(&samwise, &0_5000000);
 
-        e.as_contract(&pool_id, || {
+        e.as_contract(&pool_address, || {
             let reserve_emission_data = ReserveEmissionsData {
                 index: 123456789,
                 last_time: 1500000000,
@@ -1271,9 +1288,10 @@ mod tests {
     #[test]
     fn test_update_user_emissions_claim_first_time_claims_tokens() {
         let e = Env::default();
+        e.mock_all_auths();
 
-        let pool_id = generate_contract_id(&e);
-        let pool = Address::from_contract_id(&e, &pool_id);
+        let pool_address = Address::random(&e);
+
         let samwise = Address::random(&e);
         let bombadil = Address::random(&e);
 
@@ -1288,12 +1306,12 @@ mod tests {
         let mut reserve = create_reserve(&e);
         reserve.data.b_supply = 100_0000000;
         reserve.data.d_supply = 50_0000000;
-        setup_reserve(&e, &pool_id, &bombadil, &mut reserve);
+        setup_reserve(&e, &pool_address, &bombadil, &mut reserve);
 
         let res_token_client = TokenClient::new(&e, &reserve.config.d_token);
-        res_token_client.mint(&pool, &samwise, &0_5000000);
+        res_token_client.mint(&samwise, &0_5000000);
 
-        e.as_contract(&pool_id, || {
+        e.as_contract(&pool_address, || {
             let reserve_emission_data = ReserveEmissionsData {
                 index: 123456789,
                 last_time: 1500000000,

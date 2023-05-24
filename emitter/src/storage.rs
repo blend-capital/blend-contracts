@@ -1,4 +1,4 @@
-use soroban_sdk::{contracttype, BytesN, Env};
+use soroban_sdk::{contracttype, Address, Env};
 
 /********** Storage **********/
 
@@ -23,7 +23,7 @@ pub enum EmitterDataKey {
 /// Fetch the current backstop id
 ///
 /// Returns current backstop module contract address
-pub fn get_backstop(e: &Env) -> BytesN<32> {
+pub fn get_backstop(e: &Env) -> Address {
     e.storage()
         .get_unchecked(&EmitterDataKey::Backstop)
         .unwrap()
@@ -33,9 +33,9 @@ pub fn get_backstop(e: &Env) -> BytesN<32> {
 ///
 /// ### Arguments
 /// * `new_backstop_id` - The id for the new backstop
-pub fn set_backstop(e: &Env, new_backstop_id: &BytesN<32>) {
+pub fn set_backstop(e: &Env, new_backstop_id: &Address) {
     e.storage()
-        .set::<EmitterDataKey, BytesN<32>>(&EmitterDataKey::Backstop, &new_backstop_id);
+        .set::<EmitterDataKey, Address>(&EmitterDataKey::Backstop, &new_backstop_id);
 }
 
 /// Check if a backstop has been set
@@ -50,7 +50,7 @@ pub fn has_backstop(e: &Env) -> bool {
 /// Fetch the blend token address
 ///
 /// Returns blend token address
-pub fn get_blend_id(e: &Env) -> BytesN<32> {
+pub fn get_blend_id(e: &Env) -> Address {
     e.storage().get_unchecked(&EmitterDataKey::BlendId).unwrap()
 }
 
@@ -58,9 +58,9 @@ pub fn get_blend_id(e: &Env) -> BytesN<32> {
 ///
 /// ### Arguments
 /// * `blend_id` - The blend token address
-pub fn set_blend_id(e: &Env, blend_id: &BytesN<32>) {
+pub fn set_blend_id(e: &Env, blend_id: &Address) {
     e.storage()
-        .set::<EmitterDataKey, BytesN<32>>(&EmitterDataKey::BlendId, &blend_id);
+        .set::<EmitterDataKey, Address>(&EmitterDataKey::BlendId, &blend_id);
 }
 
 /********** Blend Distributions **********/

@@ -7,7 +7,7 @@ use crate::{
     user_data::UserAction,
     validator::{require_hf, require_nonnegative},
 };
-use soroban_sdk::{Address, BytesN, Env};
+use soroban_sdk::{Address, Env};
 
 /// Perform a repayment of "asset" from "from" for "amount" to be credited for "on_behalf_of"
 ///
@@ -15,7 +15,7 @@ use soroban_sdk::{Address, BytesN, Env};
 pub fn execute_repay(
     e: &Env,
     from: &Address,
-    asset: &BytesN<32>,
+    asset: &Address,
     amount: i128,
     on_behalf_of: &Address,
 ) -> Result<i128, PoolError> {
@@ -47,8 +47,8 @@ pub fn execute_repay(
         storage::del_auction(e, &0, &from);
     }
 
-    TokenClient::new(e, &reserve.asset).xfer(from, &e.current_contract_address(), &to_repay);
-    d_token_client.clawback(&e.current_contract_address(), on_behalf_of, &to_burn);
+    TokenClient::new(e, &reserve.asset).transfer(from, &e.current_contract_address(), &to_repay);
+    d_token_client.clawback(on_behalf_of, &to_burn);
 
     let mut user_config = ReserveUsage::new(storage::get_user_config(e, from));
     if d_token_client.balance(&from) == 0 {
@@ -74,17 +74,15 @@ mod tests {
     };
 
     use super::*;
-    use soroban_sdk::{
-        map,
-        testutils::{Address as _, BytesN as _},
-    };
+    use soroban_sdk::{map, testutils::Address as _};
 
     #[test]
     #[should_panic]
     fn test_repay_no_liability() {
         // TODO: better error handling on token transfer failures
         let e = Env::default();
-        let pool_id = BytesN::<32>::random(&e);
+        e.mock_all_auths();
+        let pool_address = Address::random(&e);
 
         let bombadil = Address::random(&e);
         let samwise = Address::random(&e);
@@ -93,20 +91,20 @@ mod tests {
         let mut reserve_0 = create_reserve(&e);
         reserve_0.data.d_supply = 0;
         reserve_0.data.b_supply = 0;
-        setup_reserve(&e, &pool_id, &bombadil, &mut reserve_0);
+        setup_reserve(&e, &pool_address, &bombadil, &mut reserve_0);
 
         let (oracle_id, oracle_client) = create_mock_oracle(&e);
         oracle_client.set_price(&reserve_0.asset, &1_0000000);
 
         let asset_0_client = TokenClient::new(&e, &reserve_0.asset);
-        asset_0_client.mint(&bombadil, &frodo, &500_0000000);
+        asset_0_client.mint(&frodo, &500_0000000);
 
         let pool_config = PoolConfig {
             oracle: oracle_id,
             bstop_rate: 0,
             status: 0,
         };
-        e.as_contract(&pool_id, || {
+        e.as_contract(&pool_address, || {
             storage::set_pool_config(&e, &pool_config);
 
             e.budget().reset_unlimited();
@@ -120,8 +118,8 @@ mod tests {
     #[test]
     fn test_repay() {
         let e = Env::default();
-        let pool_id = BytesN::<32>::random(&e);
-        let pool = Address::from_contract_id(&e, &pool_id);
+        e.mock_all_auths();
+        let pool_address = Address::random(&e);
 
         let bombadil = Address::random(&e);
         let samwise = Address::random(&e);
@@ -130,12 +128,12 @@ mod tests {
         let mut reserve_0 = create_reserve(&e);
         reserve_0.data.d_supply = 0;
         reserve_0.data.b_supply = 0;
-        setup_reserve(&e, &pool_id, &bombadil, &mut reserve_0);
+        setup_reserve(&e, &pool_address, &bombadil, &mut reserve_0);
 
         let mut reserve_1 = create_reserve(&e);
         reserve_1.data.d_supply = 0;
         reserve_1.data.b_supply = 0;
-        setup_reserve(&e, &pool_id, &bombadil, &mut reserve_1);
+        setup_reserve(&e, &pool_address, &bombadil, &mut reserve_1);
 
         let (oracle_id, oracle_client) = create_mock_oracle(&e);
         oracle_client.set_price(&reserve_0.asset, &2_0000000);
@@ -143,8 +141,8 @@ mod tests {
 
         let asset_0_client = TokenClient::new(&e, &reserve_0.asset);
         let asset_1_client = TokenClient::new(&e, &reserve_1.asset);
-        asset_0_client.mint(&bombadil, &samwise, &500_0000000);
-        asset_1_client.mint(&bombadil, &frodo, &500_0000000); // for samwise to borrow
+        asset_0_client.mint(&samwise, &500_0000000);
+        asset_1_client.mint(&frodo, &500_0000000); // for samwise to borrow
         let res_1_d_token_client = TokenClient::new(&e, &reserve_1.config.d_token);
 
         let pool_config = PoolConfig {
@@ -152,7 +150,7 @@ mod tests {
             bstop_rate: 0,
             status: 0,
         };
-        e.as_contract(&pool_id, || {
+        e.as_contract(&pool_address, || {
             storage::set_pool_config(&e, &pool_config);
 
             e.budget().reset_unlimited();
@@ -163,7 +161,10 @@ mod tests {
             // repay partial
             execute_repay(&e, &samwise, &reserve_1.asset, 20_0000000, &samwise).unwrap();
             assert_eq!(asset_1_client.balance(&samwise), 30_0000000);
-            assert_eq!(asset_1_client.balance(&pool), 100_0000000 - 30_0000000);
+            assert_eq!(
+                asset_1_client.balance(&pool_address),
+                100_0000000 - 30_0000000
+            );
             assert_eq!(res_1_d_token_client.balance(&samwise), 30_0000000);
             let config = ReserveUsage::new(storage::get_user_config(&e, &samwise));
             assert!(config.is_liability(1));
@@ -171,7 +172,7 @@ mod tests {
             // repay all
             execute_repay(&e, &samwise, &reserve_1.asset, i128::MAX, &samwise).unwrap();
             assert_eq!(asset_1_client.balance(&samwise), 0);
-            assert_eq!(asset_1_client.balance(&pool), 100_0000000);
+            assert_eq!(asset_1_client.balance(&pool_address), 100_0000000);
             assert_eq!(res_1_d_token_client.balance(&samwise), 0);
             let config = ReserveUsage::new(storage::get_user_config(&e, &samwise));
             assert!(!config.is_liability(1));
@@ -181,8 +182,8 @@ mod tests {
     #[test]
     fn test_repay_rounds_d_tokens_down() {
         let e = Env::default();
-        let pool_id = BytesN::<32>::random(&e);
-        let pool = Address::from_contract_id(&e, &pool_id);
+        e.mock_all_auths();
+        let pool_address = Address::random(&e);
 
         let bombadil = Address::random(&e);
         let samwise = Address::random(&e);
@@ -192,41 +193,41 @@ mod tests {
         reserve_0.data.d_supply = 2_0000002;
         reserve_0.data.b_supply = 8_0000000;
         reserve_0.data.d_rate = 1_250000000;
-        setup_reserve(&e, &pool_id, &bombadil, &mut reserve_0);
+        setup_reserve(&e, &pool_address, &bombadil, &mut reserve_0);
         let (_oracle_id, oracle_client) = create_mock_oracle(&e);
         oracle_client.set_price(&reserve_0.asset, &1_0000000);
 
         let asset_0_client = TokenClient::new(&e, &reserve_0.asset);
-        asset_0_client.mint(&bombadil, &pool, &6_1999998); // supplied by samwise
-        asset_0_client.mint(&bombadil, &samwise, &(1_8000000 + 7000000)); //borrowed by samwise + extra for repayment
-        asset_0_client.mint(&bombadil, &sauron, &(2 + 3)); //2 borrowed by sauron + extra for repayment
+        asset_0_client.mint(&pool_address, &6_1999998); // supplied by samwise
+        asset_0_client.mint(&samwise, &(1_8000000 + 7000000)); //borrowed by samwise + extra for repayment
+        asset_0_client.mint(&sauron, &(2 + 3)); //2 borrowed by sauron + extra for repayment
         let b_token0_client = TokenClient::new(&e, &reserve_0.config.b_token);
-        b_token0_client.mint(&pool, &samwise, &8_0000000); //supplied by samwise
+        b_token0_client.mint(&samwise, &8_0000000); //supplied by samwise
         let d_token0_client = TokenClient::new(&e, &reserve_0.config.d_token);
-        d_token0_client.mint(&pool, &samwise, &2_0000000); //borrowed by samwise
-        d_token0_client.mint(&pool, &sauron, &2); //borrowed by sauron
+        d_token0_client.mint(&samwise, &2_0000000); //borrowed by samwise
+        d_token0_client.mint(&sauron, &2); //borrowed by sauron
         e.budget().reset_unlimited();
 
         let mut reserve_1 = create_reserve(&e);
         reserve_1.data.d_supply = 0;
         reserve_1.data.b_supply = 0;
-        setup_reserve(&e, &pool_id, &bombadil, &mut reserve_1);
+        setup_reserve(&e, &pool_address, &bombadil, &mut reserve_1);
 
         let (oracle_id, oracle_client) = create_mock_oracle(&e);
         oracle_client.set_price(&reserve_1.asset, &1_0000000);
 
         let asset_1_client = TokenClient::new(&e, &reserve_1.asset);
-        asset_1_client.mint(&bombadil, &samwise, &10_0000000); //collateral for samwise
-        asset_1_client.incr_allow(&samwise, &pool, &i128::MAX);
-        asset_1_client.mint(&bombadil, &sauron, &10_0000000); //collateral for sauron
-        asset_1_client.incr_allow(&sauron, &pool, &i128::MAX);
+        asset_1_client.mint(&samwise, &10_0000000); //collateral for samwise
+        asset_1_client.increase_allowance(&samwise, &pool_address, &i128::MAX);
+        asset_1_client.mint(&sauron, &10_0000000); //collateral for sauron
+        asset_1_client.increase_allowance(&sauron, &pool_address, &i128::MAX);
 
         let pool_config = PoolConfig {
             oracle: oracle_id,
             bstop_rate: 0,
             status: 0,
         };
-        e.as_contract(&pool_id, || {
+        e.as_contract(&pool_address, || {
             storage::set_pool_config(&e, &pool_config);
 
             e.budget().reset_unlimited();
@@ -266,8 +267,8 @@ mod tests {
     #[test]
     fn test_repay_user_being_liquidated() {
         let e = Env::default();
-        let pool_id = BytesN::<32>::random(&e);
-        let pool = Address::from_contract_id(&e, &pool_id);
+        e.mock_all_auths();
+        let pool_address = Address::random(&e);
 
         let bombadil = Address::random(&e);
         let samwise = Address::random(&e);
@@ -276,12 +277,12 @@ mod tests {
         let mut reserve_0 = create_reserve(&e);
         reserve_0.data.d_supply = 0;
         reserve_0.data.b_supply = 0;
-        setup_reserve(&e, &pool_id, &bombadil, &mut reserve_0);
+        setup_reserve(&e, &pool_address, &bombadil, &mut reserve_0);
 
         let mut reserve_1 = create_reserve(&e);
         reserve_1.data.d_supply = 0;
         reserve_1.data.b_supply = 0;
-        setup_reserve(&e, &pool_id, &bombadil, &mut reserve_1);
+        setup_reserve(&e, &pool_address, &bombadil, &mut reserve_1);
 
         let (oracle_id, oracle_client) = create_mock_oracle(&e);
         oracle_client.set_price(&reserve_0.asset, &1_0000000);
@@ -289,15 +290,15 @@ mod tests {
 
         let asset_0_client = TokenClient::new(&e, &reserve_0.asset);
         let asset_1_client = TokenClient::new(&e, &reserve_1.asset);
-        asset_0_client.mint(&bombadil, &samwise, &500_0000000);
-        asset_1_client.mint(&bombadil, &frodo, &500_0000000); // for samwise to borrow
+        asset_0_client.mint(&samwise, &500_0000000);
+        asset_1_client.mint(&frodo, &500_0000000); // for samwise to borrow
 
         let pool_config = PoolConfig {
             oracle: oracle_id,
             bstop_rate: 0,
             status: 0,
         };
-        e.as_contract(&pool_id, || {
+        e.as_contract(&pool_address, || {
             storage::set_pool_config(&e, &pool_config);
 
             e.budget().reset_unlimited();
@@ -306,8 +307,8 @@ mod tests {
             execute_borrow(&e, &samwise, &reserve_1.asset, 50_0000000, &samwise).unwrap();
             assert_eq!(400_0000000, asset_0_client.balance(&samwise));
             assert_eq!(50_0000000, asset_1_client.balance(&samwise));
-            assert_eq!(100_0000000, asset_0_client.balance(&pool));
-            assert_eq!(450_0000000, asset_1_client.balance(&pool));
+            assert_eq!(100_0000000, asset_0_client.balance(&pool_address));
+            assert_eq!(450_0000000, asset_1_client.balance(&pool_address));
 
             // adjust prices to put samwise underwater
             oracle_client.set_price(&reserve_1.asset, &2_0000000);
@@ -330,8 +331,8 @@ mod tests {
             execute_repay(&e, &samwise, &reserve_1.asset, 25_0000000, &samwise).unwrap();
             assert_eq!(400_0000000, asset_0_client.balance(&samwise));
             assert_eq!(25_0000000, asset_1_client.balance(&samwise));
-            assert_eq!(100_0000000, asset_0_client.balance(&pool));
-            assert_eq!(475_0000000, asset_1_client.balance(&pool));
+            assert_eq!(100_0000000, asset_0_client.balance(&pool_address));
+            assert_eq!(475_0000000, asset_1_client.balance(&pool_address));
             assert_eq!(false, storage::has_auction(&e, &0, &samwise));
         });
     }
@@ -339,9 +340,8 @@ mod tests {
     #[test]
     fn test_repay_user_negative_amount() {
         let e = Env::default();
-        let pool_id = BytesN::<32>::random(&e);
-        let pool = Address::from_contract_id(&e, &pool_id);
-
+        e.mock_all_auths();
+        let pool_address = Address::random(&e);
         let bombadil = Address::random(&e);
         let samwise = Address::random(&e);
         let frodo = Address::random(&e);
@@ -349,12 +349,12 @@ mod tests {
         let mut reserve_0 = create_reserve(&e);
         reserve_0.data.d_supply = 0;
         reserve_0.data.b_supply = 0;
-        setup_reserve(&e, &pool_id, &bombadil, &mut reserve_0);
+        setup_reserve(&e, &pool_address, &bombadil, &mut reserve_0);
 
         let mut reserve_1 = create_reserve(&e);
         reserve_1.data.d_supply = 0;
         reserve_1.data.b_supply = 0;
-        setup_reserve(&e, &pool_id, &bombadil, &mut reserve_1);
+        setup_reserve(&e, &pool_address, &bombadil, &mut reserve_1);
 
         let (oracle_id, oracle_client) = create_mock_oracle(&e);
         oracle_client.set_price(&reserve_0.asset, &1_0000000);
@@ -362,15 +362,15 @@ mod tests {
 
         let asset_0_client = TokenClient::new(&e, &reserve_0.asset);
         let asset_1_client = TokenClient::new(&e, &reserve_1.asset);
-        asset_0_client.mint(&bombadil, &samwise, &500_0000000);
-        asset_1_client.mint(&bombadil, &frodo, &500_0000000); // for samwise to borrow
+        asset_0_client.mint(&samwise, &500_0000000);
+        asset_1_client.mint(&frodo, &500_0000000); // for samwise to borrow
 
         let pool_config = PoolConfig {
             oracle: oracle_id,
             bstop_rate: 0,
             status: 0,
         };
-        e.as_contract(&pool_id, || {
+        e.as_contract(&pool_address, || {
             storage::set_pool_config(&e, &pool_config);
 
             e.budget().reset_unlimited();
@@ -379,8 +379,8 @@ mod tests {
             execute_borrow(&e, &samwise, &reserve_1.asset, 50_0000000, &samwise).unwrap();
             assert_eq!(400_0000000, asset_0_client.balance(&samwise));
             assert_eq!(50_0000000, asset_1_client.balance(&samwise));
-            assert_eq!(100_0000000, asset_0_client.balance(&pool));
-            assert_eq!(450_0000000, asset_1_client.balance(&pool));
+            assert_eq!(100_0000000, asset_0_client.balance(&pool_address));
+            assert_eq!(450_0000000, asset_1_client.balance(&pool_address));
 
             // adjust prices to put samwise underwater
             oracle_client.set_price(&reserve_1.asset, &2_0000000);

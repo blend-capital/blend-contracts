@@ -1,6 +1,6 @@
 use cast::i128;
 use fixed_point_math::FixedPoint;
-use soroban_sdk::{Address, BytesN, Env, Symbol};
+use soroban_sdk::{Address, Env, Symbol};
 
 use crate::{
     constants::{SCALAR_7, SCALAR_9},
@@ -12,7 +12,7 @@ use crate::{
 };
 
 pub struct Reserve {
-    pub asset: BytesN<32>,
+    pub asset: Address,
     pub config: ReserveConfig,
     pub data: ReserveData,
     pub b_rate: Option<i128>,
@@ -26,7 +26,7 @@ impl Reserve {
     ///
     /// ### Panics
     /// If the `asset` is not a reserve
-    pub fn load(e: &Env, asset: BytesN<32>) -> Reserve {
+    pub fn load(e: &Env, asset: Address) -> Reserve {
         let config = storage::get_res_config(&e, &asset);
         let data = storage::get_res_data(&e, &asset);
         Reserve {
@@ -61,12 +61,8 @@ impl Reserve {
         let to_mint = self.update_rates(e, pool_config.bstop_rate);
 
         if to_mint > 0 {
-            let backstop = Address::from_contract_id(e, &storage::get_backstop(e));
-            TokenClient::new(&e, &self.config.b_token).mint(
-                &e.current_contract_address(),
-                &backstop,
-                &to_mint,
-            );
+            let backstop = storage::get_backstop(e);
+            TokenClient::new(&e, &self.config.b_token).mint(&backstop, &to_mint);
         }
 
         Ok(())
@@ -89,12 +85,8 @@ impl Reserve {
         let to_mint = self.update_rates(e, pool_config.bstop_rate);
 
         if to_mint > 0 {
-            let backstop = Address::from_contract_id(e, &storage::get_backstop(e));
-            TokenClient::new(&e, &self.config.b_token).mint(
-                &e.current_contract_address(),
-                &backstop,
-                &to_mint,
-            );
+            let backstop = storage::get_backstop(e);
+            TokenClient::new(&e, &self.config.b_token).mint(&backstop, &to_mint);
         }
 
         Ok(())
@@ -314,7 +306,7 @@ impl Reserve {
 
 #[cfg(test)]
 mod tests {
-    use crate::testutils::{create_reserve, generate_contract_id, setup_reserve};
+    use crate::testutils::{create_reserve, setup_reserve};
 
     use super::*;
     use soroban_sdk::testutils::{Address as AddressTestTrait, Ledger, LedgerInfo};
@@ -324,11 +316,11 @@ mod tests {
     #[test]
     fn test_pre_action() {
         let e = Env::default();
+        e.mock_all_auths();
 
-        let pool_id = generate_contract_id(&e);
-        let backstop_id = generate_contract_id(&e);
-        let backstop = &Address::from_contract_id(&e, &backstop_id);
-        let oracle_id = generate_contract_id(&e);
+        let pool_address = Address::random(&e);
+        let backstop_address = Address::random(&e);
+        let oracle_id = Address::random(&e);
 
         let bombadil = Address::random(&e);
         let samwise = Address::random(&e);
@@ -338,7 +330,7 @@ mod tests {
         reserve.data.d_rate = 1_345_678_123;
         reserve.data.b_supply = 99_0000000;
         reserve.data.d_supply = 65_0000000;
-        setup_reserve(&e, &pool_id, &bombadil, &mut reserve);
+        setup_reserve(&e, &pool_address, &bombadil, &mut reserve);
 
         let b_token_client = TokenClient::new(&e, &reserve.config.b_token);
 
@@ -356,9 +348,9 @@ mod tests {
             status: 0,
         };
 
-        e.as_contract(&pool_id, || {
+        e.as_contract(&pool_address, || {
             storage::set_pool_config(&e, &pool_config);
-            storage::set_backstop(&e, &backstop_id);
+            storage::set_backstop(&e, &backstop_address);
             storage::set_res_config(&e, &reserve.asset, &reserve.config);
             storage::set_res_data(&e, &reserve.asset, &reserve.data);
 
@@ -368,7 +360,7 @@ mod tests {
             assert_eq!(reserve.data.d_rate, 1_349_657_792);
             assert_eq!(reserve.data.ir_mod, 1_044_981_440);
             assert_eq!(reserve.data.last_time, 617280);
-            assert_eq!(b_token_client.balance(&backstop), 0_051_735_6);
+            assert_eq!(b_token_client.balance(&backstop_address), 0_051_735_6);
         });
     }
 
@@ -427,7 +419,7 @@ mod tests {
     #[test]
     fn test_update_state_one_stroop_accrual() {
         let e = Env::default();
-        let pool_id = generate_contract_id(&e);
+        let pool_address = Address::random(&e);
 
         let mut reserve = create_reserve(&e);
         reserve.data.b_supply = 100_0000000;
@@ -443,7 +435,7 @@ mod tests {
             base_reserve: 10,
         });
 
-        e.as_contract(&pool_id, || {
+        e.as_contract(&pool_address, || {
             let to_mint = reserve.update_rates(&e, 0_200_000_000); // (accrual: 1_000_000_008, util: 0_6565656)
 
             // assert_eq!(reserve.data.b_rate, 1_000_000_000);
@@ -457,7 +449,7 @@ mod tests {
     #[test]
     fn test_update_state_small_block_dif() {
         let e = Env::default();
-        let pool_id = generate_contract_id(&e);
+        let pool_address = Address::random(&e);
 
         let mut reserve = create_reserve(&e);
         reserve.data.b_supply = 99_0000000;
@@ -471,7 +463,7 @@ mod tests {
             network_id: Default::default(),
             base_reserve: 10,
         });
-        e.as_contract(&pool_id, || {
+        e.as_contract(&pool_address, || {
             let to_mint = reserve.update_rates(&e, 0_200_000_000); // (accrual: 1_000_000_852, util: 0_6565656)
 
             // assert_eq!(reserve.data.b_rate, 1_000_000_448);
@@ -485,7 +477,7 @@ mod tests {
     #[test]
     fn test_update_state_large_block_dif() {
         let e = Env::default();
-        let pool_id = generate_contract_id(&e);
+        let pool_address = Address::random(&e);
 
         let mut reserve = create_reserve(&e);
         reserve.b_rate = Some(1_123_456_789);
@@ -502,7 +494,7 @@ mod tests {
             base_reserve: 10,
         });
 
-        e.as_contract(&pool_id, || {
+        e.as_contract(&pool_address, || {
             let to_mint = reserve.update_rates(&e, 0_200_000_000); // (accrual: 1_002_957_369, util: .7864352)
 
             // assert_eq!(reserve.data.b_rate, 1_125_547_118);

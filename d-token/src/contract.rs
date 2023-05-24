@@ -5,7 +5,7 @@ use crate::{
     interface::{BlendPoolToken, CAP4606},
     storage::{self, Asset},
 };
-use soroban_sdk::{contractimpl, panic_with_error, Address, Bytes, BytesN, Env};
+use soroban_sdk::{contractimpl, panic_with_error, Address, Bytes, Env};
 
 pub struct Token;
 
@@ -26,8 +26,8 @@ impl CAP4606 for Token {
     // Admin interface – privileged functions.
     // --------------------------------------------------------------------------------
 
-    fn clawback(e: Env, admin: Address, from: Address, amount: i128) {
-        admin::require_is_pool(&e, &admin);
+    fn clawback(e: Env, from: Address, amount: i128) {
+        let admin = storage::read_pool(&e);
         admin.require_auth();
 
         require_nonnegative(&e, amount);
@@ -36,8 +36,8 @@ impl CAP4606 for Token {
         events::clawback(&e, admin, from, amount);
     }
 
-    fn mint(e: Env, admin: Address, to: Address, amount: i128) {
-        admin::require_is_pool(&e, &admin);
+    fn mint(e: Env, to: Address, amount: i128) {
+        let admin = storage::read_pool(&e);
         admin.require_auth();
 
         require_nonnegative(&e, amount);
@@ -46,11 +46,11 @@ impl CAP4606 for Token {
         events::mint(&e, admin, to, amount);
     }
 
-    fn set_admin(e: Env, _admin: Address, _new_admin: Address) {
+    fn set_admin(e: Env, _new_admin: Address) {
         panic_with_error!(&e, TokenError::NotImplemented)
     }
 
-    fn set_auth(e: Env, _admin: Address, _id: Address, _authorize: bool) {
+    fn set_authorized(e: Env, _id: Address, _authorize: bool) {
         panic_with_error!(&e, TokenError::NotImplemented)
     }
 
@@ -58,22 +58,22 @@ impl CAP4606 for Token {
     // Token interface
     // --------------------------------------------------------------------------------
 
-    fn incr_allow(e: Env, _from: Address, _spender: Address, _amount: i128) {
+    fn increase_allowance(e: Env, _from: Address, _spender: Address, _amount: i128) {
         panic_with_error!(&e, TokenError::NotImplemented)
     }
 
-    fn decr_allow(e: Env, _from: Address, _spender: Address, _amount: i128) {
+    fn decrease_allowance(e: Env, _from: Address, _spender: Address, _amount: i128) {
         panic_with_error!(&e, TokenError::NotImplemented)
     }
 
-    fn xfer(e: Env, _from: Address, _to: Address, _amount: i128) {
+    fn transfer(e: Env, _from: Address, _to: Address, _amount: i128) {
         panic_with_error!(&e, TokenError::NotImplemented)
     }
 
     // @dev: Does not implement standard `xfer_from` functionality. Only allows the pool
     //       to transfer tokens without an allowance from one holder to another. This prevents
     //       calls to both clawback and mint to move tokens and keeps events more consistent.
-    fn xfer_from(e: Env, spender: Address, from: Address, to: Address, amount: i128) {
+    fn transfer_from(e: Env, spender: Address, from: Address, to: Address, amount: i128) {
         admin::require_is_pool(&e, &spender);
         spender.require_auth();
 
@@ -129,10 +129,10 @@ impl CAP4606 for Token {
     }
 }
 
-pub struct DToken;
+pub struct BToken;
 
 #[contractimpl]
-impl BlendPoolToken for DToken {
+impl BlendPoolToken for BToken {
     fn pool(e: Env) -> Address {
         storage::read_pool(&e)
     }
@@ -141,7 +141,7 @@ impl BlendPoolToken for DToken {
         storage::read_asset(&e)
     }
 
-    fn init_asset(e: Env, admin: Address, _pool: BytesN<32>, asset: BytesN<32>, index: u32) {
+    fn initialize_asset(e: Env, admin: Address, asset: Address, index: u32) {
         admin::require_is_pool(&e, &admin);
         admin.require_auth();
 

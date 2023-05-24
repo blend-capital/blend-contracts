@@ -1,5 +1,5 @@
 use crate::common::{create_token, B_TOKEN_WASM, D_TOKEN_WASM};
-use soroban_sdk::{testutils::BytesN as _, Address, BytesN, Env, Symbol};
+use soroban_sdk::{testutils::Address as _, Address, Env, Symbol};
 
 use super::{
     create_backstop, create_mock_pool_factory, create_token_from_id, PoolClient, ReserveMetadata,
@@ -8,15 +8,15 @@ use super::{
 /// Set up pool
 pub fn setup_pool(
     e: &Env,
-    pool_id: &BytesN<32>,
+    pool_id: &Address,
     pool_client: &PoolClient,
     admin: &Address,
     name: &Symbol,
-    oracle_id: &BytesN<32>,
+    oracle_id: &Address,
     bstop_rate: u64,
-    blnd_id: &BytesN<32>,
-    usdc_id: &BytesN<32>,
-) -> BytesN<32> {
+    blnd_id: &Address,
+    usdc_id: &Address,
+) -> Address {
     let b_token_hash = e.install_contract_wasm(B_TOKEN_WASM);
     let d_token_hash = e.install_contract_wasm(D_TOKEN_WASM);
 
@@ -59,7 +59,7 @@ pub fn setup_reserve(
     pool_client: &PoolClient,
     admin: &Address,
     metadata: &ReserveMetadata,
-) -> (BytesN<32>, BytesN<32>, BytesN<32>) {
+) -> (Address, Address, Address) {
     let (asset_id, _) = create_token(e, admin);
 
     pool_client.init_res(&admin, &asset_id, &metadata);
@@ -71,18 +71,18 @@ pub fn setup_reserve(
 /// Set up backstop
 pub fn create_and_setup_backstop(
     e: &Env,
-    pool_id: &BytesN<32>,
+    pool_id: &Address,
     admin: &Address,
-    blnd_id: &BytesN<32>,
-    pool_factory_id: &BytesN<32>,
-) -> BytesN<32> {
+    blnd_id: &Address,
+    pool_factory_id: &Address,
+) -> Address {
     let (backstop_id, backstop_client) = create_backstop(e);
-    let backstop_token_id = BytesN::<32>::random(&e);
+    let backstop_token_id = Address::random(&e);
     let backstop_token_client = create_token_from_id(e, &backstop_token_id, admin);
     backstop_client.initialize(&backstop_token_id, blnd_id, &pool_factory_id);
 
     // deposit minimum deposit amount into backstop for pool
-    backstop_token_client.mint(admin, admin, &1_100_000_0000000);
+    backstop_token_client.mint(admin, &1_100_000_0000000);
     backstop_client.deposit(admin, &pool_id, &1_100_000_0000000);
 
     backstop_id

@@ -1,4 +1,4 @@
-use soroban_sdk::{testutils::BytesN as _, BytesN, Env};
+use soroban_sdk::{testutils::Address as _, Address, Env};
 
 mod mock_blend_oracle {
     soroban_sdk::contractimport!(
@@ -7,8 +7,8 @@ mod mock_blend_oracle {
 }
 pub use mock_blend_oracle::{Client as MockOracleClient, OracleError};
 
-pub fn create_mock_oracle(e: &Env) -> (BytesN<32>, MockOracleClient) {
-    let contract_id = BytesN::<32>::random(e);
+pub fn create_mock_oracle<'a>(e: &Env) -> (Address, MockOracleClient<'a>) {
+    let contract_id = Address::random(e);
     e.register_contract_wasm(&contract_id, mock_blend_oracle::WASM);
     (contract_id.clone(), MockOracleClient::new(e, &contract_id))
 }

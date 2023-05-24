@@ -55,10 +55,7 @@ pub fn spend_allowance(
 
 #[cfg(test)]
 mod tests {
-    use soroban_sdk::{
-        testutils::{Address as _, BytesN as _},
-        BytesN,
-    };
+    use soroban_sdk::testutils::Address as _;
 
     use super::*;
 
@@ -66,13 +63,13 @@ mod tests {
     fn test_increase_allowance() {
         let e = Env::default();
 
-        let token_id = BytesN::<32>::random(&e);
+        let token_address = Address::random(&e);
 
         let user = Address::random(&e);
         let spender = Address::random(&e);
 
         let amount: i128 = 123456789;
-        e.as_contract(&token_id, || {
+        e.as_contract(&token_address, || {
             increase_allowance(&e, &user, &spender, &amount).unwrap();
 
             let allowance = storage::read_allowance(&e, &user, &spender);
@@ -84,13 +81,13 @@ mod tests {
     fn test_increase_allowance_past_max_caps() {
         let e = Env::default();
 
-        let token_id = BytesN::<32>::random(&e);
+        let token_address = Address::random(&e);
 
         let user = Address::random(&e);
         let spender = Address::random(&e);
 
         let amount: i128 = 123456789;
-        e.as_contract(&token_id, || {
+        e.as_contract(&token_address, || {
             storage::write_allowance(&e, &user, &spender, &amount);
 
             increase_allowance(&e, &user, &spender, &i128::MAX).unwrap();
@@ -104,14 +101,14 @@ mod tests {
     fn test_decrease_allowance() {
         let e = Env::default();
 
-        let token_id = BytesN::<32>::random(&e);
+        let token_address = Address::random(&e);
 
         let user = Address::random(&e);
         let spender = Address::random(&e);
 
         let starting_allowance: i128 = 123456789;
         let amount: i128 = 987654;
-        e.as_contract(&token_id, || {
+        e.as_contract(&token_address, || {
             storage::write_allowance(&e, &user, &spender, &starting_allowance);
 
             decrease_allowance(&e, &user, &spender, &amount).unwrap();
@@ -125,14 +122,14 @@ mod tests {
     fn test_decrease_allowance_past_0_caps() {
         let e = Env::default();
 
-        let token_id = BytesN::<32>::random(&e);
+        let token_address = Address::random(&e);
 
         let user = Address::random(&e);
         let spender = Address::random(&e);
 
         let starting_allowance: i128 = 123456789;
         let amount: i128 = starting_allowance + 1;
-        e.as_contract(&token_id, || {
+        e.as_contract(&token_address, || {
             storage::write_allowance(&e, &user, &spender, &starting_allowance);
 
             decrease_allowance(&e, &user, &spender, &amount).unwrap();
@@ -146,14 +143,14 @@ mod tests {
     fn test_spend_allowance() {
         let e = Env::default();
 
-        let token_id = BytesN::<32>::random(&e);
+        let token_address = Address::random(&e);
 
         let user = Address::random(&e);
         let spender = Address::random(&e);
 
         let starting_allowance: i128 = 123456789;
         let amount: i128 = 987654;
-        e.as_contract(&token_id, || {
+        e.as_contract(&token_address, || {
             storage::write_allowance(&e, &user, &spender, &starting_allowance);
 
             spend_allowance(&e, &user, &spender, &amount).unwrap();
@@ -167,14 +164,14 @@ mod tests {
     fn test_spend_allowance_past_0_panics() {
         let e = Env::default();
 
-        let token_id = BytesN::<32>::random(&e);
+        let token_address = Address::random(&e);
 
         let user = Address::random(&e);
         let spender = Address::random(&e);
 
         let starting_allowance: i128 = 123456789;
         let amount: i128 = starting_allowance + 1;
-        e.as_contract(&token_id, || {
+        e.as_contract(&token_address, || {
             storage::write_allowance(&e, &user, &spender, &starting_allowance);
 
             let result = spend_allowance(&e, &user, &spender, &amount);

@@ -1,11 +1,11 @@
-use soroban_sdk::{contracttype, Address, Bytes, BytesN, Env};
+use soroban_sdk::{contracttype, Address, Bytes, Env};
 
 /********** Storage Types **********/
 
 #[derive(Clone)]
 #[contracttype]
 pub struct Asset {
-    pub id: BytesN<32>,
+    pub id: Address,
     pub res_index: u32,
 }
 
@@ -85,17 +85,6 @@ pub fn has_pool(e: &Env) -> bool {
 pub fn write_pool(e: &Env, pool: &Address) {
     e.storage()
         .set::<TokenDataKey, Address>(&TokenDataKey::Pool, pool)
-}
-
-pub fn read_pool_id(e: &Env) -> BytesN<32> {
-    e.storage()
-        .get_unchecked::<TokenDataKey, BytesN<32>>(&TokenDataKey::PoolId)
-        .unwrap()
-}
-
-pub fn write_pool_id(e: &Env, pool_id: &BytesN<32>) {
-    e.storage()
-        .set::<TokenDataKey, BytesN<32>>(&TokenDataKey::PoolId, pool_id)
 }
 
 /***** Asset *****/

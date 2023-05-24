@@ -1,6 +1,6 @@
 use cast::{i128, u64};
 use fixed_point_math::FixedPoint;
-use soroban_sdk::{vec, Address, BytesN, Env, Vec};
+use soroban_sdk::{vec, Address, Env, Vec};
 
 use crate::{
     constants::SCALAR_7,
@@ -57,7 +57,7 @@ pub fn distribute(e: &Env) -> Result<(), BackstopError> {
 /// Set a new EPS for the backstop
 pub fn set_backstop_emission_config(
     e: &Env,
-    pool_id: &BytesN<32>,
+    pool_id: &Address,
     eps: u64,
     expiration: u64,
 ) -> Result<(), BackstopError> {
@@ -106,7 +106,7 @@ pub fn update_backstop_emission_index(
 /// Update the backstop emissions index for deposits
 fn update_backstop_emission_index_with_config(
     e: &Env,
-    pool_id: &BytesN<32>,
+    pool_id: &Address,
     emis_config: BackstopEmissionConfig,
     total_shares: i128,
 ) -> Result<Option<i128>, BackstopError> {
@@ -202,7 +202,7 @@ pub fn update_emission_index(
 
 fn set_user_emissions(
     e: &Env,
-    pool_id: &BytesN<32>,
+    pool_id: &Address,
     user: &Address,
     index: i128,
     accrued: i128,
@@ -219,12 +219,12 @@ fn set_user_emissions(
 
 #[cfg(test)]
 mod tests {
-    use crate::{constants::BACKSTOP_EPOCH, testutils::generate_contract_id};
+    use crate::constants::BACKSTOP_EPOCH;
 
     use super::*;
     use soroban_sdk::{
         testutils::{Address as _, Ledger, LedgerInfo},
-        vec, BytesN,
+        vec,
     };
 
     /********** distribute **********/
@@ -240,11 +240,11 @@ mod tests {
             base_reserve: 10,
         });
 
-        let backstop_addr = generate_contract_id(&e);
-        let pool_1 = generate_contract_id(&e);
-        let pool_2 = generate_contract_id(&e);
-        let pool_3 = generate_contract_id(&e);
-        let reward_zone: Vec<BytesN<32>> = vec![&e, pool_1.clone(), pool_2.clone(), pool_3.clone()];
+        let backstop_addr = Address::random(&e);
+        let pool_1 = Address::random(&e);
+        let pool_2 = Address::random(&e);
+        let pool_3 = Address::random(&e);
+        let reward_zone: Vec<Address> = vec![&e, pool_1.clone(), pool_2.clone(), pool_3.clone()];
 
         let pool_1_emissions_config = BackstopEmissionConfig {
             expiration: BACKSTOP_EPOCH,
@@ -328,11 +328,11 @@ mod tests {
             base_reserve: 10,
         });
 
-        let backstop_addr = generate_contract_id(&e);
-        let pool_1 = generate_contract_id(&e);
-        let pool_2 = generate_contract_id(&e);
-        let pool_3 = generate_contract_id(&e);
-        let reward_zone: Vec<BytesN<32>> = vec![&e, pool_1.clone(), pool_2.clone(), pool_3.clone()];
+        let backstop_addr = Address::random(&e);
+        let pool_1 = Address::random(&e);
+        let pool_2 = Address::random(&e);
+        let pool_3 = Address::random(&e);
+        let reward_zone: Vec<Address> = vec![&e, pool_1.clone(), pool_2.clone(), pool_3.clone()];
 
         e.as_contract(&backstop_addr, || {
             storage::set_next_dist(&e, &(BACKSTOP_EPOCH + 1));
@@ -366,8 +366,8 @@ mod tests {
             base_reserve: 10,
         });
 
-        let backstop_addr = generate_contract_id(&e);
-        let pool_1 = generate_contract_id(&e);
+        let backstop_addr = Address::random(&e);
+        let pool_1 = Address::random(&e);
         let samwise = Address::random(&e);
 
         let backstop_emissions_config = BackstopEmissionConfig {
@@ -417,8 +417,8 @@ mod tests {
             base_reserve: 10,
         });
 
-        let backstop_addr = generate_contract_id(&e);
-        let pool_1 = generate_contract_id(&e);
+        let backstop_addr = Address::random(&e);
+        let pool_1 = Address::random(&e);
         let samwise = Address::random(&e);
 
         e.as_contract(&backstop_addr, || {
@@ -451,8 +451,8 @@ mod tests {
             base_reserve: 10,
         });
 
-        let backstop_addr = generate_contract_id(&e);
-        let pool_1 = generate_contract_id(&e);
+        let backstop_addr = Address::random(&e);
+        let pool_1 = Address::random(&e);
         let samwise = Address::random(&e);
 
         let backstop_emissions_config = BackstopEmissionConfig {
@@ -502,8 +502,8 @@ mod tests {
             base_reserve: 10,
         });
 
-        let backstop_addr = generate_contract_id(&e);
-        let pool_1 = generate_contract_id(&e);
+        let backstop_addr = Address::random(&e);
+        let pool_1 = Address::random(&e);
         let samwise = Address::random(&e);
 
         let backstop_emissions_config = BackstopEmissionConfig {
@@ -547,8 +547,8 @@ mod tests {
             base_reserve: 10,
         });
 
-        let backstop_addr = generate_contract_id(&e);
-        let pool_1 = generate_contract_id(&e);
+        let backstop_addr = Address::random(&e);
+        let pool_1 = Address::random(&e);
         let samwise = Address::random(&e);
 
         let backstop_emissions_config = BackstopEmissionConfig {

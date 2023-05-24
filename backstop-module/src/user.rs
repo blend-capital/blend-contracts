@@ -1,4 +1,4 @@
-use soroban_sdk::{Address, BytesN, Env, Vec};
+use soroban_sdk::{Address, Env, Vec};
 
 use crate::{
     errors::BackstopError,
@@ -8,14 +8,14 @@ use crate::{
 /// A user of the backstop module with respect to a given pool
 /// Data is lazy loaded as not all struct information is required for each action
 pub struct User {
-    pool: BytesN<32>,
+    pool: Address,
     pub id: Address,
     shares: Option<i128>,
     q4w: Option<Vec<Q4W>>,
 }
 
 impl User {
-    pub fn new(pool: BytesN<32>, id: Address) -> User {
+    pub fn new(pool: Address, id: Address) -> User {
         User {
             pool,
             id,
@@ -214,7 +214,7 @@ impl User {
 
 #[cfg(test)]
 mod tests {
-    use crate::testutils::{assert_eq_vec_q4w, generate_contract_id};
+    use crate::testutils::assert_eq_vec_q4w;
 
     use super::*;
     use soroban_sdk::{
@@ -228,8 +228,8 @@ mod tests {
     fn test_share_cache() {
         let e = Env::default();
 
-        let backstop_addr = generate_contract_id(&e);
-        let pool_addr = generate_contract_id(&e);
+        let backstop_addr = Address::random(&e);
+        let pool_addr = Address::random(&e);
 
         let samwise = Address::random(&e);
         let mut user = User::new(pool_addr.clone(), samwise.clone());
@@ -264,8 +264,8 @@ mod tests {
     fn test_q4w_cache() {
         let e = Env::default();
 
-        let backstop_addr = generate_contract_id(&e);
-        let pool_addr = generate_contract_id(&e);
+        let backstop_addr = Address::random(&e);
+        let pool_addr = Address::random(&e);
 
         let samwise = Address::random(&e);
         let mut user = User::new(pool_addr.clone(), samwise.clone());
@@ -315,7 +315,7 @@ mod tests {
         let e = Env::default();
 
         let mut user = User {
-            pool: generate_contract_id(&e),
+            pool: Address::random(&e),
             id: Address::random(&e),
             shares: Some(100),
             q4w: None,
@@ -333,10 +333,10 @@ mod tests {
     fn test_try_q4w_none_queued() {
         let e = Env::default();
 
-        let backstop_addr = generate_contract_id(&e);
+        let backstop_addr = Address::random(&e);
 
         let mut user = User {
-            pool: generate_contract_id(&e),
+            pool: Address::random(&e),
             id: Address::random(&e),
             shares: Some(1000),
             q4w: None,
@@ -371,7 +371,7 @@ mod tests {
     fn test_try_q4w_new_placed_last() {
         let e = Env::default();
 
-        let backstop_addr = generate_contract_id(&e);
+        let backstop_addr = Address::random(&e);
 
         let mut cur_q4w = vec![
             &e,
@@ -381,7 +381,7 @@ mod tests {
             },
         ];
         let mut user = User {
-            pool: generate_contract_id(&e),
+            pool: Address::random(&e),
             id: Address::random(&e),
             shares: Some(1000),
             q4w: Some(cur_q4w.clone()),
@@ -414,7 +414,7 @@ mod tests {
     fn test_try_q4w_over_shares_panics() {
         let e = Env::default();
 
-        let backstop_addr = generate_contract_id(&e);
+        let backstop_addr = Address::random(&e);
 
         let cur_q4w = vec![
             &e,
@@ -424,7 +424,7 @@ mod tests {
             },
         ];
         let mut user = User {
-            pool: generate_contract_id(&e),
+            pool: Address::random(&e),
             id: Address::random(&e),
             shares: Some(1000),
             q4w: Some(cur_q4w),
@@ -455,10 +455,10 @@ mod tests {
     fn test_try_withdraw_shares_no_q4w_panics() {
         let e = Env::default();
 
-        let backstop_addr = generate_contract_id(&e);
+        let backstop_addr = Address::random(&e);
 
         let mut user = User {
-            pool: generate_contract_id(&e),
+            pool: Address::random(&e),
             id: Address::random(&e),
             shares: Some(1000),
             q4w: None,
@@ -489,7 +489,7 @@ mod tests {
     fn test_try_withdraw_shares_exact_amount() {
         let e = Env::default();
 
-        let backstop_addr = generate_contract_id(&e);
+        let backstop_addr = Address::random(&e);
 
         let cur_q4w = vec![
             &e,
@@ -499,7 +499,7 @@ mod tests {
             },
         ];
         let mut user = User {
-            pool: generate_contract_id(&e),
+            pool: Address::random(&e),
             id: Address::random(&e),
             shares: Some(1000),
             q4w: Some(cur_q4w),
@@ -531,7 +531,7 @@ mod tests {
     fn test_try_withdraw_shares_less_than_entry() {
         let e = Env::default();
 
-        let backstop_addr = generate_contract_id(&e);
+        let backstop_addr = Address::random(&e);
 
         let cur_q4w = vec![
             &e,
@@ -541,7 +541,7 @@ mod tests {
             },
         ];
         let mut user = User {
-            pool: generate_contract_id(&e),
+            pool: Address::random(&e),
             id: Address::random(&e),
             shares: Some(1000),
             q4w: Some(cur_q4w),
@@ -580,7 +580,7 @@ mod tests {
     fn test_try_withdraw_shares_multiple_entries() {
         let e = Env::default();
 
-        let backstop_addr = generate_contract_id(&e);
+        let backstop_addr = Address::random(&e);
 
         let cur_q4w = vec![
             &e,
@@ -598,7 +598,7 @@ mod tests {
             },
         ];
         let mut user = User {
-            pool: generate_contract_id(&e),
+            pool: Address::random(&e),
             id: Address::random(&e),
             shares: Some(1000),
             q4w: Some(cur_q4w),
@@ -641,7 +641,7 @@ mod tests {
     fn test_try_withdraw_shares_multiple_entries_not_exp() {
         let e = Env::default();
 
-        let backstop_addr = generate_contract_id(&e);
+        let backstop_addr = Address::random(&e);
 
         let cur_q4w = vec![
             &e,
@@ -659,7 +659,7 @@ mod tests {
             },
         ];
         let mut user = User {
-            pool: generate_contract_id(&e),
+            pool: Address::random(&e),
             id: Address::random(&e),
             shares: Some(1000),
             q4w: Some(cur_q4w.clone()),
@@ -695,7 +695,7 @@ mod tests {
     fn test_try_dequeue_shares() {
         let e = Env::default();
 
-        let backstop_addr = generate_contract_id(&e);
+        let backstop_addr = Address::random(&e);
 
         let cur_q4w = vec![
             &e,
@@ -713,7 +713,7 @@ mod tests {
             },
         ];
         let mut user = User {
-            pool: generate_contract_id(&e),
+            pool: Address::random(&e),
             id: Address::random(&e),
             shares: Some(1000),
             q4w: Some(cur_q4w.clone()),
@@ -773,7 +773,7 @@ mod tests {
     fn test_try_withdraw_shares_over_total() {
         let e = Env::default();
 
-        let backstop_addr = generate_contract_id(&e);
+        let backstop_addr = Address::random(&e);
 
         let cur_q4w = vec![
             &e,
@@ -791,7 +791,7 @@ mod tests {
             },
         ];
         let mut user = User {
-            pool: generate_contract_id(&e),
+            pool: Address::random(&e),
             id: Address::random(&e),
             shares: Some(1000),
             q4w: Some(cur_q4w.clone()),

@@ -13,6 +13,7 @@ use crate::common::{
 #[test]
 fn test_pool_config() {
     let e = Env::default();
+    e.mock_all_auths();
     // disable limits for test
     e.budget().reset_unlimited();
 
@@ -49,7 +50,7 @@ fn test_pool_config() {
     reserve_meta.l_factor = 0_7500000;
     pool_client.init_res(&bombadil, &usdc_id, &reserve_meta);
     assert_eq!(
-        e.recorded_top_authorizations()[0],
+        e.auths()[0],
         (
             bombadil.clone(),
             pool_id.clone(),
@@ -67,7 +68,7 @@ fn test_pool_config() {
     reserve_meta.l_factor = 0_9000000;
     pool_client.updt_res(&bombadil, &usdc_id, &reserve_meta);
     assert_eq!(
-        e.recorded_top_authorizations()[0],
+        e.auths()[0],
         (
             bombadil.clone(),
             pool_id.clone(),
@@ -92,7 +93,7 @@ fn test_pool_config() {
     ];
     pool_client.set_emis(&bombadil, &emis_vec);
     assert_eq!(
-        e.recorded_top_authorizations()[0],
+        e.auths()[0],
         (
             bombadil.clone(),
             pool_id.clone(),
@@ -103,7 +104,7 @@ fn test_pool_config() {
 
     pool_client.set_status(&bombadil, &1);
     assert_eq!(
-        e.recorded_top_authorizations()[0],
+        e.auths()[0],
         (
             bombadil.clone(),
             pool_id.clone(),
@@ -115,7 +116,7 @@ fn test_pool_config() {
 
     // validate user config functions
     let status_result = pool_client.updt_stat();
-    assert_eq!(e.recorded_top_authorizations(), []);
+    assert_eq!(e.auths(), []);
     assert_eq!(pool_client.status(), 0);
     assert_eq!(status_result, 0);
 }

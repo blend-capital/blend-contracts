@@ -34,13 +34,13 @@ pub trait PoolContractTrait {
         e: Env,
         admin: Address,
         name: Symbol,
-        oracle: BytesN<32>,
+        oracle: Address,
         bstop_rate: u64,
-        backstop_id: BytesN<32>,
+        backstop_id: Address,
         b_token_hash: BytesN<32>,
         d_token_hash: BytesN<32>,
-        blnd_id: BytesN<32>,
-        usdc_id: BytesN<32>,
+        blnd_id: Address,
+        usdc_id: Address,
     ) -> Result<(), PoolError>;
 
     /// Initialize a reserve in the pool
@@ -55,7 +55,7 @@ pub trait PoolContractTrait {
     fn init_res(
         e: Env,
         admin: Address,
-        asset: BytesN<32>,
+        asset: Address,
         metadata: ReserveMetadata,
     ) -> Result<(), PoolError>;
 
@@ -71,7 +71,7 @@ pub trait PoolContractTrait {
     fn updt_res(
         e: Env,
         admin: Address,
-        asset: BytesN<32>,
+        asset: Address,
         metadata: ReserveMetadata,
     ) -> Result<(), PoolError>;
 
@@ -79,7 +79,7 @@ pub trait PoolContractTrait {
     ///
     /// ### Arguments
     /// * `asset` - The underlying asset to add as a reserve
-    fn res_config(e: Env, asset: BytesN<32>) -> ReserveConfig;
+    fn res_config(e: Env, asset: Address) -> ReserveConfig;
 
     /// Fetch the reserve usage configuration for a user
     ///
@@ -99,7 +99,7 @@ pub trait PoolContractTrait {
     /// ### Errors
     /// If the invoker has not approved the pool to transfer `asset` at least `amount` and has
     /// enough tokens to do so
-    fn supply(e: Env, from: Address, asset: BytesN<32>, amount: i128) -> Result<i128, PoolError>;
+    fn supply(e: Env, from: Address, asset: Address, amount: i128) -> Result<i128, PoolError>;
 
     /// Withdraws from `from` `amount` of the `asset` from the invoker and returns it to the `to` Address
     ///
@@ -116,7 +116,7 @@ pub trait PoolContractTrait {
     fn withdraw(
         e: Env,
         from: Address,
-        asset: BytesN<32>,
+        asset: Address,
         amount: i128,
         to: Address,
     ) -> Result<i128, PoolError>;
@@ -134,7 +134,7 @@ pub trait PoolContractTrait {
     fn borrow(
         e: Env,
         from: Address,
-        asset: BytesN<32>,
+        asset: Address,
         amount: i128,
         to: Address,
     ) -> Result<i128, PoolError>;
@@ -153,7 +153,7 @@ pub trait PoolContractTrait {
     fn repay(
         e: Env,
         from: Address,
-        asset: BytesN<32>,
+        asset: Address,
         amount: i128,
         on_behalf_of: Address,
     ) -> Result<i128, PoolError>;
@@ -163,14 +163,14 @@ pub trait PoolContractTrait {
     /// ### Arguments
     /// * `asset` - The contract address of the asset
     ///
-    fn get_d_rate(e: Env, asset: BytesN<32>) -> i128;
+    fn get_d_rate(e: Env, asset: Address) -> i128;
 
     /// Fetches the b rate for a given asset
     ///
     /// ### Arguments
     /// * `asset` - The contract address of the asset
     ///
-    fn get_b_rate(e: Env, asset: BytesN<32>) -> i128;
+    fn get_b_rate(e: Env, asset: Address) -> i128;
 
     /// Manage bad debt. Debt is considered "bad" if there is no longer has any collateral posted.
     ///
@@ -271,7 +271,7 @@ pub trait PoolContractTrait {
     /// * `token_type` - The type of reserve token (0 for dToken / 1 for bToken)
     fn res_emis(
         e: Env,
-        asset: BytesN<32>,
+        asset: Address,
         token_type: u32,
     ) -> Result<Option<(ReserveEmissionsConfig, ReserveEmissionsData)>, PoolError>;
 
@@ -344,13 +344,13 @@ impl PoolContractTrait for PoolContract {
         e: Env,
         admin: Address,
         name: Symbol,
-        oracle: BytesN<32>,
+        oracle: Address,
         bstop_rate: u64,
-        backstop_id: BytesN<32>,
+        backstop_id: Address,
         b_token_hash: BytesN<32>,
         d_token_hash: BytesN<32>,
-        blnd_id: BytesN<32>,
-        usdc_id: BytesN<32>,
+        blnd_id: Address,
+        usdc_id: Address,
     ) -> Result<(), PoolError> {
         admin.require_auth();
 
@@ -371,7 +371,7 @@ impl PoolContractTrait for PoolContract {
     fn init_res(
         e: Env,
         admin: Address,
-        asset: BytesN<32>,
+        asset: Address,
         metadata: ReserveMetadata,
     ) -> Result<(), PoolError> {
         admin.require_auth();
@@ -386,7 +386,7 @@ impl PoolContractTrait for PoolContract {
     fn updt_res(
         e: Env,
         admin: Address,
-        asset: BytesN<32>,
+        asset: Address,
         metadata: ReserveMetadata,
     ) -> Result<(), PoolError> {
         admin.require_auth();
@@ -399,7 +399,7 @@ impl PoolContractTrait for PoolContract {
         Ok(())
     }
 
-    fn res_config(e: Env, asset: BytesN<32>) -> ReserveConfig {
+    fn res_config(e: Env, asset: Address) -> ReserveConfig {
         storage::get_res_config(&e, &asset)
     }
 
@@ -408,7 +408,7 @@ impl PoolContractTrait for PoolContract {
         storage::get_user_config(&e, &user)
     }
 
-    fn supply(e: Env, from: Address, asset: BytesN<32>, amount: i128) -> Result<i128, PoolError> {
+    fn supply(e: Env, from: Address, asset: Address, amount: i128) -> Result<i128, PoolError> {
         from.require_auth();
 
         let b_tokens_minted = pool::execute_supply(&e, &from, &asset, amount)?;
@@ -424,7 +424,7 @@ impl PoolContractTrait for PoolContract {
     fn withdraw(
         e: Env,
         from: Address,
-        asset: BytesN<32>,
+        asset: Address,
         amount: i128,
         to: Address,
     ) -> Result<i128, PoolError> {
@@ -443,7 +443,7 @@ impl PoolContractTrait for PoolContract {
     fn borrow(
         e: Env,
         from: Address,
-        asset: BytesN<32>,
+        asset: Address,
         amount: i128,
         to: Address,
     ) -> Result<i128, PoolError> {
@@ -462,7 +462,7 @@ impl PoolContractTrait for PoolContract {
     fn repay(
         e: Env,
         from: Address,
-        asset: BytesN<32>,
+        asset: Address,
         amount: i128,
         on_behalf_of: Address,
     ) -> Result<i128, PoolError> {
@@ -478,13 +478,13 @@ impl PoolContractTrait for PoolContract {
         Ok(d_tokens_burnt)
     }
 
-    fn get_d_rate(e: Env, asset: BytesN<32>) -> i128 {
+    fn get_d_rate(e: Env, asset: Address) -> i128 {
         let mut res = Reserve::load(&e, asset);
         res.update_rates(&e, storage::get_pool_config(&e).bstop_rate);
         res.data.d_rate
     }
 
-    fn get_b_rate(e: Env, asset: BytesN<32>) -> i128 {
+    fn get_b_rate(e: Env, asset: Address) -> i128 {
         let mut res = Reserve::load(&e, asset);
         res.update_rates(&e, storage::get_pool_config(&e).bstop_rate);
         res.get_b_rate(&e)
@@ -570,7 +570,7 @@ impl PoolContractTrait for PoolContract {
     // @dev: view
     fn res_emis(
         e: Env,
-        asset: BytesN<32>,
+        asset: Address,
         token_type: u32,
     ) -> Result<Option<(ReserveEmissionsConfig, ReserveEmissionsData)>, PoolError> {
         emissions::get_reserve_emissions(&e, &asset, token_type)

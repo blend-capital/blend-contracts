@@ -5,7 +5,7 @@ use crate::{
     storage::{self, PoolEmissionConfig, ReserveEmissionsConfig, ReserveEmissionsData},
 };
 use fixed_point_math::FixedPoint;
-use soroban_sdk::{contracttype, map, BytesN, Env, Map, Symbol, Vec};
+use soroban_sdk::{contracttype, map, Address, Env, Map, Symbol, Vec};
 
 use super::distributor;
 
@@ -22,7 +22,7 @@ pub struct ReserveEmissionMetadata {
 /// Get emissions information for a reserve
 pub fn get_reserve_emissions(
     e: &Env,
-    asset: &BytesN<32>,
+    asset: &Address,
     token_type: u32,
 ) -> Result<Option<(ReserveEmissionsConfig, ReserveEmissionsData)>, PoolError> {
     if token_type > 1 {
@@ -85,7 +85,7 @@ pub fn update_emissions(e: &Env, next_exp: u64, pool_eps: u64) -> Result<u64, Po
 
 fn update_reserve_emission_data(
     e: &Env,
-    res_asset_address: BytesN<32>,
+    res_asset_address: Address,
     res_type: u32,
     res_token_id: u32,
 ) -> Result<(), PoolError> {
@@ -182,7 +182,7 @@ mod tests {
 
     use crate::{
         constants::SCALAR_7,
-        testutils::{create_reserve, generate_contract_id, setup_reserve},
+        testutils::{create_reserve, setup_reserve},
     };
 
     use super::*;
@@ -196,6 +196,7 @@ mod tests {
     #[test]
     fn test_update_emissions_no_emitted_reserves_does_nothing() {
         let e = Env::default();
+        e.mock_all_auths();
         e.ledger().set(LedgerInfo {
             timestamp: 1500000000,
             protocol_version: 1,
@@ -204,7 +205,7 @@ mod tests {
             base_reserve: 10,
         });
 
-        let pool_id = generate_contract_id(&e);
+        let pool_id = Address::random(&e);
         let bombadil = Address::random(&e);
 
         let next_exp = 1500604800;
@@ -240,6 +241,7 @@ mod tests {
     #[test]
     fn test_update_emissions_sets_reserve_emission_when_emitting_both() {
         let e = Env::default();
+        e.mock_all_auths();
         e.ledger().set(LedgerInfo {
             timestamp: 1500000000,
             protocol_version: 1,
@@ -248,7 +250,7 @@ mod tests {
             base_reserve: 10,
         });
 
-        let pool_id = generate_contract_id(&e);
+        let pool_id = Address::random(&e);
         let bombadil = Address::random(&e);
 
         let next_exp = 1500604800;
@@ -313,8 +315,9 @@ mod tests {
     #[test]
     fn test_update_emissions_sets_reserve_emission_config_and_data() {
         let e = Env::default();
+        e.mock_all_auths();
 
-        let pool_id = generate_contract_id(&e);
+        let pool_id = Address::random(&e);
         let bombadil = Address::random(&e);
 
         e.ledger().set(LedgerInfo {
@@ -410,8 +413,9 @@ mod tests {
     #[test]
     fn test_update_emissions_updates_correctly_year_gap() {
         let e = Env::default();
+        e.mock_all_auths();
 
-        let pool_id = generate_contract_id(&e);
+        let pool_id = Address::random(&e);
         let bombadil = Address::random(&e);
 
         e.ledger().set(LedgerInfo {
@@ -630,6 +634,7 @@ mod tests {
     #[test]
     fn test_update_emissions_panics_if_already_updated() {
         let e = Env::default();
+        e.mock_all_auths();
         e.ledger().set(LedgerInfo {
             timestamp: 1500000000,
             protocol_version: 1,
@@ -638,7 +643,7 @@ mod tests {
             base_reserve: 10,
         });
 
-        let pool_id = generate_contract_id(&e);
+        let pool_id = Address::random(&e);
         let bombadil = Address::random(&e);
 
         let next_exp = 1500604800;
@@ -690,7 +695,7 @@ mod tests {
             base_reserve: 10,
         });
 
-        let pool_id = generate_contract_id(&e);
+        let pool_id = Address::random(&e);
 
         let pool_emission_config = PoolEmissionConfig {
             last_time: 1000,
@@ -754,7 +759,7 @@ mod tests {
             base_reserve: 10,
         });
 
-        let pool_id = generate_contract_id(&e);
+        let pool_id = Address::random(&e);
 
         let pool_emission_config = PoolEmissionConfig {
             last_time: 1000,
@@ -802,7 +807,7 @@ mod tests {
             base_reserve: 10,
         });
 
-        let pool_id = generate_contract_id(&e);
+        let pool_id = Address::random(&e);
 
         let pool_emissions: Map<u32, u64> = map![&e, (2, 0_7500000),];
 

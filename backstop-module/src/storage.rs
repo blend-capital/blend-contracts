@@ -1,4 +1,4 @@
-use soroban_sdk::{contracttype, vec, Address, BytesN, Env, Vec};
+use soroban_sdk::{contracttype, vec, Address, Env, Vec};
 
 /********** Storage Types **********/
 
@@ -39,7 +39,7 @@ pub struct UserEmissionData {
 #[derive(Clone)]
 #[contracttype]
 pub struct PoolUserKey {
-    pool: BytesN<32>,
+    pool: Address,
     user: Address,
 }
 
@@ -48,15 +48,15 @@ pub struct PoolUserKey {
 pub enum BackstopDataKey {
     Shares(PoolUserKey),
     Q4W(PoolUserKey),
-    PoolTkn(BytesN<32>),
-    PoolShares(BytesN<32>),
-    PoolQ4W(BytesN<32>),
+    PoolTkn(Address),
+    PoolShares(Address),
+    PoolQ4W(Address),
     NextDist,
     RewardZone,
-    PoolEPS(BytesN<32>),
-    PoolEmis(BytesN<32>),
-    BEmisCfg(BytesN<32>),
-    BEmisData(BytesN<32>),
+    PoolEPS(Address),
+    PoolEmis(Address),
+    BEmisCfg(Address),
+    BEmisData(Address),
     UEmisData(PoolUserKey),
     BckstpTkn,
     PoolFact,
@@ -70,9 +70,9 @@ pub enum BackstopDataKey {
 /********** External Contracts **********/
 
 /// Fetch the pool factory id
-pub fn get_pool_factory(e: &Env) -> BytesN<32> {
+pub fn get_pool_factory(e: &Env) -> Address {
     e.storage()
-        .get::<BackstopDataKey, BytesN<32>>(&BackstopDataKey::PoolFact)
+        .get::<BackstopDataKey, Address>(&BackstopDataKey::PoolFact)
         .unwrap()
         .unwrap()
 }
@@ -81,15 +81,15 @@ pub fn get_pool_factory(e: &Env) -> BytesN<32> {
 ///
 /// ### Arguments
 /// * `pool_factory_id` - The ID of the pool factory
-pub fn set_pool_factory(e: &Env, pool_factory_id: &BytesN<32>) {
+pub fn set_pool_factory(e: &Env, pool_factory_id: &Address) {
     e.storage()
-        .set::<BackstopDataKey, BytesN<32>>(&BackstopDataKey::PoolFact, pool_factory_id);
+        .set::<BackstopDataKey, Address>(&BackstopDataKey::PoolFact, pool_factory_id);
 }
 
 /// Fetch the BLND token id
-pub fn get_blnd_token(e: &Env) -> BytesN<32> {
+pub fn get_blnd_token(e: &Env) -> Address {
     e.storage()
-        .get::<BackstopDataKey, BytesN<32>>(&BackstopDataKey::BLNDTkn)
+        .get::<BackstopDataKey, Address>(&BackstopDataKey::BLNDTkn)
         .unwrap()
         .unwrap()
 }
@@ -98,15 +98,15 @@ pub fn get_blnd_token(e: &Env) -> BytesN<32> {
 ///
 /// ### Arguments
 /// * `blnd_token_id` - The ID of the new BLND token
-pub fn set_blnd_token(e: &Env, blnd_token_id: &BytesN<32>) {
+pub fn set_blnd_token(e: &Env, blnd_token_id: &Address) {
     e.storage()
-        .set::<BackstopDataKey, BytesN<32>>(&BackstopDataKey::BLNDTkn, blnd_token_id);
+        .set::<BackstopDataKey, Address>(&BackstopDataKey::BLNDTkn, blnd_token_id);
 }
 
 /// Fetch the backstop token id
-pub fn get_backstop_token(e: &Env) -> BytesN<32> {
+pub fn get_backstop_token(e: &Env) -> Address {
     e.storage()
-        .get::<BackstopDataKey, BytesN<32>>(&BackstopDataKey::BckstpTkn)
+        .get::<BackstopDataKey, Address>(&BackstopDataKey::BckstpTkn)
         .unwrap()
         .unwrap()
 }
@@ -120,9 +120,9 @@ pub fn has_backstop_token(e: &Env) -> bool {
 ///
 /// ### Arguments
 /// * `backstop_token_id` - The ID of the new backstop token
-pub fn set_backstop_token(e: &Env, backstop_token_id: &BytesN<32>) {
+pub fn set_backstop_token(e: &Env, backstop_token_id: &Address) {
     e.storage()
-        .set::<BackstopDataKey, BytesN<32>>(&BackstopDataKey::BckstpTkn, backstop_token_id);
+        .set::<BackstopDataKey, Address>(&BackstopDataKey::BckstpTkn, backstop_token_id);
 }
 
 /********** User Shares **********/
@@ -132,7 +132,7 @@ pub fn set_backstop_token(e: &Env, backstop_token_id: &BytesN<32>) {
 /// ### Arguments
 /// * `pool` - The pool the backstop deposit represents
 /// * `user` - The owner of the deposit
-pub fn get_shares(e: &Env, pool: &BytesN<32>, user: &Address) -> i128 {
+pub fn get_shares(e: &Env, pool: &Address, user: &Address) -> i128 {
     let key = BackstopDataKey::Shares(PoolUserKey {
         pool: pool.clone(),
         user: user.clone(),
@@ -149,7 +149,7 @@ pub fn get_shares(e: &Env, pool: &BytesN<32>, user: &Address) -> i128 {
 /// * `pool` - The pool the backstop deposit represents
 /// * `user` - The owner of the deposit
 /// * `amount` - The amount of shares
-pub fn set_shares(e: &Env, pool: &BytesN<32>, user: &Address, amount: &i128) {
+pub fn set_shares(e: &Env, pool: &Address, user: &Address, amount: &i128) {
     let key = BackstopDataKey::Shares(PoolUserKey {
         pool: pool.clone(),
         user: user.clone(),
@@ -166,7 +166,7 @@ pub fn set_shares(e: &Env, pool: &BytesN<32>, user: &Address, amount: &i128) {
 /// ### Arguments
 /// * `pool` - The pool the backstop deposit represents
 /// * `user` - The owner of the deposit
-pub fn get_q4w(e: &Env, pool: &BytesN<32>, user: &Address) -> Vec<Q4W> {
+pub fn get_q4w(e: &Env, pool: &Address, user: &Address) -> Vec<Q4W> {
     let key = BackstopDataKey::Q4W(PoolUserKey {
         pool: pool.clone(),
         user: user.clone(),
@@ -183,7 +183,7 @@ pub fn get_q4w(e: &Env, pool: &BytesN<32>, user: &Address) -> Vec<Q4W> {
 /// * `pool` - The pool the backstop deposit represents
 /// * `user` - The owner of the deposit
 /// * `qw4` - The array of queued withdrawals
-pub fn set_q4w(e: &Env, pool: &BytesN<32>, user: &Address, q4w: &Vec<Q4W>) {
+pub fn set_q4w(e: &Env, pool: &Address, user: &Address, q4w: &Vec<Q4W>) {
     let key = BackstopDataKey::Q4W(PoolUserKey {
         pool: pool.clone(),
         user: user.clone(),
@@ -197,7 +197,7 @@ pub fn set_q4w(e: &Env, pool: &BytesN<32>, user: &Address, q4w: &Vec<Q4W>) {
 ///
 /// ### Arguments
 /// * `pool` - The pool the backstop deposit represents
-pub fn get_pool_shares(e: &Env, pool: &BytesN<32>) -> i128 {
+pub fn get_pool_shares(e: &Env, pool: &Address) -> i128 {
     let key = BackstopDataKey::PoolShares(pool.clone());
     e.storage()
         .get::<BackstopDataKey, i128>(&key)
@@ -210,7 +210,7 @@ pub fn get_pool_shares(e: &Env, pool: &BytesN<32>) -> i128 {
 /// ### Arguments
 /// * `pool` - The pool the backstop deposit represents
 /// * `amount` - The amount of shares
-pub fn set_pool_shares(e: &Env, pool: &BytesN<32>, amount: &i128) {
+pub fn set_pool_shares(e: &Env, pool: &Address, amount: &i128) {
     let key = BackstopDataKey::PoolShares(pool.clone());
     e.storage().set::<BackstopDataKey, i128>(&key, &amount);
 }
@@ -221,7 +221,7 @@ pub fn set_pool_shares(e: &Env, pool: &BytesN<32>, amount: &i128) {
 ///
 /// ### Arguments
 /// * `pool` - The pool the backstop deposit represents
-pub fn get_pool_q4w(e: &Env, pool: &BytesN<32>) -> i128 {
+pub fn get_pool_q4w(e: &Env, pool: &Address) -> i128 {
     let key = BackstopDataKey::PoolQ4W(pool.clone());
     e.storage()
         .get::<BackstopDataKey, i128>(&key)
@@ -234,7 +234,7 @@ pub fn get_pool_q4w(e: &Env, pool: &BytesN<32>) -> i128 {
 /// ### Arguments
 /// * `pool` - The pool the backstop deposit represents
 /// * `amount` - The amount of shares queued for withdrawal for the pool
-pub fn set_pool_q4w(e: &Env, pool: &BytesN<32>, amount: &i128) {
+pub fn set_pool_q4w(e: &Env, pool: &Address, amount: &i128) {
     let key = BackstopDataKey::PoolQ4W(pool.clone());
     e.storage().set::<BackstopDataKey, i128>(&key, amount);
 }
@@ -245,7 +245,7 @@ pub fn set_pool_q4w(e: &Env, pool: &BytesN<32>, amount: &i128) {
 ///
 /// ### Arguments
 /// * `pool` - The pool the backstop balance belongs to
-pub fn get_pool_tokens(e: &Env, pool: &BytesN<32>) -> i128 {
+pub fn get_pool_tokens(e: &Env, pool: &Address) -> i128 {
     let key = BackstopDataKey::PoolTkn(pool.clone());
     e.storage()
         .get::<BackstopDataKey, i128>(&key)
@@ -258,7 +258,7 @@ pub fn get_pool_tokens(e: &Env, pool: &BytesN<32>) -> i128 {
 /// ### Arguments
 /// * `pool` - The pool the backstop balance belongs to
 /// * `amount` - The amount of tokens attributed to the pool
-pub fn set_pool_tokens(e: &Env, pool: &BytesN<32>, amount: &i128) {
+pub fn set_pool_tokens(e: &Env, pool: &Address, amount: &i128) {
     let key = BackstopDataKey::PoolTkn(pool.clone());
     e.storage().set::<BackstopDataKey, i128>(&key, amount);
 }
@@ -285,9 +285,9 @@ pub fn set_next_dist(e: &Env, timestamp: &u64) {
 /// Get the current pool addresses that are in the reward zone
 ///
 // @dev - TODO: Once data access costs are available, find the breakeven point for splitting this up
-pub fn get_reward_zone(e: &Env) -> Vec<BytesN<32>> {
+pub fn get_reward_zone(e: &Env) -> Vec<Address> {
     e.storage()
-        .get::<BackstopDataKey, Vec<BytesN<32>>>(&BackstopDataKey::RewardZone)
+        .get::<BackstopDataKey, Vec<Address>>(&BackstopDataKey::RewardZone)
         .unwrap_or(Ok(vec![&e]))
         .unwrap()
 }
@@ -296,16 +296,16 @@ pub fn get_reward_zone(e: &Env) -> Vec<BytesN<32>> {
 ///
 /// ### Arguments
 /// * `reward_zone` - The vector of pool addresses that comprise the reward zone
-pub fn set_reward_zone(e: &Env, reward_zone: &Vec<BytesN<32>>) {
+pub fn set_reward_zone(e: &Env, reward_zone: &Vec<Address>) {
     e.storage()
-        .set::<BackstopDataKey, Vec<BytesN<32>>>(&BackstopDataKey::RewardZone, reward_zone);
+        .set::<BackstopDataKey, Vec<Address>>(&BackstopDataKey::RewardZone, reward_zone);
 }
 
 /// Get current emissions EPS the backstop is distributing to the pool
 ///
 /// ### Arguments
 /// * `pool` - The pool
-pub fn get_pool_eps(e: &Env, pool: &BytesN<32>) -> i128 {
+pub fn get_pool_eps(e: &Env, pool: &Address) -> i128 {
     let key = BackstopDataKey::PoolEPS(pool.clone());
     e.storage()
         .get::<BackstopDataKey, i128>(&key)
@@ -318,7 +318,7 @@ pub fn get_pool_eps(e: &Env, pool: &BytesN<32>) -> i128 {
 /// ### Arguments
 /// * `pool` - The pool
 /// * `eps` - The eps being distributed to the pool
-pub fn set_pool_eps(e: &Env, pool: &BytesN<32>, eps: &i128) {
+pub fn set_pool_eps(e: &Env, pool: &Address, eps: &i128) {
     let key = BackstopDataKey::PoolEPS(pool.clone());
     e.storage().set::<BackstopDataKey, i128>(&key, eps);
 }
@@ -327,7 +327,7 @@ pub fn set_pool_eps(e: &Env, pool: &BytesN<32>, eps: &i128) {
 ///
 /// ### Arguments
 /// * `pool` - The pool
-pub fn get_pool_emis(e: &Env, pool: &BytesN<32>) -> i128 {
+pub fn get_pool_emis(e: &Env, pool: &Address) -> i128 {
     let key = BackstopDataKey::PoolEmis(pool.clone());
     e.storage()
         .get::<BackstopDataKey, i128>(&key)
@@ -340,7 +340,7 @@ pub fn get_pool_emis(e: &Env, pool: &BytesN<32>) -> i128 {
 /// ### Arguments
 /// * `pool` - The pool
 /// * `amount` - The pool's emission allotment
-pub fn set_pool_emis(e: &Env, pool: &BytesN<32>, amount: &i128) {
+pub fn set_pool_emis(e: &Env, pool: &Address, amount: &i128) {
     let key = BackstopDataKey::PoolEmis(pool.clone());
     e.storage().set::<BackstopDataKey, i128>(&key, amount);
 }
@@ -351,7 +351,7 @@ pub fn set_pool_emis(e: &Env, pool: &BytesN<32>, amount: &i128) {
 ///
 /// ### Arguments
 /// * `pool` - The pool
-pub fn get_backstop_emis_config(e: &Env, pool: &BytesN<32>) -> Option<BackstopEmissionConfig> {
+pub fn get_backstop_emis_config(e: &Env, pool: &Address) -> Option<BackstopEmissionConfig> {
     let key = BackstopDataKey::BEmisCfg(pool.clone());
     let result = e
         .storage()
@@ -369,7 +369,7 @@ pub fn get_backstop_emis_config(e: &Env, pool: &BytesN<32>) -> Option<BackstopEm
 /// * `backstop_emis_config` - The new emission data for the backstop
 pub fn set_backstop_emis_config(
     e: &Env,
-    pool: &BytesN<32>,
+    pool: &Address,
     backstop_emis_config: &BackstopEmissionConfig,
 ) {
     let key = BackstopDataKey::BEmisCfg(pool.clone());
@@ -381,7 +381,7 @@ pub fn set_backstop_emis_config(
 ///
 /// ### Arguments
 /// * `pool` - The pool
-pub fn get_backstop_emis_data(e: &Env, pool: &BytesN<32>) -> Option<BackstopEmissionsData> {
+pub fn get_backstop_emis_data(e: &Env, pool: &Address) -> Option<BackstopEmissionsData> {
     let key = BackstopDataKey::BEmisData(pool.clone());
     let result = e
         .storage()
@@ -397,11 +397,7 @@ pub fn get_backstop_emis_data(e: &Env, pool: &BytesN<32>) -> Option<BackstopEmis
 /// ### Arguments
 /// * `pool` - The pool
 /// * `backstop_emis_data` - The new emission data for the backstop
-pub fn set_backstop_emis_data(
-    e: &Env,
-    pool: &BytesN<32>,
-    backstop_emis_data: &BackstopEmissionsData,
-) {
+pub fn set_backstop_emis_data(e: &Env, pool: &Address, backstop_emis_data: &BackstopEmissionsData) {
     let key = BackstopDataKey::BEmisData(pool.clone());
     e.storage()
         .set::<BackstopDataKey, BackstopEmissionsData>(&key, backstop_emis_data);
@@ -412,7 +408,7 @@ pub fn set_backstop_emis_data(
 /// ### Arguments
 /// * `pool` - The pool whose backstop the user's emissions are for
 /// * `user` - The user's address
-pub fn get_user_emis_data(e: &Env, pool: &BytesN<32>, user: &Address) -> Option<UserEmissionData> {
+pub fn get_user_emis_data(e: &Env, pool: &Address, user: &Address) -> Option<UserEmissionData> {
     let key = BackstopDataKey::UEmisData(PoolUserKey {
         pool: pool.clone(),
         user: user.clone(),
@@ -432,7 +428,7 @@ pub fn get_user_emis_data(e: &Env, pool: &BytesN<32>, user: &Address) -> Option<
 /// * `user_emis_data` - The new emission data for the user
 pub fn set_user_emis_data(
     e: &Env,
-    pool: &BytesN<32>,
+    pool: &Address,
     user: &Address,
     user_emis_data: &UserEmissionData,
 ) {

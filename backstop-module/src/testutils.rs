@@ -5,7 +5,7 @@ use crate::{
     storage::{self, Q4W},
 };
 use rand::{thread_rng, RngCore};
-use soroban_sdk::{testutils::BytesN as _, Address, BytesN, Env, IntoVal, Vec};
+use soroban_sdk::{testutils::Address as _, Address, BytesN, Env, IntoVal, Vec};
 
 mod mock_pool_factory {
     soroban_sdk::contractimport!(
@@ -14,59 +14,59 @@ mod mock_pool_factory {
 }
 pub use mock_pool_factory::Client as MockPoolFactoryClient;
 
-pub(crate) fn generate_contract_id(e: &Env) -> BytesN<32> {
+pub(crate) fn generate_contract_address(e: &Env) -> Address {
     let mut id: [u8; 32] = Default::default();
     thread_rng().fill_bytes(&mut id);
-    BytesN::from_array(e, &id)
+    Address::from_contract_id(&BytesN::from_array(e, &id))
 }
 
-pub(crate) fn create_token(e: &Env, admin: &Address) -> (BytesN<32>, TokenClient) {
-    let contract_id = BytesN::<32>::random(e);
-    e.register_contract_wasm(&contract_id, TOKEN_WASM);
-    let client = TokenClient::new(e, &contract_id);
+pub(crate) fn create_token<'a>(e: &Env, admin: &Address) -> (Address, TokenClient<'a>) {
+    let contract_address = Address::random(e);
+    e.register_contract_wasm(&contract_address, TOKEN_WASM);
+    let client = TokenClient::new(e, &contract_address);
     client.initialize(&admin, &7, &"unit".into_val(e), &"test".into_val(e));
-    (contract_id, client)
+    (contract_address, client)
 }
 
-pub(crate) fn create_blnd_token(
+pub(crate) fn create_blnd_token<'a>(
     e: &Env,
-    backstop: &BytesN<32>,
+    backstop: &Address,
     admin: &Address,
-) -> (BytesN<32>, TokenClient) {
-    let (contract_id, client) = create_token(e, admin);
+) -> (Address, TokenClient<'a>) {
+    let (contract_address, client) = create_token(e, admin);
 
     e.as_contract(backstop, || {
-        storage::set_blnd_token(e, &contract_id);
+        storage::set_blnd_token(e, &contract_address);
     });
-    (contract_id, client)
+    (contract_address, client)
 }
 
-pub(crate) fn create_backstop_token(
+pub(crate) fn create_backstop_token<'a>(
     e: &Env,
-    backstop: &BytesN<32>,
+    backstop: &Address,
     admin: &Address,
-) -> (BytesN<32>, TokenClient) {
-    let (contract_id, client) = create_token(e, admin);
+) -> (Address, TokenClient<'a>) {
+    let (contract_address, client) = create_token(e, admin);
 
     e.as_contract(backstop, || {
-        storage::set_backstop_token(e, &contract_id);
+        storage::set_backstop_token(e, &contract_address);
     });
-    (contract_id, client)
+    (contract_address, client)
 }
 
-pub(crate) fn create_mock_pool_factory(
+pub(crate) fn create_mock_pool_factory<'a>(
     e: &Env,
-    backstop: &BytesN<32>,
-) -> (BytesN<32>, MockPoolFactoryClient) {
-    let contract_id = BytesN::<32>::random(e);
-    e.register_contract_wasm(&contract_id, mock_pool_factory::WASM);
+    backstop: &Address,
+) -> (Address, MockPoolFactoryClient<'a>) {
+    let contract_address = Address::random(e);
+    e.register_contract_wasm(&contract_address, mock_pool_factory::WASM);
 
     e.as_contract(backstop, || {
-        storage::set_pool_factory(e, &contract_id);
+        storage::set_pool_factory(e, &contract_address);
     });
     (
-        contract_id.clone(),
-        MockPoolFactoryClient::new(e, &contract_id),
+        contract_address.clone(),
+        MockPoolFactoryClient::new(e, &contract_address),
     )
 }
 

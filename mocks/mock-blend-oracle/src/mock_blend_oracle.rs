@@ -1,4 +1,4 @@
-use soroban_sdk::{contracterror, contractimpl, contracttype, Address, BytesN, Env};
+use soroban_sdk::{contracterror, contractimpl, contracttype, Address, Env};
 
 #[derive(Clone)]
 #[contracttype]
@@ -8,9 +8,9 @@ pub enum MockBlendOracleDataKey {
     // The number of decimals reported
     Decimals,
     // The map of asset price sources (asset contractId -> price source contractId)
-    Sources(BytesN<32>),
+    Sources(Address),
     // MOCK: Map of prices to return
-    Prices(BytesN<32>),
+    Prices(Address),
     // MOCK: If the oracle should fail
     ToError,
 }
@@ -34,11 +34,11 @@ trait MockOracle {
     // NOTE: Copy and pasted from `Oracle` trait
     fn decimals(e: Env) -> u32;
 
-    fn get_price(e: Env, asset: BytesN<32>) -> Result<u64, OracleError>;
+    fn get_price(e: Env, asset: Address) -> Result<u64, OracleError>;
 
-    fn source(e: Env, asset: BytesN<32>) -> BytesN<32>;
+    fn source(e: Env, asset: Address) -> Address;
 
-    fn set_source(e: Env, asset: BytesN<32>, source: BytesN<32>);
+    fn set_source(e: Env, asset: Address, source: Address);
 
     fn admin(e: Env) -> Address;
 
@@ -47,7 +47,7 @@ trait MockOracle {
     fn is_admin(e: Env) -> bool;
 
     /// Sets the mocked price for an asset
-    fn set_price(e: Env, asset: BytesN<32>, price: u64);
+    fn set_price(e: Env, asset: Address, price: u64);
 
     /// Sets the oracle error status
     fn set_error(e: Env, to_error: bool);
@@ -59,7 +59,7 @@ impl MockOracle for MockBlendOracle {
         7 as u32
     }
 
-    fn get_price(e: Env, asset: BytesN<32>) -> Result<u64, OracleError> {
+    fn get_price(e: Env, asset: Address) -> Result<u64, OracleError> {
         let to_error = e
             .storage()
             .get::<MockBlendOracleDataKey, bool>(&MockBlendOracleDataKey::ToError)
@@ -77,11 +77,11 @@ impl MockOracle for MockBlendOracle {
     }
 
     // NOTE: Management functions omitted - not necessary for mock
-    fn source(_e: Env, _asset: BytesN<32>) -> BytesN<32> {
+    fn source(_e: Env, _asset: Address) -> Address {
         panic!("not implemented for mock")
     }
 
-    fn set_source(_e: Env, _asset: BytesN<32>, _source: BytesN<32>) {
+    fn set_source(_e: Env, _asset: Address, _source: Address) {
         panic!("not implemented for mock")
     }
 
@@ -97,7 +97,7 @@ impl MockOracle for MockBlendOracle {
         panic!("not implemented for mock")
     }
 
-    fn set_price(e: Env, asset: BytesN<32>, price: u64) {
+    fn set_price(e: Env, asset: Address, price: u64) {
         let key = MockBlendOracleDataKey::Prices(asset);
         e.storage().set::<MockBlendOracleDataKey, u64>(&key, &price);
     }

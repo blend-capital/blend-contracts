@@ -1,7 +1,4 @@
-use soroban_sdk::{
-    testutils::{Address as _, BytesN as _},
-    Address, BytesN, Symbol,
-};
+use soroban_sdk::{testutils::Address as _, Address, Symbol};
 
 use crate::{
     pool::{default_reserve_metadata, ReserveEmissionMetadata},
@@ -9,9 +6,9 @@ use crate::{
 };
 
 /// Create a test fixture with a pool and a whale depositing and borrowing all assets
-pub fn create_fixture_with_data() -> (TestFixture, Address) {
+pub fn create_fixture_with_data<'a>() -> (TestFixture<'a>, Address) {
     let mut fixture = TestFixture::create();
-
+    fixture.env.mock_all_auths();
     // create pool
     fixture.create_pool(Symbol::new(&fixture.env, "Teapot"), 0_100_000_000);
 
@@ -55,33 +52,18 @@ pub fn create_fixture_with_data() -> (TestFixture, Address) {
 
     // mint whale tokens
     let frodo = Address::random(&fixture.env);
-    fixture.tokens[TokenIndex::USDC as usize].mint(
-        &fixture.bombadil,
-        &frodo,
-        &(100_000 * SCALAR_7),
-    );
-    fixture.tokens[TokenIndex::XLM as usize].mint(
-        &fixture.bombadil,
-        &frodo,
-        &(1_000_000 * SCALAR_7),
-    );
-    fixture.tokens[TokenIndex::WETH as usize].mint(&fixture.bombadil, &frodo, &(100 * SCALAR_7));
-    fixture.tokens[TokenIndex::BSTOP as usize].mint(
-        &fixture.bombadil,
-        &frodo,
-        &(10_000_000 * SCALAR_7),
-    );
+    fixture.tokens[TokenIndex::USDC as usize].mint(&frodo, &(100_000 * SCALAR_7));
+    fixture.tokens[TokenIndex::XLM as usize].mint(&frodo, &(1_000_000 * SCALAR_7));
+    fixture.tokens[TokenIndex::WETH as usize].mint(&frodo, &(100 * SCALAR_7));
+    fixture.tokens[TokenIndex::BSTOP as usize].mint(&frodo, &(10_000_000 * SCALAR_7));
 
     // deposit into backstop, add to reward zone
-    fixture.backstop.deposit(
-        &frodo,
-        &pool_fixture.pool.contract_id,
-        &(2_000_000 * SCALAR_7),
-    );
-    fixture.backstop.add_reward(
-        &pool_fixture.pool.contract_id,
-        &BytesN::<32>::random(&fixture.env),
-    );
+    fixture
+        .backstop
+        .deposit(&frodo, &pool_fixture.pool.address, &(2_000_000 * SCALAR_7));
+    fixture
+        .backstop
+        .add_reward(&pool_fixture.pool.address, &Address::random(&fixture.env));
     pool_fixture.pool.updt_stat();
 
     // enable emissions
@@ -94,36 +76,36 @@ pub fn create_fixture_with_data() -> (TestFixture, Address) {
     // supply and borrow all assets from whale
     pool_fixture.pool.supply(
         &frodo,
-        &fixture.tokens[TokenIndex::USDC as usize].contract_id,
+        &fixture.tokens[TokenIndex::USDC as usize].address,
         &(10_000 * SCALAR_7),
     );
     pool_fixture.pool.supply(
         &frodo,
-        &fixture.tokens[TokenIndex::XLM as usize].contract_id,
+        &fixture.tokens[TokenIndex::XLM as usize].address,
         &(100_000 * SCALAR_7),
     );
 
     pool_fixture.pool.supply(
         &frodo,
-        &fixture.tokens[TokenIndex::WETH as usize].contract_id,
+        &fixture.tokens[TokenIndex::WETH as usize].address,
         &(10 * SCALAR_7),
     );
 
     pool_fixture.pool.borrow(
         &frodo,
-        &fixture.tokens[TokenIndex::USDC as usize].contract_id,
+        &fixture.tokens[TokenIndex::USDC as usize].address,
         &(8_000 * SCALAR_7),
         &frodo,
     );
     pool_fixture.pool.borrow(
         &frodo,
-        &fixture.tokens[TokenIndex::XLM as usize].contract_id,
+        &fixture.tokens[TokenIndex::XLM as usize].address,
         &(65_000 * SCALAR_7),
         &frodo,
     );
     pool_fixture.pool.borrow(
         &frodo,
-        &fixture.tokens[TokenIndex::WETH as usize].contract_id,
+        &fixture.tokens[TokenIndex::WETH as usize].address,
         &(5 * SCALAR_7),
         &frodo,
     );
@@ -146,21 +128,21 @@ mod tests {
         // validate backstop deposit
         assert_eq!(
             2_000_000 * SCALAR_7,
-            fixture.tokens[TokenIndex::BSTOP as usize].balance(&fixture.backstop.address())
+            fixture.tokens[TokenIndex::BSTOP as usize].balance(&fixture.backstop.address)
         );
 
         // validate pool actions
         assert_eq!(
             2_000 * SCALAR_7,
-            fixture.tokens[TokenIndex::USDC as usize].balance(&pool_fixture.pool.address())
+            fixture.tokens[TokenIndex::USDC as usize].balance(&pool_fixture.pool.address)
         );
         assert_eq!(
             35_000 * SCALAR_7,
-            fixture.tokens[TokenIndex::XLM as usize].balance(&pool_fixture.pool.address())
+            fixture.tokens[TokenIndex::XLM as usize].balance(&pool_fixture.pool.address)
         );
         assert_eq!(
             5 * SCALAR_7,
-            fixture.tokens[TokenIndex::WETH as usize].balance(&pool_fixture.pool.address())
+            fixture.tokens[TokenIndex::WETH as usize].balance(&pool_fixture.pool.address)
         );
 
         assert_eq!(
@@ -179,11 +161,11 @@ mod tests {
         // validate emissions are turned on
         assert_eq!(
             0_300_0000,
-            fixture.backstop.pool_eps(&pool_fixture.pool.contract_id)
+            fixture.backstop.pool_eps(&pool_fixture.pool.address)
         );
         let (emis_config, _) = pool_fixture
             .pool
-            .res_emis(&fixture.tokens[TokenIndex::USDC as usize].contract_id, &0)
+            .res_emis(&fixture.tokens[TokenIndex::USDC as usize].address, &0)
             .unwrap();
         assert_eq!(0_180_0000, emis_config.eps);
     }

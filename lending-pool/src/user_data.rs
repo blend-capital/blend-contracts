@@ -1,6 +1,6 @@
 use cast::i128;
 use fixed_point_math::FixedPoint;
-use soroban_sdk::{Address, BytesN, Env};
+use soroban_sdk::{Address, Env};
 
 use crate::{
     constants::SCALAR_7,
@@ -19,7 +19,7 @@ pub struct UserData {
 }
 
 pub struct UserAction {
-    pub asset: BytesN<32>,
+    pub asset: Address,
     pub b_token_delta: i128, // take protocol tokens in the event a rounding change occurs
     pub d_token_delta: i128,
 }
@@ -97,17 +97,19 @@ impl UserData {
 
 #[cfg(test)]
 mod tests {
-    use crate::testutils::{
-        create_mock_oracle, create_reserve, generate_contract_id, setup_reserve,
-    };
+    use crate::testutils::{create_mock_oracle, create_reserve, setup_reserve};
 
     use super::*;
-    use soroban_sdk::testutils::{Address as AddressTestTrait, Ledger, LedgerInfo};
+    use soroban_sdk::{
+        testutils::{Address as AddressTestTrait, Ledger, LedgerInfo},
+        BytesN,
+    };
 
     #[test]
     fn test_load_user_only_collateral() {
         let e = Env::default();
-        let pool_id = generate_contract_id(&e);
+        e.mock_all_auths();
+        let pool_id = Address::random(&e);
 
         let collateral_amount = 10_0000000;
 
@@ -137,11 +139,7 @@ mod tests {
         e.as_contract(&pool_id, || {
             storage::set_user_config(&e, &samwise, &0x0000000000000010);
 
-            TokenClient::new(&e, &reserve_1.config.b_token).mint(
-                &e.current_contract_address(),
-                &samwise,
-                &collateral_amount,
-            );
+            TokenClient::new(&e, &reserve_1.config.b_token).mint(&samwise, &collateral_amount);
         });
 
         let pool_config = PoolConfig {
@@ -151,7 +149,7 @@ mod tests {
         };
 
         let user_action = UserAction {
-            asset: BytesN::from_array(&e, &[0u8; 32]),
+            asset: Address::from_contract_id(&BytesN::from_array(&e, &[0u8; 32])),
             d_token_delta: 0,
             b_token_delta: 0,
         };
@@ -165,7 +163,8 @@ mod tests {
     #[test]
     fn test_load_user_only_liability() {
         let e = Env::default();
-        let pool_id = generate_contract_id(&e);
+        e.mock_all_auths();
+        let pool_id = Address::random(&e);
 
         let liability_amount = 12_0000000;
 
@@ -195,11 +194,7 @@ mod tests {
         e.as_contract(&pool_id, || {
             storage::set_user_config(&e, &samwise, &0x0000000000000001);
 
-            TokenClient::new(&e, &reserve_0.config.d_token).mint(
-                &e.current_contract_address(),
-                &samwise,
-                &liability_amount,
-            );
+            TokenClient::new(&e, &reserve_0.config.d_token).mint(&samwise, &liability_amount);
         });
 
         let pool_config = PoolConfig {
@@ -209,7 +204,7 @@ mod tests {
         };
 
         let user_action = UserAction {
-            asset: BytesN::from_array(&e, &[0u8; 32]),
+            asset: Address::from_contract_id(&BytesN::from_array(&e, &[0u8; 32])),
             d_token_delta: 0,
             b_token_delta: 0,
         };
@@ -223,7 +218,8 @@ mod tests {
     #[test]
     fn test_load_user_only_action() {
         let e = Env::default();
-        let pool_id = generate_contract_id(&e);
+        e.mock_all_auths();
+        let pool_id = Address::random(&e);
 
         let bombadil = Address::random(&e);
         let samwise = Address::random(&e);
@@ -273,7 +269,8 @@ mod tests {
     #[test]
     fn test_load_user_all_positions() {
         let e = Env::default();
-        let pool_id = generate_contract_id(&e);
+        e.mock_all_auths();
+        let pool_id = Address::random(&e);
 
         let bombadil = Address::random(&e);
         let samwise = Address::random(&e);
@@ -305,16 +302,8 @@ mod tests {
         e.as_contract(&pool_id, || {
             storage::set_user_config(&e, &samwise, &0x000000000000000A);
 
-            TokenClient::new(&e, &reserve_0.config.b_token).mint(
-                &e.current_contract_address(),
-                &samwise,
-                &collateral_amount,
-            );
-            TokenClient::new(&e, &reserve_1.config.d_token).mint(
-                &e.current_contract_address(),
-                &samwise,
-                &liability_amount,
-            );
+            TokenClient::new(&e, &reserve_0.config.b_token).mint(&samwise, &collateral_amount);
+            TokenClient::new(&e, &reserve_1.config.d_token).mint(&samwise, &liability_amount);
         });
 
         let pool_config = PoolConfig {
@@ -338,7 +327,8 @@ mod tests {
     #[test]
     fn test_load_user_updates_rates() {
         let e = Env::default();
-        let pool_id = generate_contract_id(&e);
+        e.mock_all_auths();
+        let pool_id = Address::random(&e);
 
         let bombadil = Address::random(&e);
         let samwise = Address::random(&e);
@@ -370,16 +360,8 @@ mod tests {
         e.as_contract(&pool_id, || {
             storage::set_user_config(&e, &samwise, &0x000000000000000A);
 
-            TokenClient::new(&e, &reserve_0.config.b_token).mint(
-                &e.current_contract_address(),
-                &samwise,
-                &collateral_amount,
-            );
-            TokenClient::new(&e, &reserve_1.config.d_token).mint(
-                &e.current_contract_address(),
-                &samwise,
-                &liability_amount,
-            );
+            TokenClient::new(&e, &reserve_0.config.b_token).mint(&samwise, &collateral_amount);
+            TokenClient::new(&e, &reserve_1.config.d_token).mint(&samwise, &liability_amount);
         });
 
         e.ledger().set(LedgerInfo {

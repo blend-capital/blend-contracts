@@ -19,22 +19,17 @@ pub fn require_is_pool(e: &Env, addr: &Address) {
 
 #[cfg(test)]
 mod tests {
-    use soroban_sdk::{
-        testutils::{Address as _, BytesN as _},
-        BytesN,
-    };
+    use soroban_sdk::testutils::Address as _;
 
     use super::*;
 
     #[test]
     fn test_require_pool() {
         let e = Env::default();
-
-        let token_id = BytesN::<32>::random(&e);
-
+        let token_address = Address::random(&e);
         let pool = Address::random(&e);
 
-        e.as_contract(&token_id, || {
+        e.as_contract(&token_address, || {
             storage::write_pool(&e, &pool);
 
             require_is_pool(&e, &pool);
@@ -46,12 +41,12 @@ mod tests {
     fn test_require_pool_not_pool_panics() {
         let e = Env::default();
 
-        let token_id = BytesN::<32>::random(&e);
+        let token_address = Address::random(&e);
 
         let pool = Address::random(&e);
         let not_pool = Address::random(&e);
 
-        e.as_contract(&token_id, || {
+        e.as_contract(&token_address, || {
             storage::write_pool(&e, &pool);
 
             require_is_pool(&e, &not_pool);

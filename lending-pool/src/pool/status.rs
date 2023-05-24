@@ -14,7 +14,7 @@ pub fn execute_update_pool_status(e: &Env) -> Result<u32, PoolError> {
     let backstop_client = BackstopClient::new(e, &backstop_id);
 
     let (pool_tokens, pool_shares, shares_q4w) =
-        backstop_client.p_balance(&e.current_contract_id());
+        backstop_client.p_balance(&e.current_contract_address());
     let q4w_pct = shares_q4w.fixed_div_floor(pool_shares, SCALAR_7).unwrap();
 
     if q4w_pct >= 0_5000000 {
@@ -40,7 +40,7 @@ pub fn set_pool_status(e: &Env, admin: &Address, pool_status: u32) -> Result<(),
         let backstop_id = storage::get_backstop(e);
         let backstop_client = BackstopClient::new(e, &backstop_id);
 
-        let (pool_tokens, _, _) = backstop_client.p_balance(&e.current_contract_id());
+        let (pool_tokens, _, _) = backstop_client.p_balance(&e.current_contract_address());
         if pool_tokens < 1_000_000_0000000 {
             return Err(PoolError::InvalidPoolStatus);
         }
@@ -61,16 +61,14 @@ mod tests {
     };
 
     use super::*;
-    use soroban_sdk::{
-        testutils::{Address as _, BytesN as _},
-        BytesN,
-    };
+    use soroban_sdk::testutils::Address as _;
 
     #[test]
     fn test_set_pool_status() {
         let e = Env::default();
-        let pool_id = BytesN::<32>::random(&e);
-        let oracle_id = BytesN::<32>::random(&e);
+        e.mock_all_auths();
+        let pool_id = Address::random(&e);
+        let oracle_id = Address::random(&e);
 
         let bombadil = Address::random(&e);
         let samwise = Address::random(&e);
@@ -82,9 +80,9 @@ mod tests {
             &pool_id,
             &backstop_id,
             &backstop_token_id,
-            &BytesN::<32>::random(&e),
+            &Address::random(&e),
         );
-        backstop_token_client.mint(&bombadil, &samwise, &1_100_000_0000000);
+        backstop_token_client.mint(&samwise, &1_100_000_0000000);
         backstop_client.deposit(&samwise, &pool_id, &1_100_000_0000000);
 
         let pool_config = PoolConfig {
@@ -106,8 +104,9 @@ mod tests {
     #[test]
     fn test_set_pool_status_requires_admin() {
         let e = Env::default();
-        let pool_id = BytesN::<32>::random(&e);
-        let oracle_id = BytesN::<32>::random(&e);
+        e.mock_all_auths();
+        let pool_id = Address::random(&e);
+        let oracle_id = Address::random(&e);
 
         let bombadil = Address::random(&e);
         let samwise = Address::random(&e);
@@ -120,9 +119,9 @@ mod tests {
             &pool_id,
             &backstop_id,
             &backstop_token_id,
-            &BytesN::<32>::random(&e),
+            &Address::random(&e),
         );
-        backstop_token_client.mint(&bombadil, &samwise, &1_100_000_0000000);
+        backstop_token_client.mint(&samwise, &1_100_000_0000000);
         backstop_client.deposit(&samwise, &pool_id, &1_100_000_0000000);
 
         let pool_config = PoolConfig {
@@ -145,8 +144,9 @@ mod tests {
     #[test]
     fn test_set_pool_status_blocks_without_backstop_minimum() {
         let e = Env::default();
-        let pool_id = BytesN::<32>::random(&e);
-        let oracle_id = BytesN::<32>::random(&e);
+        e.mock_all_auths();
+        let pool_id = Address::random(&e);
+        let oracle_id = Address::random(&e);
 
         let bombadil = Address::random(&e);
         let samwise = Address::random(&e);
@@ -158,9 +158,9 @@ mod tests {
             &pool_id,
             &backstop_id,
             &backstop_token_id,
-            &BytesN::<32>::random(&e),
+            &Address::random(&e),
         );
-        backstop_token_client.mint(&bombadil, &samwise, &999_999_9999999);
+        backstop_token_client.mint(&samwise, &999_999_9999999);
         backstop_client.deposit(&samwise, &pool_id, &999_999_9999999);
 
         let pool_config = PoolConfig {
@@ -180,8 +180,9 @@ mod tests {
     #[test]
     fn test_update_pool_status_active() {
         let e = Env::default();
-        let pool_id = BytesN::<32>::random(&e);
-        let oracle_id = BytesN::<32>::random(&e);
+        e.mock_all_auths();
+        let pool_id = Address::random(&e);
+        let oracle_id = Address::random(&e);
 
         let bombadil = Address::random(&e);
         let samwise = Address::random(&e);
@@ -193,9 +194,9 @@ mod tests {
             &pool_id,
             &backstop_id,
             &backstop_token_id,
-            &BytesN::<32>::random(&e),
+            &Address::random(&e),
         );
-        backstop_token_client.mint(&bombadil, &samwise, &1_100_000_0000000);
+        backstop_token_client.mint(&samwise, &1_100_000_0000000);
         backstop_client.deposit(&samwise, &pool_id, &1_100_000_0000000);
 
         let pool_config = PoolConfig {
@@ -218,8 +219,9 @@ mod tests {
     #[test]
     fn test_update_pool_status_on_ice_tokens() {
         let e = Env::default();
-        let pool_id = BytesN::<32>::random(&e);
-        let oracle_id = BytesN::<32>::random(&e);
+        e.mock_all_auths();
+        let pool_id = Address::random(&e);
+        let oracle_id = Address::random(&e);
 
         let bombadil = Address::random(&e);
         let samwise = Address::random(&e);
@@ -231,9 +233,9 @@ mod tests {
             &pool_id,
             &backstop_id,
             &backstop_token_id,
-            &BytesN::<32>::random(&e),
+            &Address::random(&e),
         );
-        backstop_token_client.mint(&bombadil, &samwise, &900_000_0000000);
+        backstop_token_client.mint(&samwise, &900_000_0000000);
         backstop_client.deposit(&samwise, &pool_id, &900_000_0000000);
 
         let pool_config = PoolConfig {
@@ -256,8 +258,9 @@ mod tests {
     #[test]
     fn test_update_pool_status_on_ice_q4w() {
         let e = Env::default();
-        let pool_id = BytesN::<32>::random(&e);
-        let oracle_id = BytesN::<32>::random(&e);
+        e.mock_all_auths();
+        let pool_id = Address::random(&e);
+        let oracle_id = Address::random(&e);
 
         let bombadil = Address::random(&e);
         let samwise = Address::random(&e);
@@ -269,9 +272,9 @@ mod tests {
             &pool_id,
             &backstop_id,
             &backstop_token_id,
-            &BytesN::<32>::random(&e),
+            &Address::random(&e),
         );
-        backstop_token_client.mint(&bombadil, &samwise, &1_100_000_0000000);
+        backstop_token_client.mint(&samwise, &1_100_000_0000000);
         backstop_client.deposit(&samwise, &pool_id, &1_100_000_0000000);
         backstop_client.q_withdraw(&samwise, &pool_id, &300_000_0000000);
 
@@ -295,8 +298,9 @@ mod tests {
     #[test]
     fn test_update_pool_status_frozen() {
         let e = Env::default();
-        let pool_id = BytesN::<32>::random(&e);
-        let oracle_id = BytesN::<32>::random(&e);
+        e.mock_all_auths();
+        let pool_id = Address::random(&e);
+        let oracle_id = Address::random(&e);
 
         let bombadil = Address::random(&e);
         let samwise = Address::random(&e);
@@ -308,9 +312,9 @@ mod tests {
             &pool_id,
             &backstop_id,
             &backstop_token_id,
-            &BytesN::<32>::random(&e),
+            &Address::random(&e),
         );
-        backstop_token_client.mint(&bombadil, &samwise, &1_100_000_0000000);
+        backstop_token_client.mint(&samwise, &1_100_000_0000000);
         backstop_client.deposit(&samwise, &pool_id, &1_100_000_0000000);
         backstop_client.q_withdraw(&samwise, &pool_id, &600_000_0000000);
 
@@ -334,8 +338,9 @@ mod tests {
     #[test]
     fn test_update_pool_status_admin_frozen() {
         let e = Env::default();
-        let pool_id = BytesN::<32>::random(&e);
-        let oracle_id = BytesN::<32>::random(&e);
+        e.mock_all_auths();
+        let pool_id = Address::random(&e);
+        let oracle_id = Address::random(&e);
 
         let bombadil = Address::random(&e);
         let samwise = Address::random(&e);
@@ -347,9 +352,9 @@ mod tests {
             &pool_id,
             &backstop_id,
             &backstop_token_id,
-            &BytesN::<32>::random(&e),
+            &Address::random(&e),
         );
-        backstop_token_client.mint(&bombadil, &samwise, &1_100_000_0000000);
+        backstop_token_client.mint(&samwise, &1_100_000_0000000);
         backstop_client.deposit(&samwise, &pool_id, &1_100_000_0000000);
 
         let pool_config = PoolConfig {

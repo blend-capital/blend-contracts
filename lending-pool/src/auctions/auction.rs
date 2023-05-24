@@ -5,7 +5,7 @@ use crate::{
 };
 use cast::i128;
 use fixed_point_math::FixedPoint;
-use soroban_sdk::{contracttype, Address, BytesN, Env, Map, Vec};
+use soroban_sdk::{contracttype, Address, Env, Map, Vec};
 
 use super::{
     backstop_interest_auction::{
@@ -41,15 +41,15 @@ impl AuctionType {
 #[derive(Clone)]
 #[contracttype]
 pub struct LiquidationMetadata {
-    pub collateral: Map<BytesN<32>, i128>,
-    pub liability: Map<BytesN<32>, i128>,
+    pub collateral: Map<Address, i128>,
+    pub liability: Map<Address, i128>,
 }
 
 #[derive(Clone)]
 #[contracttype]
 pub struct AuctionQuote {
-    pub bid: Vec<(BytesN<32>, i128)>,
-    pub lot: Vec<(BytesN<32>, i128)>,
+    pub bid: Vec<(Address, i128)>,
+    pub lot: Vec<(Address, i128)>,
     pub block: u32,
 }
 
@@ -72,7 +72,7 @@ pub struct AuctionData {
 /// ### Errors
 /// If the auction is unable to be created
 pub fn create(e: &Env, auction_type: u32) -> Result<AuctionData, PoolError> {
-    let backstop = Address::from_contract_id(&e, &storage::get_backstop(e));
+    let backstop = storage::get_backstop(e);
     let auction_data = match AuctionType::from_u32(auction_type) {
         AuctionType::UserLiquidation => {
             return Err(PoolError::BadRequest);
@@ -127,7 +127,7 @@ pub fn delete_liquidation(e: &Env, user: &Address) -> Result<(), PoolError> {
     let pool_config = storage::get_pool_config(e);
     // no action is being take when calculating the users health factor
     let action = UserAction {
-        asset: BytesN::from_array(e, &[0; 32]),
+        asset: e.current_contract_address(),
         b_token_delta: 0,
         d_token_delta: 0,
     };
@@ -222,20 +222,20 @@ mod tests {
     use crate::{
         dependencies::TokenClient,
         storage::PoolConfig,
-        testutils::{create_mock_oracle, create_reserve, generate_contract_id, setup_reserve},
+        testutils::{create_mock_oracle, create_reserve, setup_reserve},
     };
 
     use super::*;
     use soroban_sdk::{
         map,
-        testutils::{Address as _, BytesN as _, Ledger, LedgerInfo},
+        testutils::{Address as _, Ledger, LedgerInfo},
     };
 
     #[test]
     fn test_create_user_liquidation_errors() {
         let e = Env::default();
-        let pool_id = generate_contract_id(&e);
-        let backstop_id = BytesN::<32>::random(&e);
+        let pool_id = Address::random(&e);
+        let backstop_id = Address::random(&e);
 
         e.as_contract(&pool_id, || {
             storage::set_backstop(&e, &backstop_id);
@@ -252,7 +252,8 @@ mod tests {
     #[test]
     fn test_delete_user_liquidation() {
         let e = Env::default();
-        let pool_id = generate_contract_id(&e);
+        e.mock_all_auths();
+        let pool_id = Address::random(&e);
 
         let bombadil = Address::random(&e);
         let samwise = Address::random(&e);
@@ -285,16 +286,8 @@ mod tests {
         e.as_contract(&pool_id, || {
             storage::set_pool_config(&e, &pool_config);
             storage::set_user_config(&e, &samwise, &0x000000000000000A);
-            TokenClient::new(&e, &reserve_0.config.b_token).mint(
-                &e.current_contract_address(),
-                &samwise,
-                &collateral_amount,
-            );
-            TokenClient::new(&e, &reserve_1.config.d_token).mint(
-                &e.current_contract_address(),
-                &samwise,
-                &liability_amount,
-            );
+            TokenClient::new(&e, &reserve_0.config.b_token).mint(&samwise, &collateral_amount);
+            TokenClient::new(&e, &reserve_1.config.d_token).mint(&samwise, &liability_amount);
             storage::set_auction(
                 &e,
                 &(AuctionType::UserLiquidation as u32),
@@ -314,7 +307,8 @@ mod tests {
     #[test]
     fn test_delete_user_liquidation_invalid_hf() {
         let e = Env::default();
-        let pool_id = generate_contract_id(&e);
+        e.mock_all_auths();
+        let pool_id = Address::random(&e);
 
         let bombadil = Address::random(&e);
         let samwise = Address::random(&e);
@@ -347,16 +341,8 @@ mod tests {
         e.as_contract(&pool_id, || {
             storage::set_pool_config(&e, &pool_config);
             storage::set_user_config(&e, &samwise, &0x000000000000000A);
-            TokenClient::new(&e, &reserve_0.config.b_token).mint(
-                &e.current_contract_address(),
-                &samwise,
-                &collateral_amount,
-            );
-            TokenClient::new(&e, &reserve_1.config.d_token).mint(
-                &e.current_contract_address(),
-                &samwise,
-                &liability_amount,
-            );
+            TokenClient::new(&e, &reserve_0.config.b_token).mint(&samwise, &collateral_amount);
+            TokenClient::new(&e, &reserve_1.config.d_token).mint(&samwise, &liability_amount);
             storage::set_auction(
                 &e,
                 &(AuctionType::UserLiquidation as u32),

@@ -145,10 +145,10 @@ impl CAP4606 for Token {
     }
 }
 
-pub struct DToken;
+pub struct BToken;
 
 #[contractimpl]
-impl BlendPoolToken for DToken {
+impl BlendPoolToken for BToken {
     fn pool(e: Env) -> Address {
         storage::read_pool(&e)
     }

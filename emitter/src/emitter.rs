@@ -24,7 +24,7 @@ pub fn execute_distribute(e: &Env, backstop: &Address) -> Result<i128, EmitterEr
 /// Perform a backstop swap
 pub fn execute_swap_backstop(e: &Env, new_backstop_id: Address) -> Result<(), EmitterError> {
     let backstop = storage::get_backstop(e);
-    let backstop_token = BackstopClient::new(&e, &backstop).bstp_token();
+    let backstop_token = BackstopClient::new(&e, &backstop).backstop_token();
     let backstop_token_client = TokenClient::new(&e, &backstop_token);
 
     let backstop_balance = backstop_token_client.balance(&backstop);

@@ -266,7 +266,7 @@ pub fn set_pool_tokens(e: &Env, pool: &Address, amount: &i128) {
 /********** Distribution / Reward Zone **********/
 
 /// Get the timestamp of when the next distribution window opens
-pub fn get_next_dist(e: &Env) -> u64 {
+pub fn get_next_distribution(e: &Env) -> u64 {
     e.storage()
         .get::<BackstopDataKey, u64>(&BackstopDataKey::NextDist)
         .unwrap_or(Ok(0))
@@ -277,7 +277,7 @@ pub fn get_next_dist(e: &Env) -> u64 {
 ///
 /// ### Arguments
 /// * `timestamp` - The timestamp the distribution window will open
-pub fn set_next_dist(e: &Env, timestamp: &u64) {
+pub fn set_next_distribution(e: &Env, timestamp: &u64) {
     e.storage()
         .set::<BackstopDataKey, u64>(&BackstopDataKey::NextDist, timestamp);
 }

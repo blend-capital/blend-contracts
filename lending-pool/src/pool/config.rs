@@ -179,7 +179,7 @@ pub fn execute_update_reserve(
 pub fn update_pool_emissions(e: &Env) -> Result<u64, PoolError> {
     let backstop_address = storage::get_backstop(e);
     let backstop_client = BackstopClient::new(e, &backstop_address);
-    let next_exp = backstop_client.next_dist();
+    let next_exp = backstop_client.next_distribution();
     let pool_eps = backstop_client.pool_eps(&e.current_contract_address()) as u64;
     emissions::update_emissions(e, next_exp, pool_eps)
 }

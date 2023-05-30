@@ -14,7 +14,7 @@ pub fn execute_update_pool_status(e: &Env) -> Result<u32, PoolError> {
     let backstop_client = BackstopClient::new(e, &backstop_id);
 
     let (pool_tokens, pool_shares, shares_q4w) =
-        backstop_client.p_balance(&e.current_contract_address());
+        backstop_client.pool_balance(&e.current_contract_address());
     let q4w_pct = shares_q4w.fixed_div_floor(pool_shares, SCALAR_7).unwrap();
 
     if q4w_pct >= 0_5000000 {
@@ -40,7 +40,7 @@ pub fn set_pool_status(e: &Env, admin: &Address, pool_status: u32) -> Result<(),
         let backstop_id = storage::get_backstop(e);
         let backstop_client = BackstopClient::new(e, &backstop_id);
 
-        let (pool_tokens, _, _) = backstop_client.p_balance(&e.current_contract_address());
+        let (pool_tokens, _, _) = backstop_client.pool_balance(&e.current_contract_address());
         if pool_tokens < 1_000_000_0000000 {
             return Err(PoolError::InvalidPoolStatus);
         }
@@ -276,7 +276,7 @@ mod tests {
         );
         backstop_token_client.mint(&samwise, &1_100_000_0000000);
         backstop_client.deposit(&samwise, &pool_id, &1_100_000_0000000);
-        backstop_client.q_withdraw(&samwise, &pool_id, &300_000_0000000);
+        backstop_client.queue_withdrawal(&samwise, &pool_id, &300_000_0000000);
 
         let pool_config = PoolConfig {
             oracle: oracle_id,
@@ -316,7 +316,7 @@ mod tests {
         );
         backstop_token_client.mint(&samwise, &1_100_000_0000000);
         backstop_client.deposit(&samwise, &pool_id, &1_100_000_0000000);
-        backstop_client.q_withdraw(&samwise, &pool_id, &600_000_0000000);
+        backstop_client.queue_withdrawal(&samwise, &pool_id, &600_000_0000000);
 
         let pool_config = PoolConfig {
             oracle: oracle_id,

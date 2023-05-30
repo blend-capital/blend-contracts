@@ -68,7 +68,7 @@ pub fn create_fixture_with_data<'a>() -> (TestFixture<'a>, Address) {
 
     // enable emissions
     fixture.emitter.distribute();
-    fixture.backstop.dist();
+    fixture.backstop.distribute();
     pool_fixture.pool.updt_emis();
 
     fixture.jump(60);

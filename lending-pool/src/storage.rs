@@ -42,16 +42,16 @@ pub struct ReserveMetadata {
 pub struct ReserveConfig {
     pub b_token: Address, // the address of the bToken contract
     pub d_token: Address, // the address of the dToken contract
-    pub index: u32,          // the index of the reserve in the list
-    pub decimals: u32,       // the decimals used in both the bToken and underlying contract
-    pub c_factor: u32,       // the collateral factor for the reserve
-    pub l_factor: u32,       // the liability factor for the reserve
-    pub util: u32,           // the target utilization rate
-    pub max_util: u32,       // the maximum allowed utilization rate
-    pub r_one: u32,          // the R1 value in the interest rate formula
-    pub r_two: u32,          // the R2 value in the interest rate formula
-    pub r_three: u32,        // the R3 value in the interest rate formula
-    pub reactivity: u32,     // the reactivity constant for the reserve
+    pub index: u32,       // the index of the reserve in the list
+    pub decimals: u32,    // the decimals used in both the bToken and underlying contract
+    pub c_factor: u32,    // the collateral factor for the reserve
+    pub l_factor: u32,    // the liability factor for the reserve
+    pub util: u32,        // the target utilization rate
+    pub max_util: u32,    // the maximum allowed utilization rate
+    pub r_one: u32,       // the R1 value in the interest rate formula
+    pub r_two: u32,       // the R2 value in the interest rate formula
+    pub r_three: u32,     // the R3 value in the interest rate formula
+    pub reactivity: u32,  // the reactivity constant for the reserve
 }
 
 /// The data for a reserve asset

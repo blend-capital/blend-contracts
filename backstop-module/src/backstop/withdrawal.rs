@@ -5,7 +5,7 @@ use crate::{
 use soroban_sdk::{Address, Env};
 
 /// Perform a queue for withdraw from the backstop module
-pub fn execute_q_withdraw(
+pub fn execute_queue_withdrawal(
     e: &Env,
     from: &Address,
     pool_address: &Address,
@@ -25,7 +25,7 @@ pub fn execute_q_withdraw(
 }
 
 /// Perform a dequeue of queued for withdraw deposits from the backstop module
-pub fn execute_dequeue_q4w(
+pub fn execute_dequeue_withdrawal(
     e: &Env,
     from: &Address,
     pool_address: &Address,
@@ -119,7 +119,7 @@ mod tests {
         });
 
         e.as_contract(&backstop_address, || {
-            execute_q_withdraw(&e, &samwise, &pool_address, 42_0000000).unwrap();
+            execute_queue_withdrawal(&e, &samwise, &pool_address, 42_0000000).unwrap();
             assert_eq!(
                 storage::get_shares(&e, &pool_address, &samwise),
                 100_0000000
@@ -170,7 +170,7 @@ mod tests {
         });
 
         e.as_contract(&backstop_address, || {
-            let res = execute_q_withdraw(&e, &samwise, &pool_address, -42_0000000);
+            let res = execute_queue_withdrawal(&e, &samwise, &pool_address, -42_0000000);
             match res {
                 Ok(_) => assert!(false),
                 Err(err) => match err {
@@ -182,7 +182,7 @@ mod tests {
     }
 
     #[test]
-    fn test_execute_dequeue_q4w() {
+    fn test_execute_dequeue_withdrawal() {
         let e = Env::default();
         e.mock_all_auths();
 
@@ -204,7 +204,7 @@ mod tests {
             );
             assert_eq!(total_shares, 75_0000000);
 
-            execute_q_withdraw(&e, &samwise, &pool_address, 25_0000000).unwrap();
+            execute_queue_withdrawal(&e, &samwise, &pool_address, 25_0000000).unwrap();
 
             e.ledger().set(LedgerInfo {
                 protocol_version: 1,
@@ -214,7 +214,7 @@ mod tests {
                 base_reserve: 10,
             });
 
-            execute_q_withdraw(&e, &samwise, &pool_address, 40_0000000).unwrap();
+            execute_queue_withdrawal(&e, &samwise, &pool_address, 40_0000000).unwrap();
         });
 
         e.ledger().set(LedgerInfo {
@@ -226,7 +226,7 @@ mod tests {
         });
 
         e.as_contract(&backstop_address, || {
-            execute_dequeue_q4w(&e, &samwise, &pool_address, 30_0000000).unwrap();
+            execute_dequeue_withdrawal(&e, &samwise, &pool_address, 30_0000000).unwrap();
             assert_eq!(storage::get_shares(&e, &pool_address, &samwise), 75_0000000);
             let q4w = storage::get_q4w(&e, &pool_address, &samwise);
             let expected_q4w = vec![
@@ -243,7 +243,7 @@ mod tests {
         });
     }
     #[test]
-    fn test_execute_dequeue_q4w_negative_amount() {
+    fn test_execute_dequeue_withdrawal_negative_amount() {
         let e = Env::default();
         e.mock_all_auths();
 
@@ -265,7 +265,7 @@ mod tests {
             );
             assert_eq!(total_shares, 75_0000000);
 
-            execute_q_withdraw(&e, &samwise, &pool_address, 25_0000000).unwrap();
+            execute_queue_withdrawal(&e, &samwise, &pool_address, 25_0000000).unwrap();
 
             e.ledger().set(LedgerInfo {
                 protocol_version: 1,
@@ -275,7 +275,7 @@ mod tests {
                 base_reserve: 10,
             });
 
-            execute_q_withdraw(&e, &samwise, &pool_address, 40_0000000).unwrap();
+            execute_queue_withdrawal(&e, &samwise, &pool_address, 40_0000000).unwrap();
         });
 
         e.ledger().set(LedgerInfo {
@@ -287,7 +287,7 @@ mod tests {
         });
 
         e.as_contract(&backstop_address, || {
-            let res = execute_dequeue_q4w(&e, &samwise, &pool_address, -30_0000000);
+            let res = execute_dequeue_withdrawal(&e, &samwise, &pool_address, -30_0000000);
             match res {
                 Ok(_) => assert!(false),
                 Err(err) => match err {
@@ -322,7 +322,7 @@ mod tests {
         // setup pool with queue for withdrawal and allow the backstop to incur a profit
         e.as_contract(&backstop_address, || {
             execute_deposit(&e, &samwise, &pool_address, 100_0000000).unwrap();
-            execute_q_withdraw(&e, &samwise, &pool_address, 42_0000000).unwrap();
+            execute_queue_withdrawal(&e, &samwise, &pool_address, 42_0000000).unwrap();
             execute_donate(&e, &samwise, &pool_address, 50_0000000).unwrap();
         });
 
@@ -383,7 +383,7 @@ mod tests {
         // setup pool with queue for withdrawal and allow the backstop to incur a profit
         e.as_contract(&backstop_address, || {
             execute_deposit(&e, &samwise, &pool_address, 100_0000000).unwrap();
-            execute_q_withdraw(&e, &samwise, &pool_address, 42_0000000).unwrap();
+            execute_queue_withdrawal(&e, &samwise, &pool_address, 42_0000000).unwrap();
             execute_donate(&e, &samwise, &pool_address, 50_0000000).unwrap();
         });
 

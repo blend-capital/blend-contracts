@@ -215,7 +215,7 @@ fn test_classic_asset_pool_happy_path() {
 
     // Distribute emissions
     fixture.emitter.distribute();
-    fixture.backstop.dist();
+    fixture.backstop.distribute();
     pool_fixture.pool.updt_emis();
 
     // Claim emissions
@@ -252,7 +252,7 @@ fn test_classic_asset_pool_happy_path() {
         fixture.jump(60 * 60 * 24 * 7);
         // Update emissions
         fixture.emitter.distribute();
-        fixture.backstop.dist();
+        fixture.backstop.distribute();
         pool_fixture.pool.updt_emis();
     }
 

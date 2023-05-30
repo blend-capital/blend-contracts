@@ -70,7 +70,7 @@ fn test_pool_wasm_smoke() {
 
     // setup emissions
     backstop_client.add_reward(&pool_address, &pool_address);
-    backstop_client.dist();
+    backstop_client.distribute();
     pool_client.set_emis(
         &bombadil,
         &vec![

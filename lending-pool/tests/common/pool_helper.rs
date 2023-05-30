@@ -62,8 +62,8 @@ pub fn setup_reserve(
 ) -> (Address, Address, Address) {
     let (asset_id, _) = create_token(e, admin);
 
-    pool_client.init_res(&admin, &asset_id, &metadata);
-    let reserve_config = pool_client.res_config(&asset_id);
+    pool_client.init_reserve(&admin, &asset_id, &metadata);
+    let reserve_config = pool_client.reserve_config(&asset_id);
 
     return (asset_id, reserve_config.b_token, reserve_config.d_token);
 }

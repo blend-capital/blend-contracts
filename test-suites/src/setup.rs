@@ -48,7 +48,7 @@ pub fn create_fixture_with_data<'a>() -> (TestFixture<'a>, Address) {
     ];
     pool_fixture
         .pool
-        .set_emis(&fixture.bombadil, &reserve_emissions);
+        .set_emissions_config(&fixture.bombadil, &reserve_emissions);
 
     // mint whale tokens
     let frodo = Address::random(&fixture.env);
@@ -64,12 +64,12 @@ pub fn create_fixture_with_data<'a>() -> (TestFixture<'a>, Address) {
     fixture
         .backstop
         .add_reward(&pool_fixture.pool.address, &Address::random(&fixture.env));
-    pool_fixture.pool.updt_stat();
+    pool_fixture.pool.update_state();
 
     // enable emissions
     fixture.emitter.distribute();
     fixture.backstop.distribute();
-    pool_fixture.pool.updt_emis();
+    pool_fixture.pool.update_emissions();
 
     fixture.jump(60);
 
@@ -165,7 +165,7 @@ mod tests {
         );
         let (emis_config, _) = pool_fixture
             .pool
-            .res_emis(&fixture.tokens[TokenIndex::USDC as usize].address, &0)
+            .get_reserve_emissions(&fixture.tokens[TokenIndex::USDC as usize].address, &0)
             .unwrap();
         assert_eq!(0_180_0000, emis_config.eps);
     }

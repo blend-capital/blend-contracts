@@ -65,7 +65,7 @@ impl CAP4606 for Token {
         require_nonnegative(&e, amount);
         allowance::increase_allowance(&e, &from, &spender, &amount).unwrap();
 
-        events::incr_allow(&e, from, spender, amount);
+        events::increase_allowance(&e, from, spender, amount);
     }
 
     fn decrease_allowance(e: Env, from: Address, spender: Address, amount: i128) {
@@ -74,7 +74,7 @@ impl CAP4606 for Token {
         require_nonnegative(&e, amount);
         allowance::decrease_allowance(&e, &from, &spender, &amount).unwrap();
 
-        events::decr_allow(&e, from, spender, amount);
+        events::decrease_allowance(&e, from, spender, amount);
     }
 
     fn transfer(e: Env, from: Address, to: Address, amount: i128) {

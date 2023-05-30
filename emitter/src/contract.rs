@@ -23,7 +23,7 @@ pub trait EmitterContractTrait {
     fn distribute(e: Env) -> Result<i128, EmitterError>;
 
     /// Fetch the current backstop
-    fn get_bstop(e: Env) -> Address;
+    fn get_backstop(e: Env) -> Address;
 
     /// Switches the listed backstop module to one with more effective backstop deposits
     ///
@@ -34,7 +34,7 @@ pub trait EmitterContractTrait {
     ///
     /// ### Errors
     /// If the input contract does not have more backstop deposits than the listed backstop module
-    fn swap_bstop(e: Env, new_backstop_id: Address) -> Result<(), EmitterError>;
+    fn swap_backstop(e: Env, new_backstop_id: Address) -> Result<(), EmitterError>;
 }
 
 #[contractimpl]
@@ -63,11 +63,11 @@ impl EmitterContractTrait for EmitterContract {
         Ok(distribution_amount)
     }
 
-    fn get_bstop(e: Env) -> Address {
+    fn get_backstop(e: Env) -> Address {
         storage::get_backstop(&e)
     }
 
-    fn swap_bstop(e: Env, new_backstop_id: Address) -> Result<(), EmitterError> {
+    fn swap_backstop(e: Env, new_backstop_id: Address) -> Result<(), EmitterError> {
         emitter::execute_swap_backstop(&e, new_backstop_id.clone())?;
 
         e.events()

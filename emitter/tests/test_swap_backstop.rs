@@ -41,7 +41,7 @@ fn test_swap_backstop() {
     backstop_token_client.mint(&new_backstop_address, &123_1234567);
 
     // verify swaps fail if balance is at most equal
-    let result = emitter_client.try_swap_bstop(&new_backstop_address);
+    let result = emitter_client.try_swap_backstop(&new_backstop_address);
     match result {
         Ok(_) => assert!(false),
         Err(err) => assert_eq!(err, Ok(EmitterError::InsufficientBackstopSize)),
@@ -49,8 +49,8 @@ fn test_swap_backstop() {
 
     // mint an additional stroop and verify swap succeeds
     backstop_token_client.mint(&new_backstop_address, &1);
-    emitter_client.swap_bstop(&new_backstop_address);
+    emitter_client.swap_backstop(&new_backstop_address);
     assert_eq!(e.auths(), []);
 
-    assert_eq!(emitter_client.get_bstop(), new_backstop_address);
+    assert_eq!(emitter_client.get_backstop(), new_backstop_address);
 }

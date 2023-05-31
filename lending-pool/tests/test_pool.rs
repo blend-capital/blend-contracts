@@ -17,6 +17,7 @@ const START_TIME: u64 = 1441065600;
 #[test]
 fn test_pool_wasm_smoke() {
     let e = Env::default();
+    e.mock_all_auths();
     // disable limits for test
     e.budget().reset_unlimited();
 
@@ -31,23 +32,22 @@ fn test_pool_wasm_smoke() {
     let bombadil = Address::random(&e);
     let samwise = Address::random(&e);
 
-    let (oracle_id, mock_oracle_client) = create_mock_oracle(&e);
-    let (blnd_id, blnd_token_client) = create_token(&e, &bombadil);
-    let (usdc_id, _) = create_token(&e, &bombadil);
+    let (oracle_address, mock_oracle_client) = create_mock_oracle(&e);
+    let (blnd_address, blnd_token_client) = create_token(&e, &bombadil);
+    let (usdc_address, _) = create_token(&e, &bombadil);
 
-    let (pool_id, pool_client) = create_wasm_lending_pool(&e);
-    let pool = Address::from_contract_id(&e, &pool_id);
+    let (pool_address, pool_client) = create_wasm_lending_pool(&e);
     let name: Symbol = Symbol::new(&e, "pool1");
     let backstop_id = pool_helper::setup_pool(
         &e,
-        &pool_id,
+        &pool_address,
         &pool_client,
         &bombadil,
         &name,
-        &oracle_id,
+        &oracle_address,
         0_200_000_000,
-        &blnd_id,
-        &usdc_id,
+        &blnd_address,
+        &usdc_address,
     );
     let backstop_client = BackstopClient::new(&e, &backstop_id);
 
@@ -64,14 +64,14 @@ fn test_pool_wasm_smoke() {
     mock_oracle_client.set_price(&asset1_id, &2_0000000);
 
     let supply_amount: i128 = 2_0000000;
-    asset1_client.mint(&bombadil, &samwise, &supply_amount);
-    asset1_client.incr_allow(&samwise, &pool, &i128(u64::MAX));
+    asset1_client.mint(&samwise, &supply_amount);
+    asset1_client.increase_allowance(&samwise, &pool_address, &i128(u64::MAX));
     assert_eq!(asset1_client.balance(&samwise), supply_amount);
 
     // setup emissions
-    backstop_client.add_reward(&pool_id, &pool_id);
-    backstop_client.dist();
-    pool_client.set_emis(
+    backstop_client.add_reward(&pool_address, &pool_address);
+    backstop_client.distribute();
+    pool_client.set_emissions_config(
         &bombadil,
         &vec![
             &e,
@@ -82,16 +82,16 @@ fn test_pool_wasm_smoke() {
             },
         ],
     );
-    pool_client.updt_emis();
-    assert_eq!(e.recorded_top_authorizations(), []);
+    pool_client.update_emissions();
+    assert_eq!(e.auths(), []);
 
     // supply
     let minted_btokens = pool_client.supply(&samwise, &asset1_id, &supply_amount);
     assert_eq!(
-        e.recorded_top_authorizations()[0],
+        e.auths()[0],
         (
             samwise.clone(),
-            pool_id.clone(),
+            pool_address.clone(),
             Symbol::new(&e, "supply"),
             vec![
                 &e,
@@ -103,7 +103,7 @@ fn test_pool_wasm_smoke() {
     );
 
     assert_eq!(asset1_client.balance(&samwise), 0);
-    assert_eq!(asset1_client.balance(&pool), supply_amount);
+    assert_eq!(asset1_client.balance(&pool_address), supply_amount);
     assert_eq!(b_token1_client.balance(&samwise), minted_btokens);
     assert_eq!(minted_btokens, 2_0000000);
     assert_eq!(pool_client.config(&samwise), 2);
@@ -112,10 +112,10 @@ fn test_pool_wasm_smoke() {
     let borrow_amount = 1_0000000;
     let minted_dtokens = pool_client.borrow(&samwise, &asset1_id, &borrow_amount, &samwise);
     assert_eq!(
-        e.recorded_top_authorizations()[0],
+        e.auths()[0],
         (
             samwise.clone(),
-            pool_id.clone(),
+            pool_address.clone(),
             Symbol::new(&e, "borrow"),
             vec![
                 &e,
@@ -129,7 +129,7 @@ fn test_pool_wasm_smoke() {
 
     assert_eq!(asset1_client.balance(&samwise), borrow_amount);
     assert_eq!(
-        asset1_client.balance(&pool),
+        asset1_client.balance(&pool_address),
         (supply_amount - borrow_amount)
     );
     assert_eq!(b_token1_client.balance(&samwise), minted_btokens);
@@ -150,10 +150,10 @@ fn test_pool_wasm_smoke() {
     // repay
     let burnt_dtokens = pool_client.repay(&samwise, &asset1_id, &borrow_amount, &samwise);
     assert_eq!(
-        e.recorded_top_authorizations()[0],
+        e.auths()[0],
         (
             samwise.clone(),
-            pool_id.clone(),
+            pool_address.clone(),
             Symbol::new(&e, "repay"),
             vec![
                 &e,
@@ -166,7 +166,7 @@ fn test_pool_wasm_smoke() {
     );
 
     assert_eq!(asset1_client.balance(&samwise), 0);
-    assert_eq!(asset1_client.balance(&pool), supply_amount);
+    assert_eq!(asset1_client.balance(&pool_address), supply_amount);
     assert_eq!(b_token1_client.balance(&samwise), minted_btokens);
     assert_eq!(d_token1_client.balance(&samwise), 566038);
     assert_eq!(burnt_dtokens, minted_dtokens - 566038);
@@ -174,11 +174,11 @@ fn test_pool_wasm_smoke() {
 
     // repay interest
     let interest_accrued = 0_0600001;
-    asset1_client.mint(&bombadil, &samwise, &(interest_accrued));
+    asset1_client.mint(&samwise, &(interest_accrued));
     let burnt_dtokens_interest = pool_client.repay(&samwise, &asset1_id, &i128::MAX, &samwise);
     assert_eq!(asset1_client.balance(&samwise), 0);
     assert_eq!(
-        asset1_client.balance(&pool),
+        asset1_client.balance(&pool_address),
         (supply_amount + interest_accrued)
     );
     assert_eq!(b_token1_client.balance(&samwise), minted_btokens);
@@ -195,10 +195,10 @@ fn test_pool_wasm_smoke() {
         &samwise,
     );
     assert_eq!(
-        e.recorded_top_authorizations()[0],
+        e.auths()[0],
         (
             samwise.clone(),
-            pool_id.clone(),
+            pool_address.clone(),
             Symbol::new(&e, "withdraw"),
             vec![
                 &e,
@@ -215,7 +215,7 @@ fn test_pool_wasm_smoke() {
         (supply_amount + user_interest_accrued)
     );
     // the remaining funds due to the backstop based on the 20% backstop_rate, +1 because of rounding
-    assert_eq!(asset1_client.balance(&pool), 122862 + 1);
+    assert_eq!(asset1_client.balance(&pool_address), 122862 + 1);
     assert_eq!(b_token1_client.balance(&samwise), 0);
     assert_eq!(burnt_btokens, minted_btokens);
     assert_eq!(pool_client.config(&samwise), 0);
@@ -224,10 +224,10 @@ fn test_pool_wasm_smoke() {
     let to_claim_vec: Vec<u32> = vec![&e, 0_u32];
     let claimed = pool_client.claim(&samwise, &to_claim_vec, &samwise);
     assert_eq!(
-        e.recorded_top_authorizations()[0],
+        e.auths()[0],
         (
             samwise.clone(),
-            pool_id.clone(),
+            pool_address.clone(),
             Symbol::new(&e, "claim"),
             vec![
                 &e,

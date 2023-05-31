@@ -88,17 +88,16 @@ mod tests {
 
     use crate::dependencies::TokenClient;
     use crate::storage;
-    use crate::testutils::{
-        create_mock_oracle, create_reserve, generate_contract_id, setup_reserve,
-    };
+    use crate::testutils::{create_mock_oracle, create_reserve, setup_reserve};
 
     use super::*;
 
     #[test]
     fn test_require_hf() {
         let e = Env::default();
+        e.mock_all_auths();
         e.budget().reset_unlimited();
-        let pool_id = generate_contract_id(&e);
+        let pool_id = Address::random(&e);
 
         let bombadil = Address::random(&e);
         let samwise = Address::random(&e);
@@ -121,16 +120,8 @@ mod tests {
         e.as_contract(&pool_id, || {
             storage::set_user_config(&e, &samwise, &0x000000000000000A);
 
-            TokenClient::new(&e, &reserve_0.config.b_token).mint(
-                &e.current_contract_address(),
-                &samwise,
-                &collateral_amount,
-            );
-            TokenClient::new(&e, &reserve_1.config.d_token).mint(
-                &e.current_contract_address(),
-                &samwise,
-                &liability_amount,
-            );
+            TokenClient::new(&e, &reserve_0.config.b_token).mint(&samwise, &collateral_amount);
+            TokenClient::new(&e, &reserve_1.config.d_token).mint(&samwise, &liability_amount);
         });
 
         let pool_config = PoolConfig {
@@ -159,7 +150,8 @@ mod tests {
     #[test]
     fn test_require_utilization_under_cap() {
         let e = Env::default();
-        let pool_id = generate_contract_id(&e);
+        e.mock_all_auths();
+        let pool_id = Address::random(&e);
 
         let bombadil = Address::random(&e);
 

@@ -1,9 +1,9 @@
-use soroban_sdk::{contracttype, BytesN, Env};
+use soroban_sdk::{contracttype, Address, BytesN, Env};
 
 #[derive(Clone)]
 #[contracttype]
 pub enum PoolFactoryDataKey {
-    Contracts(BytesN<32>),
+    Contracts(Address),
     PoolInitMeta,
 }
 
@@ -13,9 +13,9 @@ pub struct PoolInitMeta {
     pub pool_hash: BytesN<32>,
     pub b_token_hash: BytesN<32>,
     pub d_token_hash: BytesN<32>,
-    pub backstop: BytesN<32>,
-    pub blnd_id: BytesN<32>,
-    pub usdc_id: BytesN<32>,
+    pub backstop: Address,
+    pub blnd_id: Address,
+    pub usdc_id: Address,
 }
 
 /// Fetch the pool initialization metadata
@@ -44,7 +44,7 @@ pub fn has_pool_init_meta(e: &Env) -> bool {
 ///
 /// ### Arguments
 /// * `contract_id` - The contract_id to check
-pub fn is_deployed(e: &Env, contract_id: &BytesN<32>) -> bool {
+pub fn is_deployed(e: &Env, contract_id: &Address) -> bool {
     let key = PoolFactoryDataKey::Contracts(contract_id.clone());
     e.storage()
         .get::<PoolFactoryDataKey, bool>(&key)
@@ -55,7 +55,7 @@ pub fn is_deployed(e: &Env, contract_id: &BytesN<32>) -> bool {
 ///
 /// ### Arguments
 /// * `contract_id` - The contract_id that was deployed by the factory
-pub fn set_deployed(e: &Env, contract_id: &BytesN<32>) {
+pub fn set_deployed(e: &Env, contract_id: &Address) {
     let key = PoolFactoryDataKey::Contracts(contract_id.clone());
     e.storage().set::<PoolFactoryDataKey, bool>(&key, &true);
 }

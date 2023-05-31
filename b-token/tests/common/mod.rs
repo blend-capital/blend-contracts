@@ -1,15 +1,15 @@
-use soroban_sdk::{testutils::BytesN as _, BytesN, Env};
+use soroban_sdk::{testutils::Address as _, Address, Env};
 
 mod b_token {
     soroban_sdk::contractimport!(file = "../target/wasm32-unknown-unknown/release/b_token.wasm");
 }
-pub use b_token::{Asset, Client as DTokenClient, TokenDataKey, TokenError};
+pub use b_token::{Asset, Client as BTokenClient, TokenDataKey, TokenError};
 
-pub fn create_b_token(e: &Env) -> (BytesN<32>, DTokenClient) {
-    let contract_id = BytesN::<32>::random(e);
-    e.register_contract_wasm(&contract_id, b_token::WASM);
-    let client = DTokenClient::new(e, &contract_id);
-    (contract_id, client)
+pub fn create_b_token<'a>(e: &Env) -> (Address, BTokenClient<'a>) {
+    let contract_address = Address::random(e);
+    e.register_contract_wasm(&contract_address, b_token::WASM);
+    let client = BTokenClient::new(e, &contract_address);
+    (contract_address, client)
 }
 
 mod mock_lending_pool {
@@ -19,9 +19,9 @@ mod mock_lending_pool {
 }
 pub use mock_lending_pool::Client as MockPool;
 
-pub fn create_lending_pool(e: &Env) -> (BytesN<32>, MockPool) {
-    let contract_id = BytesN::<32>::random(e);
-    e.register_contract_wasm(&contract_id, mock_lending_pool::WASM);
-    let client = MockPool::new(e, &contract_id);
-    (contract_id, client)
+pub fn create_lending_pool<'a>(e: &Env) -> (Address, MockPool<'a>) {
+    let contract_address = Address::random(e);
+    e.register_contract_wasm(&contract_address, mock_lending_pool::WASM);
+    let client = MockPool::new(e, &contract_address);
+    (contract_address, client)
 }

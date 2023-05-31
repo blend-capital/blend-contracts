@@ -12,13 +12,13 @@ pub fn execute_initialize(
     e: &Env,
     admin: &Address,
     name: &Symbol,
-    oracle: &BytesN<32>,
+    oracle: &Address,
     bstop_rate: &u64,
-    backstop_id: &BytesN<32>,
+    backstop_address: &Address,
     b_token_hash: &BytesN<32>,
     d_token_hash: &BytesN<32>,
-    blnd_id: &BytesN<32>,
-    usdc_id: &BytesN<32>,
+    blnd_id: &Address,
+    usdc_id: &Address,
 ) -> Result<(), PoolError> {
     if storage::has_admin(e) {
         return Err(PoolError::AlreadyInitialized);
@@ -31,7 +31,7 @@ pub fn execute_initialize(
 
     storage::set_admin(e, admin);
     storage::set_name(e, name);
-    storage::set_backstop(e, backstop_id);
+    storage::set_backstop(e, backstop_address);
     storage::set_pool_config(
         e,
         &PoolConfig {
@@ -50,7 +50,7 @@ pub fn execute_initialize(
 pub fn initialize_reserve(
     e: &Env,
     from: &Address,
-    asset: &BytesN<32>,
+    asset: &Address,
     metadata: &ReserveMetadata,
 ) -> Result<(), PoolError> {
     if from.clone() != storage::get_admin(e) {
@@ -64,10 +64,12 @@ pub fn initialize_reserve(
     validate_reserve_metadata(e, metadata)?;
 
     let (b_token_hash, d_token_hash) = storage::get_token_hashes(e);
+    let index = storage::push_res_list(e, asset);
+
     // force consistent d and b token addresses based on underlying asset
     let deployer = e.deployer();
-    let mut b_token_salt: BytesN<32> = asset.clone();
-    let mut d_token_salt: BytesN<32> = asset.clone();
+    let mut b_token_salt: BytesN<32> = BytesN::from_array(&e, &[index.try_into().unwrap(); 32]);
+    let mut d_token_salt: BytesN<32> = BytesN::from_array(&e, &[index.try_into().unwrap(); 32]);
     b_token_salt.set(0, 0);
     d_token_salt.set(0, 1);
     let b_token_id = deployer
@@ -77,7 +79,6 @@ pub fn initialize_reserve(
         .with_current_contract(&d_token_salt)
         .deploy(&d_token_hash);
 
-    let index = storage::push_res_list(e, asset);
     let reserve_config = ReserveConfig {
         b_token: b_token_id.clone(),
         d_token: d_token_id.clone(),
@@ -117,12 +118,7 @@ pub fn initialize_reserve(
         &b_token_name,
         &b_token_symbol,
     );
-    b_token_client.init_asset(
-        &e.current_contract_address(),
-        &e.current_contract_id(),
-        &asset,
-        &index,
-    );
+    b_token_client.initialize_asset(&e.current_contract_address(), &asset, &index);
 
     let d_token_client = BlendTokenClient::new(e, &d_token_id);
     let mut d_token_symbol = asset_symbol.clone();
@@ -135,12 +131,7 @@ pub fn initialize_reserve(
         &b_token_name,
         &b_token_symbol,
     );
-    d_token_client.init_asset(
-        &e.current_contract_address(),
-        &e.current_contract_id(),
-        &asset,
-        &index,
-    );
+    d_token_client.initialize_asset(&e.current_contract_address(), &asset, &index);
 
     Ok(())
 }
@@ -149,7 +140,7 @@ pub fn initialize_reserve(
 pub fn execute_update_reserve(
     e: &Env,
     from: &Address,
-    asset: &BytesN<32>,
+    asset: &Address,
     metadata: &ReserveMetadata,
 ) -> Result<(), PoolError> {
     if from.clone() != storage::get_admin(e) {
@@ -186,14 +177,14 @@ pub fn execute_update_reserve(
 
 // Update the pool emission information from the backstop
 pub fn update_pool_emissions(e: &Env) -> Result<u64, PoolError> {
-    let backstop_id = storage::get_backstop(e);
-    let backstop_client = BackstopClient::new(e, &backstop_id);
-    let next_exp = backstop_client.next_dist();
-    let pool_eps = backstop_client.pool_eps(&e.current_contract_id()) as u64;
+    let backstop_address = storage::get_backstop(e);
+    let backstop_client = BackstopClient::new(e, &backstop_address);
+    let next_exp = backstop_client.next_distribution();
+    let pool_eps = backstop_client.pool_eps(&e.current_contract_address()) as u64;
     emissions::update_emissions(e, next_exp, pool_eps)
 }
 
-fn validate_reserve_metadata(e: &Env, metadata: &ReserveMetadata) -> Result<(), PoolError> {
+fn validate_reserve_metadata(_e: &Env, metadata: &ReserveMetadata) -> Result<(), PoolError> {
     if metadata.decimals > 18
         || metadata.c_factor > 1_0000000
         || metadata.l_factor > 1_0000000
@@ -220,26 +211,26 @@ mod tests {
     #[test]
     fn test_execute_initialize() {
         let e = Env::default();
-        let pool_id = BytesN::<32>::random(&e);
+        let pool_address = Address::random(&e);
 
         let admin = Address::random(&e);
         let name = Symbol::new(&e, "pool_name");
-        let oracle = BytesN::<32>::random(&e);
+        let oracle = Address::random(&e);
         let bstop_rate = 0_100_000_000u64;
-        let backstop_id = BytesN::<32>::random(&e);
+        let backstop_address = Address::random(&e);
         let b_token_hash = BytesN::<32>::random(&e);
         let d_token_hash = BytesN::<32>::random(&e);
-        let blnd_id = BytesN::<32>::random(&e);
-        let usdc_id = BytesN::<32>::random(&e);
+        let blnd_id = Address::random(&e);
+        let usdc_id = Address::random(&e);
 
-        e.as_contract(&pool_id, || {
+        e.as_contract(&pool_address, || {
             let result = execute_initialize(
                 &e,
                 &admin,
                 &name,
                 &oracle,
                 &1_000_000_000,
-                &backstop_id,
+                &backstop_address,
                 &b_token_hash,
                 &d_token_hash,
                 &blnd_id,
@@ -253,7 +244,7 @@ mod tests {
                 &name,
                 &oracle,
                 &bstop_rate,
-                &backstop_id,
+                &backstop_address,
                 &b_token_hash,
                 &d_token_hash,
                 &blnd_id,
@@ -267,7 +258,7 @@ mod tests {
             assert_eq!(pool_config.oracle, oracle);
             assert_eq!(pool_config.bstop_rate, bstop_rate);
             assert_eq!(pool_config.status, 1);
-            assert_eq!(storage::get_backstop(&e), backstop_id);
+            assert_eq!(storage::get_backstop(&e), backstop_address);
             assert_eq!(
                 storage::get_token_hashes(&e),
                 (b_token_hash.clone(), d_token_hash.clone())
@@ -281,7 +272,7 @@ mod tests {
                 &name,
                 &oracle,
                 &bstop_rate,
-                &backstop_id,
+                &backstop_address,
                 &b_token_hash,
                 &d_token_hash,
                 &blnd_id,
@@ -294,7 +285,7 @@ mod tests {
     #[test]
     fn test_initialize_reserve() {
         let e = Env::default();
-        let pool_id = BytesN::<32>::random(&e);
+        let pool_address = Address::random(&e);
         let bombadil = Address::random(&e);
         let sauron = Address::random(&e);
         let (asset_id_0, _) = create_token_contract(&e, &bombadil);
@@ -316,7 +307,7 @@ mod tests {
         };
         let mut bad_metadata = metadata.clone();
         bad_metadata.util = 1_0000000;
-        e.as_contract(&pool_id, || {
+        e.as_contract(&pool_address, || {
             storage::set_token_hashes(&e, &b_token_hash, &d_token_hash);
             storage::set_admin(&e, &bombadil);
 
@@ -358,6 +349,7 @@ mod tests {
     #[test]
     fn test_execute_update_reserve() {
         let e = Env::default();
+        e.mock_all_auths();
         e.ledger().set(LedgerInfo {
             timestamp: 500,
             protocol_version: 1,
@@ -366,15 +358,15 @@ mod tests {
             base_reserve: 10,
         });
 
-        let pool_id = BytesN::<32>::random(&e);
-        let backstop_id = BytesN::<32>::random(&e);
+        let pool_address = Address::random(&e);
+        let backstop_address = Address::random(&e);
         let bombadil = Address::random(&e);
         let sauron = Address::random(&e);
 
         let mut reserve_0 = create_reserve(&e);
         reserve_0.data.b_supply = 100_0000000;
         reserve_0.data.d_supply = 50_0000000;
-        setup_reserve(&e, &pool_id, &bombadil, &mut reserve_0);
+        setup_reserve(&e, &pool_address, &bombadil, &mut reserve_0);
 
         let new_metadata = ReserveMetadata {
             decimals: 7,
@@ -399,14 +391,14 @@ mod tests {
         });
 
         let pool_config = PoolConfig {
-            oracle: BytesN::<32>::random(&e),
+            oracle: Address::random(&e),
             bstop_rate: 0_100_000_000,
             status: 0,
         };
-        e.as_contract(&pool_id, || {
+        e.as_contract(&pool_address, || {
             storage::set_admin(&e, &bombadil);
             storage::set_pool_config(&e, &pool_config);
-            storage::set_backstop(&e, &backstop_id);
+            storage::set_backstop(&e, &backstop_address);
 
             let res_config_old = storage::get_res_config(&e, &reserve_0.asset);
 
@@ -439,11 +431,7 @@ mod tests {
             assert!(res_data.b_supply > 100_0000000);
             assert!(res_data.d_rate > 1_000_000_000);
             assert_eq!(res_data.last_time, 10000);
-            assert!(
-                TokenClient::new(&e, &reserve_0.config.b_token)
-                    .balance(&Address::from_contract_id(&e, &backstop_id))
-                    > 0
-            );
+            assert!(TokenClient::new(&e, &reserve_0.config.b_token).balance(&backstop_address) > 0);
         });
     }
 

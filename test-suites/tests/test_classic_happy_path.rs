@@ -15,21 +15,13 @@ fn test_classic_asset_pool_happy_path() {
     let merry = Address::random(&fixture.env); //merry will be supplying USDC and borrowing XLM
 
     // Mint users tokens
-    fixture.tokens[TokenIndex::USDC as usize].mint(
-        &fixture.bombadil,
-        &merry,
-        &(250_000 * SCALAR_7),
-    );
-    fixture.tokens[TokenIndex::XLM as usize].mint(
-        &fixture.bombadil,
-        &samwise,
-        &(2_500_000 * SCALAR_7),
-    );
+    fixture.tokens[TokenIndex::USDC as usize].mint(&merry, &(250_000 * SCALAR_7));
+    fixture.tokens[TokenIndex::XLM as usize].mint(&samwise, &(2_500_000 * SCALAR_7));
 
     // Supply tokens
     let merry_b_tokens = pool_fixture.pool.supply(
         &merry,
-        &fixture.tokens[TokenIndex::USDC as usize].contract_id,
+        &fixture.tokens[TokenIndex::USDC as usize].address,
         &(190_000 * SCALAR_7),
     );
     assert_eq!(
@@ -43,7 +35,7 @@ fn test_classic_asset_pool_happy_path() {
     );
     let sam_b_tokens = pool_fixture.pool.supply(
         &samwise,
-        &fixture.tokens[TokenIndex::XLM as usize].contract_id,
+        &fixture.tokens[TokenIndex::XLM as usize].address,
         &(1_900_000 * SCALAR_7),
     );
     assert_eq!(
@@ -58,7 +50,7 @@ fn test_classic_asset_pool_happy_path() {
     // Borrow tokens
     let sam_d_tokens = pool_fixture.pool.borrow(
         &samwise,
-        &fixture.tokens[TokenIndex::USDC as usize].contract_id,
+        &fixture.tokens[TokenIndex::USDC as usize].address,
         &(112_000 * SCALAR_7),
         &samwise,
     ); //sams max borrow is .75*.95*.1*1_900_000 = 135_375 USDC
@@ -73,7 +65,7 @@ fn test_classic_asset_pool_happy_path() {
     );
     let merry_d_tokens = pool_fixture.pool.borrow(
         &merry,
-        &fixture.tokens[TokenIndex::XLM as usize].contract_id,
+        &fixture.tokens[TokenIndex::XLM as usize].address,
         &(1_135_000 * SCALAR_7),
         &merry,
     ); //merrys max borrow is .75*.9*190_000/.1 = 1_282_5000 XLM
@@ -110,7 +102,7 @@ fn test_classic_asset_pool_happy_path() {
     );
     fixture.backstop.claim(
         &frodo,
-        &vec![&fixture.env, pool_fixture.pool.contract_id.clone()],
+        &vec![&fixture.env, pool_fixture.pool.address.clone()],
         &frodo,
     );
     assert_eq!(
@@ -146,7 +138,7 @@ fn test_classic_asset_pool_happy_path() {
     // Sam repays some of his loan
     let sam_burned_d_tokens = pool_fixture.pool.repay(
         &samwise,
-        &fixture.tokens[TokenIndex::USDC as usize].contract_id,
+        &fixture.tokens[TokenIndex::USDC as usize].address,
         &(55_000 * SCALAR_7),
         &samwise,
     );
@@ -164,7 +156,7 @@ fn test_classic_asset_pool_happy_path() {
     // Merry repays some of his loan
     let merry_burned_d_tokens = pool_fixture.pool.repay(
         &merry,
-        &fixture.tokens[TokenIndex::XLM as usize].contract_id,
+        &fixture.tokens[TokenIndex::XLM as usize].address,
         &(575_000 * SCALAR_7),
         &merry,
     );
@@ -183,7 +175,7 @@ fn test_classic_asset_pool_happy_path() {
     // Sam withdraws some of his XLM
     let sam_burned_b_tokens = pool_fixture.pool.withdraw(
         &samwise,
-        &fixture.tokens[TokenIndex::XLM as usize].contract_id,
+        &fixture.tokens[TokenIndex::XLM as usize].address,
         &(1_000_000 * SCALAR_7),
         &samwise,
     );
@@ -202,7 +194,7 @@ fn test_classic_asset_pool_happy_path() {
     // Merry withdraws some of his USDC
     let merry_burned_b_tokens = pool_fixture.pool.withdraw(
         &merry,
-        &fixture.tokens[TokenIndex::USDC as usize].contract_id,
+        &fixture.tokens[TokenIndex::USDC as usize].address,
         &(100_000 * SCALAR_7),
         &merry,
     );
@@ -223,8 +215,8 @@ fn test_classic_asset_pool_happy_path() {
 
     // Distribute emissions
     fixture.emitter.distribute();
-    fixture.backstop.dist();
-    pool_fixture.pool.updt_emis();
+    fixture.backstop.distribute();
+    pool_fixture.pool.update_emissions();
 
     // Claim emissions
     let frodo_pool_claim_3 = pool_fixture
@@ -237,7 +229,7 @@ fn test_classic_asset_pool_happy_path() {
     );
     fixture.backstop.claim(
         &frodo,
-        &vec![&fixture.env, pool_fixture.pool.contract_id.clone()],
+        &vec![&fixture.env, pool_fixture.pool.address.clone()],
         &frodo,
     );
 
@@ -260,14 +252,14 @@ fn test_classic_asset_pool_happy_path() {
         fixture.jump(60 * 60 * 24 * 7);
         // Update emissions
         fixture.emitter.distribute();
-        fixture.backstop.dist();
-        pool_fixture.pool.updt_emis();
+        fixture.backstop.distribute();
+        pool_fixture.pool.update_emissions();
     }
 
     // Frodo claims a year worth of backstop emissions
     fixture.backstop.claim(
         &frodo,
-        &vec![&fixture.env, pool_fixture.pool.contract_id.clone()],
+        &vec![&fixture.env, pool_fixture.pool.address.clone()],
         &frodo,
     );
     assert_eq!(
@@ -299,12 +291,12 @@ fn test_classic_asset_pool_happy_path() {
     );
 
     // Sam and merry trade some tokens
-    fixture.tokens[TokenIndex::USDC as usize].xfer(&merry, &samwise, &(60_000 * SCALAR_7));
+    fixture.tokens[TokenIndex::USDC as usize].transfer(&merry, &samwise, &(60_000 * SCALAR_7));
     assert_eq!(
         fixture.tokens[TokenIndex::USDC as usize].balance(&samwise),
         117_000 * SCALAR_7
     );
-    fixture.tokens[TokenIndex::XLM as usize].xfer(&samwise, &merry, &(600_000 * SCALAR_7));
+    fixture.tokens[TokenIndex::XLM as usize].transfer(&samwise, &merry, &(600_000 * SCALAR_7));
     assert_eq!(
         fixture.tokens[TokenIndex::XLM as usize].balance(&merry),
         1_160_000 * SCALAR_7
@@ -313,7 +305,7 @@ fn test_classic_asset_pool_happy_path() {
     // Sam repays his loan
     let sam_burned_d_tokens_2 = pool_fixture.pool.repay(
         &samwise,
-        &fixture.tokens[TokenIndex::USDC as usize].contract_id,
+        &fixture.tokens[TokenIndex::USDC as usize].address,
         &i128::MAX,
         &samwise,
     );
@@ -325,7 +317,7 @@ fn test_classic_asset_pool_happy_path() {
     // Merry repays his loan
     let merry_burned_d_tokens_2 = pool_fixture.pool.repay(
         &merry,
-        &fixture.tokens[TokenIndex::XLM as usize].contract_id,
+        &fixture.tokens[TokenIndex::XLM as usize].address,
         &i128::MAX,
         &merry,
     );
@@ -340,7 +332,7 @@ fn test_classic_asset_pool_happy_path() {
     // Sam withdraws all of his XLM
     let sam_burned_b_tokens_2 = pool_fixture.pool.withdraw(
         &samwise,
-        &fixture.tokens[TokenIndex::XLM as usize].contract_id,
+        &fixture.tokens[TokenIndex::XLM as usize].address,
         &i128::MAX,
         &samwise,
     );
@@ -352,7 +344,7 @@ fn test_classic_asset_pool_happy_path() {
     // Merry withdraws all of his USDC
     let merry_burned_b_tokens_2 = pool_fixture.pool.withdraw(
         &merry,
-        &fixture.tokens[TokenIndex::USDC as usize].contract_id,
+        &fixture.tokens[TokenIndex::USDC as usize].address,
         &i128::MAX,
         &merry,
     );

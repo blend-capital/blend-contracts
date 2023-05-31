@@ -1,5 +1,5 @@
 use rand::{thread_rng, RngCore};
-use soroban_sdk::{BytesN, Env};
+use soroban_sdk::{testutils::Address as _, Address, BytesN, Env};
 
 mod pool_factory {
     soroban_sdk::contractimport!(
@@ -23,14 +23,11 @@ pub mod d_token {
 
 pub use pool_factory::{Client as PoolFactoryClient, PoolInitMeta};
 
-pub fn generate_contract_id(e: &Env) -> BytesN<32> {
-    let mut id: [u8; 32] = Default::default();
-    thread_rng().fill_bytes(&mut id);
-    BytesN::from_array(e, &id)
-}
-
-pub fn create_wasm_pool_factory(e: &Env) -> (BytesN<32>, PoolFactoryClient) {
-    let contract_id = generate_contract_id(e);
-    e.register_contract_wasm(&contract_id, pool_factory::WASM);
-    (contract_id.clone(), PoolFactoryClient::new(e, &contract_id))
+pub fn create_wasm_pool_factory(e: &Env) -> (Address, PoolFactoryClient) {
+    let contract_address = Address::random(&e);
+    e.register_contract_wasm(&contract_address, pool_factory::WASM);
+    (
+        contract_address.clone(),
+        PoolFactoryClient::new(e, &contract_address),
+    )
 }

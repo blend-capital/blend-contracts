@@ -50,10 +50,7 @@ fn is_authorized(e: &Env, user: &Address) -> Result<(), TokenError> {
 
 #[cfg(test)]
 mod tests {
-    use soroban_sdk::{
-        testutils::{Address as _, BytesN as _},
-        BytesN,
-    };
+    use soroban_sdk::testutils::Address as _;
 
     use crate::storage::Asset;
 
@@ -62,21 +59,21 @@ mod tests {
     #[test]
     fn test_spend_balance() {
         let e = Env::default();
-
-        let token_id = BytesN::<32>::random(&e);
+        e.mock_all_auths();
+        let token_address = Address::random(&e);
         let bombadil = Address::random(&e);
         let user = Address::random(&e);
 
-        let underlying_id = e.register_stellar_asset_contract(bombadil.clone());
-        TokenClient::new(&e, &underlying_id).set_auth(&bombadil, &user, &true);
+        let underlying_address = e.register_stellar_asset_contract(bombadil.clone());
+        TokenClient::new(&e, &underlying_address).set_authorized(&user, &true);
 
         let starting_balance: i128 = 123456789;
         let amount: i128 = starting_balance - 1;
-        e.as_contract(&token_id, || {
+        e.as_contract(&token_address, || {
             storage::write_asset(
                 &e,
                 &Asset {
-                    id: underlying_id.clone(),
+                    id: underlying_address.clone(),
                     res_index: 0,
                 },
             );
@@ -92,21 +89,22 @@ mod tests {
     #[test]
     fn test_spend_balance_overspend_panics() {
         let e = Env::default();
+        e.mock_all_auths();
 
-        let token_id = BytesN::<32>::random(&e);
+        let token_address = Address::random(&e);
         let bombadil = Address::random(&e);
         let user = Address::random(&e);
 
-        let underlying_id = e.register_stellar_asset_contract(bombadil.clone());
-        TokenClient::new(&e, &underlying_id).set_auth(&bombadil, &user, &true);
+        let underlying_address = e.register_stellar_asset_contract(bombadil.clone());
+        TokenClient::new(&e, &underlying_address).set_authorized(&user, &true);
 
         let starting_balance: i128 = 123456789;
         let amount: i128 = starting_balance + 1;
-        e.as_contract(&token_id, || {
+        e.as_contract(&token_address, || {
             storage::write_asset(
                 &e,
                 &Asset {
-                    id: underlying_id.clone(),
+                    id: underlying_address.clone(),
                     res_index: 0,
                 },
             );
@@ -120,21 +118,22 @@ mod tests {
     #[test]
     fn test_spend_balance_deauthorized_panics() {
         let e = Env::default();
+        e.mock_all_auths();
 
-        let token_id = BytesN::<32>::random(&e);
+        let token_address = Address::random(&e);
         let bombadil = Address::random(&e);
         let user = Address::random(&e);
 
-        let underlying_id = e.register_stellar_asset_contract(bombadil.clone());
-        TokenClient::new(&e, &underlying_id).set_auth(&bombadil, &user, &false);
+        let underlying_address = e.register_stellar_asset_contract(bombadil.clone());
+        TokenClient::new(&e, &underlying_address).set_authorized(&user, &false);
 
         let starting_balance: i128 = 123456789;
         let amount: i128 = starting_balance - 1;
-        e.as_contract(&token_id, || {
+        e.as_contract(&token_address, || {
             storage::write_asset(
                 &e,
                 &Asset {
-                    id: underlying_id.clone(),
+                    id: underlying_address.clone(),
                     res_index: 0,
                 },
             );
@@ -148,21 +147,22 @@ mod tests {
     #[test]
     fn test_spend_balance_no_authorization() {
         let e = Env::default();
+        e.mock_all_auths();
 
-        let token_id = BytesN::<32>::random(&e);
+        let token_address = Address::random(&e);
         let bombadil = Address::random(&e);
         let user = Address::random(&e);
 
-        let underlying_id = e.register_stellar_asset_contract(bombadil.clone());
-        TokenClient::new(&e, &underlying_id).set_auth(&bombadil, &user, &false);
+        let underlying_address = e.register_stellar_asset_contract(bombadil.clone());
+        TokenClient::new(&e, &underlying_address).set_authorized(&user, &false);
 
         let starting_balance: i128 = 123456789;
         let amount: i128 = starting_balance - 1;
-        e.as_contract(&token_id, || {
+        e.as_contract(&token_address, || {
             storage::write_asset(
                 &e,
                 &Asset {
-                    id: underlying_id.clone(),
+                    id: underlying_address.clone(),
                     res_index: 0,
                 },
             );
@@ -177,20 +177,21 @@ mod tests {
     #[test]
     fn test_receive_balance() {
         let e = Env::default();
+        e.mock_all_auths();
 
-        let token_id = BytesN::<32>::random(&e);
+        let token_address = Address::random(&e);
         let bombadil = Address::random(&e);
         let user = Address::random(&e);
 
-        let underlying_id = e.register_stellar_asset_contract(bombadil.clone());
-        TokenClient::new(&e, &underlying_id).set_auth(&bombadil, &user, &true);
+        let underlying_address = e.register_stellar_asset_contract(bombadil.clone());
+        TokenClient::new(&e, &underlying_address).set_authorized(&user, &true);
 
         let amount: i128 = 123456789;
-        e.as_contract(&token_id, || {
+        e.as_contract(&token_address, || {
             storage::write_asset(
                 &e,
                 &Asset {
-                    id: underlying_id.clone(),
+                    id: underlying_address.clone(),
                     res_index: 0,
                 },
             );
@@ -204,20 +205,21 @@ mod tests {
     #[test]
     fn test_receive_balance_overflow_panics() {
         let e = Env::default();
+        e.mock_all_auths();
 
-        let token_id = BytesN::<32>::random(&e);
+        let token_address = Address::random(&e);
         let bombadil = Address::random(&e);
         let user = Address::random(&e);
 
-        let underlying_id = e.register_stellar_asset_contract(bombadil.clone());
-        TokenClient::new(&e, &underlying_id).set_auth(&bombadil, &user, &true);
+        let underlying_address = e.register_stellar_asset_contract(bombadil.clone());
+        TokenClient::new(&e, &underlying_address).set_authorized(&user, &true);
 
         let amount: i128 = 123456789;
-        e.as_contract(&token_id, || {
+        e.as_contract(&token_address, || {
             storage::write_asset(
                 &e,
                 &Asset {
-                    id: underlying_id.clone(),
+                    id: underlying_address.clone(),
                     res_index: 0,
                 },
             );
@@ -230,19 +232,21 @@ mod tests {
     #[test]
     fn test_receive_balance_deauthorized_panics() {
         let e = Env::default();
+        e.mock_all_auths();
 
-        let token_id = BytesN::<32>::random(&e);
+        let token_address = Address::random(&e);
         let bombadil = Address::random(&e);
         let user = Address::random(&e);
 
-        let underlying_id = e.register_stellar_asset_contract(bombadil.clone());
-        TokenClient::new(&e, &underlying_id).set_auth(&bombadil, &user, &false);
+        let underlying_address = e.register_stellar_asset_contract(bombadil.clone());
 
-        e.as_contract(&token_id, || {
+        TokenClient::new(&e, &underlying_address).set_authorized(&user, &false);
+
+        e.as_contract(&token_address, || {
             storage::write_asset(
                 &e,
                 &Asset {
-                    id: underlying_id.clone(),
+                    id: underlying_address.clone(),
                     res_index: 0,
                 },
             );

@@ -1,12 +1,12 @@
 use fixed_point_math::FixedPoint;
-use soroban_sdk::{BytesN, Env};
+use soroban_sdk::{Address, Env};
 
 use crate::{dependencies::PoolFactoryClient, errors::BackstopError, storage};
 
 /// A user of the backstop module with respect to a given pool
 /// Data is lazy loaded as not all struct information is required for each action
 pub struct Pool {
-    pub contract_id: BytesN<32>,
+    pub contract_id: Address,
     shares: Option<i128>,
     tokens: Option<i128>,
     q4w: Option<i128>,
@@ -14,7 +14,7 @@ pub struct Pool {
 }
 
 impl Pool {
-    pub fn new(_e: &Env, contract_id: BytesN<32>) -> Pool {
+    pub fn new(_e: &Env, contract_id: Address) -> Pool {
         Pool {
             contract_id: contract_id.clone(),
             shares: None,
@@ -267,9 +267,9 @@ impl Pool {
 
 #[cfg(test)]
 mod tests {
-    use soroban_sdk::testutils::BytesN as _;
+    use soroban_sdk::testutils::Address as _;
 
-    use crate::testutils::{create_mock_pool_factory, generate_contract_id};
+    use crate::testutils::create_mock_pool_factory;
 
     use super::*;
 
@@ -279,14 +279,14 @@ mod tests {
     fn test_verify_pool_valid() {
         let e = Env::default();
 
-        let backstop_id = BytesN::<32>::random(&e);
-        let pool_addr = generate_contract_id(&e);
+        let backstop_address = Address::random(&e);
+        let pool_address = Address::random(&e);
 
-        let (_, mock_pool_factory) = create_mock_pool_factory(&e, &backstop_id);
-        mock_pool_factory.set_pool(&pool_addr);
+        let (_, mock_pool_factory) = create_mock_pool_factory(&e, &backstop_address);
+        mock_pool_factory.set_pool(&pool_address);
 
-        e.as_contract(&backstop_id, || {
-            let pool = Pool::new(&e, pool_addr.clone());
+        e.as_contract(&backstop_address, || {
+            let pool = Pool::new(&e, pool_address.clone());
             let result = pool.verify_pool(&e);
 
             match result {
@@ -304,15 +304,15 @@ mod tests {
     fn test_verify_pool_not_valid() {
         let e = Env::default();
 
-        let backstop_id = BytesN::<32>::random(&e);
-        let pool_addr = generate_contract_id(&e);
-        let not_pool_addr = generate_contract_id(&e);
+        let backstop_address = Address::random(&e);
+        let pool_address = Address::random(&e);
+        let not_pool_address = Address::random(&e);
 
-        let (_, mock_pool_factory) = create_mock_pool_factory(&e, &backstop_id);
-        mock_pool_factory.set_pool(&pool_addr);
+        let (_, mock_pool_factory) = create_mock_pool_factory(&e, &backstop_address);
+        mock_pool_factory.set_pool(&pool_address);
 
-        e.as_contract(&backstop_id, || {
-            let pool = Pool::new(&e, not_pool_addr.clone());
+        e.as_contract(&backstop_address, || {
+            let pool = Pool::new(&e, not_pool_address.clone());
             let result = pool.verify_pool(&e);
 
             match result {
@@ -328,20 +328,20 @@ mod tests {
     fn test_share_cache() {
         let e = Env::default();
 
-        let backstop_addr = generate_contract_id(&e);
-        let pool_addr = generate_contract_id(&e);
-        let mut pool = Pool::new(&e, pool_addr.clone());
+        let backstop_address = Address::random(&e);
+        let pool_address = Address::random(&e);
+        let mut pool = Pool::new(&e, pool_address.clone());
 
         let first_share_amt = 100;
-        e.as_contract(&backstop_addr, || {
-            storage::set_pool_shares(&e, &pool_addr, &first_share_amt);
+        e.as_contract(&backstop_address, || {
+            storage::set_pool_shares(&e, &pool_address, &first_share_amt);
             let first_result = pool.get_shares(&e);
             assert_eq!(first_result, first_share_amt);
         });
 
-        e.as_contract(&backstop_addr, || {
+        e.as_contract(&backstop_address, || {
             // cached version returned
-            storage::set_pool_shares(&e, &pool_addr, &1);
+            storage::set_pool_shares(&e, &pool_address, &1);
             let cached_result = pool.get_shares(&e);
             assert_eq!(cached_result, first_share_amt);
 
@@ -353,7 +353,7 @@ mod tests {
 
             // write stores to chain
             pool.write_shares(&e);
-            let chain_result = storage::get_pool_shares(&e, &pool_addr);
+            let chain_result = storage::get_pool_shares(&e, &pool_address);
             assert_eq!(chain_result, second_share_amt);
         });
     }
@@ -362,20 +362,20 @@ mod tests {
     fn test_q4w_cache() {
         let e = Env::default();
 
-        let backstop_addr = generate_contract_id(&e);
-        let pool_addr = generate_contract_id(&e);
-        let mut pool = Pool::new(&e, pool_addr.clone());
+        let backstop_address = Address::random(&e);
+        let pool_address = Address::random(&e);
+        let mut pool = Pool::new(&e, pool_address.clone());
 
         let first_q4w_amt = 100;
-        e.as_contract(&backstop_addr, || {
-            storage::set_pool_q4w(&e, &pool_addr, &first_q4w_amt);
+        e.as_contract(&backstop_address, || {
+            storage::set_pool_q4w(&e, &pool_address, &first_q4w_amt);
             let first_result = pool.get_q4w(&e);
             assert_eq!(first_result, first_q4w_amt);
         });
 
-        e.as_contract(&backstop_addr, || {
+        e.as_contract(&backstop_address, || {
             // cached version returned
-            storage::set_pool_q4w(&e, &pool_addr, &1);
+            storage::set_pool_q4w(&e, &pool_address, &1);
             let cached_result = pool.get_q4w(&e);
             assert_eq!(cached_result, first_q4w_amt);
 
@@ -387,7 +387,7 @@ mod tests {
 
             // write stores to chain
             pool.write_q4w(&e);
-            let chain_result = storage::get_pool_q4w(&e, &pool_addr);
+            let chain_result = storage::get_pool_q4w(&e, &pool_address);
             assert_eq!(chain_result, second_q4w_amt);
         });
     }
@@ -396,20 +396,20 @@ mod tests {
     fn test_token_cache() {
         let e = Env::default();
 
-        let backstop_addr = generate_contract_id(&e);
-        let pool_addr = generate_contract_id(&e);
-        let mut pool = Pool::new(&e, pool_addr.clone());
+        let backstop_address = Address::random(&e);
+        let pool_address = Address::random(&e);
+        let mut pool = Pool::new(&e, pool_address.clone());
 
         let first_token_amt = 100;
-        e.as_contract(&backstop_addr, || {
-            storage::set_pool_tokens(&e, &pool_addr, &first_token_amt);
+        e.as_contract(&backstop_address, || {
+            storage::set_pool_tokens(&e, &pool_address, &first_token_amt);
             let first_result = pool.get_tokens(&e);
             assert_eq!(first_result, first_token_amt);
         });
 
-        e.as_contract(&backstop_addr, || {
+        e.as_contract(&backstop_address, || {
             // cached version returned
-            storage::set_pool_tokens(&e, &pool_addr, &1);
+            storage::set_pool_tokens(&e, &pool_address, &1);
             let cached_result = pool.get_tokens(&e);
             assert_eq!(cached_result, first_token_amt);
 
@@ -421,7 +421,7 @@ mod tests {
 
             // write stores to chain
             pool.write_tokens(&e);
-            let chain_result = storage::get_pool_tokens(&e, &pool_addr);
+            let chain_result = storage::get_pool_tokens(&e, &pool_address);
             assert_eq!(chain_result, second_token_amt);
         });
     }
@@ -430,18 +430,18 @@ mod tests {
     fn test_emission_cache() {
         let e = Env::default();
 
-        let backstop_addr = generate_contract_id(&e);
-        let pool_addr = generate_contract_id(&e);
-        let mut pool = Pool::new(&e, pool_addr.clone());
+        let backstop_address = Address::random(&e);
+        let pool_address = Address::random(&e);
+        let mut pool = Pool::new(&e, pool_address.clone());
 
         let first_amt = 100;
-        e.as_contract(&backstop_addr, || {
-            storage::set_pool_emis(&e, &pool_addr, &first_amt);
+        e.as_contract(&backstop_address, || {
+            storage::set_pool_emis(&e, &pool_address, &first_amt);
             let first_result = pool.get_emissions(&e);
             assert_eq!(first_result, first_amt);
 
             // cached version returned
-            storage::set_pool_emis(&e, &pool_addr, &1);
+            storage::set_pool_emis(&e, &pool_address, &1);
             let cached_result = pool.get_emissions(&e);
             assert_eq!(cached_result, first_amt);
 
@@ -453,7 +453,7 @@ mod tests {
 
             // write stores to chain
             pool.write_emissions(&e);
-            let chain_result = storage::get_pool_emis(&e, &pool_addr);
+            let chain_result = storage::get_pool_emis(&e, &pool_address);
             assert_eq!(chain_result, second_amt);
         });
     }
@@ -463,9 +463,9 @@ mod tests {
     #[test]
     fn test_convert_to_shares_no_shares() {
         let e = Env::default();
-        let pool_addr = generate_contract_id(&e);
+        let pool_address = Address::random(&e);
         let mut pool = Pool {
-            contract_id: pool_addr.clone(),
+            contract_id: pool_address.clone(),
             shares: Some(0),
             tokens: Some(0),
             q4w: Some(0),
@@ -480,9 +480,9 @@ mod tests {
     #[test]
     fn test_convert_to_shares() {
         let e = Env::default();
-        let pool_addr = generate_contract_id(&e);
+        let pool_address = Address::random(&e);
         let mut pool = Pool {
-            contract_id: pool_addr.clone(),
+            contract_id: pool_address.clone(),
             shares: Some(80321),
             tokens: Some(103302),
             q4w: Some(0),
@@ -497,9 +497,9 @@ mod tests {
     #[test]
     fn test_convert_to_tokens_no_shares() {
         let e = Env::default();
-        let pool_addr = generate_contract_id(&e);
+        let pool_address = Address::random(&e);
         let mut pool = Pool {
-            contract_id: pool_addr.clone(),
+            contract_id: pool_address.clone(),
             shares: Some(0),
             tokens: Some(0),
             q4w: Some(0),
@@ -514,9 +514,9 @@ mod tests {
     #[test]
     fn test_convert_to_tokens() {
         let e = Env::default();
-        let pool_addr = generate_contract_id(&e);
+        let pool_address = Address::random(&e);
         let mut pool = Pool {
-            contract_id: pool_addr.clone(),
+            contract_id: pool_address.clone(),
             shares: Some(80321),
             tokens: Some(103302),
             q4w: Some(0),
@@ -531,9 +531,9 @@ mod tests {
     #[test]
     fn test_deposit() {
         let e = Env::default();
-        let pool_addr = generate_contract_id(&e);
+        let pool_address = Address::random(&e);
         let mut pool = Pool {
-            contract_id: pool_addr.clone(),
+            contract_id: pool_address.clone(),
             shares: Some(100),
             tokens: Some(200),
             q4w: Some(25),
@@ -550,9 +550,9 @@ mod tests {
     #[test]
     fn test_withdraw() {
         let e = Env::default();
-        let pool_addr = generate_contract_id(&e);
+        let pool_address = Address::random(&e);
         let mut pool = Pool {
-            contract_id: pool_addr.clone(),
+            contract_id: pool_address.clone(),
             shares: Some(100),
             tokens: Some(200),
             q4w: Some(25),
@@ -569,9 +569,9 @@ mod tests {
     #[test]
     fn test_withdraw_too_much() {
         let e = Env::default();
-        let pool_addr = generate_contract_id(&e);
+        let pool_address = Address::random(&e);
         let mut pool = Pool {
-            contract_id: pool_addr.clone(),
+            contract_id: pool_address.clone(),
             shares: Some(100),
             tokens: Some(200),
             q4w: Some(25),
@@ -585,9 +585,9 @@ mod tests {
     #[test]
     fn test_dequeue_q4w() {
         let e = Env::default();
-        let pool_addr = generate_contract_id(&e);
+        let pool_address = Address::random(&e);
         let mut pool = Pool {
-            contract_id: pool_addr.clone(),
+            contract_id: pool_address.clone(),
             shares: Some(100),
             tokens: Some(200),
             q4w: Some(25),
@@ -604,9 +604,9 @@ mod tests {
     #[test]
     fn test_dequeue_q4w_too_much() {
         let e = Env::default();
-        let pool_addr = generate_contract_id(&e);
+        let pool_address = Address::random(&e);
         let mut pool = Pool {
-            contract_id: pool_addr.clone(),
+            contract_id: pool_address.clone(),
             shares: Some(100),
             tokens: Some(200),
             q4w: Some(25),
@@ -620,9 +620,9 @@ mod tests {
     #[test]
     fn test_q4w() {
         let e = Env::default();
-        let pool_addr = generate_contract_id(&e);
+        let pool_address = Address::random(&e);
         let mut pool = Pool {
-            contract_id: pool_addr.clone(),
+            contract_id: pool_address.clone(),
             shares: Some(100),
             tokens: Some(200),
             q4w: Some(25),
@@ -639,9 +639,9 @@ mod tests {
     #[test]
     fn test_claim() {
         let e = Env::default();
-        let pool_addr = generate_contract_id(&e);
+        let pool_address = Address::random(&e);
         let mut pool = Pool {
-            contract_id: pool_addr.clone(),
+            contract_id: pool_address.clone(),
             shares: Some(100),
             tokens: Some(200),
             q4w: Some(25),
@@ -655,9 +655,9 @@ mod tests {
     #[test]
     fn test_claim_too_much() {
         let e = Env::default();
-        let pool_addr = generate_contract_id(&e);
+        let pool_address = Address::random(&e);
         let mut pool = Pool {
-            contract_id: pool_addr.clone(),
+            contract_id: pool_address.clone(),
             shares: Some(100),
             tokens: Some(200),
             q4w: Some(25),

@@ -7,9 +7,9 @@ use crate::{dependencies::PoolClient, errors::TokenError, storage};
 ///
 /// Panics if the user is marked as collateralizing their b_tokens.
 pub fn require_noncollateralized(e: &Env, user: &Address) {
-    let pool_id = storage::read_pool_id(e);
+    let pool_address = storage::read_pool(e);
     let reserve_asset = storage::read_asset(e);
-    let pool_client = PoolClient::new(e, &pool_id);
+    let pool_client = PoolClient::new(e, &pool_address);
     let user_config = pool_client.config(user);
 
     // Pulled from `/lending-pool/src/reserve_usage.rs#L83-L86`
@@ -22,41 +22,36 @@ pub fn require_noncollateralized(e: &Env, user: &Address) {
 
 #[cfg(test)]
 mod tests {
-    use soroban_sdk::{
-        testutils::{Address as _, BytesN as _},
-        BytesN,
-    };
+    use soroban_sdk::testutils::Address as _;
 
     use super::*;
     use crate::{dependencies::POOL_WASM, storage::Asset};
 
-    fn create_lending_pool(e: &Env) -> (BytesN<32>, PoolClient) {
-        let contract_id = BytesN::<32>::random(e);
-        e.register_contract_wasm(&contract_id, POOL_WASM);
-        let client = PoolClient::new(e, &contract_id);
-        (contract_id, client)
+    fn create_lending_pool(e: &Env) -> (Address, PoolClient) {
+        let contract_address = Address::random(e);
+        e.register_contract_wasm(&contract_address, POOL_WASM);
+        let client = PoolClient::new(e, &contract_address);
+        (contract_address, client)
     }
 
     #[test]
     fn test_require_noncollateralized() {
         let e = Env::default();
-        let token_id = BytesN::<32>::random(&e);
+        let token_address = Address::random(&e);
 
         let res_index = 7;
-        let (pool_id, pool_client) = create_lending_pool(&e);
-        let pool = Address::from_contract_id(&e, &pool_id);
+        let (pool_address, pool_client) = create_lending_pool(&e);
 
         let samwise = Address::random(&e);
 
         pool_client.set_collat(&samwise, &res_index, &false);
-        e.as_contract(&token_id, || {
-            storage::write_pool(&e, &pool);
-            storage::write_pool_id(&e, &pool_id);
+        e.as_contract(&token_address, || {
+            storage::write_pool(&e, &pool_address);
             storage::write_asset(
                 &e,
                 &Asset {
                     res_index,
-                    id: BytesN::<32>::random(&e),
+                    id: Address::random(&e),
                 },
             );
 
@@ -68,23 +63,21 @@ mod tests {
     #[should_panic]
     fn test_require_noncollateralized_panics_if_collateralized() {
         let e = Env::default();
-        let token_id = BytesN::<32>::random(&e);
+        let token_address = Address::random(&e);
 
         let res_index = 7;
-        let (pool_id, pool_client) = create_lending_pool(&e);
-        let pool = Address::from_contract_id(&e, &pool_id);
+        let (pool_address, pool_client) = create_lending_pool(&e);
 
         let samwise = Address::random(&e);
 
         pool_client.set_collat(&samwise, &res_index, &true);
-        e.as_contract(&token_id, || {
-            storage::write_pool(&e, &pool);
-            storage::write_pool_id(&e, &pool_id);
+        e.as_contract(&token_address, || {
+            storage::write_pool(&e, &pool_address);
             storage::write_asset(
                 &e,
                 &Asset {
                     res_index,
-                    id: BytesN::<32>::random(&e),
+                    id: Address::random(&e),
                 },
             );
 

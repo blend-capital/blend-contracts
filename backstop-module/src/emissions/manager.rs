@@ -1,12 +1,12 @@
 use cast::i128;
-use soroban_sdk::{BytesN, Env};
+use soroban_sdk::{Address, Env};
 
 use crate::{constants::BACKSTOP_EPOCH, errors::BackstopError, storage};
 
 pub fn add_to_reward_zone(
     e: &Env,
-    to_add: BytesN<32>,
-    to_remove: BytesN<32>,
+    to_add: Address,
+    to_remove: Address,
 ) -> Result<(), BackstopError> {
     let mut reward_zone = storage::get_reward_zone(&e);
     let max_rz_len = 10 + (i128(e.ledger().timestamp() - BACKSTOP_EPOCH) >> 23); // bit-shift 23 is ~97 day interval
@@ -18,8 +18,8 @@ pub fn add_to_reward_zone(
     } else {
         // don't allow rz modifications within 48 hours of the last distribution
         // if pools don't adopt their distributions, the tokens will be lost
-        let next_dist = storage::get_next_dist(&e);
-        if next_dist != 0 && e.ledger().timestamp() < next_dist - 5 * 24 * 60 * 60 {
+        let next_distribution = storage::get_next_distribution(&e);
+        if next_distribution != 0 && e.ledger().timestamp() < next_distribution - 5 * 24 * 60 * 60 {
             return Err(BackstopError::BadRequest);
         }
 
@@ -46,12 +46,11 @@ pub fn add_to_reward_zone(
 
 #[cfg(test)]
 mod tests {
-    use crate::testutils::generate_contract_id;
 
     use super::*;
     use soroban_sdk::{
-        testutils::{Ledger, LedgerInfo},
-        vec, Vec,
+        testutils::{Address as _, Ledger, LedgerInfo},
+        vec, BytesN, Vec,
     };
 
     /********** add_to_reward_zone **********/
@@ -67,15 +66,19 @@ mod tests {
             network_id: Default::default(),
         });
 
-        let backstop_addr = generate_contract_id(&e);
-        let to_add = generate_contract_id(&e);
+        let backstop_addr = Address::random(&e);
+        let to_add = Address::random(&e);
 
         e.as_contract(&backstop_addr, || {
-            let result = add_to_reward_zone(&e, to_add.clone(), BytesN::from_array(&e, &[0u8; 32]));
+            let result = add_to_reward_zone(
+                &e,
+                to_add.clone(),
+                Address::from_contract_id(&BytesN::from_array(&e, &[0u8; 32])),
+            );
             match result {
                 Ok(_) => {
                     let actual_rz = storage::get_reward_zone(&e);
-                    let expected_rz: Vec<BytesN<32>> = vec![&e, to_add];
+                    let expected_rz: Vec<Address> = vec![&e, to_add];
                     assert_eq!(actual_rz, expected_rz);
                 }
                 Err(_) => assert!(false),
@@ -94,25 +97,29 @@ mod tests {
             base_reserve: 10,
         });
 
-        let backstop_addr = generate_contract_id(&e);
-        let to_add = generate_contract_id(&e);
-        let mut reward_zone: Vec<BytesN<32>> = vec![
+        let backstop_addr = Address::random(&e);
+        let to_add = Address::random(&e);
+        let mut reward_zone: Vec<Address> = vec![
             &e,
-            generate_contract_id(&e),
-            generate_contract_id(&e),
-            generate_contract_id(&e),
-            generate_contract_id(&e),
-            generate_contract_id(&e),
-            generate_contract_id(&e),
-            generate_contract_id(&e),
-            generate_contract_id(&e),
-            generate_contract_id(&e),
-            generate_contract_id(&e),
+            Address::random(&e),
+            Address::random(&e),
+            Address::random(&e),
+            Address::random(&e),
+            Address::random(&e),
+            Address::random(&e),
+            Address::random(&e),
+            Address::random(&e),
+            Address::random(&e),
+            Address::random(&e),
         ];
 
         e.as_contract(&backstop_addr, || {
             storage::set_reward_zone(&e, &reward_zone);
-            let result = add_to_reward_zone(&e, to_add.clone(), BytesN::from_array(&e, &[0u8; 32]));
+            let result = add_to_reward_zone(
+                &e,
+                to_add.clone(),
+                Address::from_contract_id(&BytesN::from_array(&e, &[0u8; 32])),
+            );
             match result {
                 Ok(_) => {
                     let actual_rz = storage::get_reward_zone(&e);
@@ -135,25 +142,29 @@ mod tests {
             base_reserve: 10,
         });
 
-        let backstop_addr = generate_contract_id(&e);
-        let to_add = generate_contract_id(&e);
-        let reward_zone: Vec<BytesN<32>> = vec![
+        let backstop_addr = Address::random(&e);
+        let to_add = Address::random(&e);
+        let reward_zone: Vec<Address> = vec![
             &e,
-            generate_contract_id(&e),
-            generate_contract_id(&e),
-            generate_contract_id(&e),
-            generate_contract_id(&e),
-            generate_contract_id(&e),
-            generate_contract_id(&e),
-            generate_contract_id(&e),
-            generate_contract_id(&e),
-            generate_contract_id(&e),
-            generate_contract_id(&e),
+            Address::random(&e),
+            Address::random(&e),
+            Address::random(&e),
+            Address::random(&e),
+            Address::random(&e),
+            Address::random(&e),
+            Address::random(&e),
+            Address::random(&e),
+            Address::random(&e),
+            Address::random(&e),
         ];
 
         e.as_contract(&backstop_addr, || {
             storage::set_reward_zone(&e, &reward_zone);
-            let result = add_to_reward_zone(&e, to_add.clone(), BytesN::from_array(&e, &[0u8; 32]));
+            let result = add_to_reward_zone(
+                &e,
+                to_add.clone(),
+                Address::from_contract_id(&BytesN::from_array(&e, &[0u8; 32])),
+            );
             match result {
                 Ok(_) => assert!(false),
                 Err(err) => match err {
@@ -175,26 +186,26 @@ mod tests {
             base_reserve: 10,
         });
 
-        let backstop_addr = generate_contract_id(&e);
-        let to_add = generate_contract_id(&e);
-        let to_remove = generate_contract_id(&e);
-        let mut reward_zone: Vec<BytesN<32>> = vec![
+        let backstop_addr = Address::random(&e);
+        let to_add = Address::random(&e);
+        let to_remove = Address::random(&e);
+        let mut reward_zone: Vec<Address> = vec![
             &e,
-            generate_contract_id(&e),
-            generate_contract_id(&e),
-            generate_contract_id(&e),
-            generate_contract_id(&e),
-            generate_contract_id(&e),
-            generate_contract_id(&e),
-            generate_contract_id(&e),
+            Address::random(&e),
+            Address::random(&e),
+            Address::random(&e),
+            Address::random(&e),
+            Address::random(&e),
+            Address::random(&e),
+            Address::random(&e),
             to_remove.clone(), // index 7
-            generate_contract_id(&e),
-            generate_contract_id(&e),
+            Address::random(&e),
+            Address::random(&e),
         ];
 
         e.as_contract(&backstop_addr, || {
             storage::set_reward_zone(&e, &reward_zone);
-            storage::set_next_dist(&e, &(BACKSTOP_EPOCH + 5 * 24 * 60 * 60));
+            storage::set_next_distribution(&e, &(BACKSTOP_EPOCH + 5 * 24 * 60 * 60));
             storage::set_pool_eps(&e, &to_remove, &1);
             storage::set_pool_tokens(&e, &to_add, &100);
             storage::set_pool_tokens(&e, &to_remove, &99);
@@ -225,26 +236,26 @@ mod tests {
             base_reserve: 10,
         });
 
-        let backstop_addr = generate_contract_id(&e);
-        let to_add = generate_contract_id(&e);
-        let to_remove = generate_contract_id(&e);
-        let reward_zone: Vec<BytesN<32>> = vec![
+        let backstop_addr = Address::random(&e);
+        let to_add = Address::random(&e);
+        let to_remove = Address::random(&e);
+        let reward_zone: Vec<Address> = vec![
             &e,
-            generate_contract_id(&e),
-            generate_contract_id(&e),
-            generate_contract_id(&e),
-            generate_contract_id(&e),
-            generate_contract_id(&e),
-            generate_contract_id(&e),
-            generate_contract_id(&e),
+            Address::random(&e),
+            Address::random(&e),
+            Address::random(&e),
+            Address::random(&e),
+            Address::random(&e),
+            Address::random(&e),
+            Address::random(&e),
             to_remove.clone(), // index 7
-            generate_contract_id(&e),
-            generate_contract_id(&e),
+            Address::random(&e),
+            Address::random(&e),
         ];
 
         e.as_contract(&backstop_addr, || {
             storage::set_reward_zone(&e, &reward_zone.clone());
-            storage::set_next_dist(&e, &(BACKSTOP_EPOCH + 24 * 60 * 60));
+            storage::set_next_distribution(&e, &(BACKSTOP_EPOCH + 24 * 60 * 60));
             storage::set_pool_eps(&e, &to_remove, &1);
             storage::set_pool_tokens(&e, &to_add, &100);
             storage::set_pool_tokens(&e, &to_remove, &100);
@@ -271,26 +282,26 @@ mod tests {
             base_reserve: 10,
         });
 
-        let backstop_addr = generate_contract_id(&e);
-        let to_add = generate_contract_id(&e);
-        let to_remove = generate_contract_id(&e);
-        let reward_zone: Vec<BytesN<32>> = vec![
+        let backstop_addr = Address::random(&e);
+        let to_add = Address::random(&e);
+        let to_remove = Address::random(&e);
+        let reward_zone: Vec<Address> = vec![
             &e,
-            generate_contract_id(&e),
-            generate_contract_id(&e),
-            generate_contract_id(&e),
-            generate_contract_id(&e),
-            generate_contract_id(&e),
-            generate_contract_id(&e),
-            generate_contract_id(&e),
-            generate_contract_id(&e),
-            generate_contract_id(&e),
-            generate_contract_id(&e),
+            Address::random(&e),
+            Address::random(&e),
+            Address::random(&e),
+            Address::random(&e),
+            Address::random(&e),
+            Address::random(&e),
+            Address::random(&e),
+            Address::random(&e),
+            Address::random(&e),
+            Address::random(&e),
         ];
 
         e.as_contract(&backstop_addr, || {
             storage::set_reward_zone(&e, &reward_zone);
-            storage::set_next_dist(&e, &(BACKSTOP_EPOCH + 24 * 60 * 60));
+            storage::set_next_distribution(&e, &(BACKSTOP_EPOCH + 24 * 60 * 60));
             storage::set_pool_eps(&e, &to_remove, &1);
             storage::set_pool_tokens(&e, &to_add, &100);
             storage::set_pool_tokens(&e, &to_remove, &99);
@@ -317,26 +328,26 @@ mod tests {
             base_reserve: 10,
         });
 
-        let backstop_addr = generate_contract_id(&e);
-        let to_add = generate_contract_id(&e);
-        let to_remove = generate_contract_id(&e);
-        let reward_zone: Vec<BytesN<32>> = vec![
+        let backstop_addr = Address::random(&e);
+        let to_add = Address::random(&e);
+        let to_remove = Address::random(&e);
+        let reward_zone: Vec<Address> = vec![
             &e,
-            generate_contract_id(&e),
-            generate_contract_id(&e),
-            generate_contract_id(&e),
-            generate_contract_id(&e),
-            generate_contract_id(&e),
-            generate_contract_id(&e),
-            generate_contract_id(&e),
+            Address::random(&e),
+            Address::random(&e),
+            Address::random(&e),
+            Address::random(&e),
+            Address::random(&e),
+            Address::random(&e),
+            Address::random(&e),
             to_remove.clone(), // index 7
-            generate_contract_id(&e),
-            generate_contract_id(&e),
+            Address::random(&e),
+            Address::random(&e),
         ];
 
         e.as_contract(&backstop_addr, || {
             storage::set_reward_zone(&e, &reward_zone);
-            storage::set_next_dist(&e, &(BACKSTOP_EPOCH + 5 * 24 * 60 * 60 + 1));
+            storage::set_next_distribution(&e, &(BACKSTOP_EPOCH + 5 * 24 * 60 * 60 + 1));
             storage::set_pool_eps(&e, &to_remove, &1);
             storage::set_pool_tokens(&e, &to_add, &100);
             storage::set_pool_tokens(&e, &to_remove, &99);

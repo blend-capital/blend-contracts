@@ -31,10 +31,7 @@ pub fn receive_balance(e: &Env, user: &Address, amount: &i128) -> Result<(), Tok
 
 #[cfg(test)]
 mod tests {
-    use soroban_sdk::{
-        testutils::{Address as _, BytesN as _},
-        BytesN,
-    };
+    use soroban_sdk::testutils::Address as _;
 
     use super::*;
 
@@ -42,12 +39,12 @@ mod tests {
     fn test_spend_balance() {
         let e = Env::default();
 
-        let token_id = BytesN::<32>::random(&e);
+        let token_address = Address::random(&e);
         let user = Address::random(&e);
 
         let starting_balance: i128 = 123456789;
         let amount: i128 = starting_balance - 1;
-        e.as_contract(&token_id, || {
+        e.as_contract(&token_address, || {
             storage::write_balance(&e, &user, &starting_balance);
 
             spend_balance(&e, &user, &amount).unwrap();
@@ -61,12 +58,12 @@ mod tests {
     fn test_spend_balance_overspend_panics() {
         let e = Env::default();
 
-        let token_id = BytesN::<32>::random(&e);
+        let token_address = Address::random(&e);
         let user = Address::random(&e);
 
         let starting_balance: i128 = 123456789;
         let amount: i128 = starting_balance + 1;
-        e.as_contract(&token_id, || {
+        e.as_contract(&token_address, || {
             storage::write_balance(&e, &user, &starting_balance);
 
             let result = spend_balance(&e, &user, &amount);
@@ -78,11 +75,11 @@ mod tests {
     fn test_receive_balance() {
         let e = Env::default();
 
-        let token_id = BytesN::<32>::random(&e);
+        let token_address = Address::random(&e);
         let user = Address::random(&e);
 
         let amount: i128 = 123456789;
-        e.as_contract(&token_id, || {
+        e.as_contract(&token_address, || {
             receive_balance(&e, &user, &amount).unwrap();
 
             let balance = storage::read_balance(&e, &user);
@@ -94,11 +91,11 @@ mod tests {
     fn test_receive_balance_overflow_panics() {
         let e = Env::default();
 
-        let token_id = BytesN::<32>::random(&e);
+        let token_address = Address::random(&e);
         let user = Address::random(&e);
 
         let amount: i128 = 123456789;
-        e.as_contract(&token_id, || {
+        e.as_contract(&token_address, || {
             receive_balance(&e, &user, &amount).unwrap();
             let result = receive_balance(&e, &user, &i128::MAX);
             assert_eq!(result, Err(TokenError::OverflowError));

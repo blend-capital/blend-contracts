@@ -21,42 +21,43 @@ pub enum TokenIndex {
     BSTOP = 4,
 }
 
-pub struct ReserveFixture {
+pub struct ReserveFixture<'a> {
     pub index: usize,
     pub fixture_index: usize, // the underlying token id in the fixture::tokens vec
-    pub b_token: BlendTokenClient,
-    pub d_token: BlendTokenClient,
+    pub b_token: BlendTokenClient<'a>,
+    pub d_token: BlendTokenClient<'a>,
 }
 
-pub struct PoolFixture {
-    pub pool: PoolClient,
-    pub reserves: Vec<ReserveFixture>,
+pub struct PoolFixture<'a> {
+    pub pool: PoolClient<'a>,
+    pub reserves: Vec<ReserveFixture<'a>>,
 }
 
-impl PoolFixture {
-    fn add_reserve(&mut self, reserve: ReserveFixture) {
+impl<'a> PoolFixture<'a> {
+    fn add_reserve(&mut self, reserve: ReserveFixture<'a>) {
         self.reserves.push(reserve);
     }
 }
 
-pub struct TestFixture {
+pub struct TestFixture<'a> {
     pub env: Env,
     pub bombadil: Address,
-    pub emitter: EmitterClient,
-    pub backstop: BackstopClient,
-    pub pool_factory: PoolFactoryClient,
-    pub oracle: MockOracleClient,
-    pub pools: Vec<PoolFixture>,
-    pub tokens: Vec<TokenClient>,
+    pub emitter: EmitterClient<'a>,
+    pub backstop: BackstopClient<'a>,
+    pub pool_factory: PoolFactoryClient<'a>,
+    pub oracle: MockOracleClient<'a>,
+    pub pools: Vec<PoolFixture<'a>>,
+    pub tokens: Vec<TokenClient<'a>>,
 }
 
-impl TestFixture {
+impl TestFixture<'_> {
     /// Create a new TestFixture for the Blend Protocol
     ///
     /// Deploys BLND (0), wETH (1), USDC (2), and XLM (3) test tokens, alongside all required
     /// Blend Protocol contracts, including the backstop token (4).
-    pub fn create() -> TestFixture {
+    pub fn create<'a>() -> TestFixture<'a> {
         let e = Env::default();
+        e.mock_all_auths();
         e.budget().reset_unlimited();
 
         let bombadil = Address::random(&e);
@@ -82,8 +83,8 @@ impl TestFixture {
         let (_, mock_oracle_client) = create_mock_oracle(&e);
 
         // initialize emitter
-        blnd_client.mint(&bombadil, &bombadil, &(10_000_000 * SCALAR_7));
-        blnd_client.set_admin(&bombadil, &Address::from_contract_id(&e, &emitter_id));
+        blnd_client.mint(&bombadil, &(10_000_000 * SCALAR_7));
+        blnd_client.set_admin(&emitter_id);
         emitter_client.initialize(&backstop_id, &blnd_id);
 
         // initialize backstop
@@ -143,7 +144,7 @@ impl TestFixture {
             &self.bombadil,
             &name,
             &BytesN::<32>::random(&self.env),
-            &self.oracle.contract_id,
+            &self.oracle.address,
             &backstop_take_rate,
         );
         self.pools.push(PoolFixture {
@@ -162,8 +163,8 @@ impl TestFixture {
         let token = self.tokens.get(asset_index).unwrap();
         pool_fixture
             .pool
-            .init_res(&self.bombadil, &token.contract_id, reserve_metadata);
-        let config = pool_fixture.pool.res_config(&token.contract_id);
+            .init_reserve(&self.bombadil, &token.address, reserve_metadata);
+        let config = pool_fixture.pool.reserve_config(&token.address);
         pool_fixture.add_reserve(ReserveFixture {
             index: config.index as usize,
             fixture_index: asset_index,

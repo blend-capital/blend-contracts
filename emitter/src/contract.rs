@@ -1,5 +1,5 @@
 use crate::{emitter, errors::EmitterError, storage};
-use soroban_sdk::{contractimpl, panic_with_error, Address, BytesN, Env, Symbol};
+use soroban_sdk::{contractimpl, panic_with_error, Address, Env, Symbol};
 
 /// ### Emitter
 ///
@@ -10,9 +10,9 @@ pub trait EmitterContractTrait {
     /// Initialize the Emitter
     ///
     /// ### Arguments
-    /// * `backstop_id` - The backstop module BytesN<32> ID
-    /// * `blnd_token_id` - The Blend token BytesN<32> ID
-    fn initialize(e: Env, backstop: BytesN<32>, blnd_token_id: BytesN<32>);
+    /// * `backstop_id` - The backstop module Address ID
+    /// * `blnd_token_id` - The Blend token Address ID
+    fn initialize(e: Env, backstop: Address, blnd_token_id: Address);
 
     /// Distributes BLND tokens to the listed backstop module
     ///
@@ -23,23 +23,23 @@ pub trait EmitterContractTrait {
     fn distribute(e: Env) -> Result<i128, EmitterError>;
 
     /// Fetch the current backstop
-    fn get_bstop(e: Env) -> BytesN<32>;
+    fn get_backstop(e: Env) -> Address;
 
     /// Switches the listed backstop module to one with more effective backstop deposits
     ///
     /// Returns OK or an error
     ///
     /// ### Arguments
-    /// * `new_backstop_id` - The BytesN<32> ID of the new backstop module
+    /// * `new_backstop_id` - The Address ID of the new backstop module
     ///
     /// ### Errors
     /// If the input contract does not have more backstop deposits than the listed backstop module
-    fn swap_bstop(e: Env, new_backstop_id: BytesN<32>) -> Result<(), EmitterError>;
+    fn swap_backstop(e: Env, new_backstop_id: Address) -> Result<(), EmitterError>;
 }
 
 #[contractimpl]
 impl EmitterContractTrait for EmitterContract {
-    fn initialize(e: Env, backstop: BytesN<32>, blnd_token_id: BytesN<32>) {
+    fn initialize(e: Env, backstop: Address, blnd_token_id: Address) {
         if storage::has_backstop(&e) {
             panic_with_error!(&e, EmitterError::AlreadyInitialized)
         }
@@ -51,24 +51,23 @@ impl EmitterContractTrait for EmitterContract {
     }
 
     fn distribute(e: Env) -> Result<i128, EmitterError> {
-        let backstop = storage::get_backstop(&e);
-        let backstop_addr = Address::from_contract_id(&e, &backstop);
-        backstop_addr.require_auth();
+        let backstop_address = storage::get_backstop(&e);
+        backstop_address.require_auth();
 
-        let distribution_amount = emitter::execute_distribute(&e, &backstop_addr)?;
+        let distribution_amount = emitter::execute_distribute(&e, &backstop_address)?;
 
         e.events().publish(
             (Symbol::new(&e, "distribute"),),
-            (backstop, distribution_amount),
+            (backstop_address, distribution_amount),
         );
         Ok(distribution_amount)
     }
 
-    fn get_bstop(e: Env) -> BytesN<32> {
+    fn get_backstop(e: Env) -> Address {
         storage::get_backstop(&e)
     }
 
-    fn swap_bstop(e: Env, new_backstop_id: BytesN<32>) -> Result<(), EmitterError> {
+    fn swap_backstop(e: Env, new_backstop_id: Address) -> Result<(), EmitterError> {
         emitter::execute_swap_backstop(&e, new_backstop_id.clone())?;
 
         e.events()

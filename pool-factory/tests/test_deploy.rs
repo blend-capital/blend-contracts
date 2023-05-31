@@ -7,7 +7,7 @@ use soroban_sdk::{
 
 mod common;
 use crate::common::{
-    b_token, create_wasm_pool_factory, d_token, generate_contract_id,
+    b_token, create_wasm_pool_factory, d_token,
     lending_pool::{self, PoolConfig, PoolDataKey},
     PoolInitMeta,
 };
@@ -15,19 +15,20 @@ use crate::common::{
 #[test]
 fn test_deploy() {
     let e = Env::default();
+    e.mock_all_auths();
     let (_pool_factory_address, pool_factory_client) = create_wasm_pool_factory(&e);
 
     let wasm_hash = e.install_contract_wasm(lending_pool::WASM);
 
     let bombadil = Address::random(&e);
 
-    let oracle = generate_contract_id(&e);
-    let backstop_id = generate_contract_id(&e);
+    let oracle = Address::random(&e);
+    let backstop_id = Address::random(&e);
     let backstop_rate: u64 = 100000;
     let b_token_hash = e.install_contract_wasm(b_token::WASM);
     let d_token_hash = e.install_contract_wasm(d_token::WASM);
-    let blnd_id = generate_contract_id(&e);
-    let usdc_id = generate_contract_id(&e);
+    let blnd_id = Address::random(&e);
+    let usdc_id = Address::random(&e);
 
     let pool_init_meta = PoolInitMeta {
         b_token_hash: b_token_hash.clone(),
@@ -49,7 +50,7 @@ fn test_deploy() {
     let deployed_pool_address_2 =
         pool_factory_client.deploy(&bombadil, &name2, &salt, &oracle, &backstop_rate);
 
-    let zero_address = BytesN::from_array(&e, &[0; 32]);
+    let zero_address = Address::from_contract_id(&BytesN::from_array(&e, &[0; 32]));
     e.as_contract(&deployed_pool_address_1, || {
         let storage = e.storage();
         assert_eq!(
@@ -61,7 +62,7 @@ fn test_deploy() {
         );
         assert_eq!(
             storage
-                .get::<_, BytesN<32>>(&PoolDataKey::Backstop)
+                .get::<_, Address>(&PoolDataKey::Backstop)
                 .unwrap()
                 .unwrap(),
             backstop_id.clone()
@@ -86,14 +87,14 @@ fn test_deploy() {
         );
         assert_eq!(
             storage
-                .get::<_, BytesN<32>>(&PoolDataKey::BLNDTkn)
+                .get::<_, Address>(&PoolDataKey::BLNDTkn)
                 .unwrap()
                 .unwrap(),
             blnd_id.clone()
         );
         assert_eq!(
             storage
-                .get::<_, BytesN<32>>(&PoolDataKey::USDCTkn)
+                .get::<_, Address>(&PoolDataKey::USDCTkn)
                 .unwrap()
                 .unwrap(),
             usdc_id.clone()

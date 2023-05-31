@@ -1,4 +1,4 @@
-use soroban_sdk::{contractclient, Address, Bytes, BytesN, Env};
+use soroban_sdk::{contractclient, Address, Bytes, Env};
 
 use crate::storage::Asset;
 
@@ -23,20 +23,20 @@ pub trait CAP4606 {
 
     /// If "admin" is the administrator, clawback "amount" from "from". "amount" is burned.
     /// Emit event with topics = ["clawback", admin: Address, to: Address], data = [amount: i128]
-    fn clawback(env: Env, admin: Address, from: Address, amount: i128);
+    fn clawback(env: Env, from: Address, amount: i128);
 
     /// If "admin" is the administrator, mint "amount" to "to".
     /// Emit event with topics = ["mint", admin: Address, to: Address], data = [amount: i128]
-    fn mint(env: Env, admin: Address, to: Address, amount: i128);
+    fn mint(env: Env, to: Address, amount: i128);
 
     /// If "admin" is the administrator, set the administrator to "id".
     /// Emit event with topics = ["set_admin", admin: Address], data = [new_admin: Address]
-    fn set_admin(env: Env, admin: Address, new_admin: Address);
+    fn set_admin(env: Env, new_admin: Address);
 
     /// If "admin" is the administrator, set the authorize state of "id" to "authorize".
     /// If "authorize" is true, "id" should be able to use its balance.
     /// Emit event with topics = ["set_auth", admin: Address, id: Address], data = [authorize: bool]
-    fn set_auth(env: Env, admin: Address, id: Address, authorize: bool);
+    fn set_authorized(env: Env, id: Address, authorize: bool);
 
     // --------------------------------------------------------------------------------
     // Token interface
@@ -48,21 +48,21 @@ pub trait CAP4606 {
 
     /// Increase the allowance by "amount" for "spender" to transfer/burn from "from".
     /// Emit event with topics = ["incr_allow", from: Address, spender: Address], data = [amount: i128]
-    fn incr_allow(env: Env, from: Address, spender: Address, amount: i128);
+    fn increase_allowance(env: Env, from: Address, spender: Address, amount: i128);
 
     /// Decrease the allowance by "amount" for "spender" to transfer/burn from "from".
     /// If "amount" is greater than the current allowance, set the allowance to 0.
     /// Emit event with topics = ["decr_allow", from: Address, spender: Address], data = [amount: i128]
-    fn decr_allow(env: Env, from: Address, spender: Address, amount: i128);
+    fn decrease_allowance(env: Env, from: Address, spender: Address, amount: i128);
 
     /// Transfer "amount" from "from" to "to.
     /// Emit event with topics = ["transfer", from: Address, to: Address], data = [amount: i128]
-    fn xfer(env: Env, from: Address, to: Address, amount: i128);
+    fn transfer(env: Env, from: Address, to: Address, amount: i128);
 
     /// Transfer "amount" from "from" to "to", consuming the allowance of "spender".
     /// Authorized by spender (`spender.require_auth()`).
     /// Emit event with topics = ["transfer", from: Address, to: Address], data = [amount: i128]
-    fn xfer_from(env: Env, spender: Address, from: Address, to: Address, amount: i128);
+    fn transfer_from(env: Env, spender: Address, from: Address, to: Address, amount: i128);
 
     /// Burn "amount" from "from".
     /// Emit event with topics = ["burn", from: Address], data = [amount: i128]
@@ -121,5 +121,5 @@ pub trait BlendPoolToken {
     /// in the pool.
     ///
     /// Can only be set once.
-    fn init_asset(e: Env, admin: Address, pool: BytesN<32>, asset: BytesN<32>, index: u32);
+    fn initialize_asset(e: Env, admin: Address, asset: Address, index: u32);
 }

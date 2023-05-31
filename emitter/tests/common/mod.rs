@@ -1,5 +1,5 @@
 use rand::{thread_rng, RngCore};
-use soroban_sdk::{Address, BytesN, Env};
+use soroban_sdk::{testutils::Address as _, Address, BytesN, Env};
 
 // Generics
 
@@ -21,26 +21,20 @@ mod backstop {
 }
 pub use backstop::Client as BackstopClient;
 
-pub fn generate_contract_id(e: &Env) -> BytesN<32> {
-    let mut id: [u8; 32] = Default::default();
-    thread_rng().fill_bytes(&mut id);
-    BytesN::from_array(e, &id)
-}
-
-pub fn create_token(e: &Env, admin: &Address) -> (BytesN<32>, TokenClient) {
+pub fn create_token<'a>(e: &Env, admin: &Address) -> (Address, TokenClient<'a>) {
     let contract_id = e.register_stellar_asset_contract(admin.clone());
     let client = TokenClient::new(e, &contract_id);
     (contract_id, client)
 }
 
-pub fn create_wasm_emitter(e: &Env) -> (BytesN<32>, EmitterClient) {
-    let contract_id = generate_contract_id(e);
+pub fn create_wasm_emitter(e: &Env) -> (Address, EmitterClient) {
+    let contract_id = Address::random(e);
     e.register_contract_wasm(&contract_id, emitter::WASM);
     (contract_id.clone(), EmitterClient::new(e, &contract_id))
 }
 
-pub fn create_backstop(e: &Env) -> (BytesN<32>, BackstopClient) {
-    let contract_id = generate_contract_id(e);
+pub fn create_backstop(e: &Env) -> (Address, BackstopClient) {
+    let contract_id = Address::random(e);
     e.register_contract_wasm(&contract_id, backstop::WASM);
     (contract_id.clone(), BackstopClient::new(e, &contract_id))
 }

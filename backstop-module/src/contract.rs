@@ -3,7 +3,7 @@ use crate::{
     errors::BackstopError,
     storage::{self, Q4W},
 };
-use soroban_sdk::{contractimpl, Address, BytesN, Env, Symbol, Vec};
+use soroban_sdk::{contractimpl, Address, Env, Symbol, Vec};
 
 /// ### Backstop Module
 ///
@@ -22,9 +22,9 @@ pub trait BackstopModuleContractTrait {
     /// If initialize has already been called
     fn initialize(
         e: Env,
-        backstop_token: BytesN<32>,
-        blnd_token: BytesN<32>,
-        pool_factory: BytesN<32>,
+        backstop_token: Address,
+        blnd_token: Address,
+        pool_factory: Address,
     ) -> Result<(), BackstopError>;
 
     /********** Core **********/
@@ -40,7 +40,7 @@ pub trait BackstopModuleContractTrait {
     fn deposit(
         e: Env,
         from: Address,
-        pool_address: BytesN<32>,
+        pool_address: Address,
         amount: i128,
     ) -> Result<i128, BackstopError>;
 
@@ -52,10 +52,10 @@ pub trait BackstopModuleContractTrait {
     /// * `from` - The address whose deposits are being queued for withdrawal
     /// * `pool_address` - The address of the pool
     /// * `amount` - The amount of shares to queue for withdraw
-    fn q_withdraw(
+    fn queue_withdrawal(
         e: Env,
         from: Address,
-        pool_address: BytesN<32>,
+        pool_address: Address,
         amount: i128,
     ) -> Result<Q4W, BackstopError>;
 
@@ -65,10 +65,10 @@ pub trait BackstopModuleContractTrait {
     /// * `from` - The address whose deposits are being queued for withdrawal
     /// * `pool_address` - The address of the pool
     /// * `amount` - The amount of shares to dequeue
-    fn dequeue_wd(
+    fn dequeue_withdrawal(
         e: Env,
         from: Address,
-        pool_address: BytesN<32>,
+        pool_address: Address,
         amount: i128,
     ) -> Result<(), BackstopError>;
 
@@ -83,7 +83,7 @@ pub trait BackstopModuleContractTrait {
     fn withdraw(
         e: Env,
         from: Address,
-        pool_address: BytesN<32>,
+        pool_address: Address,
         amount: i128,
     ) -> Result<i128, BackstopError>;
 
@@ -92,14 +92,14 @@ pub trait BackstopModuleContractTrait {
     /// ### Arguments
     /// * `pool_address` - The address of the pool
     /// * `user` - The user to fetch the balance for
-    fn balance(e: Env, pool_address: BytesN<32>, user: Address) -> i128;
+    fn balance(e: Env, pool_address: Address, user: Address) -> i128;
 
-    /// Fetch the withdraw queue for the user
+    /// Fetch the withdrawal queue for the user
     ///
     /// ### Arguments
     /// * `pool_address` - The address of the pool
     /// * `user` - The user to fetch the q4w for
-    fn q4w(e: Env, pool_address: BytesN<32>, user: Address) -> Vec<Q4W>;
+    fn withdrawal_queue(e: Env, pool_address: Address, user: Address) -> Vec<Q4W>;
 
     /// Fetch the balances for the pool
     ///
@@ -107,18 +107,18 @@ pub trait BackstopModuleContractTrait {
     ///
     /// ### Arguments
     /// * `pool_address` - The address of the pool
-    fn p_balance(e: Env, pool_address: BytesN<32>) -> (i128, i128, i128);
+    fn pool_balance(e: Env, pool_address: Address) -> (i128, i128, i128);
 
     /// Fetch the backstop token for the backstop
-    fn bstp_token(e: Env) -> BytesN<32>;
+    fn backstop_token(e: Env) -> Address;
 
     /********** Emissions **********/
 
     /// Distribute BLND from the Emitter
-    fn dist(e: Env) -> Result<(), BackstopError>;
+    fn distribute(e: Env) -> Result<(), BackstopError>;
 
     /// Fetch the next distribution window in seconds since epoch in UTC
-    fn next_dist(e: Env) -> u64;
+    fn next_distribution(e: Env) -> u64;
 
     /// Add a pool to the reward zone, and if the reward zone is full, a pool to remove
     ///
@@ -128,13 +128,13 @@ pub trait BackstopModuleContractTrait {
     ///
     /// ### Errors
     /// If the pool to remove has more tokens, or if distribution occurred in the last 48 hours
-    fn add_reward(e: Env, to_add: BytesN<32>, to_remove: BytesN<32>) -> Result<(), BackstopError>;
+    fn add_reward(e: Env, to_add: Address, to_remove: Address) -> Result<(), BackstopError>;
 
     /// Fetch the reward zone
-    fn get_rz(e: Env) -> Vec<BytesN<32>>;
+    fn get_rz(e: Env) -> Vec<Address>;
 
     /// Fetch the EPS (emissions per second) for the current distribution window of a pool
-    fn pool_eps(e: Env, pool_address: BytesN<32>) -> i128;
+    fn pool_eps(e: Env, pool_address: Address) -> i128;
 
     /// Allow a pool to claim emissions
     ///
@@ -147,7 +147,7 @@ pub trait BackstopModuleContractTrait {
     /// If the pool has no emissions left to claim
     fn pool_claim(
         e: Env,
-        pool_address: BytesN<32>,
+        pool_address: Address,
         to: Address,
         amount: i128,
     ) -> Result<(), BackstopError>;
@@ -166,7 +166,7 @@ pub trait BackstopModuleContractTrait {
     fn claim(
         e: Env,
         from: Address,
-        pool_addresses: Vec<BytesN<32>>,
+        pool_addresses: Vec<Address>,
         to: Address,
     ) -> Result<(), BackstopError>;
 
@@ -182,12 +182,7 @@ pub trait BackstopModuleContractTrait {
     ///
     /// ### Errors
     /// If the pool does not have enough backstop tokens
-    fn draw(
-        e: Env,
-        pool_address: BytesN<32>,
-        amount: i128,
-        to: Address,
-    ) -> Result<(), BackstopError>;
+    fn draw(e: Env, pool_address: Address, amount: i128, to: Address) -> Result<(), BackstopError>;
 
     /// Sends backstop tokens from "from" to a pools backstop
     ///
@@ -203,7 +198,7 @@ pub trait BackstopModuleContractTrait {
     fn donate(
         e: Env,
         from: Address,
-        pool_address: BytesN<32>,
+        pool_address: Address,
         amount: i128,
     ) -> Result<(), BackstopError>;
 }
@@ -215,9 +210,9 @@ pub trait BackstopModuleContractTrait {
 impl BackstopModuleContractTrait for BackstopModuleContract {
     fn initialize(
         e: Env,
-        backstop_token: BytesN<32>,
-        blnd_token: BytesN<32>,
-        pool_factory: BytesN<32>,
+        backstop_token: Address,
+        blnd_token: Address,
+        pool_factory: Address,
     ) -> Result<(), BackstopError> {
         if storage::has_backstop_token(&e) {
             return Err(BackstopError::AlreadyInitialized);
@@ -234,7 +229,7 @@ impl BackstopModuleContractTrait for BackstopModuleContract {
     fn deposit(
         e: Env,
         from: Address,
-        pool_address: BytesN<32>,
+        pool_address: Address,
         amount: i128,
     ) -> Result<i128, BackstopError> {
         from.require_auth();
@@ -248,35 +243,35 @@ impl BackstopModuleContractTrait for BackstopModuleContract {
         Ok(to_mint)
     }
 
-    fn q_withdraw(
+    fn queue_withdrawal(
         e: Env,
         from: Address,
-        pool_address: BytesN<32>,
+        pool_address: Address,
         amount: i128,
     ) -> Result<Q4W, BackstopError> {
         from.require_auth();
 
-        let to_queue = backstop::execute_q_withdraw(&e, &from, &pool_address, amount)?;
+        let to_queue = backstop::execute_queue_withdrawal(&e, &from, &pool_address, amount)?;
 
         e.events().publish(
-            (Symbol::new(&e, "q_withdraw"), pool_address),
+            (Symbol::new(&e, "queue_withdrawal"), pool_address),
             (from, amount, to_queue.exp),
         );
         Ok(to_queue)
     }
 
-    fn dequeue_wd(
+    fn dequeue_withdrawal(
         e: Env,
         from: Address,
-        pool_address: BytesN<32>,
+        pool_address: Address,
         amount: i128,
     ) -> Result<(), BackstopError> {
         from.require_auth();
 
-        backstop::execute_dequeue_q4w(&e, &from, &pool_address, amount)?;
+        backstop::execute_dequeue_withdrawal(&e, &from, &pool_address, amount)?;
 
         e.events().publish(
-            (Symbol::new(&e, "dequeue_wd"), pool_address),
+            (Symbol::new(&e, "dequeue_withdrawal"), pool_address),
             (from, amount),
         );
         Ok(())
@@ -285,7 +280,7 @@ impl BackstopModuleContractTrait for BackstopModuleContract {
     fn withdraw(
         e: Env,
         from: Address,
-        pool_address: BytesN<32>,
+        pool_address: Address,
         amount: i128,
     ) -> Result<i128, BackstopError> {
         from.require_auth();
@@ -299,15 +294,15 @@ impl BackstopModuleContractTrait for BackstopModuleContract {
         Ok(to_withdraw)
     }
 
-    fn balance(e: Env, pool: BytesN<32>, user: Address) -> i128 {
+    fn balance(e: Env, pool: Address, user: Address) -> i128 {
         storage::get_shares(&e, &pool, &user)
     }
 
-    fn q4w(e: Env, pool: BytesN<32>, user: Address) -> Vec<Q4W> {
+    fn withdrawal_queue(e: Env, pool: Address, user: Address) -> Vec<Q4W> {
         storage::get_q4w(&e, &pool, &user)
     }
 
-    fn p_balance(e: Env, pool: BytesN<32>) -> (i128, i128, i128) {
+    fn pool_balance(e: Env, pool: Address) -> (i128, i128, i128) {
         (
             storage::get_pool_tokens(&e, &pool),
             storage::get_pool_shares(&e, &pool),
@@ -315,23 +310,23 @@ impl BackstopModuleContractTrait for BackstopModuleContract {
         )
     }
 
-    fn bstp_token(e: Env) -> BytesN<32> {
+    fn backstop_token(e: Env) -> Address {
         storage::get_backstop_token(&e)
     }
 
     /********** Emissions **********/
 
-    fn dist(e: Env) -> Result<(), BackstopError> {
+    fn distribute(e: Env) -> Result<(), BackstopError> {
         emissions::distribute(&e)?;
 
         Ok(())
     }
 
-    fn next_dist(e: Env) -> u64 {
-        storage::get_next_dist(&e)
+    fn next_distribution(e: Env) -> u64 {
+        storage::get_next_distribution(&e)
     }
 
-    fn add_reward(e: Env, to_add: BytesN<32>, to_remove: BytesN<32>) -> Result<(), BackstopError> {
+    fn add_reward(e: Env, to_add: Address, to_remove: Address) -> Result<(), BackstopError> {
         emissions::add_to_reward_zone(&e, to_add.clone(), to_remove.clone())?;
 
         e.events()
@@ -339,23 +334,23 @@ impl BackstopModuleContractTrait for BackstopModuleContract {
         Ok(())
     }
 
-    fn get_rz(e: Env) -> Vec<BytesN<32>> {
+    fn get_rz(e: Env) -> Vec<Address> {
         storage::get_reward_zone(&e)
     }
 
-    fn pool_eps(e: Env, pool_address: BytesN<32>) -> i128 {
+    fn pool_eps(e: Env, pool_address: Address) -> i128 {
         storage::get_pool_eps(&e, &pool_address)
     }
 
     fn pool_claim(
         e: Env,
-        pool_address: BytesN<32>,
+        pool_address: Address,
         to: Address,
         amount: i128,
     ) -> Result<(), BackstopError> {
         // TODO: Unit test this once `env.recorded_top_authorizations()`
         //       can be executed from WASM, or add `test_auth` file
-        Address::from_contract_id(&e, &pool_address).require_auth();
+        pool_address.require_auth();
 
         emissions::execute_pool_claim(&e, &pool_address, &to, amount)?;
 
@@ -367,7 +362,7 @@ impl BackstopModuleContractTrait for BackstopModuleContract {
     fn claim(
         e: Env,
         from: Address,
-        pool_addresses: Vec<BytesN<32>>,
+        pool_addresses: Vec<Address>,
         to: Address,
     ) -> Result<(), BackstopError> {
         from.require_auth();
@@ -381,15 +376,10 @@ impl BackstopModuleContractTrait for BackstopModuleContract {
 
     /********** Fund Management *********/
 
-    fn draw(
-        e: Env,
-        pool_address: BytesN<32>,
-        amount: i128,
-        to: Address,
-    ) -> Result<(), BackstopError> {
+    fn draw(e: Env, pool_address: Address, amount: i128, to: Address) -> Result<(), BackstopError> {
         // TODO: Unit test this once `env.recorded_top_authorizations()`
         //       can be executed from WASM, or add `test_auth` file
-        Address::from_contract_id(&e, &pool_address).require_auth();
+        pool_address.require_auth();
 
         backstop::execute_draw(&e, &pool_address, amount, &to)?;
 
@@ -401,7 +391,7 @@ impl BackstopModuleContractTrait for BackstopModuleContract {
     fn donate(
         e: Env,
         from: Address,
-        pool_address: BytesN<32>,
+        pool_address: Address,
         amount: i128,
     ) -> Result<(), BackstopError> {
         from.require_auth();

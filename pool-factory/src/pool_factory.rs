@@ -20,24 +20,24 @@ pub trait PoolFactoryTrait {
     /// # Arguments
     /// * `admin` - The admin address for the pool
     /// * `name` - The name of the pool
-    /// * `oracle` - The oracle BytesN<32> ID for the pool
+    /// * `oracle` - The oracle address for the pool
     /// * `backstop_take_rate` - The backstop take rate for the pool
     fn deploy(
         e: Env,
         admin: Address,
         name: Symbol,
         salt: BytesN<32>,
-        oracle: BytesN<32>,
+        oracle: Address,
         backstop_take_rate: u64,
-    ) -> BytesN<32>;
+    ) -> Address;
 
     /// Checks if contract address was deployed by the factory
     ///
     /// Returns true if pool was deployed by factory and false otherwise
     ///
     /// # Arguments
-    /// * `pool_id` - The contract BytesN<32> ID to be checked
-    fn is_pool(e: Env, pool_id: BytesN<32>) -> bool;
+    /// * `pool_id` - The contract address to be checked
+    fn is_pool(e: Env, pool_id: Address) -> bool;
 }
 
 #[contractimpl]
@@ -54,9 +54,9 @@ impl PoolFactoryTrait for PoolFactory {
         admin: Address,
         name: Symbol,
         salt: BytesN<32>,
-        oracle: BytesN<32>,
+        oracle: Address,
         backstop_take_rate: u64,
-    ) -> BytesN<32> {
+    ) -> Address {
         let pool_init_meta = storage::get_pool_init_meta(&e);
 
         // verify backstop take rate is within [0,1) with 9 decimals
@@ -87,7 +87,7 @@ impl PoolFactoryTrait for PoolFactory {
         pool_address
     }
 
-    fn is_pool(e: Env, pool_address: BytesN<32>) -> bool {
+    fn is_pool(e: Env, pool_address: Address) -> bool {
         storage::is_deployed(&e, &pool_address)
     }
 }

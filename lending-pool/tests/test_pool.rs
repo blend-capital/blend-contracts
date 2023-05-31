@@ -70,8 +70,8 @@ fn test_pool_wasm_smoke() {
 
     // setup emissions
     backstop_client.add_reward(&pool_address, &pool_address);
-    backstop_client.dist();
-    pool_client.set_emis(
+    backstop_client.distribute();
+    pool_client.set_emissions_config(
         &bombadil,
         &vec![
             &e,
@@ -82,7 +82,7 @@ fn test_pool_wasm_smoke() {
             },
         ],
     );
-    pool_client.updt_emis();
+    pool_client.update_emissions();
     assert_eq!(e.auths(), []);
 
     // supply

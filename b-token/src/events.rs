@@ -1,12 +1,12 @@
 use soroban_sdk::{Address, Env, Symbol};
 
-pub(crate) fn incr_allow(e: &Env, from: Address, to: Address, amount: i128) {
-    let topics = (Symbol::new(e, "incr_allow"), from, to);
+pub(crate) fn increase_allowance(e: &Env, from: Address, to: Address, amount: i128) {
+    let topics = (Symbol::new(e, "increase_allowance"), from, to);
     e.events().publish(topics, amount);
 }
 
-pub(crate) fn decr_allow(e: &Env, from: Address, to: Address, amount: i128) {
-    let topics = (Symbol::new(e, "decr_allow"), from, to);
+pub(crate) fn decrease_allowance(e: &Env, from: Address, to: Address, amount: i128) {
+    let topics = (Symbol::new(e, "decrease_allowance"), from, to);
     e.events().publish(topics, amount);
 }
 

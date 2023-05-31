@@ -11,11 +11,11 @@ use crate::{
 };
 
 pub fn distribute(e: &Env) -> Result<(), BackstopError> {
-    if e.ledger().timestamp() < storage::get_next_dist(&e) {
+    if e.ledger().timestamp() < storage::get_next_distribution(&e) {
         return Err(BackstopError::BadRequest);
     }
-    let next_dist = e.ledger().timestamp() + 7 * 24 * 60 * 60;
-    storage::set_next_dist(&e, &next_dist);
+    let next_distribution = e.ledger().timestamp() + 7 * 24 * 60 * 60;
+    storage::set_next_distribution(&e, &next_distribution);
 
     let reward_zone = storage::get_reward_zone(&e);
     let rz_len = reward_zone.len();
@@ -48,7 +48,12 @@ pub fn distribute(e: &Env) -> Result<(), BackstopError> {
 
         // distribute backstop depositor emissions
         let pool_backstop_eps = share.fixed_mul_floor(0_7000000, SCALAR_7).unwrap();
-        set_backstop_emission_config(e, &rz_pool, u64(pool_backstop_eps).unwrap(), next_dist)?;
+        set_backstop_emission_config(
+            e,
+            &rz_pool,
+            u64(pool_backstop_eps).unwrap(),
+            next_distribution,
+        )?;
     }
 
     Ok(())
@@ -255,7 +260,7 @@ mod tests {
             last_time: BACKSTOP_EPOCH - 12345,
         };
         e.as_contract(&backstop_addr, || {
-            storage::set_next_dist(&e, &BACKSTOP_EPOCH);
+            storage::set_next_distribution(&e, &BACKSTOP_EPOCH);
             storage::set_reward_zone(&e, &reward_zone);
             storage::set_backstop_emis_config(&e, &pool_1, &pool_1_emissions_config);
             storage::set_backstop_emis_data(&e, &pool_1, &pool_1_emissions_data);
@@ -271,7 +276,7 @@ mod tests {
             match result {
                 Ok(_) => {
                     assert_eq!(
-                        storage::get_next_dist(&e),
+                        storage::get_next_distribution(&e),
                         BACKSTOP_EPOCH + 7 * 24 * 60 * 60
                     );
                     assert_eq!(storage::get_pool_tokens(&e, &pool_1), 300_000_0000000);
@@ -335,7 +340,7 @@ mod tests {
         let reward_zone: Vec<Address> = vec![&e, pool_1.clone(), pool_2.clone(), pool_3.clone()];
 
         e.as_contract(&backstop_addr, || {
-            storage::set_next_dist(&e, &(BACKSTOP_EPOCH + 1));
+            storage::set_next_distribution(&e, &(BACKSTOP_EPOCH + 1));
             storage::set_reward_zone(&e, &reward_zone);
             storage::set_pool_tokens(&e, &pool_1, &300_000_0000000);
             storage::set_pool_tokens(&e, &pool_2, &200_000_0000000);
@@ -383,7 +388,7 @@ mod tests {
             accrued: 3,
         };
         e.as_contract(&backstop_addr, || {
-            storage::set_next_dist(&e, &(BACKSTOP_EPOCH + 7 * 24 * 60 * 60));
+            storage::set_next_distribution(&e, &(BACKSTOP_EPOCH + 7 * 24 * 60 * 60));
             storage::set_backstop_emis_config(&e, &pool_1, &backstop_emissions_config);
             storage::set_backstop_emis_data(&e, &pool_1, &backstop_emissions_data);
             storage::set_user_emis_data(&e, &pool_1, &samwise, &user_emissions_data);
@@ -422,7 +427,7 @@ mod tests {
         let samwise = Address::random(&e);
 
         e.as_contract(&backstop_addr, || {
-            storage::set_next_dist(&e, &(BACKSTOP_EPOCH + 7 * 24 * 60 * 60));
+            storage::set_next_distribution(&e, &(BACKSTOP_EPOCH + 7 * 24 * 60 * 60));
 
             storage::set_pool_tokens(&e, &pool_1, &200_0000000);
             storage::set_pool_shares(&e, &pool_1, &150_0000000);
@@ -468,7 +473,7 @@ mod tests {
             accrued: 3,
         };
         e.as_contract(&backstop_addr, || {
-            storage::set_next_dist(&e, &(BACKSTOP_EPOCH + 7 * 24 * 60 * 60));
+            storage::set_next_distribution(&e, &(BACKSTOP_EPOCH + 7 * 24 * 60 * 60));
             storage::set_backstop_emis_config(&e, &pool_1, &backstop_emissions_config);
             storage::set_backstop_emis_data(&e, &pool_1, &backstop_emissions_data);
             storage::set_user_emis_data(&e, &pool_1, &samwise, &user_emissions_data);
@@ -515,7 +520,7 @@ mod tests {
             last_time: BACKSTOP_EPOCH,
         };
         e.as_contract(&backstop_addr, || {
-            storage::set_next_dist(&e, &(BACKSTOP_EPOCH + 7 * 24 * 60 * 60));
+            storage::set_next_distribution(&e, &(BACKSTOP_EPOCH + 7 * 24 * 60 * 60));
             storage::set_backstop_emis_config(&e, &pool_1, &backstop_emissions_config);
             storage::set_backstop_emis_data(&e, &pool_1, &backstop_emissions_data);
 
@@ -560,7 +565,7 @@ mod tests {
             last_time: BACKSTOP_EPOCH,
         };
         e.as_contract(&backstop_addr, || {
-            storage::set_next_dist(&e, &(BACKSTOP_EPOCH + 7 * 24 * 60 * 60));
+            storage::set_next_distribution(&e, &(BACKSTOP_EPOCH + 7 * 24 * 60 * 60));
             storage::set_backstop_emis_config(&e, &pool_1, &backstop_emissions_config);
             storage::set_backstop_emis_data(&e, &pool_1, &backstop_emissions_data);
 

@@ -163,8 +163,8 @@ impl TestFixture<'_> {
         let token = self.tokens.get(asset_index).unwrap();
         pool_fixture
             .pool
-            .init_res(&self.bombadil, &token.address, reserve_metadata);
-        let config = pool_fixture.pool.res_config(&token.address);
+            .init_reserve(&self.bombadil, &token.address, reserve_metadata);
+        let config = pool_fixture.pool.reserve_config(&token.address);
         pool_fixture.add_reserve(ReserveFixture {
             index: config.index as usize,
             fixture_index: asset_index,

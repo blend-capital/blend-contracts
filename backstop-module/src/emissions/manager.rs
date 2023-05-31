@@ -18,8 +18,8 @@ pub fn add_to_reward_zone(
     } else {
         // don't allow rz modifications within 48 hours of the last distribution
         // if pools don't adopt their distributions, the tokens will be lost
-        let next_dist = storage::get_next_dist(&e);
-        if next_dist != 0 && e.ledger().timestamp() < next_dist - 5 * 24 * 60 * 60 {
+        let next_distribution = storage::get_next_distribution(&e);
+        if next_distribution != 0 && e.ledger().timestamp() < next_distribution - 5 * 24 * 60 * 60 {
             return Err(BackstopError::BadRequest);
         }
 
@@ -205,7 +205,7 @@ mod tests {
 
         e.as_contract(&backstop_addr, || {
             storage::set_reward_zone(&e, &reward_zone);
-            storage::set_next_dist(&e, &(BACKSTOP_EPOCH + 5 * 24 * 60 * 60));
+            storage::set_next_distribution(&e, &(BACKSTOP_EPOCH + 5 * 24 * 60 * 60));
             storage::set_pool_eps(&e, &to_remove, &1);
             storage::set_pool_tokens(&e, &to_add, &100);
             storage::set_pool_tokens(&e, &to_remove, &99);
@@ -255,7 +255,7 @@ mod tests {
 
         e.as_contract(&backstop_addr, || {
             storage::set_reward_zone(&e, &reward_zone.clone());
-            storage::set_next_dist(&e, &(BACKSTOP_EPOCH + 24 * 60 * 60));
+            storage::set_next_distribution(&e, &(BACKSTOP_EPOCH + 24 * 60 * 60));
             storage::set_pool_eps(&e, &to_remove, &1);
             storage::set_pool_tokens(&e, &to_add, &100);
             storage::set_pool_tokens(&e, &to_remove, &100);
@@ -301,7 +301,7 @@ mod tests {
 
         e.as_contract(&backstop_addr, || {
             storage::set_reward_zone(&e, &reward_zone);
-            storage::set_next_dist(&e, &(BACKSTOP_EPOCH + 24 * 60 * 60));
+            storage::set_next_distribution(&e, &(BACKSTOP_EPOCH + 24 * 60 * 60));
             storage::set_pool_eps(&e, &to_remove, &1);
             storage::set_pool_tokens(&e, &to_add, &100);
             storage::set_pool_tokens(&e, &to_remove, &99);
@@ -347,7 +347,7 @@ mod tests {
 
         e.as_contract(&backstop_addr, || {
             storage::set_reward_zone(&e, &reward_zone);
-            storage::set_next_dist(&e, &(BACKSTOP_EPOCH + 5 * 24 * 60 * 60 + 1));
+            storage::set_next_distribution(&e, &(BACKSTOP_EPOCH + 5 * 24 * 60 * 60 + 1));
             storage::set_pool_eps(&e, &to_remove, &1);
             storage::set_pool_tokens(&e, &to_add, &100);
             storage::set_pool_tokens(&e, &to_remove, &99);

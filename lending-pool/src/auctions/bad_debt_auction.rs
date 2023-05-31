@@ -50,7 +50,7 @@ pub fn create_bad_debt_auction_data(e: &Env, backstop: &Address) -> Result<Aucti
     }
 
     let backstop_client = BackstopClient::new(e, &storage::get_backstop(e));
-    let backstop_token = backstop_client.bstp_token();
+    let backstop_token = backstop_client.backstop_token();
     // TODO: This won't have an oracle entry. Once an LP implementation exists, unwrap base from LP
     let backstop_token_to_base = oracle_client.get_price(&backstop_token);
     let mut lot_amount = debt_value
@@ -58,7 +58,7 @@ pub fn create_bad_debt_auction_data(e: &Env, backstop: &Address) -> Result<Aucti
         .unwrap()
         .fixed_div_floor(i128(backstop_token_to_base), SCALAR_7)
         .unwrap();
-    let (pool_backstop_balance, _, _) = backstop_client.p_balance(&e.current_contract_address());
+    let (pool_backstop_balance, _, _) = backstop_client.pool_balance(&e.current_contract_address());
     lot_amount = pool_backstop_balance.min(lot_amount);
     // u32::MAX is the key for the backstop token
     auction_data.lot.set(u32::MAX, lot_amount);
@@ -88,7 +88,7 @@ pub fn calc_fill_bad_debt_auction(e: &Env, auction_data: &AuctionData) -> Auctio
 
     // lot only contains the backstop token
     let backstop_client = BackstopClient::new(&e, &backstop_address);
-    let backstop_token_id = backstop_client.bstp_token();
+    let backstop_token_id = backstop_client.backstop_token();
     let lot_amount = auction_data.lot.get_unchecked(u32::MAX).unwrap();
     let lot_amount_modified = lot_amount.fixed_mul_floor(lot_modifier, SCALAR_7).unwrap();
     auction_quote

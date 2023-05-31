@@ -215,8 +215,8 @@ fn test_classic_asset_pool_happy_path() {
 
     // Distribute emissions
     fixture.emitter.distribute();
-    fixture.backstop.dist();
-    pool_fixture.pool.updt_emis();
+    fixture.backstop.distribute();
+    pool_fixture.pool.update_emissions();
 
     // Claim emissions
     let frodo_pool_claim_3 = pool_fixture
@@ -252,8 +252,8 @@ fn test_classic_asset_pool_happy_path() {
         fixture.jump(60 * 60 * 24 * 7);
         // Update emissions
         fixture.emitter.distribute();
-        fixture.backstop.dist();
-        pool_fixture.pool.updt_emis();
+        fixture.backstop.distribute();
+        pool_fixture.pool.update_emissions();
     }
 
     // Frodo claims a year worth of backstop emissions

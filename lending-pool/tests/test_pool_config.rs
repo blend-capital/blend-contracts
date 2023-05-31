@@ -48,13 +48,13 @@ fn test_pool_config() {
     // validate admin config functions
     let mut reserve_meta = pool_helper::default_reserve_metadata();
     reserve_meta.l_factor = 0_7500000;
-    pool_client.init_res(&bombadil, &usdc_id, &reserve_meta);
+    pool_client.init_reserve(&bombadil, &usdc_id, &reserve_meta);
     assert_eq!(
         e.auths()[0],
         (
             bombadil.clone(),
             pool_id.clone(),
-            Symbol::new(&e, "init_res"),
+            Symbol::new(&e, "init_reserve"),
             vec![
                 &e,
                 bombadil.clone().to_raw(),
@@ -63,16 +63,16 @@ fn test_pool_config() {
             ]
         )
     );
-    assert_eq!(pool_client.res_config(&usdc_id).l_factor, 0_7500000);
+    assert_eq!(pool_client.reserve_config(&usdc_id).l_factor, 0_7500000);
 
     reserve_meta.l_factor = 0_9000000;
-    pool_client.updt_res(&bombadil, &usdc_id, &reserve_meta);
+    pool_client.update_reserve(&bombadil, &usdc_id, &reserve_meta);
     assert_eq!(
         e.auths()[0],
         (
             bombadil.clone(),
             pool_id.clone(),
-            Symbol::new(&e, "updt_res"),
+            Symbol::new(&e, "update_reserve"),
             vec![
                 &e,
                 bombadil.clone().to_raw(),
@@ -81,7 +81,7 @@ fn test_pool_config() {
             ]
         )
     );
-    assert_eq!(pool_client.res_config(&usdc_id).l_factor, 0_9000000);
+    assert_eq!(pool_client.reserve_config(&usdc_id).l_factor, 0_9000000);
 
     let emis_vec = vec![
         &e,
@@ -91,13 +91,13 @@ fn test_pool_config() {
             share: 1,
         },
     ];
-    pool_client.set_emis(&bombadil, &emis_vec);
+    pool_client.set_emissions_config(&bombadil, &emis_vec);
     assert_eq!(
         e.auths()[0],
         (
             bombadil.clone(),
             pool_id.clone(),
-            Symbol::new(&e, "set_emis"),
+            Symbol::new(&e, "set_emissions_config"),
             vec![&e, bombadil.clone().to_raw(), emis_vec.into_val(&e)]
         )
     );
@@ -112,11 +112,11 @@ fn test_pool_config() {
             vec![&e, bombadil.clone().to_raw(), 1_u32.into_val(&e)]
         )
     );
-    assert_eq!(pool_client.status(), 1);
+    assert_eq!(pool_client.get_status(), 1);
 
     // validate user config functions
-    let status_result = pool_client.updt_stat();
+    let status_result = pool_client.update_state();
     assert_eq!(e.auths(), []);
-    assert_eq!(pool_client.status(), 0);
+    assert_eq!(pool_client.get_status(), 0);
     assert_eq!(status_result, 0);
 }

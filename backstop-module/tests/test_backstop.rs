@@ -81,13 +81,13 @@ fn test_backstop_wasm_smoke() {
         deposit_amount
     );
     assert_eq!(
-        backstop_client.p_balance(&pool_address),
+        backstop_client.pool_balance(&pool_address),
         (deposit_amount, deposit_amount, 0)
     );
     assert_eq!(shares_minted, deposit_amount); // 1-to-1 on first deposit
 
     // start emissions
-    backstop_client.dist();
+    backstop_client.distribute();
     assert_eq!(e.auths(), []);
     assert_eq!(
         blnd_token_client.balance(&backstop_address),
@@ -95,13 +95,13 @@ fn test_backstop_wasm_smoke() {
     );
 
     // queue for withdraw (all)
-    let _q4w = backstop_client.q_withdraw(&samwise, &pool_address, &shares_minted);
+    let _q4w = backstop_client.queue_withdrawal(&samwise, &pool_address, &shares_minted);
     assert_eq!(
         e.auths()[0],
         (
             samwise.clone(),
             backstop_address.clone(),
-            Symbol::new(&e, "q_withdraw"),
+            Symbol::new(&e, "queue_withdrawal"),
             vec![
                 &e,
                 samwise.clone().to_raw(),
@@ -121,10 +121,10 @@ fn test_backstop_wasm_smoke() {
         deposit_amount
     );
     assert_eq!(
-        backstop_client.p_balance(&pool_address),
+        backstop_client.pool_balance(&pool_address),
         (deposit_amount, deposit_amount, shares_minted)
     );
-    let cur_q4w = backstop_client.q4w(&pool_address, &samwise);
+    let cur_q4w = backstop_client.withdrawal_queue(&pool_address, &samwise);
     assert_eq!(cur_q4w.len(), 1);
     let first_q4w = cur_q4w.first().unwrap().unwrap();
     assert_eq!(first_q4w.amount, shares_minted);
@@ -159,9 +159,9 @@ fn test_backstop_wasm_smoke() {
     assert_eq!(backstop_token_client.balance(&samwise), deposit_amount);
     assert_eq!(backstop_token_client.balance(&backstop_address), 0);
     assert_eq!(backstop_client.balance(&pool_address, &samwise), 0);
-    assert_eq!(backstop_client.p_balance(&pool_address), (0, 0, 0));
+    assert_eq!(backstop_client.pool_balance(&pool_address), (0, 0, 0));
     assert_eq!(amount_returned, deposit_amount);
-    let cur_q4w = backstop_client.q4w(&pool_address, &samwise);
+    let cur_q4w = backstop_client.withdrawal_queue(&pool_address, &samwise);
     assert_eq!(cur_q4w.len(), 0);
 
     // claim emissions

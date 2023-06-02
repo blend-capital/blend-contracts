@@ -242,6 +242,7 @@ pub fn fill_user_liq_auction(
 
     let (bid_modifier, lot_modifier) = get_fill_modifiers(e, auction_data);
     let reserve_list = storage::get_res_list(e);
+    let mut user_config = ReserveUsage::new(storage::get_user_config(e, user));
     for i in 0..reserve_list.len() {
         if !(auction_data.bid.contains_key(i) || auction_data.lot.contains_key(i)) {
             continue;
@@ -269,6 +270,11 @@ pub fn fill_user_liq_auction(
             let b_token_client = TokenClient::new(e, &reserve.config.b_token);
             b_token_client.clawback(&user, &mod_lot_amount);
             b_token_client.mint(&filler, &mod_lot_amount);
+            //update user reserve state if necessary
+            if b_token_client.balance(&user) == 0 {
+                user_config.set_supply(reserve.config.index, false);
+                storage::set_user_config(e, user, &user_config.config);
+            }
         }
 
         // bids are liabilities stored as underlying
@@ -290,6 +296,13 @@ pub fn fill_user_liq_auction(
             auction_quote
                 .bid
                 .push_back((res_asset_address, mod_bid_amount));
+
+            //update user reserve state if necessary
+            let d_token_client = TokenClient::new(e, &reserve.config.d_token);
+            if d_token_client.balance(&user) == 0 {
+                user_config.set_liability(reserve.config.index, false);
+                storage::set_user_config(e, user, &user_config.config);
+            }
         } else {
             // execute repay sets data. Ensure data is set if only the collateral is modified
             reserve.set_data(e);

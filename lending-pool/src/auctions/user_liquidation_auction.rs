@@ -281,7 +281,11 @@ pub fn fill_user_liq_auction(
                 .fixed_mul_floor(bid_modifier, SCALAR_7)
                 .unwrap();
 
-            pool::execute_repay(e, filler, &res_asset_address, mod_bid_amount, &user).unwrap();
+            // bids are stored in d_token so we need to translate to underlying
+            let bid_amount_underlying = reserve.to_asset_from_d_token(mod_bid_amount);
+
+            pool::execute_repay(e, filler, &res_asset_address, bid_amount_underlying, &user)
+                .unwrap();
 
             auction_quote
                 .bid

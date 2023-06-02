@@ -16,6 +16,8 @@ testutils = ["soroban-sdk/testutils"]
 [dependencies]
 soroban-sdk = "0.8.4"
 rand = {version = "0.7.3"}
+fixed-point-math = "0.0.2"
+
 
 [dev_dependencies]
 soroban-sdk = { version = "0.8.4", features = ["testutils"] }

@@ -96,7 +96,7 @@ fn test_pool_borrow_one_stroop_insufficient_collateral_for_two() {
 
     let liq_data = common::LiquidationMetadata {
         collateral: map![&e, (asset2_id.clone(), 6)],
-        liability: map![&e, (asset1_address, 6)],
+        liability: map![&e, (asset1_address, 1)],
     };
     let result = pool_client.try_new_liquidation_auction(&frodo, &liq_data);
     let expected_data = common::AuctionData {

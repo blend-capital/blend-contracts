@@ -106,10 +106,14 @@ pub fn fill_bad_debt_auction(
     let auction_quote = calc_fill_bad_debt_auction(e, auction_data);
 
     let backstop_address = storage::get_backstop(e);
+    let pool_config = storage::get_pool_config(e);
 
     // bid only contains underlying assets
     for (res_asset_address, bid_amount) in auction_quote.bid.iter_unchecked() {
-        let reserve = Reserve::load(&e, res_asset_address.clone());
+        let mut reserve = Reserve::load(&e, res_asset_address.clone());
+        // do not write rate information to chain
+        reserve.update_rates(e, pool_config.bstop_rate);
+
         pool::execute_repay(
             e,
             filler,

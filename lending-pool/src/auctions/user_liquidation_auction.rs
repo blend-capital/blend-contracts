@@ -296,13 +296,6 @@ pub fn fill_user_liq_auction(
             auction_quote
                 .bid
                 .push_back((res_asset_address, mod_bid_amount));
-
-            //update user reserve state if necessary
-            let d_token_client = TokenClient::new(e, &reserve.config.d_token);
-            if d_token_client.balance(&user) == 0 {
-                user_config.set_liability(reserve.config.index, false);
-                storage::set_user_config(e, user, &user_config.config);
-            }
         } else {
             // execute repay sets data. Ensure data is set if only the collateral is modified
             reserve.set_data(e);

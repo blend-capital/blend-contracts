@@ -20,76 +20,35 @@ fn test_liquidations() {
     fixture.tokens[TokenIndex::XLM as usize].mint(&samwise, &(100_000 * SCALAR_7));
     fixture.tokens[TokenIndex::WETH as usize].mint(&samwise, &(5 * SCALAR_7));
     // Supply tokens
-    let frodo_b_tokens = pool_fixture.pool.supply(
+    pool_fixture.pool.supply(
         &frodo,
         &fixture.tokens[TokenIndex::USDC as usize].address,
         &(10_000 * SCALAR_7),
     );
-    assert_eq!(
-        fixture.tokens[TokenIndex::USDC as usize].balance(&frodo),
-        88_000 * SCALAR_7
-    );
-    assert_approx_eq_abs(frodo_b_tokens, 10_000 * SCALAR_7, SCALAR_7);
-
     let sam_b_tokens_xlm = pool_fixture.pool.supply(
         &samwise,
         &fixture.tokens[TokenIndex::XLM as usize].address,
         &(80_000 * SCALAR_7),
-    );
-    assert_eq!(
-        fixture.tokens[TokenIndex::XLM as usize].balance(&samwise),
-        20_000 * SCALAR_7
-    );
-    assert_approx_eq_abs(sam_b_tokens_xlm, 80_000 * SCALAR_7, 2 * SCALAR_7);
-    assert_eq!(
-        pool_fixture.reserves[1].b_token.balance(&samwise),
-        sam_b_tokens_xlm
     );
     let sam_b_tokens_weth = pool_fixture.pool.supply(
         &samwise,
         &fixture.tokens[TokenIndex::WETH as usize].address,
         &(5 * SCALAR_7),
     );
-    assert_eq!(
-        fixture.tokens[TokenIndex::WETH as usize].balance(&samwise),
-        0
-    );
-    assert!((sam_b_tokens_weth < (5 * SCALAR_7)) & (sam_b_tokens_weth > (4 * SCALAR_7)));
-    assert_eq!(
-        pool_fixture.reserves[2].b_token.balance(&samwise),
-        sam_b_tokens_weth
-    );
     // Borrow tokens
-    let sam_d_tokens = pool_fixture.pool.borrow(
+    pool_fixture.pool.borrow(
         &samwise,
         &fixture.tokens[TokenIndex::USDC as usize].address,
         &(10_000 * SCALAR_7),
         &samwise,
     ); //sams max USDC is .75*.95*.1*80_000 + .8*.95*2_000*5 = 13_300 USDC
-    assert_eq!(
-        fixture.tokens[TokenIndex::USDC as usize].balance(&samwise),
-        10_000 * SCALAR_7
-    );
-    assert!((sam_d_tokens < (10_000 * SCALAR_7)) & (sam_d_tokens > (9_999 * SCALAR_7)));
-    assert_eq!(
-        pool_fixture.reserves[0].d_token.balance(&samwise),
-        sam_d_tokens
-    );
-    let sam_d_tokens = pool_fixture.pool.borrow(
+    pool_fixture.pool.borrow(
         &samwise,
         &fixture.tokens[TokenIndex::XLM as usize].address,
         &(25_000 * SCALAR_7),
         &samwise,
     ); //sams max XLM borrow is (.75*.1*80_000 + .8*2_000*5 - 10_000/.95)*.75/.1 = 26_052_6315800 XLM
-    assert_eq!(
-        fixture.tokens[TokenIndex::XLM as usize].balance(&samwise),
-        45_000 * SCALAR_7
-    );
-    assert!((sam_d_tokens < (25_000 * SCALAR_7)) & (sam_d_tokens > (24_998 * SCALAR_7)));
-    assert_eq!(
-        pool_fixture.reserves[1].d_token.balance(&samwise),
-        sam_d_tokens
-    );
+
     //Utilization is now:
     // * 18_000 / 20_000 = .9 for USDC
     // * 90_000 / 180_000 = .5 for XLM

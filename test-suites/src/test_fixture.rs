@@ -108,6 +108,7 @@ impl TestFixture<'_> {
 
         // initialize oracle
         mock_oracle_client.set_price(&blnd_id, &(0_0500000));
+        mock_oracle_client.set_price(&backstop_token_id, &0_5000000);
         mock_oracle_client.set_price(&eth_id, &(2000_0000000));
         mock_oracle_client.set_price(&usdc_id, &(1_0000000));
         mock_oracle_client.set_price(&xlm_id, &(0_1000000));

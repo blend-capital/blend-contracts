@@ -5,7 +5,10 @@ use crate::{
     errors::PoolError,
     pool,
     reserve::Reserve,
-    storage::{self, ReserveConfig, ReserveEmissionsConfig, ReserveEmissionsData, ReserveMetadata},
+    storage::{
+        self, PoolConfig, ReserveConfig, ReserveData, ReserveEmissionsConfig, ReserveEmissionsData,
+        ReserveMetadata,
+    },
 };
 use soroban_sdk::{contractimpl, Address, BytesN, Env, Map, Symbol, Vec};
 
@@ -79,13 +82,13 @@ pub trait PoolContractTrait {
     ///
     /// ### Arguments
     /// * `asset` - The underlying asset to add as a reserve
-    fn reserve_config(e: Env, asset: Address) -> ReserveConfig;
+    fn get_reserve_config(e: Env, asset: Address) -> ReserveConfig;
 
-    /// Fetch the reserve usage configuration for a user
+    /// Fetch the reserve configuration for a reserve
     ///
     /// ### Arguments
-    /// * `user` - The Address to fetch the reserve usage for
-    fn config(e: Env, user: Address) -> u128;
+    /// * `asset` - The underlying asset to add as a reserve
+    fn get_reserve_data(e: Env, asset: Address) -> ReserveData;
 
     /// `from` supplies the `amount` of `asset` into the pool in return for the asset's bToken
     ///
@@ -158,18 +161,6 @@ pub trait PoolContractTrait {
         on_behalf_of: Address,
     ) -> Result<i128, PoolError>;
 
-    /// Fetches the d rate for a given asset
-    ///
-    /// ### Arguments
-    /// * `asset` - The contract address of the asset
-    fn get_d_rate(e: Env, asset: Address) -> i128;
-
-    /// Fetches the b rate for a given asset
-    ///
-    /// ### Arguments
-    /// * `asset` - The contract address of the asset
-    fn get_b_rate(e: Env, asset: Address) -> i128;
-
     /// Manage bad debt. Debt is considered "bad" if there is no longer has any collateral posted.
     ///
     /// To manage a user's bad debt, all collateralized reserves for the user must be liquidated
@@ -185,6 +176,12 @@ pub trait PoolContractTrait {
     /// If the user has collateral posted
     fn bad_debt(e: Env, user: Address) -> Result<(), PoolError>;
 
+    /// Fetch the reserve usage configuration for a user
+    ///
+    /// ### Arguments
+    /// * `user` - The Address to fetch the reserve usage for
+    fn get_user_config(e: Env, user: Address) -> u128;
+
     /// Update the pool status based on the backstop state
     /// * 0 = active - if the minimum backstop deposit has been reached
     /// * 1 = on ice - if the minimum backstop deposit has not been reached
@@ -194,7 +191,7 @@ pub trait PoolContractTrait {
     /// ### Errors
     /// If the pool is currently of status 3, "admin-freeze", where only the admin
     /// can perform a status update via `set_status`
-    fn update_state(e: Env) -> Result<u32, PoolError>;
+    fn update_status(e: Env) -> Result<u32, PoolError>;
 
     /// Pool status is changed to "pool_status"
     /// * 0 = active
@@ -206,14 +203,8 @@ pub trait PoolContractTrait {
     /// * 'pool_status' - The pool status to be set
     fn set_status(e: Env, admin: Address, pool_status: u32) -> Result<(), PoolError>;
 
-    /// Fetch the status of the pool
-    /// * 0 = active
-    /// * 1 = on ice
-    /// * 2 = frozen
-    fn get_status(e: Env) -> u32;
-
-    /// Fetch the name of the pool
-    fn get_name(e: Env) -> Symbol;
+    /// Fetch the configuration of the pool
+    fn get_pool_config(e: Env) -> PoolConfig;
 
     /********* Emission Functions **********/
 
@@ -396,13 +387,14 @@ impl PoolContractTrait for PoolContract {
         Ok(())
     }
 
-    fn reserve_config(e: Env, asset: Address) -> ReserveConfig {
+    fn get_reserve_config(e: Env, asset: Address) -> ReserveConfig {
         storage::get_res_config(&e, &asset)
     }
 
-    // @dev: view
-    fn config(e: Env, user: Address) -> u128 {
-        storage::get_user_config(&e, &user)
+    fn get_reserve_data(e: Env, asset: Address) -> ReserveData {
+        let mut res = Reserve::load(&e, asset);
+        res.update_rates(&e, storage::get_pool_config(&e).bstop_rate);
+        res.data
     }
 
     fn supply(e: Env, from: Address, asset: Address, amount: i128) -> Result<i128, PoolError> {
@@ -475,24 +467,15 @@ impl PoolContractTrait for PoolContract {
         Ok(d_tokens_burnt)
     }
 
-    // TODO: Consolidate functions into universal reserve data view fn
-    fn get_d_rate(e: Env, asset: Address) -> i128 {
-        let mut res = Reserve::load(&e, asset);
-        res.update_rates(&e, storage::get_pool_config(&e).bstop_rate);
-        res.data.d_rate
-    }
-
-    fn get_b_rate(e: Env, asset: Address) -> i128 {
-        let mut res = Reserve::load(&e, asset);
-        res.update_rates(&e, storage::get_pool_config(&e).bstop_rate);
-        res.get_b_rate(&e)
-    }
-
     fn bad_debt(e: Env, user: Address) -> Result<(), PoolError> {
         bad_debt::manage_bad_debt(&e, &user)
     }
 
-    fn update_state(e: Env) -> Result<u32, PoolError> {
+    fn get_user_config(e: Env, user: Address) -> u128 {
+        storage::get_user_config(&e, &user)
+    }
+
+    fn update_status(e: Env) -> Result<u32, PoolError> {
         let new_status = pool::execute_update_pool_status(&e)?;
 
         // msg.sender
@@ -512,14 +495,8 @@ impl PoolContractTrait for PoolContract {
         Ok(())
     }
 
-    // @dev: view
-    fn get_status(e: Env) -> u32 {
-        storage::get_pool_config(&e).status
-    }
-
-    // @dev: view
-    fn get_name(e: Env) -> Symbol {
-        storage::get_name(&e)
+    fn get_pool_config(e: Env) -> PoolConfig {
+        storage::get_pool_config(&e)
     }
 
     /********* Emission Functions **********/

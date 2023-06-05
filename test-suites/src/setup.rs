@@ -64,7 +64,7 @@ pub fn create_fixture_with_data<'a>() -> (TestFixture<'a>, Address) {
     fixture
         .backstop
         .add_reward(&pool_fixture.pool.address, &Address::random(&fixture.env));
-    pool_fixture.pool.update_state();
+    pool_fixture.pool.update_status();
 
     // enable emissions
     fixture.emitter.distribute();

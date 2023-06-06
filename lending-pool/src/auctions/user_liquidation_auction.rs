@@ -64,12 +64,13 @@ pub fn create_user_liq_auction_data(
                 .fixed_mul_floor(i128(asset_to_base), SCALAR_7)
                 .unwrap();
             if let Some(to_sell_entry) = liq_data.collateral.get(res_asset_address.clone()) {
-                let to_sell_amt = to_sell_entry.unwrap();
-                require_nonnegative(to_sell_amt)?;
+                let to_sell_amt_b_token = to_sell_entry.unwrap();
+                require_nonnegative(to_sell_amt_b_token)?;
                 liq_data
                     .collateral
                     .remove_unchecked(res_asset_address.clone());
-                let to_sell_amt_base = to_sell_amt
+                let to_sell_amt_base = reserve
+                    .to_asset_from_b_token(e, to_sell_amt_b_token)
                     .fixed_mul_floor(i128(asset_to_base), SCALAR_7)
                     .unwrap();
                 sell_collat_base += to_sell_amt_base;
@@ -77,15 +78,14 @@ pub fn create_user_liq_auction_data(
                 scaled_cf += to_sell_amt_base
                     .fixed_mul_floor(i128(reserve.config.c_factor) * 100, SCALAR_7)
                     .unwrap();
-                let to_sell_b_tokens = reserve.to_b_token_down(e, to_sell_amt);
-                if to_sell_b_tokens > b_token_balance {
+                if to_sell_amt_b_token > b_token_balance {
                     return Err(PoolError::InvalidLot);
-                } else if to_sell_b_tokens < b_token_balance {
+                } else if to_sell_amt_b_token < b_token_balance {
                     all_collateral = false;
                 }
                 liquidation_quote
                     .lot
-                    .set(reserve.config.index, to_sell_b_tokens);
+                    .set(reserve.config.index, to_sell_amt_b_token);
             } else {
                 all_collateral = false;
             }
@@ -100,27 +100,27 @@ pub fn create_user_liq_auction_data(
                 .fixed_mul_ceil(i128(asset_to_base), SCALAR_7)
                 .unwrap();
             if let Some(to_buy_entry) = liq_data.liability.get(res_asset_address.clone()) {
-                let to_buy_amt = to_buy_entry.unwrap();
-                require_nonnegative(to_buy_amt)?;
+                let to_buy_amt_d_token = to_buy_entry.unwrap();
+                require_nonnegative(to_buy_amt_d_token)?;
                 liq_data
                     .liability
                     .remove_unchecked(res_asset_address.clone());
-                let to_buy_amt_base = to_buy_amt
+                let to_buy_amt_base = reserve
+                    .to_asset_from_d_token(to_buy_amt_d_token)
                     .fixed_mul_floor(i128(asset_to_base), SCALAR_7)
                     .unwrap();
                 buy_liab_base += to_buy_amt_base;
                 scaled_lf += to_buy_amt_base
                     .fixed_mul_floor(i128(reserve.config.l_factor) * 100, SCALAR_7)
                     .unwrap();
-                let to_buy_d_tokens = reserve.to_d_token_down(to_buy_amt);
-                if to_buy_d_tokens > d_token_balance {
+                if to_buy_amt_d_token > d_token_balance {
                     return Err(PoolError::InvalidBids);
-                } else if to_buy_d_tokens < d_token_balance {
+                } else if to_buy_amt_d_token < d_token_balance {
                     all_liabilities = false;
                 }
                 liquidation_quote
                     .bid
-                    .set(reserve.config.index, to_buy_d_tokens);
+                    .set(reserve.config.index, to_buy_amt_d_token);
             } else {
                 all_liabilities = false;
             }
@@ -242,6 +242,7 @@ pub fn fill_user_liq_auction(
 
     let (bid_modifier, lot_modifier) = get_fill_modifiers(e, auction_data);
     let reserve_list = storage::get_res_list(e);
+    let mut user_config = ReserveUsage::new(storage::get_user_config(e, user));
     for i in 0..reserve_list.len() {
         if !(auction_data.bid.contains_key(i) || auction_data.lot.contains_key(i)) {
             continue;
@@ -269,6 +270,11 @@ pub fn fill_user_liq_auction(
             let b_token_client = TokenClient::new(e, &reserve.config.b_token);
             b_token_client.clawback(&user, &mod_lot_amount);
             b_token_client.mint(&filler, &mod_lot_amount);
+            //update user reserve state if necessary
+            if b_token_client.balance(&user) == 0 {
+                user_config.set_supply(reserve.config.index, false);
+                storage::set_user_config(e, user, &user_config.config);
+            }
         }
 
         // bids are liabilities stored as underlying
@@ -281,7 +287,11 @@ pub fn fill_user_liq_auction(
                 .fixed_mul_floor(bid_modifier, SCALAR_7)
                 .unwrap();
 
-            pool::execute_repay(e, filler, &res_asset_address, mod_bid_amount, &user).unwrap();
+            // bids are stored in d_token so we need to translate to underlying
+            let bid_amount_underlying = reserve.to_asset_from_d_token(mod_bid_amount);
+
+            pool::execute_repay(e, filler, &res_asset_address, bid_amount_underlying, &user)
+                .unwrap();
 
             auction_quote
                 .bid
@@ -411,7 +421,7 @@ mod tests {
         oracle_client.set_price(&reserve_2.asset, &50_0000000);
 
         let liquidation_data = LiquidationMetadata {
-            collateral: map![&e, (reserve_0.asset, 22_0000000)],
+            collateral: map![&e, (reserve_0.asset, 20_0000000)],
             liability: map![&e, (reserve_2.asset, 0_7000000)],
         };
         let pool_config = PoolConfig {
@@ -1183,12 +1193,12 @@ mod tests {
             assert_eq!(b_token_0.balance(&frodo), 3000_0000000);
             assert_eq!(
                 reserve_1_asset.balance(&frodo),
-                500_0000000_0000000 - 1_0037500_0000000
+                500_0000000_0000000 - 1_0037500_0000000 - 381023500
             );
             assert_eq!(b_token_0.balance(&samwise), 00_0000000);
             assert_eq!(
                 d_token_1.balance(&samwise),
-                200_7500000_0000000 - 1_0037500_0000000 + 381022054
+                200_7500000_0000000 - 1_0037500_0000000
             );
         });
     }
@@ -1245,7 +1255,7 @@ mod tests {
         oracle_client.set_price(&reserve_1.asset, &50_0000000);
 
         let liquidation_data = LiquidationMetadata {
-            collateral: map![&e, (reserve_0.asset.clone(), 00_0000003)],
+            collateral: map![&e, (reserve_0.asset.clone(), 00_0000001)],
             liability: map![&e, (reserve_1.asset.clone(), 2_7500000)],
         };
         let pool_config = PoolConfig {
@@ -1425,12 +1435,12 @@ mod tests {
             assert_eq!(b_token_0.balance(&frodo), 3000_0000000);
             assert_eq!(
                 reserve_1_asset.balance(&frodo),
-                500_0000000_0000000 - 1_0037500_0000000
+                500_0000000_0000000 - 1_0037500_0000000 - 381023500
             );
             assert_eq!(b_token_0.balance(&samwise), 00_0000000);
             assert_eq!(
                 d_token_1.balance(&samwise),
-                200_7500000_0000000 - 1_0037500_0000000 + 381022054
+                200_7500000_0000000 - 1_0037500_0000000
             );
         });
     }
@@ -1485,8 +1495,8 @@ mod tests {
         oracle_client.set_price(&reserve_1.asset, &50_0000000);
 
         let liquidation_data = LiquidationMetadata {
-            collateral: map![&e, (reserve_0.asset.clone(), 3)],
-            liability: map![&e, (reserve_1.asset.clone(), 3)],
+            collateral: map![&e, (reserve_0.asset.clone(), 2)],
+            liability: map![&e, (reserve_1.asset.clone(), 1)],
         };
         let pool_config = PoolConfig {
             oracle: oracle_address,

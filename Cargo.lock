@@ -1084,6 +1084,7 @@ dependencies = [
 name = "test-suites"
 version = "0.0.0"
 dependencies = [
+ "fixed-point-math",
  "rand",
  "soroban-sdk",
 ]

@@ -3,7 +3,7 @@ use crate::{
     dependencies::{BackstopClient, OracleClient, TokenClient},
     errors::PoolError,
     pool,
-    reserve::Reserve,
+    reserve::{self, Reserve},
     storage,
 };
 use cast::i128;
@@ -42,7 +42,7 @@ pub fn create_bad_debt_auction_data(e: &Env, backstop: &Address) -> Result<Aucti
             debt_value += asset_balance
                 .fixed_mul_floor(i128(asset_to_base), SCALAR_7)
                 .unwrap();
-            auction_data.bid.set(reserve.config.index, asset_balance);
+            auction_data.bid.set(reserve.config.index, d_token_balance);
         }
     }
     if auction_data.bid.len() == 0 || debt_value == 0 {
@@ -76,7 +76,7 @@ pub fn calc_fill_bad_debt_auction(e: &Env, auction_data: &AuctionData) -> Auctio
 
     let (bid_modifier, lot_modifier) = get_fill_modifiers(e, auction_data);
 
-    // bid only contains underlying asset amounts
+    // bid only contains d_token asset amounts
     let reserve_list = storage::get_res_list(e);
     for (res_id, amount) in auction_data.bid.iter_unchecked() {
         let res_asset_address = reserve_list.get_unchecked(res_id).unwrap();
@@ -106,10 +106,22 @@ pub fn fill_bad_debt_auction(
     let auction_quote = calc_fill_bad_debt_auction(e, auction_data);
 
     let backstop_address = storage::get_backstop(e);
+    let pool_config = storage::get_pool_config(e);
 
     // bid only contains underlying assets
     for (res_asset_address, bid_amount) in auction_quote.bid.iter_unchecked() {
-        pool::execute_repay(e, filler, &res_asset_address, bid_amount, &backstop_address).unwrap();
+        let mut reserve = Reserve::load(&e, res_asset_address.clone());
+        // do not write rate information to chain
+        reserve.update_rates(e, pool_config.bstop_rate);
+
+        pool::execute_repay(
+            e,
+            filler,
+            &res_asset_address,
+            reserve.to_asset_from_d_token(bid_amount),
+            &backstop_address,
+        )
+        .unwrap();
     }
 
     // lot only contains the backstop token
@@ -254,11 +266,11 @@ mod tests {
             assert_eq!(result.block, 51);
             assert_eq!(
                 result.bid.get_unchecked(reserve_0.config.index).unwrap(),
-                11_0000000
+                10_0000000
             );
             assert_eq!(
                 result.bid.get_unchecked(reserve_1.config.index).unwrap(),
-                3_0000000
+                2_5000000
             );
             assert_eq!(result.bid.len(), 2);
             assert_eq!(result.lot.get_unchecked(u32::MAX).unwrap(), 95_2000000);
@@ -339,11 +351,11 @@ mod tests {
             assert_eq!(result.block, 51);
             assert_eq!(
                 result.bid.get_unchecked(reserve_0.config.index).unwrap(),
-                11_0000000
+                10_0000000
             );
             assert_eq!(
                 result.bid.get_unchecked(reserve_1.config.index).unwrap(),
-                3_0000000
+                2_5000000
             );
             assert_eq!(result.bid.len(), 2);
             assert_eq!(result.lot.get_unchecked(u32::MAX).unwrap(), 95_0000000);
@@ -426,11 +438,11 @@ mod tests {
             assert_eq!(result.block, 151);
             assert_eq!(
                 result.bid.get_unchecked(reserve_0.config.index).unwrap(),
-                11_0000432
+                10_0000000
             );
             assert_eq!(
                 result.bid.get_unchecked(reserve_1.config.index).unwrap(),
-                3_0000207
+                2_5000000
             );
             assert_eq!(result.bid.len(), 2);
             assert_eq!(result.lot.get_unchecked(u32::MAX).unwrap(), 95_2004736);
@@ -498,7 +510,7 @@ mod tests {
             status: 0,
         };
         let auction_data = AuctionData {
-            bid: map![&e, (0, 11_0000000), (1, 3_0000000)],
+            bid: map![&e, (0, 10_0000000), (1, 2_5000000)],
             lot: map![&e, (u32::MAX, 95_2000000)],
             block: 51,
         };
@@ -532,11 +544,11 @@ mod tests {
             assert_eq!(result.lot.len(), 1);
             assert_eq!(
                 result.bid.get_unchecked(0).unwrap(),
-                (reserve_0.asset, 8_2500000)
+                (reserve_0.asset, 7_5000000)
             );
             assert_eq!(
                 result.bid.get_unchecked(1).unwrap(),
-                (reserve_1.asset, 2_2500000)
+                (reserve_1.asset, 1_8750000)
             );
             assert_eq!(result.bid.len(), 2);
             assert_eq!(backstop_token_client.balance(&backstop_address), 0);

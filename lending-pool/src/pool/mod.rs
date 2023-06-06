@@ -13,7 +13,7 @@ mod status;
 pub use status::{execute_update_pool_status, set_pool_status};
 
 mod supply;
-pub use supply::execute_supply;
+pub use supply::{execute_supply, execute_update_collateral};
 
 mod withdrawal;
 pub use withdrawal::execute_withdraw;

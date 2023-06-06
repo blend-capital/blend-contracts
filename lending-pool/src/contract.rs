@@ -176,6 +176,24 @@ pub trait PoolContractTrait {
     /// If the user has collateral posted
     fn bad_debt(e: Env, user: Address) -> Result<(), PoolError>;
 
+    /// Update the ability for an asset to be used as collateral for a user. This is
+    /// enabled by default.
+    ///
+    /// ### Arguments
+    /// * `user` - The user to update the collateral status for
+    /// * `asset` - The asset to update the collateral status for
+    /// * `enable` - If the asset can be used as collateral
+    ///
+    /// ### Errors
+    /// If the user currently requires the collateral to be used, or if the user does not
+    /// supply the asset
+    fn update_collateral(
+        e: Env,
+        user: Address,
+        asset: Address,
+        enable: bool,
+    ) -> Result<(), PoolError>;
+
     /// Fetch the reserve usage configuration for a user
     ///
     /// ### Arguments
@@ -469,6 +487,23 @@ impl PoolContractTrait for PoolContract {
 
     fn bad_debt(e: Env, user: Address) -> Result<(), PoolError> {
         bad_debt::manage_bad_debt(&e, &user)
+    }
+
+    fn update_collateral(
+        e: Env,
+        user: Address,
+        asset: Address,
+        enable: bool,
+    ) -> Result<(), PoolError> {
+        user.require_auth();
+
+        pool::execute_update_collateral(&e, &user, &asset, enable)?;
+
+        e.events().publish(
+            (Symbol::new(&e, "update_collateral"), user),
+            (asset, enable),
+        );
+        Ok(())
     }
 
     fn get_user_config(e: Env, user: Address) -> u128 {

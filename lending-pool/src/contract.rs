@@ -46,6 +46,16 @@ pub trait PoolContractTrait {
         usdc_id: Address,
     ) -> Result<(), PoolError>;
 
+    /// Update the pool
+    ///
+    /// ### Arguments
+    /// * `admin` - The Address for the admin
+    /// * `backstop_take_rate` - The new take rate for the backstop
+    ///
+    /// ### Errors
+    /// If the caller is not the admin
+    fn update_pool(e: Env, admin: Address, backstiop_take_rate: u64) -> Result<(), PoolError>;
+
     /// Initialize a reserve in the pool
     ///
     /// ### Arguments
@@ -372,6 +382,18 @@ impl PoolContractTrait for PoolContract {
             &blnd_id,
             &usdc_id,
         )
+    }
+
+    fn update_pool(e: Env, admin: Address, backstop_take_rate: u64) -> Result<(), PoolError> {
+        admin.require_auth();
+
+        pool::execute_update_pool(&e, &admin, backstop_take_rate)?;
+
+        e.events().publish(
+            (Symbol::new(&e, "update_pool"), admin),
+            (backstop_take_rate,),
+        );
+        Ok(())
     }
 
     fn init_reserve(

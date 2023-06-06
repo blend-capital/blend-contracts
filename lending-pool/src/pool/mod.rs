@@ -3,7 +3,8 @@ pub use borrow::execute_borrow;
 
 mod config;
 pub use config::{
-    execute_initialize, execute_update_reserve, initialize_reserve, update_pool_emissions,
+    execute_initialize, execute_update_pool, execute_update_reserve, initialize_reserve,
+    update_pool_emissions,
 };
 
 mod repay;

@@ -46,6 +46,27 @@ pub fn execute_initialize(
     Ok(())
 }
 
+/// Update the pool
+pub fn execute_update_pool(
+    e: &Env,
+    from: &Address,
+    backstop_take_rate: u64,
+) -> Result<(), PoolError> {
+    if from.clone() != storage::get_admin(e) {
+        return Err(PoolError::NotAuthorized);
+    }
+
+    // ensure backstop is [0,1)
+    if backstop_take_rate.clone() >= 1_000_000_000 {
+        return Err(PoolError::BadRequest);
+    }
+    let mut pool_config = storage::get_pool_config(e);
+    pool_config.bstop_rate = backstop_take_rate;
+    storage::set_pool_config(e, &pool_config);
+
+    Ok(())
+}
+
 /// Initialize a reserve for the pool
 pub fn initialize_reserve(
     e: &Env,
@@ -279,6 +300,40 @@ mod tests {
                 &usdc_id,
             );
             assert_eq!(result, Err(PoolError::AlreadyInitialized));
+        });
+    }
+
+    #[test]
+    fn test_execute_update_pool() {
+        let e = Env::default();
+        let pool_address = Address::random(&e);
+
+        let admin = Address::random(&e);
+        let sauron = Address::random(&e);
+
+        let pool_config = PoolConfig {
+            oracle: Address::random(&e),
+            bstop_rate: 0_100_000_000,
+            status: 0,
+        };
+        e.as_contract(&pool_address, || {
+            storage::set_pool_config(&e, &pool_config);
+            storage::set_admin(&e, &admin);
+
+            // happy path
+            execute_update_pool(&e, &admin, 0_200_000_000u64).unwrap();
+            let new_pool_config = storage::get_pool_config(&e);
+            assert_eq!(new_pool_config.bstop_rate, 0_200_000_000u64);
+            assert_eq!(new_pool_config.oracle, pool_config.oracle);
+            assert_eq!(new_pool_config.status, pool_config.status);
+
+            // invalid admin
+            let result = execute_update_pool(&e, &sauron, 0_200_000_000u64);
+            assert_eq!(result, Err(PoolError::NotAuthorized));
+
+            // invalid value
+            let result = execute_update_pool(&e, &admin, 1_000_000_000u64);
+            assert_eq!(result, Err(PoolError::BadRequest));
         });
     }
 

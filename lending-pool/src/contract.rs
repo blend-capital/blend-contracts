@@ -296,7 +296,7 @@ pub trait PoolContractTrait {
     ///
     /// ### Errors
     /// If the auction does not exist
-    fn get_auction(e: Env, auction_type: u32, user: Address) -> Result<AuctionQuote, PoolError>;
+    fn get_auction(e: Env, auction_type: u32, user: Address) -> AuctionData;
 
     /// Creates a new auction
     ///
@@ -578,9 +578,8 @@ impl PoolContractTrait for PoolContract {
         Ok(())
     }
 
-    // @dev: view
-    fn get_auction(e: Env, auction_type: u32, user: Address) -> Result<AuctionQuote, PoolError> {
-        Ok(auctions::preview_fill(&e, auction_type, &user))
+    fn get_auction(e: Env, auction_type: u32, user: Address) -> AuctionData {
+        storage::get_auction(&e, &auction_type, &user)
     }
 
     fn new_auction(e: Env, auction_type: u32) -> Result<AuctionData, PoolError> {

@@ -8,15 +8,9 @@ use fixed_point_math::FixedPoint;
 use soroban_sdk::{contracttype, Address, Env, Map, Vec};
 
 use super::{
-    backstop_interest_auction::{
-        calc_fill_interest_auction, create_interest_auction_data, fill_interest_auction,
-    },
-    bad_debt_auction::{
-        calc_fill_bad_debt_auction, create_bad_debt_auction_data, fill_bad_debt_auction,
-    },
-    user_liquidation_auction::{
-        calc_fill_user_liq_auction, create_user_liq_auction_data, fill_user_liq_auction,
-    },
+    backstop_interest_auction::{create_interest_auction_data, fill_interest_auction},
+    bad_debt_auction::{create_bad_debt_auction_data, fill_bad_debt_auction},
+    user_liquidation_auction::{create_user_liq_auction_data, fill_user_liq_auction},
 };
 
 #[derive(Clone, PartialEq)]
@@ -53,7 +47,6 @@ pub struct AuctionQuote {
     pub block: u32,
 }
 
-// TODO: Rename symbol once auction code ported over
 #[derive(Clone)]
 #[contracttype]
 pub struct AuctionData {
@@ -138,23 +131,6 @@ pub fn delete_liquidation(e: &Env, user: &Address) -> Result<(), PoolError> {
         Ok(())
     } else {
         return Err(PoolError::InvalidHf);
-    }
-}
-
-/// Preview the quote the auction will be filled at
-///
-/// ### Arguments
-/// * `auction_type` - The type of auction to get a quote for
-/// * `user` - The user involved in the auction
-///
-/// ### Errors
-/// If the auction does not exist
-pub fn preview_fill(e: &Env, auction_type: u32, user: &Address) -> AuctionQuote {
-    let auction_data = storage::get_auction(e, &auction_type, user);
-    match AuctionType::from_u32(auction_type) {
-        AuctionType::UserLiquidation => calc_fill_user_liq_auction(e, &auction_data),
-        AuctionType::BadDebtAuction => calc_fill_bad_debt_auction(e, &auction_data),
-        AuctionType::InterestAuction => calc_fill_interest_auction(e, &auction_data),
     }
 }
 

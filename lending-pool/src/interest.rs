@@ -3,7 +3,7 @@ use fixed_point_math::{FixedPoint, STROOP};
 use soroban_sdk::Env;
 
 use crate::{
-    constants::{BLOCKS_PER_YEAR, SCALAR_9, SECONDS_PER_YEAR},
+    constants::{SCALAR_9, SECONDS_PER_YEAR},
     storage::ReserveConfig,
 };
 

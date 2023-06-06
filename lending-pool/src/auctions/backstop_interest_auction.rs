@@ -66,38 +66,6 @@ pub fn create_interest_auction_data(e: &Env, backstop: &Address) -> Result<Aucti
     Ok(auction_data)
 }
 
-/// NOTE: This function is for viewing purposes only and should not be called by functions
-///       that modify state
-pub fn calc_fill_interest_auction(e: &Env, auction_data: &AuctionData) -> AuctionQuote {
-    let mut auction_quote = AuctionQuote {
-        bid: vec![e],
-        lot: vec![e],
-        block: e.ledger().sequence(),
-    };
-
-    let (bid_modifier, lot_modifier) = get_fill_modifiers(e, auction_data);
-
-    // bid only contains the backstop token
-    let bid_amount = auction_data.bid.get_unchecked(u32::MAX).unwrap();
-    let bid_amount_modified = bid_amount.fixed_mul_floor(bid_modifier, SCALAR_7).unwrap();
-    auction_quote
-        .bid
-        .push_back((storage::get_usdc_token(e), bid_amount_modified));
-
-    // lot only contains b_token reserves
-    let reserve_list = storage::get_res_list(e);
-    for (res_id, amount) in auction_data.lot.iter_unchecked() {
-        let res_asset_address = reserve_list.get_unchecked(res_id).unwrap();
-        let reserve_config = storage::get_res_config(e, &res_asset_address);
-        let amount_modified = amount.fixed_mul_floor(lot_modifier, SCALAR_7).unwrap();
-        auction_quote
-            .lot
-            .push_back((reserve_config.b_token, amount_modified));
-    }
-
-    auction_quote
-}
-
 pub fn fill_interest_auction(
     e: &Env,
     auction_data: &AuctionData,

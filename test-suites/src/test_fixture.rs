@@ -165,7 +165,7 @@ impl TestFixture<'_> {
         pool_fixture
             .pool
             .init_reserve(&self.bombadil, &token.address, reserve_metadata);
-        let config = pool_fixture.pool.reserve_config(&token.address);
+        let config = pool_fixture.pool.get_reserve_config(&token.address);
         pool_fixture.add_reserve(ReserveFixture {
             index: config.index as usize,
             fixture_index: asset_index,

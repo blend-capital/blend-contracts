@@ -63,7 +63,7 @@ fn test_pool_config() {
             ]
         )
     );
-    assert_eq!(pool_client.reserve_config(&usdc_id).l_factor, 0_7500000);
+    assert_eq!(pool_client.get_reserve_config(&usdc_id).l_factor, 0_7500000);
 
     reserve_meta.l_factor = 0_9000000;
     pool_client.update_reserve(&bombadil, &usdc_id, &reserve_meta);
@@ -81,7 +81,7 @@ fn test_pool_config() {
             ]
         )
     );
-    assert_eq!(pool_client.reserve_config(&usdc_id).l_factor, 0_9000000);
+    assert_eq!(pool_client.get_reserve_config(&usdc_id).l_factor, 0_9000000);
 
     let emis_vec = vec![
         &e,
@@ -112,11 +112,11 @@ fn test_pool_config() {
             vec![&e, bombadil.clone().to_raw(), 1_u32.into_val(&e)]
         )
     );
-    assert_eq!(pool_client.get_status(), 1);
+    assert_eq!(pool_client.get_pool_config().status, 1);
 
     // validate user config functions
-    let status_result = pool_client.update_state();
+    let status_result = pool_client.update_status();
     assert_eq!(e.auths(), []);
-    assert_eq!(pool_client.get_status(), 0);
+    assert_eq!(pool_client.get_pool_config().status, 0);
     assert_eq!(status_result, 0);
 }

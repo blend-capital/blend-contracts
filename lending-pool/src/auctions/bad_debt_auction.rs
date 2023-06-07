@@ -3,7 +3,7 @@ use crate::{
     dependencies::{BackstopClient, OracleClient, TokenClient},
     errors::PoolError,
     pool,
-    reserve::{self, Reserve},
+    reserve::Reserve,
     storage,
 };
 use cast::i128;
@@ -66,7 +66,7 @@ pub fn create_bad_debt_auction_data(e: &Env, backstop: &Address) -> Result<Aucti
     Ok(auction_data)
 }
 
-pub fn calc_fill_bad_debt_auction(e: &Env, auction_data: &AuctionData) -> AuctionQuote {
+fn calc_fill_bad_debt_auction(e: &Env, auction_data: &AuctionData) -> AuctionQuote {
     let mut auction_quote = AuctionQuote {
         bid: vec![e],
         lot: vec![e],

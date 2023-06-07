@@ -227,6 +227,7 @@ fn test_liquidations() {
     let frodo_weth_btoken_balance = pool_fixture.reserves[2].b_token.balance(&frodo);
     let frodo_usdc_balance = fixture.tokens[TokenIndex::USDC as usize].balance(&frodo);
     let frodo_xlm_balance = fixture.tokens[TokenIndex::XLM as usize].balance(&frodo);
+    let quote = pool_fixture.pool.fill_auction(&frodo, &0, &samwise);
     assert_approx_eq_abs(
         pool_fixture.reserves[1].b_token.balance(&frodo) - frodo_xlm_btoken_balance,
         sam_b_tokens_xlm,

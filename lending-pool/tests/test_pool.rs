@@ -106,7 +106,7 @@ fn test_pool_wasm_smoke() {
     assert_eq!(asset1_client.balance(&pool_address), supply_amount);
     assert_eq!(b_token1_client.balance(&samwise), minted_btokens);
     assert_eq!(minted_btokens, 2_0000000);
-    assert_eq!(pool_client.config(&samwise), 2);
+    assert_eq!(pool_client.get_user_config(&samwise), 2);
 
     // borrow
     let borrow_amount = 1_0000000;
@@ -135,7 +135,7 @@ fn test_pool_wasm_smoke() {
     assert_eq!(b_token1_client.balance(&samwise), minted_btokens);
     assert_eq!(d_token1_client.balance(&samwise), minted_dtokens);
     assert_eq!(minted_dtokens, 1_0000000);
-    assert_eq!(pool_client.config(&samwise), 3);
+    assert_eq!(pool_client.get_user_config(&samwise), 3);
 
     // allow interest to accumulate
     // IR -> 6%
@@ -170,7 +170,7 @@ fn test_pool_wasm_smoke() {
     assert_eq!(b_token1_client.balance(&samwise), minted_btokens);
     assert_eq!(d_token1_client.balance(&samwise), 566038);
     assert_eq!(burnt_dtokens, minted_dtokens - 566038);
-    assert_eq!(pool_client.config(&samwise), 3);
+    assert_eq!(pool_client.get_user_config(&samwise), 3);
 
     // repay interest
     let interest_accrued = 0_0600001;
@@ -184,7 +184,7 @@ fn test_pool_wasm_smoke() {
     assert_eq!(b_token1_client.balance(&samwise), minted_btokens);
     assert_eq!(d_token1_client.balance(&samwise), 0);
     assert_eq!(burnt_dtokens_interest, 566038);
-    assert_eq!(pool_client.config(&samwise), 2);
+    assert_eq!(pool_client.get_user_config(&samwise), 2);
 
     // withdraw
     let user_interest_accrued = 0_0477138;
@@ -218,7 +218,7 @@ fn test_pool_wasm_smoke() {
     assert_eq!(asset1_client.balance(&pool_address), 122862 + 1);
     assert_eq!(b_token1_client.balance(&samwise), 0);
     assert_eq!(burnt_btokens, minted_btokens);
-    assert_eq!(pool_client.config(&samwise), 0);
+    assert_eq!(pool_client.get_user_config(&samwise), 0);
 
     // claim
     let to_claim_vec: Vec<u32> = vec![&e, 0_u32];

@@ -183,49 +183,6 @@ pub fn create_user_liq_auction_data(
     Ok(liquidation_quote)
 }
 
-pub fn calc_fill_user_liq_auction(e: &Env, auction_data: &AuctionData) -> AuctionQuote {
-    let mut auction_quote = AuctionQuote {
-        bid: vec![e],
-        lot: vec![e],
-        block: e.ledger().sequence(),
-    };
-
-    let (bid_modifier, lot_modifier) = get_fill_modifiers(e, auction_data);
-    let reserve_list = storage::get_res_list(e);
-    for i in 0..reserve_list.len() {
-        if !(auction_data.bid.contains_key(i) || auction_data.lot.contains_key(i)) {
-            continue;
-        }
-
-        let res_asset_address = reserve_list.get_unchecked(i).unwrap();
-        let reserve_config = storage::get_res_config(e, &res_asset_address);
-
-        // bids are liabilities stored as underlying
-        if let Some(bid_amount_res) = auction_data.bid.get(i) {
-            let mod_bid_amount = bid_amount_res
-                .unwrap()
-                .fixed_mul_floor(bid_modifier, SCALAR_7)
-                .unwrap();
-            auction_quote
-                .bid
-                .push_back((res_asset_address.clone(), mod_bid_amount));
-        }
-
-        // lot contains collateral stored as b_tokens
-        if let Some(lot_amount_res) = auction_data.lot.get(i) {
-            let mod_lot_amount = lot_amount_res
-                .unwrap()
-                .fixed_mul_floor(lot_modifier, SCALAR_7)
-                .unwrap();
-            auction_quote
-                .lot
-                .push_back((reserve_config.b_token, mod_lot_amount));
-        }
-    }
-
-    auction_quote
-}
-
 pub fn fill_user_liq_auction(
     e: &Env,
     auction_data: &AuctionData,

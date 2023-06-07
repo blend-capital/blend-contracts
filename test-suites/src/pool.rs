@@ -1,6 +1,6 @@
 mod pool_contract {
     soroban_sdk::contractimport!(
-        file = "../target/wasm32-unknown-unknown/optimized/lending_pool.wasm"
+        file = "../target/wasm32-unknown-unknown/release/lending_pool.wasm"
     );
 }
 pub use pool_contract::{

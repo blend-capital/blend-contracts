@@ -16,6 +16,7 @@ use crate::{
 
 use super::{get_fill_modifiers, AuctionQuote, AuctionType, LiquidationMetadata};
 
+// TODO: Revalidate math with alternative decimal reserve
 pub fn create_user_liq_auction_data(
     e: &Env,
     user: &Address,

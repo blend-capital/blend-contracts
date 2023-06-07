@@ -184,6 +184,7 @@ pub(crate) fn create_reserve(e: &Env) -> Reserve {
             d_supply: 75_0000000,
             last_time: 0,
         },
+        scalar: 10i128.pow(7),
         b_rate: Some(1_000_000_000),
     }
 }

@@ -72,8 +72,8 @@ impl TestFixture<'_> {
 
         // deploy tokens
         let (blnd_id, blnd_client) = create_token(&e, &bombadil, 7, "BLND");
-        let (eth_id, eth_client) = create_token(&e, &bombadil, 7, "wETH");
-        let (usdc_id, usdc_client) = create_token(&e, &bombadil, 7, "USDC");
+        let (eth_id, eth_client) = create_token(&e, &bombadil, 9, "wETH");
+        let (usdc_id, usdc_client) = create_token(&e, &bombadil, 6, "USDC");
         let (xlm_id, xlm_client) = create_stellar_token(&e, &bombadil); // TODO: make native
 
         // deploy Blend Protocol contracts

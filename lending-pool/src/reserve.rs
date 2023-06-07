@@ -15,6 +15,7 @@ pub struct Reserve {
     pub asset: Address,
     pub config: ReserveConfig,
     pub data: ReserveData,
+    pub scalar: i128,
     pub b_rate: Option<i128>,
 }
 
@@ -29,10 +30,12 @@ impl Reserve {
     pub fn load(e: &Env, asset: Address) -> Reserve {
         let config = storage::get_res_config(&e, &asset);
         let data = storage::get_res_data(&e, &asset);
+        let scalar = 10i128.pow(config.decimals);
         Reserve {
             asset,
             config,
             data,
+            scalar,
             b_rate: None,
         }
     }
@@ -116,10 +119,20 @@ impl Reserve {
         }
 
         // accrue interest to current block
-        let cur_util = self
-            .total_liabilities()
-            .fixed_div_floor(total_supply, SCALAR_7)
-            .unwrap();
+        // normalize cur_util to 7 decimals
+        let cur_util: i128;
+        if self.config.decimals < 7 {
+            cur_util = (self.total_liabilities() * 10i128.pow(7 - self.config.decimals))
+                .fixed_div_floor(total_supply, self.scalar)
+                .unwrap();
+        } else {
+            cur_util = self
+                .total_liabilities()
+                .fixed_div_floor(total_supply, self.scalar)
+                .unwrap()
+                / (10i128.pow(self.config.decimals - 7));
+        }
+
         let (loan_accrual, new_ir_mod) = calc_accrual(
             e,
             &self.config,
@@ -131,10 +144,10 @@ impl Reserve {
         if bstop_rate > 0 {
             let backstop_rate = i128(bstop_rate);
             let b_accrual = (loan_accrual - SCALAR_9)
-                .fixed_mul_floor(i128(cur_util), SCALAR_7)
+                .fixed_mul_floor(cur_util, SCALAR_7)
                 .unwrap();
-            bstop_amount = b_accrual
-                .fixed_mul_floor(total_supply, SCALAR_9)
+            bstop_amount = total_supply
+                .fixed_mul_floor(b_accrual, SCALAR_9)
                 .unwrap()
                 .fixed_mul_floor(backstop_rate, SCALAR_9)
                 .unwrap();
@@ -471,6 +484,69 @@ mod tests {
             assert_eq!(reserve.data.ir_mod, 0_999_906_566);
             assert_eq!(reserve.data.last_time, 100 * 5);
             assert_eq!(to_mint, 0_0000110);
+            assert_eq!(reserve.data.b_supply, 99_0000000 + 0_0000110);
+        });
+    }
+
+    #[test]
+    fn test_update_state_large_decimal() {
+        let e = Env::default();
+        let pool_address = Address::random(&e);
+
+        let mut reserve = create_reserve(&e);
+        reserve.config.decimals = 9;
+        reserve.scalar = 1_000_000_000;
+        reserve.data.b_supply = 99_000_000_000;
+        reserve.data.d_supply = 65_000_000_000;
+        reserve.data.last_time = 0;
+
+        e.ledger().set(LedgerInfo {
+            timestamp: 100 * 5,
+            protocol_version: 1,
+            sequence_number: 100,
+            network_id: Default::default(),
+            base_reserve: 10,
+        });
+        e.as_contract(&pool_address, || {
+            let to_mint = reserve.update_rates(&e, 0_200_000_000); // (accrual: 1_000_000_852, util: 0_6565656)
+
+            // assert_eq!(reserve.data.b_rate, 1_000_000_448);
+            assert_eq!(reserve.data.d_rate, 1_000_000_853);
+            assert_eq!(reserve.data.ir_mod, 0_999_906_566);
+            assert_eq!(reserve.data.last_time, 100 * 5);
+            assert_eq!(to_mint, 0_000_011_088);
+            assert_eq!(reserve.data.b_supply, 99_000_000_000 + 0_000_011_088);
+        });
+    }
+
+    #[test]
+    fn test_update_state_small_decimal() {
+        let e = Env::default();
+        let pool_address = Address::random(&e);
+
+        let mut reserve = create_reserve(&e);
+        reserve.config.decimals = 5;
+        reserve.scalar = 1_000_00;
+        reserve.data.b_supply = 99_000_00;
+        reserve.data.d_supply = 65_000_00;
+        reserve.data.last_time = 0;
+
+        e.ledger().set(LedgerInfo {
+            timestamp: 100 * 5,
+            protocol_version: 1,
+            sequence_number: 100,
+            network_id: Default::default(),
+            base_reserve: 10,
+        });
+        e.as_contract(&pool_address, || {
+            let to_mint = reserve.update_rates(&e, 0_200_000_000); // (accrual: 1_000_000_852, util: 0_6565656)
+
+            // assert_eq!(reserve.data.b_rate, 1_000_000_448);
+            assert_eq!(reserve.data.d_rate, 1_000_000_853);
+            assert_eq!(reserve.data.ir_mod, 0_999_906_566);
+            assert_eq!(reserve.data.last_time, 100 * 5);
+            assert_eq!(to_mint, 0_000_01);
+            assert_eq!(reserve.data.b_supply, 99_000_00 + 0_000_01);
         });
     }
 

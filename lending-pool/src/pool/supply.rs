@@ -85,7 +85,7 @@ pub fn execute_update_collateral(
         };
         require_hf(&e, &pool_config, user, &user_action)?;
     } else if !user_config.is_collateral(res_config.index) && enable {
-        // user is enabled inactive collateral
+        // user is enabling inactive collateral
         user_config.set_collateral_disabled(res_config.index, false);
         storage::set_user_config(e, user, &user_config.config);
     }

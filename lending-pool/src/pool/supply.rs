@@ -54,6 +54,46 @@ pub fn execute_supply(
     Ok(to_mint)
 }
 
+/// Perform an update of the collateral status to the
+///
+/// Returns the number of b_tokens minted
+pub fn execute_update_collateral(
+    e: &Env,
+    user: &Address,
+    asset: &Address,
+    enable: bool,
+) -> Result<(), PoolError> {
+    let res_config = storage::get_res_config(e, asset);
+    let mut user_config = ReserveUsage::new(storage::get_user_config(e, user));
+    if !user_config.is_supply(res_config.index) {
+        return Err(PoolError::BadRequest);
+    }
+
+    if user_config.is_collateral(res_config.index) && !enable {
+        // user is disabling active collateral. Check their HF.
+
+        // user_config is set first to remove the current asset from the HF calculation
+        // without checking the b_token balance
+        user_config.set_collateral_disabled(res_config.index, true);
+        storage::set_user_config(e, user, &user_config.config);
+
+        let pool_config = storage::get_pool_config(e);
+        let user_action = UserAction {
+            asset: asset.clone(),
+            b_token_delta: 0,
+            d_token_delta: 0,
+        };
+        require_hf(&e, &pool_config, user, &user_action)?;
+    } else if !user_config.is_collateral(res_config.index) && enable {
+        // user is enabling inactive collateral
+        user_config.set_collateral_disabled(res_config.index, false);
+        storage::set_user_config(e, user, &user_config.config);
+    }
+    // no change needed
+
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use crate::{
@@ -386,6 +426,171 @@ mod tests {
             storage::set_pool_config(&e, &pool_config);
             let result = execute_supply(&e, &samwise, &reserve_0.asset, 100_0000000);
             assert_eq!(result, Err(PoolError::InvalidPoolStatus));
+        });
+    }
+
+    #[test]
+    fn test_execute_update_reserve_not_active_collateral() {
+        let e = Env::default();
+        e.mock_all_auths();
+        let pool_address = Address::random(&e);
+
+        let bombadil = Address::random(&e);
+        let samwise = Address::random(&e);
+
+        let mut reserve_0 = create_reserve(&e);
+        reserve_0.data.d_supply = 0;
+        reserve_0.data.b_supply = 0;
+        setup_reserve(&e, &pool_address, &bombadil, &mut reserve_0);
+
+        let mut reserve_1 = create_reserve(&e);
+        reserve_1.data.d_supply = 0;
+        reserve_1.data.b_supply = 0;
+        setup_reserve(&e, &pool_address, &bombadil, &mut reserve_1);
+
+        let (oracle_id, oracle_client) = create_mock_oracle(&e);
+        oracle_client.set_price(&reserve_0.asset, &1_0000000);
+        oracle_client.set_price(&reserve_1.asset, &1_0000000);
+
+        let asset_0_client = TokenClient::new(&e, &reserve_0.asset);
+        let asset_1_client = TokenClient::new(&e, &reserve_1.asset);
+        asset_0_client.mint(&samwise, &500_0000000);
+        asset_1_client.mint(&samwise, &500_0000000);
+
+        let pool_config = PoolConfig {
+            oracle: oracle_id,
+            bstop_rate: 0,
+            status: 0,
+        };
+        e.as_contract(&pool_address, || {
+            storage::set_pool_config(&e, &pool_config);
+
+            e.budget().reset_unlimited();
+            execute_supply(&e, &samwise, &reserve_0.asset, 100_0000000).unwrap();
+            execute_supply(&e, &samwise, &reserve_1.asset, 200_0000000).unwrap();
+
+            // disable
+            execute_update_collateral(&e, &samwise, &reserve_1.asset, false).unwrap();
+            let new_user_config = ReserveUsage::new(storage::get_user_config(&e, &samwise));
+            assert_eq!(new_user_config.is_collateral_disabled(1), true);
+            assert_eq!(new_user_config.is_collateral(1), false);
+
+            // enable
+            execute_update_collateral(&e, &samwise, &reserve_1.asset, true).unwrap();
+            let new_user_config = ReserveUsage::new(storage::get_user_config(&e, &samwise));
+            assert_eq!(new_user_config.is_collateral_disabled(1), false);
+            assert_eq!(new_user_config.is_collateral(1), true);
+        });
+    }
+
+    #[test]
+    fn test_execute_update_reserve_active_collateral() {
+        let e = Env::default();
+        e.mock_all_auths();
+        let pool_address = Address::random(&e);
+
+        let bombadil = Address::random(&e);
+        let samwise = Address::random(&e);
+        let frodo = Address::random(&e);
+
+        let mut reserve_0 = create_reserve(&e);
+        reserve_0.data.d_supply = 0;
+        reserve_0.data.b_supply = 0;
+        setup_reserve(&e, &pool_address, &bombadil, &mut reserve_0);
+
+        let mut reserve_1 = create_reserve(&e);
+        reserve_1.data.d_supply = 0;
+        reserve_1.data.b_supply = 0;
+        setup_reserve(&e, &pool_address, &bombadil, &mut reserve_1);
+
+        let (oracle_id, oracle_client) = create_mock_oracle(&e);
+        oracle_client.set_price(&reserve_0.asset, &1_0000000);
+        oracle_client.set_price(&reserve_1.asset, &1_0000000);
+
+        let asset_0_client = TokenClient::new(&e, &reserve_0.asset);
+        let asset_1_client = TokenClient::new(&e, &reserve_1.asset);
+        asset_0_client.mint(&samwise, &500_0000000);
+        asset_1_client.mint(&frodo, &500_0000000);
+        asset_1_client.mint(&samwise, &500_0000000);
+
+        let pool_config = PoolConfig {
+            oracle: oracle_id,
+            bstop_rate: 0,
+            status: 0,
+        };
+        e.as_contract(&pool_address, || {
+            storage::set_pool_config(&e, &pool_config);
+
+            e.budget().reset_unlimited();
+            execute_supply(&e, &frodo, &reserve_1.asset, 500_0000000).unwrap();
+            execute_supply(&e, &samwise, &reserve_0.asset, 100_0000000).unwrap();
+            execute_supply(&e, &samwise, &reserve_1.asset, 100_0000000).unwrap();
+            execute_borrow(&e, &samwise, &reserve_1.asset, 50_0000000, &samwise).unwrap();
+
+            // samwise can meet the collateral requirement with a single supply
+            // disable
+            execute_update_collateral(&e, &samwise, &reserve_0.asset, false).unwrap();
+            let new_user_config = ReserveUsage::new(storage::get_user_config(&e, &samwise));
+            assert_eq!(new_user_config.is_collateral_disabled(0), true);
+            assert_eq!(new_user_config.is_collateral(0), false);
+
+            // enable
+            execute_update_collateral(&e, &samwise, &reserve_0.asset, true).unwrap();
+            let new_user_config = ReserveUsage::new(storage::get_user_config(&e, &samwise));
+            assert_eq!(new_user_config.is_collateral_disabled(0), false);
+            assert_eq!(new_user_config.is_collateral(0), true);
+
+            // borrow more tokens so a single supply is not sufficient collateral
+            execute_borrow(&e, &samwise, &reserve_1.asset, 10_0000000, &samwise).unwrap();
+
+            // disable
+            let result = execute_update_collateral(&e, &samwise, &reserve_0.asset, false);
+            assert_eq!(result, Err(PoolError::InvalidHf));
+            let new_user_config = ReserveUsage::new(storage::get_user_config(&e, &samwise));
+            assert_eq!(new_user_config.is_collateral_disabled(0), true);
+            assert_eq!(new_user_config.is_collateral(0), false);
+        });
+    }
+
+    #[test]
+    fn test_execute_update_reserve_not_supplied() {
+        let e = Env::default();
+        e.mock_all_auths();
+        let pool_address = Address::random(&e);
+
+        let bombadil = Address::random(&e);
+        let samwise = Address::random(&e);
+
+        let mut reserve_0 = create_reserve(&e);
+        reserve_0.data.d_supply = 0;
+        reserve_0.data.b_supply = 0;
+        setup_reserve(&e, &pool_address, &bombadil, &mut reserve_0);
+
+        let mut reserve_1 = create_reserve(&e);
+        reserve_1.data.d_supply = 0;
+        reserve_1.data.b_supply = 0;
+        setup_reserve(&e, &pool_address, &bombadil, &mut reserve_1);
+
+        let (oracle_id, oracle_client) = create_mock_oracle(&e);
+        oracle_client.set_price(&reserve_0.asset, &1_0000000);
+        oracle_client.set_price(&reserve_1.asset, &1_0000000);
+
+        let asset_0_client = TokenClient::new(&e, &reserve_0.asset);
+        let asset_1_client = TokenClient::new(&e, &reserve_1.asset);
+        asset_0_client.mint(&samwise, &500_0000000);
+        asset_1_client.mint(&samwise, &500_0000000);
+
+        let pool_config = PoolConfig {
+            oracle: oracle_id,
+            bstop_rate: 0,
+            status: 0,
+        };
+        e.as_contract(&pool_address, || {
+            storage::set_pool_config(&e, &pool_config);
+
+            e.budget().reset_unlimited();
+            let result = execute_update_collateral(&e, &samwise, &reserve_0.asset, false);
+            assert_eq!(result, Err(PoolError::BadRequest));
         });
     }
 }

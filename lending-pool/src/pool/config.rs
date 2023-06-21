@@ -1,13 +1,16 @@
 use crate::{
-    dependencies::{BackstopClient, BlendTokenClient, TokenClient},
+    dependencies::{BackstopClient},
     emissions,
     errors::PoolError,
-    reserve::Reserve,
-    storage::{self, PoolConfig, ReserveConfig, ReserveData, ReserveMetadata},
+    storage::{self, PoolConfig, ReserveConfig, ReserveData},
 };
-use soroban_sdk::{Address, BytesN, Env, IntoVal, Symbol};
+use soroban_sdk::{Address, BytesN, Env, Symbol, panic_with_error};
+
+use super::pool::Pool;
 
 /// Initialize the pool
+/// 
+/// Panics if the pool is already initialized or the arguments are invalid
 pub fn execute_initialize(
     e: &Env,
     admin: &Address,
@@ -19,14 +22,14 @@ pub fn execute_initialize(
     d_token_hash: &BytesN<32>,
     blnd_id: &Address,
     usdc_id: &Address,
-) -> Result<(), PoolError> {
+) {
     if storage::has_admin(e) {
-        return Err(PoolError::AlreadyInitialized);
+        panic_with_error!(e, PoolError::AlreadyInitialized);
     }
 
     // ensure backstop is [0,1)
     if bstop_rate.clone() >= 1_000_000_000 {
-        return Err(PoolError::InvalidPoolInitArgs);
+        panic_with_error!(e, PoolError::InvalidPoolInitArgs);
     }
 
     storage::set_admin(e, admin);
@@ -43,7 +46,6 @@ pub fn execute_initialize(
     storage::set_token_hashes(e, b_token_hash, d_token_hash);
     storage::set_blnd_token(e, blnd_id);
     storage::set_usdc_token(e, usdc_id);
-    Ok(())
 }
 
 /// Update the pool
@@ -51,20 +53,18 @@ pub fn execute_update_pool(
     e: &Env,
     from: &Address,
     backstop_take_rate: u64,
-) -> Result<(), PoolError> {
+) {
     if from.clone() != storage::get_admin(e) {
-        return Err(PoolError::NotAuthorized);
+        panic_with_error!(e, PoolError::NotAuthorized);
     }
 
     // ensure backstop is [0,1)
     if backstop_take_rate.clone() >= 1_000_000_000 {
-        return Err(PoolError::BadRequest);
+        panic_with_error!(e, PoolError::BadRequest);
     }
     let mut pool_config = storage::get_pool_config(e);
     pool_config.bstop_rate = backstop_take_rate;
     storage::set_pool_config(e, &pool_config);
-
-    Ok(())
 }
 
 /// Initialize a reserve for the pool
@@ -72,89 +72,42 @@ pub fn initialize_reserve(
     e: &Env,
     from: &Address,
     asset: &Address,
-    metadata: &ReserveMetadata,
-) -> Result<(), PoolError> {
+    config: &ReserveConfig,
+) {
     if from.clone() != storage::get_admin(e) {
-        return Err(PoolError::NotAuthorized);
+        panic_with_error!(e, PoolError::NotAuthorized);
     }
 
     if storage::has_res(e, asset) {
-        return Err(PoolError::AlreadyInitialized);
+        panic_with_error!(e, PoolError::NotAuthorized);
     }
 
-    validate_reserve_metadata(e, metadata)?;
-
-    let (b_token_hash, d_token_hash) = storage::get_token_hashes(e);
+    require_valid_reserve_metadata(e, config);
     let index = storage::push_res_list(e, asset);
 
-    // force consistent d and b token addresses based on underlying asset
-    let deployer = e.deployer();
-    let mut b_token_salt: BytesN<32> = BytesN::from_array(&e, &[index.try_into().unwrap(); 32]);
-    let mut d_token_salt: BytesN<32> = BytesN::from_array(&e, &[index.try_into().unwrap(); 32]);
-    b_token_salt.set(0, 0);
-    d_token_salt.set(0, 1);
-    let b_token_id = deployer
-        .with_current_contract(&b_token_salt)
-        .deploy(&b_token_hash);
-    let d_token_id = deployer
-        .with_current_contract(&d_token_salt)
-        .deploy(&d_token_hash);
-
     let reserve_config = ReserveConfig {
-        b_token: b_token_id.clone(),
-        d_token: d_token_id.clone(),
         index,
-        decimals: metadata.decimals,
-        c_factor: metadata.c_factor,
-        l_factor: metadata.l_factor,
-        util: metadata.util,
-        max_util: metadata.max_util,
-        r_one: metadata.r_one,
-        r_two: metadata.r_two,
-        r_three: metadata.r_three,
-        reactivity: metadata.reactivity,
+        decimals: config.decimals,
+        c_factor: config.c_factor,
+        l_factor: config.l_factor,
+        util: config.util,
+        max_util: config.max_util,
+        r_one: config.r_one,
+        r_two: config.r_two,
+        r_three: config.r_three,
+        reactivity: config.reactivity,
     };
     storage::set_res_config(e, asset, &reserve_config);
     let init_data = ReserveData {
+        b_rate: 10i128.pow(config.decimals),
         d_rate: 1_000_000_000,
         ir_mod: 1_000_000_000,
         d_supply: 0,
         b_supply: 0,
         last_time: e.ledger().timestamp(),
+        backstop_credit: 0
     };
     storage::set_res_data(e, asset, &init_data);
-
-    // initialize tokens
-    let asset_client = TokenClient::new(e, asset);
-    let asset_symbol = asset_client.symbol();
-
-    let b_token_client = BlendTokenClient::new(e, &b_token_id);
-    let mut b_token_symbol = asset_symbol.clone();
-    b_token_symbol.insert_from_bytes(0, "b".into_val(e));
-    let mut b_token_name = asset_symbol.clone();
-    b_token_name.insert_from_bytes(0, "Blend supply token for ".into_val(e));
-    b_token_client.initialize(
-        &e.current_contract_address(),
-        &7,
-        &b_token_name,
-        &b_token_symbol,
-    );
-    b_token_client.initialize_asset(&e.current_contract_address(), &asset, &index);
-
-    let d_token_client = BlendTokenClient::new(e, &d_token_id);
-    let mut d_token_symbol = asset_symbol.clone();
-    d_token_symbol.insert_from_bytes(0, "d".into_val(e));
-    let mut d_token_name = asset_symbol.clone();
-    d_token_name.insert_from_bytes(0, "Blend debt token for ".into_val(e));
-    d_token_client.initialize(
-        &e.current_contract_address(),
-        &7,
-        &b_token_name,
-        &b_token_symbol,
-    );
-    d_token_client.initialize_asset(&e.current_contract_address(), &asset, &index);
-
-    Ok(())
 }
 
 /// Update a reserve in the pool
@@ -162,50 +115,40 @@ pub fn execute_update_reserve(
     e: &Env,
     from: &Address,
     asset: &Address,
-    metadata: &ReserveMetadata,
-) -> Result<(), PoolError> {
+    config: &ReserveConfig,
+) {
     if from.clone() != storage::get_admin(e) {
-        return Err(PoolError::NotAuthorized);
+        panic_with_error!(e, PoolError::NotAuthorized);
     }
 
-    validate_reserve_metadata(e, metadata)?;
+    require_valid_reserve_metadata(e, config);
 
-    let pool_config = storage::get_pool_config(e);
-
-    if pool_config.status == 2 {
-        return Err(PoolError::InvalidPoolStatus);
+    let mut pool = Pool::load(e);
+    if pool.config.status == 2 {
+        panic_with_error!(e, PoolError::InvalidPoolStatus);
     }
 
-    let mut reserve = Reserve::load(&e, asset.clone());
-    reserve.update_rates_and_mint_backstop(e, &pool_config)?;
+    // accrue and store reserve data to the ledger
+    let mut reserve = pool.load_reserve(e, asset);
+    reserve.store(e);
 
-    // only change metadata based configuration
-    reserve.config.decimals = metadata.decimals;
-    reserve.config.c_factor = metadata.c_factor;
-    reserve.config.l_factor = metadata.l_factor;
-    reserve.config.util = metadata.util;
-    reserve.config.max_util = metadata.max_util;
-    reserve.config.r_one = metadata.r_one;
-    reserve.config.r_two = metadata.r_two;
-    reserve.config.r_three = metadata.r_three;
-    reserve.config.reactivity = metadata.reactivity;
+    // force index to remain constant and only allow metadata based changes
+    let mut new_config = config.clone();
+    new_config.index = reserve.index;
 
-    storage::set_res_config(e, asset, &reserve.config);
-    reserve.set_data(e);
-
-    Ok(())
+    storage::set_res_config(e, asset, &new_config);
 }
 
 // Update the pool emission information from the backstop
-pub fn update_pool_emissions(e: &Env) -> Result<u64, PoolError> {
+pub fn update_pool_emissions(e: &Env) -> u64 {
     let backstop_address = storage::get_backstop(e);
     let backstop_client = BackstopClient::new(e, &backstop_address);
     let next_exp = backstop_client.next_distribution();
     let pool_eps = backstop_client.pool_eps(&e.current_contract_address()) as u64;
-    emissions::update_emissions(e, next_exp, pool_eps)
+    emissions::update_emissions_cycle(e, next_exp, pool_eps)
 }
 
-fn validate_reserve_metadata(_e: &Env, metadata: &ReserveMetadata) -> Result<(), PoolError> {
+fn require_valid_reserve_metadata(e: &Env, metadata: &ReserveConfig) {
     if metadata.decimals > 18
         || metadata.c_factor > 1_0000000
         || metadata.l_factor > 1_0000000
@@ -214,9 +157,8 @@ fn validate_reserve_metadata(_e: &Env, metadata: &ReserveMetadata) -> Result<(),
         || (metadata.r_one > metadata.r_two || metadata.r_two > metadata.r_three)
         || (metadata.reactivity > 0_0005000)
     {
-        return Err(PoolError::InvalidReserveMetadata);
+        panic_with_error!(e, PoolError::InvalidReserveMetadata);
     }
-    Ok(())
 }
 
 #[cfg(test)]

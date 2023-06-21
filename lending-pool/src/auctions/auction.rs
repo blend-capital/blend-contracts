@@ -1,11 +1,11 @@
 use crate::{
+    dependencies::TokenClient,
     errors::PoolError,
-    storage,
-    user_data::{UserAction, UserData},
+    storage, pool::{Pool, PositionData, Positions}, emissions,
 };
 use cast::i128;
 use fixed_point_math::FixedPoint;
-use soroban_sdk::{contracttype, Address, Env, Map, Vec};
+use soroban_sdk::{contracttype, Address, Env, Map, Vec, panic_with_error};
 
 use super::{
     backstop_interest_auction::{create_interest_auction_data, fill_interest_auction},
@@ -62,21 +62,21 @@ pub struct AuctionData {
 /// ### Arguments
 /// * `auction_type` - The type of auction being created
 ///
-/// ### Errors
+/// ### Panics
 /// If the auction is unable to be created
-pub fn create(e: &Env, auction_type: u32) -> Result<AuctionData, PoolError> {
+pub fn create(e: &Env, auction_type: u32) -> AuctionData {
     let backstop = storage::get_backstop(e);
     let auction_data = match AuctionType::from_u32(auction_type) {
         AuctionType::UserLiquidation => {
-            return Err(PoolError::BadRequest);
+            panic_with_error!(e, PoolError::BadRequest);
         }
         AuctionType::BadDebtAuction => create_bad_debt_auction_data(e, &backstop),
         AuctionType::InterestAuction => create_interest_auction_data(e, &backstop),
-    }?;
+    };
 
     storage::set_auction(e, &auction_type, &backstop, &auction_data);
 
-    return Ok(auction_data);
+    return auction_data;
 }
 
 /// Create a liquidation auction. Stores the resulting auction to the ledger to begin on the next block
@@ -84,16 +84,17 @@ pub fn create(e: &Env, auction_type: u32) -> Result<AuctionData, PoolError> {
 /// Returns the AuctionData object created.
 ///
 /// ### Arguments
-/// * `auction_type` - The type of auction being created
+/// * `user` - The user being liquidated
+/// * `liq_data` - The liquidation metadata
 ///
-/// ### Errors
+/// ### Panics
 /// If the auction is unable to be created
 pub fn create_liquidation(
     e: &Env,
     user: &Address,
     liq_data: LiquidationMetadata,
-) -> Result<AuctionData, PoolError> {
-    let auction_data = create_user_liq_auction_data(e, user, liq_data)?;
+) -> AuctionData {
+    let auction_data = create_user_liq_auction_data(e, user, liq_data);
 
     storage::set_auction(
         &e,
@@ -102,7 +103,7 @@ pub fn create_liquidation(
         &auction_data,
     );
 
-    return Ok(auction_data);
+    return auction_data;
 }
 
 /// Delete a liquidation auction if the user being liquidated is no longer eligible for liquidation.
@@ -110,28 +111,18 @@ pub fn create_liquidation(
 /// ### Arguments
 /// * `auction_type` - The type of auction being created
 ///
-/// ### Errors
+/// ### Panics
 /// If no auction exists for the user or if the user is still eligible for liquidation.
-pub fn delete_liquidation(e: &Env, user: &Address) -> Result<(), PoolError> {
+pub fn delete_liquidation(e: &Env, user: &Address) {
     if !storage::has_auction(e, &(AuctionType::UserLiquidation as u32), &user) {
-        return Err(PoolError::BadRequest);
+        panic_with_error!(e, PoolError::BadRequest);
     }
 
-    let pool_config = storage::get_pool_config(e);
-    // no action is being take when calculating the users health factor
-    let action = UserAction {
-        asset: e.current_contract_address(),
-        b_token_delta: 0,
-        d_token_delta: 0,
-    };
-    let user_data = UserData::load(e, &pool_config, user, &action);
-
-    if user_data.collateral_base > user_data.liability_base {
-        storage::del_auction(e, &(AuctionType::UserLiquidation as u32), &user);
-        Ok(())
-    } else {
-        return Err(PoolError::InvalidHf);
-    }
+    let mut pool = Pool::load(e);
+    let positions = storage::get_user_positions(e, user);
+    let position_data = PositionData::calculate_from_positions(e, &mut pool, &positions);
+    position_data.require_healthy(e);
+    storage::del_auction(e, &(AuctionType::UserLiquidation as u32), &user);
 }
 
 /// Fills the auction from the invoker. The filler is expected to maintain allowances to both
@@ -144,7 +135,7 @@ pub fn delete_liquidation(e: &Env, user: &Address) -> Result<(), PoolError> {
 /// * `user` - The user involved in the auction
 /// * `filler` - The Address filling the auction
 ///
-/// ### Errors
+/// ### Panics
 /// If the auction does not exist, or if the pool is unable to fulfill either side
 /// of the auction quote
 pub fn fill(
@@ -152,7 +143,7 @@ pub fn fill(
     auction_type: u32,
     user: &Address,
     filler: &Address,
-) -> Result<AuctionQuote, PoolError> {
+) -> AuctionQuote {
     let auction_data = storage::get_auction(e, &auction_type, user);
     let quote = match AuctionType::from_u32(auction_type) {
         AuctionType::UserLiquidation => fill_user_liq_auction(e, &auction_data, user, filler),
@@ -162,7 +153,43 @@ pub fn fill(
 
     storage::del_auction(e, &auction_type, user);
 
-    Ok(quote)
+    quote
+}
+
+// @dev: TODO: Look into ways to de-dupe code from the following function and pool/actions.rs
+/// Repay debt tokens from an auction filler for a given position.
+/// 
+/// Modifies the position in place and places updated reserve object in the pool cache. Does NOT write
+/// reserve object back to the ledger.
+/// 
+/// ### Arguments
+/// * `pool` - The pool
+/// * `user` - The user having their debt repaid
+/// * `spender` - The address of the spender
+/// * `asset` - The underlying address of the reserve being repaid
+/// * `debt_token_amount` - The amount of debt tokens to repay
+/// * `positions` - The positions of the user
+/// 
+/// ### Panics
+/// If the repayment is unable to be filled
+pub(crate) fn fill_debt_token(e: &Env, pool: &mut Pool, user: &Address, spender: &Address, asset: &Address, debt_token_amount: i128, positions: &mut Positions) -> i128 {
+    let mut reserve = pool.load_reserve(e, asset);
+    emissions::update_emissions(
+        e,
+        reserve.index * 2,
+        reserve.d_supply,
+        reserve.decimals,
+        user,
+        positions.get_liabilities(reserve.index),
+        false
+    );
+
+    let underlying_amount = reserve.to_asset_from_d_token(debt_token_amount);
+    reserve.d_supply -= debt_token_amount;
+    positions.remove_liabilities(e, reserve.index, debt_token_amount);
+    TokenClient::new(e, &asset).transfer_from(&e.current_contract_address(), spender, &e.current_contract_address(), &underlying_amount);
+    pool.cache_reserve(reserve);
+    underlying_amount
 }
 
 /// Get the current fill modifiers for the auction

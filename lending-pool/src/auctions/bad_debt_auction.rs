@@ -2,54 +2,49 @@ use crate::{
     constants::SCALAR_7,
     dependencies::{BackstopClient, OracleClient, TokenClient},
     errors::PoolError,
-    pool,
-    reserve::Reserve,
+    pool::{self, Pool},
     storage,
 };
 use cast::i128;
 use fixed_point_math::FixedPoint;
-use soroban_sdk::{map, vec, Address, Env};
+use soroban_sdk::{map, vec, Address, Env, panic_with_error};
 
-use super::{get_fill_modifiers, AuctionData, AuctionQuote, AuctionType};
+use super::{get_fill_modifiers, AuctionData, AuctionQuote, AuctionType, fill_debt_token};
 
-pub fn create_bad_debt_auction_data(e: &Env, backstop: &Address) -> Result<AuctionData, PoolError> {
+pub fn create_bad_debt_auction_data(e: &Env, backstop: &Address) -> AuctionData {
     if storage::has_auction(&e, &(AuctionType::BadDebtAuction as u32), backstop) {
-        return Err(PoolError::AuctionInProgress);
+        panic_with_error!(e, PoolError::AuctionInProgress);
     }
-
-    let pool_config = storage::get_pool_config(e);
-    let oracle_client = OracleClient::new(e, &pool_config.oracle);
-
+    
     let mut auction_data = AuctionData {
         bid: map![e],
         lot: map![e],
         block: e.ledger().sequence() + 1,
     };
 
-    let reserve_count = storage::get_res_list(e);
+    let mut pool = Pool::load(e);
+    let oracle_client = OracleClient::new(e, &pool.config.oracle);
+    let oracle_decimals = oracle_client.decimals();
+    let backstop_positions = storage::get_user_positions(e, backstop);
+    let reserve_list = storage::get_res_list(e);
     let mut debt_value = 0;
-    for i in 0..reserve_count.len() {
-        let res_asset_address = reserve_count.get_unchecked(i).unwrap();
-
-        let mut reserve = Reserve::load(&e, res_asset_address.clone());
-
-        let d_token_client = TokenClient::new(e, &reserve.config.d_token);
-        let d_token_balance = d_token_client.balance(&backstop);
-        if d_token_balance > 0 {
-            reserve.update_rates(e, pool_config.bstop_rate);
+    for (reserve_index, liability_balance) in backstop_positions.liabilities.iter_unchecked() {
+        let res_asset_address = reserve_list.get_unchecked(reserve_index).unwrap();
+        if liability_balance > 0 {
+            let mut reserve = pool.load_reserve(e, &res_asset_address);
             let asset_to_base = oracle_client.get_price(&res_asset_address);
-            let asset_balance = reserve.to_asset_from_d_token(d_token_balance);
+            let asset_balance = reserve.to_asset_from_d_token(liability_balance);
             debt_value += asset_balance
-                .fixed_mul_floor(i128(asset_to_base), SCALAR_7)
+                .fixed_mul_floor(i128(asset_to_base), 10i128.pow(oracle_decimals))
                 .unwrap();
-            auction_data.bid.set(reserve.config.index, d_token_balance);
+            auction_data.bid.set(reserve_index, liability_balance);
         }
     }
     if auction_data.bid.len() == 0 || debt_value == 0 {
-        return Err(PoolError::BadRequest);
+        panic_with_error!(e, PoolError::AuctionInProgress);
     }
 
-    let backstop_client = BackstopClient::new(e, &storage::get_backstop(e));
+    let backstop_client = BackstopClient::new(e, &backstop);
     let backstop_token = backstop_client.backstop_token();
     // TODO: This won't have an oracle entry. Once an LP implementation exists, unwrap base from LP
     let backstop_token_to_base = oracle_client.get_price(&backstop_token);
@@ -63,39 +58,7 @@ pub fn create_bad_debt_auction_data(e: &Env, backstop: &Address) -> Result<Aucti
     // u32::MAX is the key for the backstop token
     auction_data.lot.set(u32::MAX, lot_amount);
 
-    Ok(auction_data)
-}
-
-fn calc_fill_bad_debt_auction(e: &Env, auction_data: &AuctionData) -> AuctionQuote {
-    let mut auction_quote = AuctionQuote {
-        bid: vec![e],
-        lot: vec![e],
-        block: e.ledger().sequence(),
-    };
-    let backstop_address = storage::get_backstop(e);
-
-    let (bid_modifier, lot_modifier) = get_fill_modifiers(e, auction_data);
-
-    // bid only contains d_token asset amounts
-    let reserve_list = storage::get_res_list(e);
-    for (res_id, amount) in auction_data.bid.iter_unchecked() {
-        let res_asset_address = reserve_list.get_unchecked(res_id).unwrap();
-        let amount_modified = amount.fixed_mul_floor(bid_modifier, SCALAR_7).unwrap();
-        auction_quote
-            .bid
-            .push_back((res_asset_address, amount_modified));
-    }
-
-    // lot only contains the backstop token
-    let backstop_client = BackstopClient::new(&e, &backstop_address);
-    let backstop_token_id = backstop_client.backstop_token();
-    let lot_amount = auction_data.lot.get_unchecked(u32::MAX).unwrap();
-    let lot_amount_modified = lot_amount.fixed_mul_floor(lot_modifier, SCALAR_7).unwrap();
-    auction_quote
-        .lot
-        .push_back((backstop_token_id, lot_amount_modified));
-
-    auction_quote
+    auction_data
 }
 
 pub fn fill_bad_debt_auction(
@@ -103,32 +66,38 @@ pub fn fill_bad_debt_auction(
     auction_data: &AuctionData,
     filler: &Address,
 ) -> AuctionQuote {
-    let auction_quote = calc_fill_bad_debt_auction(e, auction_data);
-
+    let mut auction_quote = AuctionQuote {
+        bid: vec![e],
+        lot: vec![e],
+        block: e.ledger().sequence(),
+    };
     let backstop_address = storage::get_backstop(e);
-    let pool_config = storage::get_pool_config(e);
+    let (bid_modifier, lot_modifier) = get_fill_modifiers(e, auction_data);
 
-    // bid only contains underlying assets
-    for (res_asset_address, bid_amount) in auction_quote.bid.iter_unchecked() {
-        let mut reserve = Reserve::load(&e, res_asset_address.clone());
-        // do not write rate information to chain
-        reserve.update_rates(e, pool_config.bstop_rate);
+    let mut pool = Pool::load(e);
+    let mut new_positions = storage::get_user_positions(e, &backstop_address);
 
-        pool::execute_repay(
-            e,
-            filler,
-            &res_asset_address,
-            reserve.to_asset_from_d_token(bid_amount),
-            &backstop_address,
-        )
-        .unwrap();
+    // bid only contains d_token asset amounts
+    let reserve_list = storage::get_res_list(e);
+    for (res_id, amount) in auction_data.bid.iter_unchecked() {
+        let res_asset_address = reserve_list.get_unchecked(res_id).unwrap();
+        let amount_modified = amount.fixed_mul_floor(bid_modifier, SCALAR_7).unwrap();
+        let underlying_amount = fill_debt_token(e, &mut pool, &backstop_address, &filler, &res_asset_address, amount_modified, &mut new_positions);
+        auction_quote
+            .bid
+            .push_back((res_asset_address, underlying_amount));
     }
 
     // lot only contains the backstop token
-    let (_, lot_amount) = auction_quote.lot.first().unwrap().unwrap();
-
+    let backstop_client = BackstopClient::new(&e, &backstop_address);
+    let backstop_token_id = backstop_client.backstop_token();
+    let lot_amount = auction_data.lot.get_unchecked(u32::MAX).unwrap();
+    let lot_amount_modified = lot_amount.fixed_mul_floor(lot_modifier, SCALAR_7).unwrap();
     let backstop_client = BackstopClient::new(&e, &backstop_address);
     backstop_client.draw(&e.current_contract_address(), &lot_amount, &filler);
+    auction_quote
+        .lot
+        .push_back((backstop_token_id, lot_amount_modified));
 
     auction_quote
 }

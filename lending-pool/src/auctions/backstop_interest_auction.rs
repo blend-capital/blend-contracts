@@ -2,26 +2,25 @@ use crate::{
     constants::SCALAR_7,
     dependencies::{OracleClient, TokenClient},
     errors::PoolError,
-    reserve::Reserve,
-    storage,
+    storage, pool::Pool, validator::require_nonnegative,
 };
 use cast::i128;
 use fixed_point_math::FixedPoint;
-use soroban_sdk::{map, vec, Address, Env};
+use soroban_sdk::{map, vec, Address, Env, panic_with_error};
 
 use super::{get_fill_modifiers, AuctionData, AuctionQuote, AuctionType};
 
-pub fn create_interest_auction_data(e: &Env, backstop: &Address) -> Result<AuctionData, PoolError> {
+pub fn create_interest_auction_data(e: &Env, backstop: &Address) -> AuctionData {
     if storage::has_auction(e, &(AuctionType::InterestAuction as u32), backstop) {
-        return Err(PoolError::AuctionInProgress);
+        panic_with_error!(e, PoolError::AuctionInProgress);
     }
 
     // TODO: Determine if any threshold should be required to create interest auction
     //       It is currently guaranteed that if no auction is active, some interest
     //       will be generated.
 
-    let pool_config = storage::get_pool_config(e);
-    let oracle_client = OracleClient::new(e, &pool_config.oracle);
+    let mut pool = Pool::load(e);
+    let oracle_client = OracleClient::new(e, &pool.config.oracle);
 
     let mut auction_data = AuctionData {
         bid: map![e],
@@ -29,28 +28,23 @@ pub fn create_interest_auction_data(e: &Env, backstop: &Address) -> Result<Aucti
         block: e.ledger().sequence() + 1,
     };
 
-    let reserve_count = storage::get_res_list(e);
-    let mut interest_value = 0;
-    for i in 0..reserve_count.len() {
-        let res_asset_address = reserve_count.get_unchecked(i).unwrap();
-
-        let mut reserve = Reserve::load(&e, res_asset_address.clone());
-        let to_mint_bkstp = reserve.update_rates(e, pool_config.bstop_rate);
-
-        let b_token_client = TokenClient::new(e, &reserve.config.b_token);
-        let b_token_balance = b_token_client.balance(&backstop) + to_mint_bkstp;
-        if b_token_balance > 0 {
+    let reserve_list = storage::get_res_list(e);
+    let mut interest_value = 0; // expressed in the oracle's decimals
+    for i in 0..reserve_list.len() {
+        let res_asset_address = reserve_list.get_unchecked(i).unwrap();
+        // don't store updated reserve data back to ledger. This will occur on the the auction's fill.
+        let reserve = pool.load_reserve(e, &res_asset_address);
+        if reserve.backstop_credit > 0 {
             let asset_to_base = oracle_client.get_price(&res_asset_address);
-            let asset_balance = reserve.to_asset_from_b_token(e, b_token_balance);
-            interest_value += asset_balance
-                .fixed_mul_floor(i128(asset_to_base), SCALAR_7)
+            interest_value += i128(asset_to_base)
+                .fixed_mul_floor(reserve.backstop_credit, 10i128.pow(reserve.decimals))
                 .unwrap();
-            auction_data.lot.set(reserve.config.index, b_token_balance);
+            auction_data.lot.set(i, reserve.backstop_credit);
         }
     }
 
     if auction_data.lot.len() == 0 || interest_value == 0 {
-        return Err(PoolError::BadRequest);
+        panic_with_error!(e, PoolError::BadRequest);
     }
 
     let usdc_token = storage::get_usdc_token(e);
@@ -63,7 +57,7 @@ pub fn create_interest_auction_data(e: &Env, backstop: &Address) -> Result<Aucti
     // u32::MAX is the key for the USDC lot
     auction_data.bid.set(u32::MAX, bid_amount);
 
-    Ok(auction_data)
+    auction_data
 }
 
 pub fn fill_interest_auction(
@@ -71,16 +65,12 @@ pub fn fill_interest_auction(
     auction_data: &AuctionData,
     filler: &Address,
 ) -> AuctionQuote {
-    // TODO: Determine if there is a way to reuse calc code. Currently, this would result in reloads of all
-    //       reserves and the minting of tokens to the backstop during previews.
-    let pool_config = storage::get_pool_config(e);
     let backstop = storage::get_backstop(e);
     let mut auction_quote = AuctionQuote {
         bid: vec![e],
         lot: vec![e],
         block: e.ledger().sequence(),
     };
-
     let (bid_modifier, lot_modifier) = get_fill_modifiers(e, auction_data);
 
     // bid only contains the USDC token
@@ -95,24 +85,21 @@ pub fn fill_interest_auction(
     // let backstop_client = BackstopClient::new(&e, &backstop_address);
     // backstop_client.donate(&filler, &e.current_contract_id(), &bid_amount_modified);
 
-    // lot only contains b_token reserves
+    // lot contains underlying tokens, but the backstop credit must be updated on the reserve
+    let mut pool = Pool::load(e);
     let reserve_list = storage::get_res_list(e);
     for (res_id, lot_amount) in auction_data.lot.iter_unchecked() {
         let res_asset_address = reserve_list.get_unchecked(res_id).unwrap();
-        let mut reserve = Reserve::load(&e, res_asset_address.clone());
-        reserve
-            .pre_action(e, &pool_config, 1, backstop.clone())
-            .unwrap();
+        let mut reserve = pool.load_reserve(e, &res_asset_address);
         let lot_amount_modified = lot_amount.fixed_mul_floor(lot_modifier, SCALAR_7).unwrap();
         auction_quote
             .lot
-            .push_back((reserve.config.b_token.clone(), lot_amount_modified));
-
-        // TODO: Privileged xfer
-        let b_token_client = TokenClient::new(e, &reserve.config.b_token);
-        b_token_client.clawback(&backstop, &lot_amount_modified);
-        b_token_client.mint(&filler, &lot_amount_modified);
-        reserve.set_data(e);
+            .push_back((reserve.asset.clone(), lot_amount_modified));
+        reserve.backstop_credit -= lot_amount_modified;
+        // TODO: Is this necessary? Might be impossible for backstop credit to become negative
+        require_nonnegative(e, &reserve.backstop_credit);
+        reserve.store(e);
+        TokenClient::new(e, &reserve.asset).transfer(&e.current_contract_address(), &filler, &lot_amount_modified);
     }
     auction_quote
 }

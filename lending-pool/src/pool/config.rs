@@ -4,7 +4,7 @@ use crate::{
     errors::PoolError,
     storage::{self, PoolConfig, ReserveConfig, ReserveData},
 };
-use soroban_sdk::{panic_with_error, Address, BytesN, Env, Symbol};
+use soroban_sdk::{panic_with_error, Address, Env, Symbol};
 
 use super::pool::Pool;
 
@@ -18,8 +18,6 @@ pub fn execute_initialize(
     oracle: &Address,
     bstop_rate: &u64,
     backstop_address: &Address,
-    b_token_hash: &BytesN<32>,
-    d_token_hash: &BytesN<32>,
     blnd_id: &Address,
     usdc_id: &Address,
 ) {
@@ -43,7 +41,6 @@ pub fn execute_initialize(
             status: 1,
         },
     );
-    storage::set_token_hashes(e, b_token_hash, d_token_hash);
     storage::set_blnd_token(e, blnd_id);
     storage::set_usdc_token(e, usdc_id);
 }
@@ -115,7 +112,7 @@ pub fn execute_update_reserve(e: &Env, from: &Address, asset: &Address, config: 
     }
 
     // accrue and store reserve data to the ledger
-    let mut reserve = pool.load_reserve(e, asset);
+    let reserve = pool.load_reserve(e, asset);
     reserve.store(e);
 
     // force index to remain constant and only allow metadata based changes

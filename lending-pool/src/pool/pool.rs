@@ -1,4 +1,4 @@
-use soroban_sdk::{map, panic_with_error, Address, Env, Map, contracttype, unwrap::UnwrapOptimized};
+use soroban_sdk::{map, panic_with_error, Address, Env, Map, unwrap::UnwrapOptimized};
 
 use crate::{
     errors::PoolError,

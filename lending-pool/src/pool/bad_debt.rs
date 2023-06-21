@@ -41,7 +41,6 @@ fn transfer_bad_debt_to_backstop(e: &Env, user: &Address, backstop: &Address) {
     // transfer all of the user's debt to the backstop
 
     let reserve_list = storage::get_res_list(e);
-    let backstop = storage::get_backstop(e);
     let backstop_positions = storage::get_user_positions(e, &backstop);
     let mut new_user_positions = positions.clone();
     let mut new_backstop_positions = backstop_positions.clone();
@@ -90,7 +89,6 @@ fn burn_backstop_bad_debt(e: &Env, backstop: &Address) {
         panic_with_error!(e, PoolError::BadRequest);
     }
 
-    let pool_config = storage::get_pool_config(e);
     let backstop_positions = storage::get_user_positions(e, backstop);
     let mut new_backstop_positions = backstop_positions.clone();
 

@@ -6,7 +6,7 @@ use crate::{
         self, PoolConfig, ReserveConfig, ReserveData, ReserveEmissionsConfig, ReserveEmissionsData,
     },
 };
-use soroban_sdk::{contractimpl, Address, BytesN, Env, Map, Symbol, Vec, unwrap::UnwrapOptimized};
+use soroban_sdk::{contractimpl, Address, Env, Map, Symbol, Vec, unwrap::UnwrapOptimized};
 
 /// ### Pool
 ///
@@ -25,8 +25,6 @@ pub trait PoolContractTrait {
     ///
     /// Pool Factory supplied:
     /// * `backstop_id` - The contract address of the pool's backstop module
-    /// * `b_token_hash` - The hash of the WASM b_token implementation
-    /// * `d_token_hash` - The hash of the WASM d_token implementation
     /// * `blnd_id` - The contract ID of the BLND token
     /// * `usdc_id` - The contract ID of the BLND token
     fn initialize(
@@ -36,8 +34,6 @@ pub trait PoolContractTrait {
         oracle: Address,
         bstop_rate: u64,
         backstop_id: Address,
-        b_token_hash: BytesN<32>,
-        d_token_hash: BytesN<32>,
         blnd_id: Address,
         usdc_id: Address,
     );
@@ -261,8 +257,6 @@ impl PoolContractTrait for PoolContract {
         oracle: Address,
         bstop_rate: u64,
         backstop_id: Address,
-        b_token_hash: BytesN<32>,
-        d_token_hash: BytesN<32>,
         blnd_id: Address,
         usdc_id: Address,
     ) {
@@ -275,8 +269,6 @@ impl PoolContractTrait for PoolContract {
             &oracle,
             &bstop_rate,
             &backstop_id,
-            &b_token_hash,
-            &d_token_hash,
             &blnd_id,
             &usdc_id,
         );
@@ -339,7 +331,7 @@ impl PoolContractTrait for PoolContract {
     }
 
     fn update_status(e: Env) -> u32 {
-        let new_status = pool::execute_update_pool_status(&e).unwrap_optimized();
+        let new_status = pool::execute_update_pool_status(&e);
 
         // msg.sender
         let caller = e.call_stack().get(0).unwrap_optimized().unwrap_optimized().0;

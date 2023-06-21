@@ -1,8 +1,8 @@
 use crate::{
     constants::SCALAR_7,
-    dependencies::{BackstopClient, OracleClient, TokenClient},
+    dependencies::{BackstopClient, OracleClient},
     errors::PoolError,
-    pool::{self, Pool},
+    pool::{Pool},
     storage,
 };
 use cast::i128;
@@ -31,7 +31,7 @@ pub fn create_bad_debt_auction_data(e: &Env, backstop: &Address) -> AuctionData 
     for (reserve_index, liability_balance) in backstop_positions.liabilities.iter_unchecked() {
         let res_asset_address = reserve_list.get_unchecked(reserve_index).unwrap_optimized();
         if liability_balance > 0 {
-            let mut reserve = pool.load_reserve(e, &res_asset_address);
+            let reserve = pool.load_reserve(e, &res_asset_address);
             let asset_to_base = oracle_client.get_price(&res_asset_address);
             let asset_balance = reserve.to_asset_from_d_token(liability_balance);
             debt_value += asset_balance

@@ -1,6 +1,6 @@
 use crate::{
     errors::PoolError,
-    storage::{self, PoolEmissionConfig, ReserveEmissionsConfig, ReserveEmissionsData},
+    storage::{self, ReserveEmissionsConfig, ReserveEmissionsData},
 };
 use fixed_point_math::FixedPoint;
 use soroban_sdk::{contracttype, map, panic_with_error, Address, Env, Map, Symbol, Vec, unwrap::UnwrapOptimized};

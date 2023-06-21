@@ -6,16 +6,16 @@ use soroban_sdk::{map, panic_with_error, vec, Address, Env};
 use crate::auctions::auction::AuctionData;
 use crate::constants::{SCALAR_7, SCALAR_9};
 use crate::emissions;
-use crate::pool::{self, Pool};
+use crate::pool::{Pool};
 use crate::validator::require_nonnegative;
 use crate::{
-    dependencies::{OracleClient, TokenClient},
+    dependencies::{OracleClient},
     errors::PoolError,
     storage,
 };
 
 use super::{
-    auction, fill_debt_token, get_fill_modifiers, AuctionQuote, AuctionType, LiquidationMetadata,
+    fill_debt_token, get_fill_modifiers, AuctionQuote, AuctionType, LiquidationMetadata,
 };
 
 // TODO: Revalidate math with alternative decimal reserve
@@ -147,12 +147,12 @@ pub fn create_user_liq_auction_data(
 
     // ensure liquidation size is fair and the collateral is large enough to allow for the auction to price the liquidation
     let weighted_cf = scaled_cf
-        .fixed_div_floor(sell_collat_base * 100, SCALAR_7)
+        .fixed_div_floor(sell_collat_base * 100, 10i128.pow(oracle_decimals))
         .unwrap_optimized();
     // weighted_lf factor is the inverse of the liability factor
     let weighted_lf = SCALAR_9
         .fixed_div_floor(
-            scaled_lf.fixed_div_floor(buy_liab_base, SCALAR_7).unwrap_optimized(),
+            scaled_lf.fixed_div_floor(buy_liab_base, 10i128.pow(oracle_decimals)).unwrap_optimized(),
             SCALAR_7,
         )
         .unwrap_optimized();

@@ -6,7 +6,7 @@ use crate::{
     constants::{SCALAR_7, SCALAR_9},
     dependencies::TokenClient,
     errors::PoolError,
-    storage::{self, PoolConfig, ReserveData, ReserveEmissionsData},
+    storage::{self, PoolConfig, ReserveData},
 };
 
 use super::interest::calc_accrual;

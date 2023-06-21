@@ -67,7 +67,6 @@ pub fn fill_interest_auction(
     auction_data: &AuctionData,
     filler: &Address,
 ) -> AuctionQuote {
-    let backstop = storage::get_backstop(e);
     let mut auction_quote = AuctionQuote {
         bid: vec![e],
         lot: vec![e],

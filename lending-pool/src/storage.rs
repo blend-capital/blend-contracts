@@ -1,4 +1,4 @@
-use soroban_sdk::{contracttype, map, vec, Address, BytesN, Env, Map, Symbol, Vec, unwrap::UnwrapOptimized};
+use soroban_sdk::{contracttype, map, vec, Address, Env, Map, Symbol, Vec, unwrap::UnwrapOptimized};
 
 use crate::{auctions::AuctionData, pool::Positions};
 
@@ -111,8 +111,6 @@ pub enum PoolDataKey {
     Name,
     // The backstop ID for the pool
     Backstop,
-    // Token Hashes
-    TokenHash,
     // BLND token ID
     BLNDTkn,
     // USDC token ID
@@ -136,8 +134,6 @@ pub enum PoolDataKey {
     EmisData(u32),
     // Map of positions in the pool for a user
     Positions(Address),
-    // The configuration settings for a user
-    UserConfig(Address),
     // The emission information for a reserve asset for a user
     UserEmis(UserReserveKey),
     // The auction's data
@@ -189,14 +185,6 @@ pub fn has_admin(e: &Env) -> bool {
 
 /********** Metadata **********/
 
-// Fetch the pools name
-///
-/// ### Panics
-/// If the name does not exist
-pub fn get_name(e: &Env) -> Symbol {
-    e.storage().get_unchecked(&PoolDataKey::Name).unwrap_optimized()
-}
-
 /// Set a pool name
 ///
 /// ### Arguments
@@ -223,29 +211,6 @@ pub fn get_backstop(e: &Env) -> Address {
 pub fn set_backstop(e: &Env, backstop: &Address) {
     e.storage()
         .set::<PoolDataKey, Address>(&PoolDataKey::Backstop, backstop);
-}
-
-/********** Token Hashes **********/
-
-/// Fetch the B and D token hashes for the pool
-///
-/// ### Panics
-/// If the pool has not been initialized
-pub fn get_token_hashes(e: &Env) -> (BytesN<32>, BytesN<32>) {
-    e.storage().get_unchecked(&PoolDataKey::TokenHash).unwrap_optimized()
-}
-
-/// Set the B and D token hashes
-///
-/// ### Arguments
-/// * `b_token_hash` - The hash of the WASM b_token implementation
-/// * `d_token_hash` - The hash of the WASM d_token implementation
-pub fn set_token_hashes(e: &Env, b_token_hash: &BytesN<32>, d_token_hash: &BytesN<32>) {
-    let key = PoolDataKey::TokenHash;
-    e.storage().set::<PoolDataKey, (BytesN<32>, BytesN<32>)>(
-        &key,
-        &(b_token_hash.clone(), d_token_hash.clone()),
-    );
 }
 
 /********** External Token Contracts **********/
@@ -453,30 +418,6 @@ pub fn set_res_emis_data(e: &Env, res_token_index: &u32, res_emis_data: &Reserve
     let key = PoolDataKey::EmisData(res_token_index.clone());
     e.storage()
         .set::<PoolDataKey, ReserveEmissionsData>(&key, res_emis_data);
-}
-
-/********** UserConfig **********/
-
-/// Fetch the users reserve config
-///
-/// ### Arguments
-/// * `user` - The address of the user
-pub fn get_user_config(e: &Env, user: &Address) -> u128 {
-    let key = PoolDataKey::UserConfig(user.clone());
-    e.storage()
-        .get::<PoolDataKey, u128>(&key)
-        .unwrap_or(Ok(0))
-        .unwrap_optimized()
-}
-
-/// Set the users reserve config
-///
-/// ### Arguments
-/// * `user` - The address of the user
-/// * `config` - The reserve config for the user
-pub fn set_user_config(e: &Env, user: &Address, config: &u128) {
-    let key = PoolDataKey::UserConfig(user.clone());
-    e.storage().set::<PoolDataKey, u128>(&key, config);
 }
 
 /********** User Emissions **********/

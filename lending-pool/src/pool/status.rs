@@ -1,13 +1,13 @@
 use crate::{constants::SCALAR_7, dependencies::BackstopClient, errors::PoolError, storage};
 use fixed_point_math::FixedPoint;
-use soroban_sdk::{Address, Env, unwrap::UnwrapOptimized};
+use soroban_sdk::{Address, Env, unwrap::UnwrapOptimized, panic_with_error};
 
 /// Update the pool status based on the backstop module
-pub fn execute_update_pool_status(e: &Env) -> Result<u32, PoolError> {
+pub fn execute_update_pool_status(e: &Env) -> u32 {
     let mut pool_config = storage::get_pool_config(e);
     if pool_config.status > 2 {
         // pool has been admin frozen and can only be restored by the admin
-        return Err(PoolError::InvalidPoolStatus);
+        panic_with_error!(e, PoolError::InvalidPoolStatus);
     }
 
     let backstop_id = storage::get_backstop(e);
@@ -26,13 +26,13 @@ pub fn execute_update_pool_status(e: &Env) -> Result<u32, PoolError> {
     }
     storage::set_pool_config(e, &pool_config);
 
-    Ok(pool_config.status)
+    pool_config.status
 }
 
 /// Update the pool status
-pub fn set_pool_status(e: &Env, admin: &Address, pool_status: u32) -> Result<(), PoolError> {
+pub fn set_pool_status(e: &Env, admin: &Address, pool_status: u32) {
     if admin.clone() != storage::get_admin(e) {
-        return Err(PoolError::NotAuthorized);
+        panic_with_error!(e, PoolError::NotAuthorized);
     }
 
     if pool_status == 0 {
@@ -42,15 +42,13 @@ pub fn set_pool_status(e: &Env, admin: &Address, pool_status: u32) -> Result<(),
 
         let (pool_tokens, _, _) = backstop_client.pool_balance(&e.current_contract_address());
         if pool_tokens < 1_000_000_0000000 {
-            return Err(PoolError::InvalidPoolStatus);
+            panic_with_error!(e, PoolError::InvalidPoolStatus);
         }
     }
 
     let mut pool_config = storage::get_pool_config(e);
     pool_config.status = pool_status;
     storage::set_pool_config(e, &pool_config);
-
-    Ok(())
 }
 
 #[cfg(test)]

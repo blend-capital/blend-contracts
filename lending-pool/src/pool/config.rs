@@ -1,15 +1,15 @@
 use crate::{
-    dependencies::{BackstopClient},
+    dependencies::BackstopClient,
     emissions,
     errors::PoolError,
     storage::{self, PoolConfig, ReserveConfig, ReserveData},
 };
-use soroban_sdk::{Address, BytesN, Env, Symbol, panic_with_error};
+use soroban_sdk::{panic_with_error, Address, BytesN, Env, Symbol};
 
 use super::pool::Pool;
 
 /// Initialize the pool
-/// 
+///
 /// Panics if the pool is already initialized or the arguments are invalid
 pub fn execute_initialize(
     e: &Env,
@@ -49,11 +49,7 @@ pub fn execute_initialize(
 }
 
 /// Update the pool
-pub fn execute_update_pool(
-    e: &Env,
-    from: &Address,
-    backstop_take_rate: u64,
-) {
+pub fn execute_update_pool(e: &Env, from: &Address, backstop_take_rate: u64) {
     if from.clone() != storage::get_admin(e) {
         panic_with_error!(e, PoolError::NotAuthorized);
     }
@@ -68,12 +64,7 @@ pub fn execute_update_pool(
 }
 
 /// Initialize a reserve for the pool
-pub fn initialize_reserve(
-    e: &Env,
-    from: &Address,
-    asset: &Address,
-    config: &ReserveConfig,
-) {
+pub fn initialize_reserve(e: &Env, from: &Address, asset: &Address, config: &ReserveConfig) {
     if from.clone() != storage::get_admin(e) {
         panic_with_error!(e, PoolError::NotAuthorized);
     }
@@ -105,18 +96,13 @@ pub fn initialize_reserve(
         d_supply: 0,
         b_supply: 0,
         last_time: e.ledger().timestamp(),
-        backstop_credit: 0
+        backstop_credit: 0,
     };
     storage::set_res_data(e, asset, &init_data);
 }
 
 /// Update a reserve in the pool
-pub fn execute_update_reserve(
-    e: &Env,
-    from: &Address,
-    asset: &Address,
-    config: &ReserveConfig,
-) {
+pub fn execute_update_reserve(e: &Env, from: &Address, asset: &Address, config: &ReserveConfig) {
     if from.clone() != storage::get_admin(e) {
         panic_with_error!(e, PoolError::NotAuthorized);
     }

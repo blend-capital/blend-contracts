@@ -1,6 +1,6 @@
 use cast::i128;
 use fixed_point_math::FixedPoint;
-use soroban_sdk::{map, vec, Address, Env, panic_with_error};
+use soroban_sdk::{map, panic_with_error, vec, Address, Env};
 
 use crate::auctions::auction::AuctionData;
 use crate::constants::{SCALAR_7, SCALAR_9};
@@ -13,7 +13,9 @@ use crate::{
     storage,
 };
 
-use super::{get_fill_modifiers, AuctionQuote, AuctionType, LiquidationMetadata, fill_debt_token, auction};
+use super::{
+    auction, fill_debt_token, get_fill_modifiers, AuctionQuote, AuctionType, LiquidationMetadata,
+};
 
 // TODO: Revalidate math with alternative decimal reserve
 pub fn create_user_liq_auction_data(
@@ -70,7 +72,12 @@ pub fn create_user_liq_auction_data(
                     .remove_unchecked(res_asset_address.clone());
 
                 // track the amount of collateral being purchased by the liquidator and the scaled collateral factor for validation later
-                let to_sell_amt_base = asset_to_base.fixed_mul_floor(reserve.to_asset_from_b_token(to_sell_amt_b_token), 10i128.pow(reserve.decimals)).unwrap();
+                let to_sell_amt_base = asset_to_base
+                    .fixed_mul_floor(
+                        reserve.to_asset_from_b_token(to_sell_amt_b_token),
+                        10i128.pow(reserve.decimals),
+                    )
+                    .unwrap();
                 sell_collat_base += to_sell_amt_base;
 
                 scaled_cf += to_sell_amt_base
@@ -105,8 +112,11 @@ pub fn create_user_liq_auction_data(
                     .remove_unchecked(res_asset_address.clone());
 
                 // track the amount of liabilities being sold by the liquidator and the scaled liability factor for validation later
-                let to_buy_amt_base = asset_to_base.fixed_mul_floor(
-                        reserve.to_asset_from_d_token(to_buy_amt_d_token), 10i128.pow(reserve.decimals))
+                let to_buy_amt_base = asset_to_base
+                    .fixed_mul_floor(
+                        reserve.to_asset_from_d_token(to_buy_amt_d_token),
+                        10i128.pow(reserve.decimals),
+                    )
                     .unwrap();
                 buy_liab_base += to_buy_amt_base;
                 scaled_lf += to_buy_amt_base
@@ -117,9 +127,7 @@ pub fn create_user_liq_auction_data(
                 } else if to_buy_amt_d_token < d_token_balance {
                     all_liabilities = false;
                 }
-                liquidation_quote
-                    .bid
-                    .set(reserve.index, to_buy_amt_d_token);
+                liquidation_quote.bid.set(reserve.index, to_buy_amt_d_token);
             } else {
                 all_liabilities = false;
             }
@@ -212,10 +220,16 @@ pub fn fill_user_liq_auction(
 
         // bids are liabilities stored as debtTokens
         if bid_amount > 0 {
-            let mod_bid_amount = bid_amount
-                .fixed_mul_floor(bid_modifier, SCALAR_7)
-                .unwrap();
-            let underlying_amount = fill_debt_token(e, &mut pool, &user, &filler, &res_asset_address, mod_bid_amount, &mut user_positions);
+            let mod_bid_amount = bid_amount.fixed_mul_floor(bid_modifier, SCALAR_7).unwrap();
+            let underlying_amount = fill_debt_token(
+                e,
+                &mut pool,
+                &user,
+                &filler,
+                &res_asset_address,
+                mod_bid_amount,
+                &mut user_positions,
+            );
             auction_quote
                 .bid
                 .push_back((res_asset_address, underlying_amount));
@@ -225,9 +239,7 @@ pub fn fill_user_liq_auction(
         if lot_amount > 0 {
             // pay out lot in blendTokens by transferring them from
             // the liquidated user to the auction filler
-            let mod_lot_amount = lot_amount
-                .fixed_mul_floor(lot_modifier, SCALAR_7)
-                .unwrap();
+            let mod_lot_amount = lot_amount.fixed_mul_floor(lot_modifier, SCALAR_7).unwrap();
             // update both the filler and liquidated user's emissions
             // @dev: TODO: The reserve emissions update will short circuit on the second go,
             //       but this can be optimized to avoid a second read
@@ -238,23 +250,21 @@ pub fn fill_user_liq_auction(
                 reserve.decimals,
                 user,
                 user_positions.get_total_supply(reserve.index),
-                false
+                false,
             );
-            emissions::update_emissions(    
+            emissions::update_emissions(
                 e,
                 reserve.index * 2 + 1,
                 reserve.b_supply,
                 reserve.decimals,
                 filler,
                 filler_positions.get_total_supply(reserve.index),
-                false
+                false,
             );
             user_positions.remove_collateral(e, reserve.index, mod_lot_amount);
             filler_positions.add_collateral(reserve.index, mod_lot_amount);
             // TODO: Is this confusing to quote in blendTokens?
-            auction_quote
-                .lot
-                .push_back((reserve.asset, mod_lot_amount));
+            auction_quote.lot.push_back((reserve.asset, mod_lot_amount));
         }
     }
 

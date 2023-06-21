@@ -2,11 +2,13 @@ use crate::{
     constants::SCALAR_7,
     dependencies::{OracleClient, TokenClient},
     errors::PoolError,
-    storage, pool::Pool, validator::require_nonnegative,
+    pool::Pool,
+    storage,
+    validator::require_nonnegative,
 };
 use cast::i128;
 use fixed_point_math::FixedPoint;
-use soroban_sdk::{map, vec, Address, Env, panic_with_error};
+use soroban_sdk::{map, panic_with_error, vec, Address, Env};
 
 use super::{get_fill_modifiers, AuctionData, AuctionQuote, AuctionType};
 
@@ -99,7 +101,11 @@ pub fn fill_interest_auction(
         // TODO: Is this necessary? Might be impossible for backstop credit to become negative
         require_nonnegative(e, &reserve.backstop_credit);
         reserve.store(e);
-        TokenClient::new(e, &reserve.asset).transfer(&e.current_contract_address(), &filler, &lot_amount_modified);
+        TokenClient::new(e, &reserve.asset).transfer(
+            &e.current_contract_address(),
+            &filler,
+            &lot_amount_modified,
+        );
     }
     auction_quote
 }

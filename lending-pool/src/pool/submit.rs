@@ -1,19 +1,21 @@
-use crate::{
-    dependencies::TokenClient,
-    storage,
-};
+use crate::{dependencies::TokenClient, storage};
 use soroban_sdk::{Address, Env, Vec};
 
-use super::{actions::{Request, build_actions_from_request}, Positions, pool::Pool, health_factor::PositionData};
+use super::{
+    actions::{build_actions_from_request, Request},
+    health_factor::PositionData,
+    pool::Pool,
+    Positions,
+};
 
 /// Execute a set of updates for a user against the pool.
-/// 
+///
 /// ### Arguments
 /// * from - The address of the user whose positions are being modified
 /// * spender - The address of the user who is sending tokens to the pool
 /// * to - The address of the user who is receiving tokens from the pool
 /// * requests - A vec of requests to be processed
-/// 
+///
 /// ### Panics
 /// If the request is unable to be fully executed
 pub fn execute_submit(
@@ -24,8 +26,9 @@ pub fn execute_submit(
     requests: Vec<Request>,
 ) -> Positions {
     let mut pool = Pool::load(e);
-    
-    let (pool_actions, new_positions, check_health) = build_actions_from_request(e, &mut pool, &from, requests);
+
+    let (pool_actions, new_positions, check_health) =
+        build_actions_from_request(e, &mut pool, &from, requests);
 
     if check_health {
         // panics if the new positions set does not meet the health factor requirement
@@ -36,7 +39,11 @@ pub fn execute_submit(
     // transfer tokens into the pool
     for action in pool_actions.iter_unchecked() {
         if action.tokens_in > 0 {
-            TokenClient::new(e, &action.asset).transfer(&spender, &e.current_contract_address(), &action.tokens_in);
+            TokenClient::new(e, &action.asset).transfer(
+                &spender,
+                &e.current_contract_address(),
+                &action.tokens_in,
+            );
         }
     }
 
@@ -47,7 +54,11 @@ pub fn execute_submit(
     // transfer tokens out of the pool
     for action in pool_actions.iter_unchecked() {
         if action.tokens_out > 0 {
-            TokenClient::new(e, &action.asset).transfer(&e.current_contract_address(), &to, &action.tokens_out);
+            TokenClient::new(e, &action.asset).transfer(
+                &e.current_contract_address(),
+                &to,
+                &action.tokens_out,
+            );
         }
     }
 

@@ -7,15 +7,15 @@ use crate::{
 };
 use cast::i128;
 use fixed_point_math::FixedPoint;
-use soroban_sdk::{map, vec, Address, Env, panic_with_error};
+use soroban_sdk::{map, panic_with_error, vec, Address, Env};
 
-use super::{get_fill_modifiers, AuctionData, AuctionQuote, AuctionType, fill_debt_token};
+use super::{fill_debt_token, get_fill_modifiers, AuctionData, AuctionQuote, AuctionType};
 
 pub fn create_bad_debt_auction_data(e: &Env, backstop: &Address) -> AuctionData {
     if storage::has_auction(&e, &(AuctionType::BadDebtAuction as u32), backstop) {
         panic_with_error!(e, PoolError::AuctionInProgress);
     }
-    
+
     let mut auction_data = AuctionData {
         bid: map![e],
         lot: map![e],
@@ -82,7 +82,15 @@ pub fn fill_bad_debt_auction(
     for (res_id, amount) in auction_data.bid.iter_unchecked() {
         let res_asset_address = reserve_list.get_unchecked(res_id).unwrap();
         let amount_modified = amount.fixed_mul_floor(bid_modifier, SCALAR_7).unwrap();
-        let underlying_amount = fill_debt_token(e, &mut pool, &backstop_address, &filler, &res_asset_address, amount_modified, &mut new_positions);
+        let underlying_amount = fill_debt_token(
+            e,
+            &mut pool,
+            &backstop_address,
+            &filler,
+            &res_asset_address,
+            amount_modified,
+            &mut new_positions,
+        );
         auction_quote
             .bid
             .push_back((res_asset_address, underlying_amount));

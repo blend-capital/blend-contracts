@@ -34,16 +34,16 @@ pub struct PoolEmissionConfig {
 #[derive(Clone)]
 #[contracttype]
 pub struct ReserveConfig {
-    pub index: u32,       // the index of the reserve in the list
-    pub decimals: u32,    // the decimals used in both the bToken and underlying contract
-    pub c_factor: u32,    // the collateral factor for the reserve scaled expressed in 7 decimals
-    pub l_factor: u32,    // the liability factor for the reserve scaled expressed in 7 decimals
-    pub util: u32,        // the target utilization rate scaled expressed in 7 decimals
-    pub max_util: u32,    // the maximum allowed utilization rate scaled expressed in 7 decimals
-    pub r_one: u32,       // the R1 value in the interest rate formula scaled expressed in 7 decimals
-    pub r_two: u32,       // the R2 value in the interest rate formula scaled expressed in 7 decimals
-    pub r_three: u32,     // the R3 value in the interest rate formula scaled expressed in 7 decimals
-    pub reactivity: u32,  // the reactivity constant for the reserve scaled expressed in 9 decimals
+    pub index: u32,      // the index of the reserve in the list
+    pub decimals: u32,   // the decimals used in both the bToken and underlying contract
+    pub c_factor: u32,   // the collateral factor for the reserve scaled expressed in 7 decimals
+    pub l_factor: u32,   // the liability factor for the reserve scaled expressed in 7 decimals
+    pub util: u32,       // the target utilization rate scaled expressed in 7 decimals
+    pub max_util: u32,   // the maximum allowed utilization rate scaled expressed in 7 decimals
+    pub r_one: u32,      // the R1 value in the interest rate formula scaled expressed in 7 decimals
+    pub r_two: u32,      // the R2 value in the interest rate formula scaled expressed in 7 decimals
+    pub r_three: u32,    // the R3 value in the interest rate formula scaled expressed in 7 decimals
+    pub reactivity: u32, // the reactivity constant for the reserve scaled expressed in 9 decimals
 }
 
 /// The data for a reserve asset
@@ -552,8 +552,7 @@ pub fn get_pool_emissions_expiration(e: &Env) -> u64 {
 /// * `expiration` - The pool's emission configuration
 pub fn set_pool_emissions_expiration(e: &Env, expiration: &u64) {
     let key = PoolDataKey::EmisExp;
-    e.storage()
-        .set::<PoolDataKey, u64>(&key, expiration);
+    e.storage().set::<PoolDataKey, u64>(&key, expiration);
 }
 
 /********** Auctions ***********/

@@ -1,8 +1,6 @@
-use soroban_sdk::{Env, panic_with_error};
+use soroban_sdk::{panic_with_error, Env};
 
-use crate::{
-    errors::PoolError,
-};
+use crate::errors::PoolError;
 
 /// Require that an incoming amount is not negative
 ///

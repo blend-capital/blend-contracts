@@ -1,11 +1,13 @@
 use crate::{
     dependencies::TokenClient,
+    emissions,
     errors::PoolError,
-    storage, pool::{Pool, PositionData, Positions}, emissions,
+    pool::{Pool, PositionData, Positions},
+    storage,
 };
 use cast::i128;
 use fixed_point_math::FixedPoint;
-use soroban_sdk::{contracttype, Address, Env, Map, Vec, panic_with_error};
+use soroban_sdk::{contracttype, panic_with_error, Address, Env, Map, Vec};
 
 use super::{
     backstop_interest_auction::{create_interest_auction_data, fill_interest_auction},
@@ -89,11 +91,7 @@ pub fn create(e: &Env, auction_type: u32) -> AuctionData {
 ///
 /// ### Panics
 /// If the auction is unable to be created
-pub fn create_liquidation(
-    e: &Env,
-    user: &Address,
-    liq_data: LiquidationMetadata,
-) -> AuctionData {
+pub fn create_liquidation(e: &Env, user: &Address, liq_data: LiquidationMetadata) -> AuctionData {
     let auction_data = create_user_liq_auction_data(e, user, liq_data);
 
     storage::set_auction(
@@ -138,12 +136,7 @@ pub fn delete_liquidation(e: &Env, user: &Address) {
 /// ### Panics
 /// If the auction does not exist, or if the pool is unable to fulfill either side
 /// of the auction quote
-pub fn fill(
-    e: &Env,
-    auction_type: u32,
-    user: &Address,
-    filler: &Address,
-) -> AuctionQuote {
+pub fn fill(e: &Env, auction_type: u32, user: &Address, filler: &Address) -> AuctionQuote {
     let auction_data = storage::get_auction(e, &auction_type, user);
     let quote = match AuctionType::from_u32(auction_type) {
         AuctionType::UserLiquidation => fill_user_liq_auction(e, &auction_data, user, filler),
@@ -158,10 +151,10 @@ pub fn fill(
 
 // @dev: TODO: Look into ways to de-dupe code from the following function and pool/actions.rs
 /// Repay debt tokens from an auction filler for a given position.
-/// 
+///
 /// Modifies the position in place and places updated reserve object in the pool cache. Does NOT write
 /// reserve object back to the ledger.
-/// 
+///
 /// ### Arguments
 /// * `pool` - The pool
 /// * `user` - The user having their debt repaid
@@ -169,10 +162,18 @@ pub fn fill(
 /// * `asset` - The underlying address of the reserve being repaid
 /// * `debt_token_amount` - The amount of debt tokens to repay
 /// * `positions` - The positions of the user
-/// 
+///
 /// ### Panics
 /// If the repayment is unable to be filled
-pub(crate) fn fill_debt_token(e: &Env, pool: &mut Pool, user: &Address, spender: &Address, asset: &Address, debt_token_amount: i128, positions: &mut Positions) -> i128 {
+pub(crate) fn fill_debt_token(
+    e: &Env,
+    pool: &mut Pool,
+    user: &Address,
+    spender: &Address,
+    asset: &Address,
+    debt_token_amount: i128,
+    positions: &mut Positions,
+) -> i128 {
     let mut reserve = pool.load_reserve(e, asset);
     emissions::update_emissions(
         e,
@@ -181,13 +182,18 @@ pub(crate) fn fill_debt_token(e: &Env, pool: &mut Pool, user: &Address, spender:
         reserve.decimals,
         user,
         positions.get_liabilities(reserve.index),
-        false
+        false,
     );
 
     let underlying_amount = reserve.to_asset_from_d_token(debt_token_amount);
     reserve.d_supply -= debt_token_amount;
     positions.remove_liabilities(e, reserve.index, debt_token_amount);
-    TokenClient::new(e, &asset).transfer_from(&e.current_contract_address(), spender, &e.current_contract_address(), &underlying_amount);
+    TokenClient::new(e, &asset).transfer_from(
+        &e.current_contract_address(),
+        spender,
+        &e.current_contract_address(),
+        &underlying_amount,
+    );
     pool.cache_reserve(reserve);
     underlying_amount
 }

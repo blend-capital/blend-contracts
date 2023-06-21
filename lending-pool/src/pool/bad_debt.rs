@@ -1,16 +1,17 @@
-use soroban_sdk::{Address, Env, Symbol, panic_with_error, map};
+use soroban_sdk::{map, panic_with_error, Address, Env, Symbol};
 
 use crate::{
     dependencies::TokenClient,
+    emissions,
     errors::PoolError,
-    storage::{self, has_auction}, emissions,
+    storage::{self, has_auction},
 };
 
-use super::{Reserve};
+use super::Reserve;
 
 /// Manage bad debt for a user. If the user is the backstop, burn the bad debt. Otherwise, transfer
 /// the bad debt to the backstop.
-/// 
+///
 /// ### Panics
 /// If the user does not have bad debt or the backstop's bad debt is not eligible to be burnt
 pub fn manage_bad_debt(e: &Env, user: &Address) {
@@ -30,11 +31,7 @@ pub fn manage_bad_debt(e: &Env, user: &Address) {
 ///
 /// ### Panics
 /// If the user does not have bad debt
-fn transfer_bad_debt_to_backstop(
-    e: &Env,
-    user: &Address,
-    backstop: &Address,
-) {
+fn transfer_bad_debt_to_backstop(e: &Env, user: &Address, backstop: &Address) {
     let positions = storage::get_user_positions(e, user);
     if positions.collateral.len() != 0 || positions.liabilities.len() == 0 {
         panic_with_error!(e, PoolError::BadRequest);
@@ -62,7 +59,7 @@ fn transfer_bad_debt_to_backstop(
             reserve_config.decimals,
             user,
             liability_balance,
-            false
+            false,
         );
         new_backstop_positions.add_liabilities(reserve_index, liability_balance);
 
@@ -101,7 +98,7 @@ fn burn_backstop_bad_debt(e: &Env, backstop: &Address) {
     let reserve_list = storage::get_res_list(e);
     for (reserve_index, liability_balance) in backstop_positions.liabilities.iter_unchecked() {
         if liability_balance > 0 {
-            // remove liability debtTokens from backstop resulting in a shared loss for 
+            // remove liability debtTokens from backstop resulting in a shared loss for
             // token suppliers
             let res_asset_address = reserve_list.get_unchecked(reserve_index).unwrap();
             let mut reserve = Reserve::load(e, &pool_config, &res_asset_address);

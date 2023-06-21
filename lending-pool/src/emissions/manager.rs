@@ -3,7 +3,7 @@ use crate::{
     storage::{self, PoolEmissionConfig, ReserveEmissionsConfig, ReserveEmissionsData},
 };
 use fixed_point_math::FixedPoint;
-use soroban_sdk::{contracttype, map, Address, Env, Map, Symbol, Vec, panic_with_error};
+use soroban_sdk::{contracttype, map, panic_with_error, Address, Env, Map, Symbol, Vec};
 
 use super::distributor;
 
@@ -52,10 +52,7 @@ pub fn get_reserve_emissions(
 ///
 /// ### Panics
 /// If the total share of the pool eps from the reserves is over 1
-pub fn set_pool_emissions(
-    e: &Env,
-    res_emission_metadata: Vec<ReserveEmissionMetadata>,
-) {
+pub fn set_pool_emissions(e: &Env, res_emission_metadata: Vec<ReserveEmissionMetadata>) {
     let mut pool_emissions: Map<u32, u64> = map![&e];
     let mut total_share = 0;
 
@@ -103,11 +100,7 @@ pub fn update_emissions_cycle(e: &Env, next_exp: u64, pool_eps: u64) -> u64 {
     next_exp
 }
 
-fn update_reserve_emission_data(
-    e: &Env,
-    asset: &Address,
-    res_token_id: u32
-) {
+fn update_reserve_emission_data(e: &Env, asset: &Address, res_token_id: u32) {
     if storage::has_res_emis_data(e, &res_token_id) {
         // data exists - update it with old config
         let reserve_config = storage::get_res_config(e, &asset);
@@ -116,7 +109,7 @@ fn update_reserve_emission_data(
             0 => reserve_data.d_supply,
             1 => reserve_data.b_supply,
             _ => panic_with_error!(e, PoolError::BadRequest),
-        };     
+        };
         distributor::update_emission_data(&e, res_token_id, supply, reserve_config.decimals);
     } else {
         // no data exists yet - first time this reserve token will get emission
@@ -150,8 +143,6 @@ fn update_reserve_emission_config(
         (res_token_id, new_res_eps, expiration),
     )
 }
-
-
 
 #[cfg(test)]
 mod tests {

@@ -3,8 +3,7 @@ use crate::{
     emissions::{self, ReserveEmissionMetadata},
     pool::{self, Positions, Request},
     storage::{
-        self, PoolConfig, ReserveConfig, ReserveData, ReserveEmissionsConfig,
-        ReserveEmissionsData,
+        self, PoolConfig, ReserveConfig, ReserveData, ReserveEmissionsConfig, ReserveEmissionsData,
     },
 };
 use soroban_sdk::{contractimpl, Address, BytesN, Env, Map, Symbol, Vec};
@@ -62,12 +61,7 @@ pub trait PoolContractTrait {
     ///
     /// ### Panics
     /// If the caller is not the admin or the reserve is already setup
-    fn init_reserve(
-        e: Env,
-        admin: Address,
-        asset: Address,
-        metadata: ReserveConfig,
-    );
+    fn init_reserve(e: Env, admin: Address, asset: Address, metadata: ReserveConfig);
 
     /// Update a reserve in the pool
     ///
@@ -78,12 +72,7 @@ pub trait PoolContractTrait {
     ///
     /// ### Panics
     /// If the caller is not the admin or the reserve does not exist
-    fn update_reserve(
-        e: Env,
-        admin: Address,
-        asset: Address,
-        config: ReserveConfig,
-    );
+    fn update_reserve(e: Env, admin: Address, asset: Address, config: ReserveConfig);
 
     /// Fetch the reserve configuration for a reserve
     ///
@@ -99,15 +88,15 @@ pub trait PoolContractTrait {
 
     /// Submit a set of requests to the pool where 'from' takes on the position, 'sender' sends any
     /// required tokens to the pool and 'to' receives any tokens sent from the pool
-    /// 
+    ///
     /// Returns the new positions for 'from'
-    /// 
+    ///
     /// ### Arguments
     /// * `from` - The address of the user whose positions are being modified
     /// * `spender` - The address of the user who is sending tokens to the pool
     /// * `to` - The address of the user who is receiving tokens from the pool
     /// * `requests` - A vec of requests to be processed
-    /// 
+    ///
     /// ### Panics
     /// If the request is not able to be completed for cases like insufficient funds or invalid health factor
     fn submit(
@@ -194,12 +183,7 @@ pub trait PoolContractTrait {
     /// * `from` - The address claiming
     /// * `reserve_token_ids` - Vector of reserve token ids
     /// * `to` - The Address to send the claimed tokens to
-    fn claim(
-        e: Env,
-        from: Address,
-        reserve_token_ids: Vec<u32>,
-        to: Address,
-    ) -> i128;
+    fn claim(e: Env, from: Address, reserve_token_ids: Vec<u32>, to: Address) -> i128;
 
     /***** Reserve Emission Functions *****/
 
@@ -224,11 +208,7 @@ pub trait PoolContractTrait {
     ///
     /// ### Panics
     /// If the user liquidation auction was unable to be created
-    fn new_liquidation_auction(
-        e: Env,
-        user: Address,
-        data: LiquidationMetadata,
-    ) -> AuctionData;
+    fn new_liquidation_auction(e: Env, user: Address, data: LiquidationMetadata) -> AuctionData;
 
     /// Delete a user liquidation auction if the user is no longer eligible to be liquidated.
     ///
@@ -269,12 +249,7 @@ pub trait PoolContractTrait {
     ///
     /// ### Panics
     /// If the auction does not exist of if the fill action was not successful
-    fn fill_auction(
-        e: Env,
-        from: Address,
-        auction_type: u32,
-        user: Address,
-    ) -> AuctionQuote;
+    fn fill_auction(e: Env, from: Address, auction_type: u32, user: Address) -> AuctionQuote;
 }
 
 #[contractimpl]
@@ -318,12 +293,7 @@ impl PoolContractTrait for PoolContract {
         );
     }
 
-    fn init_reserve(
-        e: Env,
-        admin: Address,
-        asset: Address,
-        config: ReserveConfig,
-    ) {
+    fn init_reserve(e: Env, admin: Address, asset: Address, config: ReserveConfig) {
         admin.require_auth();
 
         pool::initialize_reserve(&e, &admin, &asset, &config);
@@ -332,12 +302,7 @@ impl PoolContractTrait for PoolContract {
             .publish((Symbol::new(&e, "init_reserve"), admin), (asset,));
     }
 
-    fn update_reserve(
-        e: Env,
-        admin: Address,
-        asset: Address,
-        config: ReserveConfig,
-    ) {
+    fn update_reserve(e: Env, admin: Address, asset: Address, config: ReserveConfig) {
         admin.require_auth();
 
         pool::execute_update_reserve(&e, &admin, &asset, &config);
@@ -421,12 +386,7 @@ impl PoolContractTrait for PoolContract {
         emissions::set_pool_emissions(&e, res_emission_metadata);
     }
 
-    fn claim(
-        e: Env,
-        from: Address,
-        reserve_token_ids: Vec<u32>,
-        to: Address,
-    ) -> i128 {
+    fn claim(e: Env, from: Address, reserve_token_ids: Vec<u32>, to: Address) -> i128 {
         from.require_auth();
 
         let amount_claimed = emissions::execute_claim(&e, &from, &reserve_token_ids, &to);
@@ -450,11 +410,7 @@ impl PoolContractTrait for PoolContract {
 
     /***** Auction / Liquidation Functions *****/
 
-    fn new_liquidation_auction(
-        e: Env,
-        user: Address,
-        data: LiquidationMetadata,
-    ) -> AuctionData {
+    fn new_liquidation_auction(e: Env, user: Address, data: LiquidationMetadata) -> AuctionData {
         let auction_data = auctions::create_liquidation(&e, &user, data);
 
         e.events().publish(
@@ -488,12 +444,7 @@ impl PoolContractTrait for PoolContract {
         auction_data
     }
 
-    fn fill_auction(
-        e: Env,
-        from: Address,
-        auction_type: u32,
-        user: Address,
-    ) -> AuctionQuote {
+    fn fill_auction(e: Env, from: Address, auction_type: u32, user: Address) -> AuctionQuote {
         from.require_auth();
 
         let auction_quote = auctions::fill(&e, auction_type, &user, &from);

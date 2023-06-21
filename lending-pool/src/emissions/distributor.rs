@@ -1,20 +1,15 @@
 use cast::i128;
 use fixed_point_math::FixedPoint;
-use soroban_sdk::{Address, Env, Vec, panic_with_error};
+use soroban_sdk::{panic_with_error, Address, Env, Vec};
 
 use crate::{
-    dependencies::{BackstopClient},
+    dependencies::BackstopClient,
     errors::PoolError,
     storage::{self, ReserveEmissionsData, UserEmissionData},
 };
 
 /// Performs a claim against the given "reserve_token_ids" for "from"
-pub fn execute_claim(
-    e: &Env,
-    from: &Address,
-    reserve_token_ids: &Vec<u32>,
-    to: &Address,
-) -> i128 {
+pub fn execute_claim(e: &Env, from: &Address, reserve_token_ids: &Vec<u32>, to: &Address) -> i128 {
     let positions = storage::get_user_positions(e, &from);
     let reserve_list = storage::get_res_list(e);
     let mut to_claim = 0;
@@ -28,11 +23,25 @@ pub fn execute_claim(
                 let reserve_config = storage::get_res_config(e, &res_address);
                 let reserve_data = storage::get_res_data(e, &res_address);
                 let (user_balance, supply) = match reserve_token_id % 2 {
-                    0 => (positions.get_liabilities(reserve_index), reserve_data.d_supply),
-                    1 => (positions.get_collateral(reserve_index), reserve_data.b_supply),
+                    0 => (
+                        positions.get_liabilities(reserve_index),
+                        reserve_data.d_supply,
+                    ),
+                    1 => (
+                        positions.get_collateral(reserve_index),
+                        reserve_data.b_supply,
+                    ),
                     _ => panic_with_error!(e, PoolError::BadRequest),
-                };     
-                to_claim += update_emissions(&e, reserve_token_id, supply, reserve_config.decimals, &from, user_balance, true);
+                };
+                to_claim += update_emissions(
+                    &e,
+                    reserve_token_id,
+                    supply,
+                    reserve_config.decimals,
+                    &from,
+                    user_balance,
+                    true,
+                );
             }
             None => {
                 panic_with_error!(e, PoolError::BadRequest)
@@ -50,7 +59,7 @@ pub fn execute_claim(
 
 /// Update the emissions information about a reserve token. Must be called before any update
 /// is made to the supply of debtTokens or blendTokens.
-/// 
+///
 /// Returns the amount of tokens to claim, or zero if 'claim' is false
 ///
 /// ### Arguments
@@ -70,10 +79,18 @@ pub fn update_emissions(
     supply_decimals: u32,
     user: &Address,
     balance: i128,
-    claim: bool
+    claim: bool,
 ) -> i128 {
     if let Some(res_emis_data) = update_emission_data(e, res_token_id, supply, supply_decimals) {
-        return update_user_emissions(e, &res_emis_data, res_token_id, supply_decimals, user, balance, claim);
+        return update_user_emissions(
+            e,
+            &res_emis_data,
+            res_token_id,
+            supply_decimals,
+            user,
+            balance,
+            claim,
+        );
     }
     // no emissions data for the reserve exists - nothing to update
     0
@@ -87,7 +104,7 @@ pub fn update_emissions(
 /// * `res_token_id` - The reserve token being acted against => (reserve index * 2 + (0 for debtToken or 1 for blendToken))
 /// * `supply` - The current supply of the reserve token
 /// * `supply_decimals` - The decimals of the reserve token
-/// 
+///
 /// ### Panics
 /// If the reserve update failed
 pub fn update_emission_data(
@@ -135,37 +152,26 @@ fn update_user_emissions(
     supply_decimals: u32,
     user: &Address,
     balance: i128,
-    claim: bool
+    claim: bool,
 ) -> i128 {
     if let Some(user_data) = storage::get_user_emissions(e, &user, &res_token_id) {
         if user_data.index != res_emis_data.index || claim {
             let mut accrual = user_data.accrued;
             if balance != 0 {
                 let to_accrue = balance
-                    .fixed_mul_floor(res_emis_data.index - user_data.index, 10i128.pow(supply_decimals))
+                    .fixed_mul_floor(
+                        res_emis_data.index - user_data.index,
+                        10i128.pow(supply_decimals),
+                    )
                     .unwrap();
                 accrual += to_accrue;
             }
-            return set_user_emissions(
-                e,
-                &user,
-                res_token_id,
-                res_emis_data.index,
-                accrual,
-                claim,
-            );
+            return set_user_emissions(e, &user, res_token_id, res_emis_data.index, accrual, claim);
         }
         return 0;
     } else if balance == 0 {
         // first time the user registered an action with the asset since emissions were added
-        return set_user_emissions(
-            e,
-            &user,
-            res_token_id,
-            res_emis_data.index,
-            0,
-            claim,
-        );
+        return set_user_emissions(e, &user, res_token_id, res_emis_data.index, 0, claim);
     } else {
         // user had tokens before emissions began, they are due any historical emissions
         let to_accrue = balance

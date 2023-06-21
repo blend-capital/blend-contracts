@@ -23,18 +23,31 @@ impl Positions {
 
     /// Get the debtToken position for the reserve at the given index
     pub fn get_liabilities(&self, reserve_index: u32) -> i128 {
-        self.liabilities.get(reserve_index).unwrap_or(Ok(0)).unwrap()
+        self.liabilities
+            .get(reserve_index)
+            .unwrap_or(Ok(0))
+            .unwrap()
     }
 
     /// Add liabilities to the position expressed in debtTokens
     pub fn add_liabilities(&mut self, reserve_index: u32, amount: i128) {
-        let new_amount = self.liabilities.get(reserve_index).unwrap_or(Ok(0)).unwrap() + amount;
+        let new_amount = self
+            .liabilities
+            .get(reserve_index)
+            .unwrap_or(Ok(0))
+            .unwrap()
+            + amount;
         self.liabilities.set(reserve_index, new_amount);
     }
 
     /// Remove liabilities from the position expressed in debtTokens
     pub fn remove_liabilities(&mut self, e: &Env, reserve_index: u32, amount: i128) {
-        let new_amount = self.liabilities.get(reserve_index).unwrap_or(Ok(0)).unwrap() - amount;
+        let new_amount = self
+            .liabilities
+            .get(reserve_index)
+            .unwrap_or(Ok(0))
+            .unwrap()
+            - amount;
         require_nonnegative(e, &new_amount);
         if new_amount == 0 {
             self.liabilities.remove(reserve_index);
@@ -47,7 +60,7 @@ impl Positions {
     pub fn get_collateral(&self, reserve_index: u32) -> i128 {
         self.collateral.get(reserve_index).unwrap_or(Ok(0)).unwrap()
     }
- 
+
     /// Add collateral to the position expressed in blendTokens
     pub fn add_collateral(&mut self, reserve_index: u32, amount: i128) {
         let new_amount = self.collateral.get(reserve_index).unwrap_or(Ok(0)).unwrap() + amount;

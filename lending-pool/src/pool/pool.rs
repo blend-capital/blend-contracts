@@ -1,6 +1,9 @@
-use soroban_sdk::{Address, Map, Env, map, panic_with_error};
+use soroban_sdk::{map, panic_with_error, Address, Env, Map};
 
-use crate::{storage::{PoolConfig, self}, errors::PoolError};
+use crate::{
+    errors::PoolError,
+    storage::{self, PoolConfig},
+};
 
 use super::reserve::Reserve;
 
@@ -13,12 +16,15 @@ impl Pool {
     /// Load the Pool from the ledger
     pub fn load(e: &Env) -> Self {
         let pool_config = storage::get_pool_config(e);
-        Pool { config: pool_config, reserves: map![&e] }
+        Pool {
+            config: pool_config,
+            reserves: map![&e],
+        }
     }
 
     /// Load a Reserve from the ledger and update to the current ledger timestamp. Returns
     /// a cached version if it exists.
-    /// 
+    ///
     /// ### Arguments
     /// * asset - The address of the underlying asset
     pub fn load_reserve(&mut self, e: &Env, asset: &Address) -> Reserve {
@@ -29,7 +35,7 @@ impl Pool {
     }
 
     /// Cache the updated reserve in the pool.
-    /// 
+    ///
     /// ### Arguments
     /// * reserve - The updated reserve
     pub fn cache_reserve(&mut self, reserve: Reserve) {
@@ -44,7 +50,7 @@ impl Pool {
     }
 
     /// Require that the action does not violate the pool status, or panic.
-    /// 
+    ///
     /// ### Arguments
     /// * `action_type` - The type of action being performed
     pub fn require_action_allowed(&self, e: &Env, action_type: u32) {

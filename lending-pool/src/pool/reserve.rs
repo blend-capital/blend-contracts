@@ -1,38 +1,43 @@
-use fixed_point_math::FixedPoint;
-use soroban_sdk::{Address, Env, contracttype, panic_with_error};
 use cast::i128;
+use fixed_point_math::FixedPoint;
+use soroban_sdk::{contracttype, panic_with_error, Address, Env};
 
-use crate::{errors::PoolError, storage::{ReserveEmissionsData, ReserveData, self, PoolConfig}, constants::{SCALAR_9, SCALAR_7}, dependencies::TokenClient};
+use crate::{
+    constants::{SCALAR_7, SCALAR_9},
+    dependencies::TokenClient,
+    errors::PoolError,
+    storage::{self, PoolConfig, ReserveData, ReserveEmissionsData},
+};
 
 use super::interest::calc_accrual;
 
 #[derive(Clone)]
 #[contracttype]
 pub struct Reserve {
-    pub asset: Address, // the underlying asset address
-    pub index: u32,     // the reserve index in the pool
-    pub l_factor: u32,  // the liability factor for the reserve
-    pub c_factor: u32,  // the collateral factor for the reserve
-    pub decimals: u32,   // decimals used for balances
-    pub max_util: u32,  // the maximum utilization rate for the reserve
-    pub last_time: u64, // the last block the data was updated
-    pub d_rate: i128,   // the conversion rate from dToken to underlying (9 decimals)
-    pub b_rate: i128,   // the conversion rate from bToken to underlying (9 decimals)
-    pub ir_mod: i128,   // the interest rate curve modifier
-    pub b_supply: i128, // the total supply of b tokens
-    pub d_supply: i128, // the total supply of d tokens
+    pub asset: Address,        // the underlying asset address
+    pub index: u32,            // the reserve index in the pool
+    pub l_factor: u32,         // the liability factor for the reserve
+    pub c_factor: u32,         // the collateral factor for the reserve
+    pub decimals: u32,         // decimals used for balances
+    pub max_util: u32,         // the maximum utilization rate for the reserve
+    pub last_time: u64,        // the last block the data was updated
+    pub d_rate: i128,          // the conversion rate from dToken to underlying (9 decimals)
+    pub b_rate: i128,          // the conversion rate from bToken to underlying (9 decimals)
+    pub ir_mod: i128,          // the interest rate curve modifier
+    pub b_supply: i128,        // the total supply of b tokens
+    pub d_supply: i128,        // the total supply of d tokens
     pub backstop_credit: i128, // the total amount of underlying tokens owed to the backstop
 }
 
 impl Reserve {
     /// Load a Reserve from the ledger and update to the current ledger timestamp.
-    /// 
+    ///
     /// **NOTE**: This function is not cached, and should be called from the Pool.
-    /// 
+    ///
     /// ### Arguments
     /// * pool_config - The pool configuration
     /// * asset - The address of the underlying asset
-    /// 
+    ///
     /// ### Panics
     /// Panics if the asset is not supported, if emissions cannot be updated, or if the reserve
     /// cannot be updated to the current ledger timestamp.
@@ -69,14 +74,15 @@ impl Reserve {
             reserve.last_time,
         );
         reserve.ir_mod = new_ir_mod;
-        
+
         // credit the backstop underlying from the accrued interest based on the backstop rate
         if pool_config.bstop_rate > 0 {
             let backstop_rate = i128(pool_config.bstop_rate);
             let b_accrual = (loan_accrual - SCALAR_9)
                 .fixed_mul_floor(cur_util, SCALAR_7)
                 .unwrap();
-            let bstop_amount = reserve.total_supply()
+            let bstop_amount = reserve
+                .total_supply()
                 .fixed_mul_floor(b_accrual, SCALAR_9)
                 .unwrap()
                 .fixed_mul_floor(backstop_rate, SCALAR_9)
@@ -101,11 +107,13 @@ impl Reserve {
             // credit the backstop underlying from the accrued interest based on the backstop rate
             let b_rate_accrual = reserve.b_rate - pre_update_b_rate;
             if pool_config.bstop_rate > 0 && b_rate_accrual > 0 {
-                reserve.backstop_credit += reserve.to_asset_from_b_token(pre_update_supply
-                    .fixed_mul_floor(b_rate_accrual, 10i128.pow(reserve.decimals))
-                    .unwrap()
-                    .fixed_mul_floor(i128(pool_config.bstop_rate), SCALAR_9)
-                    .unwrap());
+                reserve.backstop_credit += reserve.to_asset_from_b_token(
+                    pre_update_supply
+                        .fixed_mul_floor(b_rate_accrual, 10i128.pow(reserve.decimals))
+                        .unwrap()
+                        .fixed_mul_floor(i128(pool_config.bstop_rate), SCALAR_9)
+                        .unwrap(),
+                );
             }
         }
 
@@ -133,8 +141,7 @@ impl Reserve {
                 .fixed_div_floor(self.total_supply(), 10i128.pow(self.decimals))
                 .unwrap()
         } else {
-            self
-                .total_liabilities()
+            self.total_liabilities()
                 .fixed_div_floor(self.total_supply(), 10i128.pow(self.decimals))
                 .unwrap()
                 / (10i128.pow(self.decimals - 7))
@@ -231,8 +238,6 @@ impl Reserve {
     /// ### Arguments
     /// * `amount` - The amount of tokens to convert
     pub fn to_b_token_down(&self, amount: i128) -> i128 {
-        amount
-            .fixed_div_floor(self.b_rate, SCALAR_9)
-            .unwrap()
+        amount.fixed_div_floor(self.b_rate, SCALAR_9).unwrap()
     }
 }

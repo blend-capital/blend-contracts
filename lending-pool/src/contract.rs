@@ -1,13 +1,10 @@
 use crate::{
     auctions::{self, AuctionData, AuctionQuote, LiquidationMetadata},
-    bad_debt,
     emissions::{self, ReserveEmissionMetadata},
-    errors::PoolError,
-    pool,
-    reserve::Reserve,
+    pool::{self, Positions, Request},
     storage::{
-        self, PoolConfig, ReserveConfig, ReserveData, ReserveEmissionsConfig, ReserveEmissionsData,
-        ReserveMetadata,
+        self, PoolConfig, ReserveConfig, ReserveData, ReserveEmissionsConfig,
+        ReserveEmissionsData,
     },
 };
 use soroban_sdk::{contractimpl, Address, BytesN, Env, Map, Symbol, Vec};
@@ -44,7 +41,7 @@ pub trait PoolContractTrait {
         d_token_hash: BytesN<32>,
         blnd_id: Address,
         usdc_id: Address,
-    ) -> Result<(), PoolError>;
+    );
 
     /// Update the pool
     ///
@@ -52,41 +49,41 @@ pub trait PoolContractTrait {
     /// * `admin` - The Address for the admin
     /// * `backstop_take_rate` - The new take rate for the backstop
     ///
-    /// ### Errors
+    /// ### Panics
     /// If the caller is not the admin
-    fn update_pool(e: Env, admin: Address, backstiop_take_rate: u64) -> Result<(), PoolError>;
+    fn update_pool(e: Env, admin: Address, backstiop_take_rate: u64);
 
     /// Initialize a reserve in the pool
     ///
     /// ### Arguments
     /// * `admin` - The Address for the admin
     /// * `asset` - The underlying asset to add as a reserve
-    /// * `metadata` - The ReserveMetadata for the reserve
+    /// * `config` - The ReserveConfig for the reserve
     ///
-    /// ### Errors
+    /// ### Panics
     /// If the caller is not the admin or the reserve is already setup
     fn init_reserve(
         e: Env,
         admin: Address,
         asset: Address,
-        metadata: ReserveMetadata,
-    ) -> Result<(), PoolError>;
+        metadata: ReserveConfig,
+    );
 
     /// Update a reserve in the pool
     ///
     /// ### Arguments
     /// * `admin` - The Address for the admin
     /// * `asset` - The underlying asset to add as a reserve
-    /// * `metadata` - The ReserveMetadata for the reserve
+    /// * `config` - The ReserveConfig for the reserve
     ///
-    /// ### Errors
+    /// ### Panics
     /// If the caller is not the admin or the reserve does not exist
     fn update_reserve(
         e: Env,
         admin: Address,
         asset: Address,
-        metadata: ReserveMetadata,
-    ) -> Result<(), PoolError>;
+        config: ReserveConfig,
+    );
 
     /// Fetch the reserve configuration for a reserve
     ///
@@ -100,76 +97,26 @@ pub trait PoolContractTrait {
     /// * `asset` - The underlying asset to add as a reserve
     fn get_reserve_data(e: Env, asset: Address) -> ReserveData;
 
-    /// `from` supplies the `amount` of `asset` into the pool in return for the asset's bToken
-    ///
-    /// Returns the amount of bTokens minted
-    ///
+    /// Submit a set of requests to the pool where 'from' takes on the position, 'sender' sends any
+    /// required tokens to the pool and 'to' receives any tokens sent from the pool
+    /// 
+    /// Returns the new positions for 'from'
+    /// 
     /// ### Arguments
-    /// * `from` - The address supplying
-    /// * `asset` - The contract address of the asset
-    /// * `amount` - The amount of underlying `asset` tokens to supply
-    ///
-    /// ### Errors
-    /// If the invoker has not approved the pool to transfer `asset` at least `amount` and has
-    /// enough tokens to do so
-    fn supply(e: Env, from: Address, asset: Address, amount: i128) -> Result<i128, PoolError>;
-
-    /// Withdraws from `from` `amount` of the `asset` from the invoker and returns it to the `to` Address
-    ///
-    /// Returns the amount of bTokens burnt
-    ///
-    /// ### Arguments
-    /// * `from` - The address withdrawing
-    /// * `asset` - The contract address of the asset
-    /// * `amount` - The amount of underlying `asset` tokens to withdraw
-    /// * `to` - The address to send the withdrawn funds to
-    ///
-    /// ### Errors
-    /// If the invoker does not have enough funds to burn
-    fn withdraw(
+    /// * `from` - The address of the user whose positions are being modified
+    /// * `spender` - The address of the user who is sending tokens to the pool
+    /// * `to` - The address of the user who is receiving tokens from the pool
+    /// * `requests` - A vec of requests to be processed
+    /// 
+    /// ### Panics
+    /// If the request is not able to be completed for cases like insufficient funds or invalid health factor
+    fn submit(
         e: Env,
         from: Address,
-        asset: Address,
-        amount: i128,
+        spender: Address,
         to: Address,
-    ) -> Result<i128, PoolError>;
-
-    /// Borrow's `amount` of `asset` from the pool and sends it to the `to` address and credits a debt
-    /// to the `from` Address
-    ///
-    /// Returns the amount of dTokens minted
-    ///
-    /// ### Arguments
-    /// * `from` - The address supplying
-    /// * `asset` - The contract address of the asset
-    /// * `amount` - The amount of underlying `asset` tokens to borrow
-    /// * `to` - The address receiving the funds
-    fn borrow(
-        e: Env,
-        from: Address,
-        asset: Address,
-        amount: i128,
-        to: Address,
-    ) -> Result<i128, PoolError>;
-
-    /// `from` repays the `amount` of debt for the `asset`, such that the debt is reduced for
-    /// the address `on_behalf_of`
-    ///
-    /// Returns the amount of lTokens burned
-    ///
-    /// ### Arguments
-    /// * `from` - The address repaying
-    /// * `asset` - The contract address of the asset
-    /// * `amount` - The amount of underlying `asset` tokens to borrow
-    ///     * Sending i128.MAX will repay the full amount of the debt
-    /// * `on_behalf_of` - The address receiving the funds
-    fn repay(
-        e: Env,
-        from: Address,
-        asset: Address,
-        amount: i128,
-        on_behalf_of: Address,
-    ) -> Result<i128, PoolError>;
+        requests: Vec<Request>,
+    ) -> Positions;
 
     /// Manage bad debt. Debt is considered "bad" if there is no longer has any collateral posted.
     ///
@@ -182,33 +129,9 @@ pub trait PoolContractTrait {
     /// ### Arguments
     /// * `user` - The user who currently possesses bad debt
     ///
-    /// ### Errors
+    /// ### Panics
     /// If the user has collateral posted
-    fn bad_debt(e: Env, user: Address) -> Result<(), PoolError>;
-
-    /// Update the ability for an asset to be used as collateral for a user. This is
-    /// enabled by default.
-    ///
-    /// ### Arguments
-    /// * `user` - The user to update the collateral status for
-    /// * `asset` - The asset to update the collateral status for
-    /// * `enable` - If the asset can be used as collateral
-    ///
-    /// ### Errors
-    /// If the user currently requires the collateral to be used, or if the user does not
-    /// supply the asset
-    fn update_collateral(
-        e: Env,
-        user: Address,
-        asset: Address,
-        enable: bool,
-    ) -> Result<(), PoolError>;
-
-    /// Fetch the reserve usage configuration for a user
-    ///
-    /// ### Arguments
-    /// * `user` - The Address to fetch the reserve usage for
-    fn get_user_config(e: Env, user: Address) -> u128;
+    fn bad_debt(e: Env, user: Address);
 
     /// Update the pool status based on the backstop state
     /// * 0 = active - if the minimum backstop deposit has been reached
@@ -216,10 +139,10 @@ pub trait PoolContractTrait {
     ///                or 25% of backstop deposits are queued for withdrawal
     /// * 2 = frozen - if 50% of backstop deposits are queued for withdrawal
     ///
-    /// ### Errors
+    /// ### Panics
     /// If the pool is currently of status 3, "admin-freeze", where only the admin
     /// can perform a status update via `set_status`
-    fn update_status(e: Env) -> Result<u32, PoolError>;
+    fn update_status(e: Env) -> u32;
 
     /// Pool status is changed to "pool_status"
     /// * 0 = active
@@ -229,7 +152,7 @@ pub trait PoolContractTrait {
     /// ### Arguments
     /// * `admin` - The admin Address
     /// * 'pool_status' - The pool status to be set
-    fn set_status(e: Env, admin: Address, pool_status: u32) -> Result<(), PoolError>;
+    fn set_status(e: Env, admin: Address, pool_status: u32);
 
     /// Fetch the configuration of the pool
     fn get_pool_config(e: Env) -> PoolConfig;
@@ -244,7 +167,7 @@ pub trait PoolContractTrait {
     /// Needs to be performed each emission cycle, as determined by the expiration
     ///
     /// Returns the expiration timestamp
-    fn update_emissions(e: Env) -> Result<u64, PoolError>;
+    fn update_emissions(e: Env) -> u64;
 
     /// Set the emission configuration for the pool
     ///
@@ -254,14 +177,14 @@ pub trait PoolContractTrait {
     /// * `admin` - The Address of the admin
     /// * `res_emission_metadata` - A vector of ReserveEmissionMetadata to update metadata to
     ///
-    /// ### Errors
+    /// ### Panics
     /// * If the caller is not the admin
     /// * If the sum of ReserveEmissionMetadata shares is greater than 1
     fn set_emissions_config(
         e: Env,
         admin: Address,
         res_emission_metadata: Vec<ReserveEmissionMetadata>,
-    ) -> Result<(), PoolError>;
+    );
 
     /// Claims outstanding emissions for the caller for the given reserve's
     ///
@@ -276,7 +199,7 @@ pub trait PoolContractTrait {
         from: Address,
         reserve_token_ids: Vec<u32>,
         to: Address,
-    ) -> Result<i128, PoolError>;
+    ) -> i128;
 
     /***** Reserve Emission Functions *****/
 
@@ -289,7 +212,7 @@ pub trait PoolContractTrait {
         e: Env,
         asset: Address,
         token_type: u32,
-    ) -> Result<Option<(ReserveEmissionsConfig, ReserveEmissionsData)>, PoolError>;
+    ) -> Option<(ReserveEmissionsConfig, ReserveEmissionsData)>;
 
     /***** Auction / Liquidation Functions *****/
 
@@ -299,22 +222,22 @@ pub trait PoolContractTrait {
     /// * `user` - The user getting liquidated through the auction
     /// * `data` - The metadata for the liquidation
     ///
-    /// ### Errors
+    /// ### Panics
     /// If the user liquidation auction was unable to be created
     fn new_liquidation_auction(
         e: Env,
         user: Address,
         data: LiquidationMetadata,
-    ) -> Result<AuctionData, PoolError>;
+    ) -> AuctionData;
 
     /// Delete a user liquidation auction if the user is no longer eligible to be liquidated.
     ///
     /// ### Arguments
     /// * `user` - The user getting liquidated through the auction
     ///
-    /// ### Errors
+    /// ### Panics
     /// If the user is still eligible to be liquidated state or the auction doesn't exist
-    fn del_liquidation_auction(e: Env, user: Address) -> Result<(), PoolError>;
+    fn del_liquidation_auction(e: Env, user: Address);
 
     /// Fetch an auction from the ledger. Returns a quote based on the current block.
     ///
@@ -322,7 +245,7 @@ pub trait PoolContractTrait {
     /// * `auction_type` - The type of auction
     /// * `user` - The Address involved in the auction
     ///
-    /// ### Errors
+    /// ### Panics
     /// If the auction does not exist
     fn get_auction(e: Env, auction_type: u32, user: Address) -> AuctionData;
 
@@ -331,9 +254,9 @@ pub trait PoolContractTrait {
     /// ### Arguments
     /// * `auction_type` - The type of auction
     ///
-    /// ### Errors
+    /// ### Panics
     /// If the auction was unable to be created
-    fn new_auction(e: Env, auction_type: u32) -> Result<AuctionData, PoolError>;
+    fn new_auction(e: Env, auction_type: u32) -> AuctionData;
 
     /// Fill the auction from `from`
     ///
@@ -344,14 +267,14 @@ pub trait PoolContractTrait {
     /// * `auction_type` - The type of auction
     /// * `user` - The Address involved in the auction
     ///
-    /// ### Errors
+    /// ### Panics
     /// If the auction does not exist of if the fill action was not successful
     fn fill_auction(
         e: Env,
         from: Address,
         auction_type: u32,
         user: Address,
-    ) -> Result<AuctionQuote, PoolError>;
+    ) -> AuctionQuote;
 }
 
 #[contractimpl]
@@ -367,7 +290,7 @@ impl PoolContractTrait for PoolContract {
         d_token_hash: BytesN<32>,
         blnd_id: Address,
         usdc_id: Address,
-    ) -> Result<(), PoolError> {
+    ) {
         admin.require_auth();
 
         pool::execute_initialize(
@@ -381,50 +304,46 @@ impl PoolContractTrait for PoolContract {
             &d_token_hash,
             &blnd_id,
             &usdc_id,
-        )
+        );
     }
 
-    fn update_pool(e: Env, admin: Address, backstop_take_rate: u64) -> Result<(), PoolError> {
+    fn update_pool(e: Env, admin: Address, backstop_take_rate: u64) {
         admin.require_auth();
 
-        pool::execute_update_pool(&e, &admin, backstop_take_rate)?;
+        pool::execute_update_pool(&e, &admin, backstop_take_rate);
 
         e.events().publish(
             (Symbol::new(&e, "update_pool"), admin),
             (backstop_take_rate,),
         );
-        Ok(())
     }
 
     fn init_reserve(
         e: Env,
         admin: Address,
         asset: Address,
-        metadata: ReserveMetadata,
-    ) -> Result<(), PoolError> {
+        config: ReserveConfig,
+    ) {
         admin.require_auth();
 
-        pool::initialize_reserve(&e, &admin, &asset, &metadata)?;
+        pool::initialize_reserve(&e, &admin, &asset, &config);
 
         e.events()
             .publish((Symbol::new(&e, "init_reserve"), admin), (asset,));
-        Ok(())
     }
 
     fn update_reserve(
         e: Env,
         admin: Address,
         asset: Address,
-        metadata: ReserveMetadata,
-    ) -> Result<(), PoolError> {
+        config: ReserveConfig,
+    ) {
         admin.require_auth();
 
-        pool::execute_update_reserve(&e, &admin, &asset, &metadata)?;
+        pool::execute_update_reserve(&e, &admin, &asset, &config);
 
         e.events()
             .publish((Symbol::new(&e, "update_reserve"), admin), (asset,));
-
-        Ok(())
     }
 
     fn get_reserve_config(e: Env, asset: Address) -> ReserveConfig {
@@ -432,124 +351,45 @@ impl PoolContractTrait for PoolContract {
     }
 
     fn get_reserve_data(e: Env, asset: Address) -> ReserveData {
-        let mut res = Reserve::load(&e, asset);
-        res.update_rates(&e, storage::get_pool_config(&e).bstop_rate);
-        res.data
+        storage::get_res_data(&e, &asset)
     }
 
-    fn supply(e: Env, from: Address, asset: Address, amount: i128) -> Result<i128, PoolError> {
-        from.require_auth();
-
-        let b_tokens_minted = pool::execute_supply(&e, &from, &asset, amount)?;
-
-        e.events().publish(
-            (Symbol::new(&e, "supply"), from),
-            (asset, amount, b_tokens_minted),
-        );
-
-        Ok(b_tokens_minted)
-    }
-
-    fn withdraw(
+    fn submit(
         e: Env,
         from: Address,
-        asset: Address,
-        amount: i128,
+        spender: Address,
         to: Address,
-    ) -> Result<i128, PoolError> {
+        requests: Vec<Request>,
+    ) -> Positions {
         from.require_auth();
+        if from != spender {
+            spender.require_auth();
+        }
 
-        let b_tokens_burnt = pool::execute_withdraw(&e, &from, &asset, amount, &to)?;
-
-        e.events().publish(
-            (Symbol::new(&e, "withdraw"), from),
-            (asset, amount, b_tokens_burnt),
-        );
-
-        Ok(b_tokens_burnt)
+        pool::execute_submit(&e, &from, &spender, &to, requests)
     }
 
-    fn borrow(
-        e: Env,
-        from: Address,
-        asset: Address,
-        amount: i128,
-        to: Address,
-    ) -> Result<i128, PoolError> {
-        from.require_auth();
-
-        let d_tokens_minted = pool::execute_borrow(&e, &from, &asset, amount, &to)?;
-
-        e.events().publish(
-            (Symbol::new(&e, "borrow"), from),
-            (asset, amount, d_tokens_minted),
-        );
-
-        Ok(d_tokens_minted)
+    fn bad_debt(e: Env, user: Address) {
+        pool::manage_bad_debt(&e, &user);
     }
 
-    fn repay(
-        e: Env,
-        from: Address,
-        asset: Address,
-        amount: i128,
-        on_behalf_of: Address,
-    ) -> Result<i128, PoolError> {
-        from.require_auth();
-
-        let d_tokens_burnt = pool::execute_repay(&e, &from, &asset, amount, &on_behalf_of)?;
-
-        e.events().publish(
-            (Symbol::new(&e, "repay"), from),
-            (asset, amount, d_tokens_burnt),
-        );
-
-        Ok(d_tokens_burnt)
-    }
-
-    fn bad_debt(e: Env, user: Address) -> Result<(), PoolError> {
-        bad_debt::manage_bad_debt(&e, &user)
-    }
-
-    fn update_collateral(
-        e: Env,
-        user: Address,
-        asset: Address,
-        enable: bool,
-    ) -> Result<(), PoolError> {
-        user.require_auth();
-
-        pool::execute_update_collateral(&e, &user, &asset, enable)?;
-
-        e.events().publish(
-            (Symbol::new(&e, "update_collateral"), user),
-            (asset, enable),
-        );
-        Ok(())
-    }
-
-    fn get_user_config(e: Env, user: Address) -> u128 {
-        storage::get_user_config(&e, &user)
-    }
-
-    fn update_status(e: Env) -> Result<u32, PoolError> {
-        let new_status = pool::execute_update_pool_status(&e)?;
+    fn update_status(e: Env) -> u32 {
+        let new_status = pool::execute_update_pool_status(&e).unwrap();
 
         // msg.sender
         let caller = e.call_stack().get(0).unwrap().unwrap().0;
         e.events()
             .publish((Symbol::new(&e, "set_status"), caller), new_status);
-        Ok(new_status)
+        new_status
     }
 
-    fn set_status(e: Env, admin: Address, pool_status: u32) -> Result<(), PoolError> {
+    fn set_status(e: Env, admin: Address, pool_status: u32) {
         admin.require_auth();
 
-        pool::set_pool_status(&e, &admin, pool_status)?;
+        pool::set_pool_status(&e, &admin, pool_status);
 
         e.events()
             .publish((Symbol::new(&e, "set_status"), admin), pool_status);
-        Ok(())
     }
 
     fn get_pool_config(e: Env) -> PoolConfig {
@@ -563,22 +403,22 @@ impl PoolContractTrait for PoolContract {
         storage::get_pool_emissions(&e)
     }
 
-    fn update_emissions(e: Env) -> Result<u64, PoolError> {
-        let next_expiration = pool::update_pool_emissions(&e)?;
+    fn update_emissions(e: Env) -> u64 {
+        let next_expiration = pool::update_pool_emissions(&e);
 
         e.events()
             .publish((Symbol::new(&e, "update_emissions"),), next_expiration);
-        Ok(next_expiration)
+        next_expiration
     }
 
     fn set_emissions_config(
         e: Env,
         admin: Address,
         res_emission_metadata: Vec<ReserveEmissionMetadata>,
-    ) -> Result<(), PoolError> {
+    ) {
         admin.require_auth();
 
-        emissions::set_pool_emissions(&e, res_emission_metadata)
+        emissions::set_pool_emissions(&e, res_emission_metadata);
     }
 
     fn claim(
@@ -586,17 +426,17 @@ impl PoolContractTrait for PoolContract {
         from: Address,
         reserve_token_ids: Vec<u32>,
         to: Address,
-    ) -> Result<i128, PoolError> {
+    ) -> i128 {
         from.require_auth();
 
-        let amount_claimed = emissions::execute_claim(&e, &from, &reserve_token_ids, &to)?;
+        let amount_claimed = emissions::execute_claim(&e, &from, &reserve_token_ids, &to);
 
         e.events().publish(
             (Symbol::new(&e, "claim"), from),
             (reserve_token_ids, amount_claimed),
         );
 
-        Ok(amount_claimed)
+        amount_claimed
     }
 
     // @dev: view
@@ -604,7 +444,7 @@ impl PoolContractTrait for PoolContract {
         e: Env,
         asset: Address,
         token_type: u32,
-    ) -> Result<Option<(ReserveEmissionsConfig, ReserveEmissionsData)>, PoolError> {
+    ) -> Option<(ReserveEmissionsConfig, ReserveEmissionsData)> {
         emissions::get_reserve_emissions(&e, &asset, token_type)
     }
 
@@ -614,40 +454,38 @@ impl PoolContractTrait for PoolContract {
         e: Env,
         user: Address,
         data: LiquidationMetadata,
-    ) -> Result<AuctionData, PoolError> {
-        let auction_data = auctions::create_liquidation(&e, &user, data)?;
+    ) -> AuctionData {
+        let auction_data = auctions::create_liquidation(&e, &user, data);
 
         e.events().publish(
             (Symbol::new(&e, "new_liquidation_auction"), user),
             auction_data.clone(),
         );
 
-        Ok(auction_data)
+        auction_data
     }
 
     // TODO: Consider checking this before filling an auction based on estimated gas cost.
-    fn del_liquidation_auction(e: Env, user: Address) -> Result<(), PoolError> {
-        auctions::delete_liquidation(&e, &user)?;
+    fn del_liquidation_auction(e: Env, user: Address) {
+        auctions::delete_liquidation(&e, &user);
 
         e.events()
             .publish((Symbol::new(&e, "del_liquidation_auction"), user), ());
-
-        Ok(())
     }
 
     fn get_auction(e: Env, auction_type: u32, user: Address) -> AuctionData {
         storage::get_auction(&e, &auction_type, &user)
     }
 
-    fn new_auction(e: Env, auction_type: u32) -> Result<AuctionData, PoolError> {
-        let auction_data = auctions::create(&e, auction_type)?;
+    fn new_auction(e: Env, auction_type: u32) -> AuctionData {
+        let auction_data = auctions::create(&e, auction_type);
 
         e.events().publish(
             (Symbol::new(&e, "new_auction"), auction_type),
             auction_data.clone(),
         );
 
-        Ok(auction_data)
+        auction_data
     }
 
     fn fill_auction(
@@ -655,16 +493,16 @@ impl PoolContractTrait for PoolContract {
         from: Address,
         auction_type: u32,
         user: Address,
-    ) -> Result<AuctionQuote, PoolError> {
+    ) -> AuctionQuote {
         from.require_auth();
 
-        let auction_quote = auctions::fill(&e, auction_type, &user, &from)?;
+        let auction_quote = auctions::fill(&e, auction_type, &user, &from);
 
         e.events().publish(
             (Symbol::new(&e, "fill_auction"), from),
             (auction_type, user),
         );
 
-        Ok(auction_quote)
+        auction_quote
     }
 }

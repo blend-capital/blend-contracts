@@ -8,7 +8,7 @@ use crate::{
 };
 use cast::i128;
 use fixed_point_math::FixedPoint;
-use soroban_sdk::{map, panic_with_error, vec, Address, Env};
+use soroban_sdk::{map, panic_with_error, vec, Address, Env, unwrap::UnwrapOptimized};
 
 use super::{get_fill_modifiers, AuctionData, AuctionQuote, AuctionType};
 
@@ -33,14 +33,14 @@ pub fn create_interest_auction_data(e: &Env, backstop: &Address) -> AuctionData 
     let reserve_list = storage::get_res_list(e);
     let mut interest_value = 0; // expressed in the oracle's decimals
     for i in 0..reserve_list.len() {
-        let res_asset_address = reserve_list.get_unchecked(i).unwrap();
+        let res_asset_address = reserve_list.get_unchecked(i).unwrap_optimized();
         // don't store updated reserve data back to ledger. This will occur on the the auction's fill.
         let reserve = pool.load_reserve(e, &res_asset_address);
         if reserve.backstop_credit > 0 {
             let asset_to_base = oracle_client.get_price(&res_asset_address);
             interest_value += i128(asset_to_base)
                 .fixed_mul_floor(reserve.backstop_credit, 10i128.pow(reserve.decimals))
-                .unwrap();
+                .unwrap_optimized();
             auction_data.lot.set(i, reserve.backstop_credit);
         }
     }
@@ -53,9 +53,9 @@ pub fn create_interest_auction_data(e: &Env, backstop: &Address) -> AuctionData 
     let usdc_to_base = oracle_client.get_price(&usdc_token);
     let bid_amount = interest_value
         .fixed_mul_floor(1_4000000, SCALAR_7)
-        .unwrap()
+        .unwrap_optimized()
         .fixed_div_floor(i128(usdc_to_base), SCALAR_7)
-        .unwrap();
+        .unwrap_optimized();
     // u32::MAX is the key for the USDC lot
     auction_data.bid.set(u32::MAX, bid_amount);
 
@@ -77,8 +77,8 @@ pub fn fill_interest_auction(
 
     // bid only contains the USDC token
     let usdc_token = storage::get_usdc_token(e);
-    let bid_amount = auction_data.bid.get_unchecked(u32::MAX).unwrap();
-    let bid_amount_modified = bid_amount.fixed_mul_floor(bid_modifier, SCALAR_7).unwrap();
+    let bid_amount = auction_data.bid.get_unchecked(u32::MAX).unwrap_optimized();
+    let bid_amount_modified = bid_amount.fixed_mul_floor(bid_modifier, SCALAR_7).unwrap_optimized();
     auction_quote
         .bid
         .push_back((usdc_token.clone(), bid_amount_modified));
@@ -91,9 +91,9 @@ pub fn fill_interest_auction(
     let mut pool = Pool::load(e);
     let reserve_list = storage::get_res_list(e);
     for (res_id, lot_amount) in auction_data.lot.iter_unchecked() {
-        let res_asset_address = reserve_list.get_unchecked(res_id).unwrap();
+        let res_asset_address = reserve_list.get_unchecked(res_id).unwrap_optimized();
         let mut reserve = pool.load_reserve(e, &res_asset_address);
-        let lot_amount_modified = lot_amount.fixed_mul_floor(lot_modifier, SCALAR_7).unwrap();
+        let lot_amount_modified = lot_amount.fixed_mul_floor(lot_modifier, SCALAR_7).unwrap_optimized();
         auction_quote
             .lot
             .push_back((reserve.asset.clone(), lot_amount_modified));
@@ -227,17 +227,17 @@ mod tests {
             b_token_0.mint(&backstop_address, &10_0000000);
             b_token_1.mint(&backstop_address, &2_5000000);
 
-            let result = create_interest_auction_data(&e, &backstop_address).unwrap();
+            let result = create_interest_auction_data(&e, &backstop_address).unwrap_optimized();
 
             assert_eq!(result.block, 51);
-            assert_eq!(result.bid.get_unchecked(u32::MAX).unwrap(), 47_6000000);
+            assert_eq!(result.bid.get_unchecked(u32::MAX).unwrap_optimized(), 47_6000000);
             assert_eq!(result.bid.len(), 1);
             assert_eq!(
-                result.lot.get_unchecked(reserve_0.config.index).unwrap(),
+                result.lot.get_unchecked(reserve_0.config.index).unwrap_optimized(),
                 10_0000000
             );
             assert_eq!(
-                result.lot.get_unchecked(reserve_1.config.index).unwrap(),
+                result.lot.get_unchecked(reserve_1.config.index).unwrap_optimized(),
                 2_5000000
             );
             assert_eq!(result.lot.len(), 2);
@@ -307,21 +307,21 @@ mod tests {
             b_token_0.mint(&backstop_address, &10_0000000);
             b_token_1.mint(&backstop_address, &2_5000000);
 
-            let result = create_interest_auction_data(&e, &backstop_address).unwrap();
+            let result = create_interest_auction_data(&e, &backstop_address).unwrap_optimized();
 
             assert_eq!(result.block, 151);
-            assert_eq!(result.bid.get_unchecked(u32::MAX).unwrap(), 47_6010785);
+            assert_eq!(result.bid.get_unchecked(u32::MAX).unwrap_optimized(), 47_6010785);
             assert_eq!(result.bid.len(), 1);
             assert_eq!(
-                result.lot.get_unchecked(reserve_0.config.index).unwrap(),
+                result.lot.get_unchecked(reserve_0.config.index).unwrap_optimized(),
                 10_0000065
             );
             assert_eq!(
-                result.lot.get_unchecked(reserve_1.config.index).unwrap(),
+                result.lot.get_unchecked(reserve_1.config.index).unwrap_optimized(),
                 2_5000061
             );
             assert_eq!(
-                result.lot.get_unchecked(reserve_2.config.index).unwrap(),
+                result.lot.get_unchecked(reserve_2.config.index).unwrap_optimized(),
                 71
             );
             assert_eq!(result.lot.len(), 3);
@@ -407,14 +407,14 @@ mod tests {
             let result = fill_interest_auction(&e, &auction_data, &samwise);
             // let result = calc_fill_interest_auction(&e, &auction);
 
-            assert_eq!(result.bid.get_unchecked(0).unwrap(), (usdc_id, 71_4000000));
+            assert_eq!(result.bid.get_unchecked(0).unwrap_optimized(), (usdc_id, 71_4000000));
             assert_eq!(result.bid.len(), 1);
             assert_eq!(
-                result.lot.get_unchecked(0).unwrap(),
+                result.lot.get_unchecked(0).unwrap_optimized(),
                 (reserve_0.config.b_token, 10_0000000)
             );
             assert_eq!(
-                result.lot.get_unchecked(1).unwrap(),
+                result.lot.get_unchecked(1).unwrap_optimized(),
                 (reserve_1.config.b_token, 2_5000000)
             );
             assert_eq!(result.lot.len(), 2);

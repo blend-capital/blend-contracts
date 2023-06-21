@@ -1,6 +1,6 @@
 use cast::i128;
 use fixed_point_math::FixedPoint;
-use soroban_sdk::{contracttype, panic_with_error, Address, Env};
+use soroban_sdk::{contracttype, panic_with_error, Address, Env, unwrap::UnwrapOptimized};
 
 use crate::{
     constants::{SCALAR_7, SCALAR_9},
@@ -80,19 +80,19 @@ impl Reserve {
             let backstop_rate = i128(pool_config.bstop_rate);
             let b_accrual = (loan_accrual - SCALAR_9)
                 .fixed_mul_floor(cur_util, SCALAR_7)
-                .unwrap();
+                .unwrap_optimized();
             let bstop_amount = reserve
                 .total_supply()
                 .fixed_mul_floor(b_accrual, SCALAR_9)
-                .unwrap()
+                .unwrap_optimized()
                 .fixed_mul_floor(backstop_rate, SCALAR_9)
-                .unwrap();
+                .unwrap_optimized();
             reserve.backstop_credit += bstop_amount;
         }
 
         reserve.d_rate = loan_accrual
             .fixed_mul_ceil(reserve.d_rate, SCALAR_9)
-            .unwrap();
+            .unwrap_optimized();
 
         if reserve.b_supply != 0 {
             // TODO: Is it safe to calculate b_rate from accrual? If any unexpected token loss occurs
@@ -102,7 +102,7 @@ impl Reserve {
             let token_bal = TokenClient::new(e, &asset).balance(&e.current_contract_address());
             reserve.b_rate = (reserve.total_liabilities() + token_bal - reserve.backstop_credit)
                 .fixed_div_floor(reserve.b_supply, 10i128.pow(reserve.decimals))
-                .unwrap();
+                .unwrap_optimized();
 
             // credit the backstop underlying from the accrued interest based on the backstop rate
             let b_rate_accrual = reserve.b_rate - pre_update_b_rate;
@@ -110,9 +110,9 @@ impl Reserve {
                 reserve.backstop_credit += reserve.to_asset_from_b_token(
                     pre_update_supply
                         .fixed_mul_floor(b_rate_accrual, 10i128.pow(reserve.decimals))
-                        .unwrap()
+                        .unwrap_optimized()
                         .fixed_mul_floor(i128(pool_config.bstop_rate), SCALAR_9)
-                        .unwrap(),
+                        .unwrap_optimized(),
                 );
             }
         }
@@ -139,11 +139,11 @@ impl Reserve {
         if self.decimals < 7 {
             (self.total_liabilities() * 10i128.pow(7 - self.decimals))
                 .fixed_div_floor(self.total_supply(), 10i128.pow(self.decimals))
-                .unwrap()
+                .unwrap_optimized()
         } else {
             self.total_liabilities()
                 .fixed_div_floor(self.total_supply(), 10i128.pow(self.decimals))
-                .unwrap()
+                .unwrap_optimized()
                 / (10i128.pow(self.decimals - 7))
         }
     }
@@ -172,7 +172,7 @@ impl Reserve {
     /// ### Arguments
     /// * `d_tokens` - The amount of tokens to convert
     pub fn to_asset_from_d_token(&self, d_tokens: i128) -> i128 {
-        d_tokens.fixed_mul_ceil(self.d_rate, SCALAR_9).unwrap()
+        d_tokens.fixed_mul_ceil(self.d_rate, SCALAR_9).unwrap_optimized()
     }
 
     /// Convert b_tokens to the corresponding asset value
@@ -182,7 +182,7 @@ impl Reserve {
     pub fn to_asset_from_b_token(&self, b_tokens: i128) -> i128 {
         b_tokens
             .fixed_mul_floor(self.b_rate, 10i128.pow(self.decimals))
-            .unwrap()
+            .unwrap_optimized()
     }
 
     /// Convert d_tokens to their corresponding effective asset value. This
@@ -194,7 +194,7 @@ impl Reserve {
         let assets = self.to_asset_from_d_token(d_tokens);
         assets
             .fixed_div_ceil(i128(self.l_factor), SCALAR_7)
-            .unwrap()
+            .unwrap_optimized()
     }
 
     /// Convert b_tokens to the corresponding effective asset value. This
@@ -206,7 +206,7 @@ impl Reserve {
         let assets = self.to_asset_from_b_token(b_tokens);
         assets
             .fixed_mul_floor(i128(self.c_factor), SCALAR_7)
-            .unwrap()
+            .unwrap_optimized()
     }
 
     /// Convert asset tokens to the corresponding d token value - rounding up
@@ -214,7 +214,7 @@ impl Reserve {
     /// ### Arguments
     /// * `amount` - The amount of tokens to convert
     pub fn to_d_token_up(&self, amount: i128) -> i128 {
-        amount.fixed_div_ceil(self.d_rate, SCALAR_9).unwrap()
+        amount.fixed_div_ceil(self.d_rate, SCALAR_9).unwrap_optimized()
     }
 
     /// Convert asset tokens to the corresponding d token value - rounding down
@@ -222,7 +222,7 @@ impl Reserve {
     /// ### Arguments
     /// * `amount` - The amount of tokens to convert
     pub fn to_d_token_down(&self, amount: i128) -> i128 {
-        amount.fixed_div_floor(self.d_rate, SCALAR_9).unwrap()
+        amount.fixed_div_floor(self.d_rate, SCALAR_9).unwrap_optimized()
     }
 
     /// Convert asset tokens to the corresponding b token value - round up
@@ -230,7 +230,7 @@ impl Reserve {
     /// ### Arguments
     /// * `amount` - The amount of tokens to convert
     pub fn to_b_token_up(&self, amount: i128) -> i128 {
-        amount.fixed_div_ceil(self.b_rate, SCALAR_9).unwrap()
+        amount.fixed_div_ceil(self.b_rate, SCALAR_9).unwrap_optimized()
     }
 
     /// Convert asset tokens to the corresponding b token value - round down
@@ -238,6 +238,6 @@ impl Reserve {
     /// ### Arguments
     /// * `amount` - The amount of tokens to convert
     pub fn to_b_token_down(&self, amount: i128) -> i128 {
-        amount.fixed_div_floor(self.b_rate, SCALAR_9).unwrap()
+        amount.fixed_div_floor(self.b_rate, SCALAR_9).unwrap_optimized()
     }
 }

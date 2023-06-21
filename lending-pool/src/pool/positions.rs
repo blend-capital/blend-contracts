@@ -1,4 +1,4 @@
-use soroban_sdk::{contracttype, Env, Map};
+use soroban_sdk::{contracttype, Env, Map, unwrap::UnwrapOptimized};
 
 use crate::validator::require_nonnegative;
 
@@ -26,7 +26,7 @@ impl Positions {
         self.liabilities
             .get(reserve_index)
             .unwrap_or(Ok(0))
-            .unwrap()
+            .unwrap_optimized()
     }
 
     /// Add liabilities to the position expressed in debtTokens
@@ -35,7 +35,7 @@ impl Positions {
             .liabilities
             .get(reserve_index)
             .unwrap_or(Ok(0))
-            .unwrap()
+            .unwrap_optimized()
             + amount;
         self.liabilities.set(reserve_index, new_amount);
     }
@@ -46,7 +46,7 @@ impl Positions {
             .liabilities
             .get(reserve_index)
             .unwrap_or(Ok(0))
-            .unwrap()
+            .unwrap_optimized()
             - amount;
         require_nonnegative(e, &new_amount);
         if new_amount == 0 {
@@ -58,18 +58,18 @@ impl Positions {
 
     /// Get the collateralized blendToken position for the reserve at the given index
     pub fn get_collateral(&self, reserve_index: u32) -> i128 {
-        self.collateral.get(reserve_index).unwrap_or(Ok(0)).unwrap()
+        self.collateral.get(reserve_index).unwrap_or(Ok(0)).unwrap_optimized()
     }
 
     /// Add collateral to the position expressed in blendTokens
     pub fn add_collateral(&mut self, reserve_index: u32, amount: i128) {
-        let new_amount = self.collateral.get(reserve_index).unwrap_or(Ok(0)).unwrap() + amount;
+        let new_amount = self.collateral.get(reserve_index).unwrap_or(Ok(0)).unwrap_optimized() + amount;
         self.collateral.set(reserve_index, new_amount);
     }
 
     /// Remove collateral from the position expressed in blendTokens
     pub fn remove_collateral(&mut self, e: &Env, reserve_index: u32, amount: i128) {
-        let new_amount = self.collateral.get(reserve_index).unwrap_or(Ok(0)).unwrap() - amount;
+        let new_amount = self.collateral.get(reserve_index).unwrap_or(Ok(0)).unwrap_optimized() - amount;
         require_nonnegative(e, &new_amount);
         if new_amount == 0 {
             self.collateral.remove(reserve_index);
@@ -80,18 +80,18 @@ impl Positions {
 
     /// Get the uncollateralized blendToken position for the reserve at the given index
     pub fn get_supply(&self, reserve_index: u32) -> i128 {
-        self.supply.get(reserve_index).unwrap_or(Ok(0)).unwrap()
+        self.supply.get(reserve_index).unwrap_or(Ok(0)).unwrap_optimized()
     }
 
     /// Add supply to the position expressed in blendTokens
     pub fn add_supply(&mut self, reserve_index: u32, amount: i128) {
-        let new_amount = self.supply.get(reserve_index).unwrap_or(Ok(0)).unwrap() + amount;
+        let new_amount = self.supply.get(reserve_index).unwrap_or(Ok(0)).unwrap_optimized() + amount;
         self.supply.set(reserve_index, new_amount);
     }
 
     /// Remove supply from the position expressed in blendTokens
     pub fn remove_supply(&mut self, e: &Env, reserve_index: u32, amount: i128) {
-        let new_amount = self.supply.get(reserve_index).unwrap_or(Ok(0)).unwrap() - amount;
+        let new_amount = self.supply.get(reserve_index).unwrap_or(Ok(0)).unwrap_optimized() - amount;
         require_nonnegative(e, &new_amount);
         if new_amount == 0 {
             self.supply.remove(reserve_index);

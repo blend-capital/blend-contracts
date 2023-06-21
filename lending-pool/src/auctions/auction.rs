@@ -7,7 +7,7 @@ use crate::{
 };
 use cast::i128;
 use fixed_point_math::FixedPoint;
-use soroban_sdk::{contracttype, panic_with_error, Address, Env, Map, Vec};
+use soroban_sdk::{contracttype, panic_with_error, Address, Env, Map, Vec, unwrap::UnwrapOptimized};
 
 use super::{
     backstop_interest_auction::{create_interest_auction_data, fill_interest_auction},
@@ -215,13 +215,13 @@ pub(super) fn get_fill_modifiers(e: &Env, auction_data: &AuctionData) -> (i128, 
         bid_mod = 2_0000000
             - block_dif
                 .fixed_mul_floor(per_block_scalar, 1_0000000)
-                .unwrap();
+                .unwrap_optimized();
         lot_mod = 1_0000000;
     } else {
         bid_mod = 1_000_0000;
         lot_mod = block_dif
             .fixed_mul_floor(per_block_scalar, 1_0000000)
-            .unwrap();
+            .unwrap_optimized();
     };
     (bid_mod, lot_mod)
 }
@@ -304,7 +304,7 @@ mod tests {
                 &auction_data,
             );
 
-            delete_liquidation(&e, &samwise).unwrap();
+            delete_liquidation(&e, &samwise).unwrap_optimized();
             assert!(!storage::has_auction(
                 &e,
                 &(AuctionType::UserLiquidation as u32),

@@ -1,4 +1,4 @@
-use soroban_sdk::{contracttype, panic_with_error, vec, Address, Env, Vec};
+use soroban_sdk::{contracttype, panic_with_error, vec, Address, Env, Vec, unwrap::UnwrapOptimized};
 
 use crate::{
     emissions, errors::PoolError, pool::Positions, storage, validator::require_nonnegative,
@@ -60,7 +60,7 @@ pub fn build_actions_from_request(
         let asset = reserve_list
             .get(request.reserve_index)
             .unwrap_or_else(|| panic_with_error!(e, PoolError::BadRequest))
-            .unwrap();
+            .unwrap_optimized();
         pool.require_action_allowed(e, request.request_type);
         let mut reserve = pool.load_reserve(e, &asset);
 

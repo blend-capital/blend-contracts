@@ -1,4 +1,4 @@
-use soroban_sdk::{map, panic_with_error, Address, Env, Symbol};
+use soroban_sdk::{map, panic_with_error, Address, Env, Symbol, unwrap::UnwrapOptimized};
 
 use crate::{
     dependencies::TokenClient,
@@ -49,7 +49,7 @@ fn transfer_bad_debt_to_backstop(e: &Env, user: &Address, backstop: &Address) {
         // no direct action is taken against the reserve, so the reserve's data does not
         // need to be updated. However, emissions need to be accrued for the user up to
         // this point.
-        let asset = reserve_list.get_unchecked(reserve_index).unwrap();
+        let asset = reserve_list.get_unchecked(reserve_index).unwrap_optimized();
         let reserve_config = storage::get_res_config(e, &asset);
         let reserve_data = storage::get_res_data(e, &asset);
         emissions::update_emissions(
@@ -100,7 +100,7 @@ fn burn_backstop_bad_debt(e: &Env, backstop: &Address) {
         if liability_balance > 0 {
             // remove liability debtTokens from backstop resulting in a shared loss for
             // token suppliers
-            let res_asset_address = reserve_list.get_unchecked(reserve_index).unwrap();
+            let res_asset_address = reserve_list.get_unchecked(reserve_index).unwrap_optimized();
             let mut reserve = Reserve::load(e, &pool_config, &res_asset_address);
             reserve.d_supply -= liability_balance;
             reserve.store(e);
@@ -182,7 +182,7 @@ mod tests {
             d_token_1.mint(&samwise, &liability_amount_1);
 
             e.budget().reset_unlimited();
-            transfer_bad_debt_to_backstop(&e, &samwise, &backstop_address).unwrap();
+            transfer_bad_debt_to_backstop(&e, &samwise, &backstop_address).unwrap_optimized();
 
             assert_eq!(d_token_0.balance(&samwise), 0);
             assert_eq!(d_token_0.balance(&backstop_address), liability_amount_0);
@@ -335,7 +335,7 @@ mod tests {
             let d_token_supply_1 = reserve_1.data.d_supply;
 
             e.budget().reset_unlimited();
-            burn_backstop_bad_debt(&e, &backstop_address).unwrap();
+            burn_backstop_bad_debt(&e, &backstop_address).unwrap_optimized();
 
             assert_eq!(d_token_0.balance(&backstop_address), 0);
             assert_eq!(d_token_1.balance(&backstop_address), 0);

@@ -1,6 +1,6 @@
 use cast::i128;
 use fixed_point_math::FixedPoint;
-use soroban_sdk::{panic_with_error, Env};
+use soroban_sdk::{panic_with_error, Env, unwrap::UnwrapOptimized};
 
 use crate::{constants::SCALAR_7, dependencies::OracleClient, errors::PoolError, storage};
 
@@ -34,7 +34,7 @@ impl PositionData {
             if b_token_balance == 0 && d_token_balance == 0 {
                 continue;
             }
-            let reserve = pool.load_reserve(e, &reserve_list.get_unchecked(i).unwrap());
+            let reserve = pool.load_reserve(e, &reserve_list.get_unchecked(i).unwrap_optimized());
             let asset_to_base = i128(oracle_client.get_price(&reserve.asset));
 
             if b_token_balance > 0 {
@@ -42,7 +42,7 @@ impl PositionData {
                 let asset_collateral = reserve.to_effective_asset_from_b_token(b_token_balance);
                 collateral_base += asset_to_base
                     .fixed_mul_floor(asset_collateral, 10i128.pow(reserve.decimals))
-                    .unwrap();
+                    .unwrap_optimized();
             }
 
             if d_token_balance > 0 {
@@ -50,7 +50,7 @@ impl PositionData {
                 let asset_liability = reserve.to_effective_asset_from_d_token(d_token_balance);
                 liability_base += asset_to_base
                     .fixed_mul_floor(asset_liability, 10i128.pow(reserve.decimals))
-                    .unwrap();
+                    .unwrap_optimized();
             }
         }
 
@@ -65,7 +65,7 @@ impl PositionData {
     pub fn as_health_factor(&self) -> i128 {
         self.collateral_base
             .fixed_div_ceil(self.liability_base, 10i128.pow(self.decimals))
-            .unwrap()
+            .unwrap_optimized()
     }
 
     /// Check if the position data meets the minimum health factor, panic if not
@@ -74,7 +74,7 @@ impl PositionData {
         let min_health_factor = 10i128
             .pow(self.decimals)
             .fixed_mul_floor(1_0000100, SCALAR_7)
-            .unwrap();
+            .unwrap_optimized();
         if self.as_health_factor() < min_health_factor {
             panic_with_error!(e, PoolError::InvalidHf);
         }

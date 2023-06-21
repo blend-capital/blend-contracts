@@ -1,6 +1,6 @@
 use cast::i128;
 use fixed_point_math::FixedPoint;
-use soroban_sdk::{panic_with_error, Address, Env, Vec};
+use soroban_sdk::{panic_with_error, Address, Env, Vec, unwrap::UnwrapOptimized};
 
 use crate::{
     dependencies::BackstopClient,
@@ -14,12 +14,12 @@ pub fn execute_claim(e: &Env, from: &Address, reserve_token_ids: &Vec<u32>, to: 
     let reserve_list = storage::get_res_list(e);
     let mut to_claim = 0;
     for id in reserve_token_ids.clone() {
-        let reserve_token_id = id.unwrap();
+        let reserve_token_id = id.unwrap_optimized();
         let reserve_index = reserve_token_id / 2;
         let reserve_addr = reserve_list.get(reserve_index);
         match reserve_addr {
             Some(res_addr) => {
-                let res_address = res_addr.unwrap();
+                let res_address = res_addr.unwrap_optimized();
                 let reserve_config = storage::get_res_config(e, &res_address);
                 let reserve_data = storage::get_res_data(e, &res_address);
                 let (user_balance, supply) = match reserve_token_id % 2 {
@@ -117,7 +117,7 @@ pub fn update_emission_data(
         Some(res) => res,
         None => return None, // no emission exist, no update is required
     };
-    let token_emission_data = storage::get_res_emis_data(e, &res_token_id).unwrap(); // exists if config is written to
+    let token_emission_data = storage::get_res_emis_data(e, &res_token_id).unwrap_optimized(); // exists if config is written to
 
     if token_emission_data.last_time >= token_emission_config.expiration
         || e.ledger().timestamp() == token_emission_data.last_time
@@ -136,7 +136,7 @@ pub fn update_emission_data(
     let additional_idx = (i128(ledger_timestamp - token_emission_data.last_time)
         * i128(token_emission_config.eps))
     .fixed_div_floor(supply, 10i128.pow(supply_decimals))
-    .unwrap();
+    .unwrap_optimized();
     let new_data = ReserveEmissionsData {
         index: additional_idx + token_emission_data.index,
         last_time: e.ledger().timestamp(),
@@ -163,7 +163,7 @@ fn update_user_emissions(
                         res_emis_data.index - user_data.index,
                         10i128.pow(supply_decimals),
                     )
-                    .unwrap();
+                    .unwrap_optimized();
                 accrual += to_accrue;
             }
             return set_user_emissions(e, &user, res_token_id, res_emis_data.index, accrual, claim);
@@ -176,7 +176,7 @@ fn update_user_emissions(
         // user had tokens before emissions began, they are due any historical emissions
         let to_accrue = balance
             .fixed_mul_floor(res_emis_data.index, 10i128.pow(supply_decimals))
-            .unwrap();
+            .unwrap_optimized();
         return set_user_emissions(
             e,
             &user,
@@ -279,9 +279,9 @@ mod tests {
             let _result = update_reserve(&e, &reserve, res_token_type, &samwise);
 
             let new_reserve_emission_data =
-                storage::get_res_emis_data(&e, &res_token_index).unwrap();
+                storage::get_res_emis_data(&e, &res_token_index).unwrap_optimized();
             let new_user_emission_data =
-                storage::get_user_emissions(&e, &samwise, &res_token_index).unwrap();
+                storage::get_user_emissions(&e, &samwise, &res_token_index).unwrap_optimized();
             assert_eq!(new_reserve_emission_data.last_time, 1501000000);
             assert_eq!(
                 new_user_emission_data.index,
@@ -406,9 +406,9 @@ mod tests {
             let result = calc_claim(&e, &samwise, &reserve_token_ids);
 
             let new_reserve_emission_data =
-                storage::get_res_emis_data(&e, &res_token_index_0).unwrap();
+                storage::get_res_emis_data(&e, &res_token_index_0).unwrap_optimized();
             let new_user_emission_data =
-                storage::get_user_emissions(&e, &samwise, &res_token_index_0).unwrap();
+                storage::get_user_emissions(&e, &samwise, &res_token_index_0).unwrap_optimized();
             assert_eq!(new_reserve_emission_data.last_time, 1501000000);
             assert_eq!(
                 new_user_emission_data.index,
@@ -417,9 +417,9 @@ mod tests {
             assert_eq!(new_user_emission_data.accrued, 0);
 
             let new_reserve_emission_data_1 =
-                storage::get_res_emis_data(&e, &res_token_index_1).unwrap();
+                storage::get_res_emis_data(&e, &res_token_index_1).unwrap_optimized();
             let new_user_emission_data_1 =
-                storage::get_user_emissions(&e, &samwise, &res_token_index_1).unwrap();
+                storage::get_user_emissions(&e, &samwise, &res_token_index_1).unwrap_optimized();
             assert_eq!(new_reserve_emission_data_1.last_time, 1501000000);
             assert_eq!(
                 new_user_emission_data_1.index,
@@ -427,7 +427,7 @@ mod tests {
             );
             assert_eq!(new_user_emission_data.accrued, 0);
 
-            assert_eq!(result.unwrap(), 400_3222222 + 301_0222222);
+            assert_eq!(result.unwrap_optimized(), 400_3222222 + 301_0222222);
         });
     }
 
@@ -511,9 +511,9 @@ mod tests {
             let result = calc_claim(&e, &samwise, &reserve_token_ids);
 
             let new_reserve_emission_data =
-                storage::get_res_emis_data(&e, &res_token_index_0).unwrap();
+                storage::get_res_emis_data(&e, &res_token_index_0).unwrap_optimized();
             let new_user_emission_data =
-                storage::get_user_emissions(&e, &samwise, &res_token_index_0).unwrap();
+                storage::get_user_emissions(&e, &samwise, &res_token_index_0).unwrap_optimized();
             assert_eq!(new_reserve_emission_data.last_time, 1501000000);
             assert_eq!(
                 new_user_emission_data.index,
@@ -522,9 +522,9 @@ mod tests {
             assert_eq!(new_user_emission_data.accrued, 0);
 
             let new_reserve_emission_data_1 =
-                storage::get_res_emis_data(&e, &res_token_index_1).unwrap();
+                storage::get_res_emis_data(&e, &res_token_index_1).unwrap_optimized();
             let new_user_emission_data_1 =
-                storage::get_user_emissions(&e, &samwise, &res_token_index_1).unwrap();
+                storage::get_user_emissions(&e, &samwise, &res_token_index_1).unwrap_optimized();
             assert_eq!(new_reserve_emission_data_1.last_time, 1501000000);
             assert_eq!(
                 new_user_emission_data_1.index,
@@ -532,7 +532,7 @@ mod tests {
             );
             assert_eq!(new_user_emission_data.accrued, 0);
 
-            assert_eq!(result.unwrap(), 400_3222222 + 301_0222222);
+            assert_eq!(result.unwrap_optimized(), 400_3222222 + 301_0222222);
         });
     }
 
@@ -673,16 +673,16 @@ mod tests {
             let result = update_and_claim(&e, &reserve, res_token_type, &samwise);
 
             let new_reserve_emission_data =
-                storage::get_res_emis_data(&e, &res_token_index).unwrap();
+                storage::get_res_emis_data(&e, &res_token_index).unwrap_optimized();
             let new_user_emission_data =
-                storage::get_user_emissions(&e, &samwise, &res_token_index).unwrap();
+                storage::get_user_emissions(&e, &samwise, &res_token_index).unwrap_optimized();
             assert_eq!(new_reserve_emission_data.last_time, 1501000000);
             assert_eq!(
                 new_user_emission_data.index,
                 new_reserve_emission_data.index
             );
             assert_eq!(new_user_emission_data.accrued, 0);
-            assert_eq!(result.unwrap(), 400_3222222);
+            assert_eq!(result.unwrap_optimized(), 400_3222222);
         });
     }
 
@@ -714,7 +714,7 @@ mod tests {
             let res_token_index = reserve.config.index * 3 + res_token_type;
             // no emission information stored
 
-            let result = update_emission_data(&e, &reserve, res_token_type).unwrap();
+            let result = update_emission_data(&e, &reserve, res_token_type).unwrap_optimized();
             match result {
                 Some(_) => {
                     assert!(false)
@@ -763,11 +763,11 @@ mod tests {
             storage::set_res_emis_config(&e, &res_token_index, &reserve_emission_config);
             storage::set_res_emis_data(&e, &res_token_index, &reserve_emission_data);
 
-            let result = update_emission_data(&e, &reserve, res_token_type).unwrap();
+            let result = update_emission_data(&e, &reserve, res_token_type).unwrap_optimized();
             match result {
                 Some(_) => {
                     let new_reserve_emission_data =
-                        storage::get_res_emis_data(&e, &res_token_index).unwrap();
+                        storage::get_res_emis_data(&e, &res_token_index).unwrap_optimized();
                     assert_eq!(
                         new_reserve_emission_data.last_time,
                         reserve_emission_data.last_time
@@ -815,11 +815,11 @@ mod tests {
             storage::set_res_emis_config(&e, &res_token_index, &reserve_emission_config);
             storage::set_res_emis_data(&e, &res_token_index, &reserve_emission_data);
 
-            let result = update_emission_data(&e, &reserve, res_token_type).unwrap();
+            let result = update_emission_data(&e, &reserve, res_token_type).unwrap_optimized();
             match result {
                 Some(_) => {
                     let new_reserve_emission_data =
-                        storage::get_res_emis_data(&e, &res_token_index).unwrap();
+                        storage::get_res_emis_data(&e, &res_token_index).unwrap_optimized();
                     assert_eq!(
                         new_reserve_emission_data.last_time,
                         reserve_emission_data.last_time
@@ -867,11 +867,11 @@ mod tests {
             storage::set_res_emis_config(&e, &res_token_index, &reserve_emission_config);
             storage::set_res_emis_data(&e, &res_token_index, &reserve_emission_data);
 
-            let result = update_emission_data(&e, &reserve, res_token_type).unwrap();
+            let result = update_emission_data(&e, &reserve, res_token_type).unwrap_optimized();
             match result {
                 Some(_) => {
                     let new_reserve_emission_data =
-                        storage::get_res_emis_data(&e, &res_token_index).unwrap();
+                        storage::get_res_emis_data(&e, &res_token_index).unwrap_optimized();
                     assert_eq!(
                         new_reserve_emission_data.last_time,
                         reserve_emission_data.last_time
@@ -919,11 +919,11 @@ mod tests {
             storage::set_res_emis_config(&e, &res_token_index, &reserve_emission_config);
             storage::set_res_emis_data(&e, &res_token_index, &reserve_emission_data);
 
-            let result = update_emission_data(&e, &reserve, res_token_type).unwrap();
+            let result = update_emission_data(&e, &reserve, res_token_type).unwrap_optimized();
             match result {
                 Some(_) => {
                     let new_reserve_emission_data =
-                        storage::get_res_emis_data(&e, &res_token_index).unwrap();
+                        storage::get_res_emis_data(&e, &res_token_index).unwrap_optimized();
                     assert_eq!(
                         new_reserve_emission_data.last_time,
                         reserve_emission_data.last_time
@@ -971,11 +971,11 @@ mod tests {
             storage::set_res_emis_config(&e, &res_token_index, &reserve_emission_config);
             storage::set_res_emis_data(&e, &res_token_index, &reserve_emission_data);
 
-            let result = update_emission_data(&e, &reserve, res_token_type).unwrap();
+            let result = update_emission_data(&e, &reserve, res_token_type).unwrap_optimized();
             match result {
                 Some(_) => {
                     let new_reserve_emission_data =
-                        storage::get_res_emis_data(&e, &res_token_index).unwrap();
+                        storage::get_res_emis_data(&e, &res_token_index).unwrap_optimized();
                     assert_eq!(new_reserve_emission_data.last_time, 1700000000);
                     assert_eq!(new_reserve_emission_data.index, 10012_3457789);
                 }
@@ -1020,11 +1020,11 @@ mod tests {
             storage::set_res_emis_config(&e, &res_token_index, &reserve_emission_config);
             storage::set_res_emis_data(&e, &res_token_index, &reserve_emission_data);
 
-            let result = update_emission_data(&e, &reserve, res_token_type).unwrap();
+            let result = update_emission_data(&e, &reserve, res_token_type).unwrap_optimized();
             match result {
                 Some(_) => {
                     let new_reserve_emission_data =
-                        storage::get_res_emis_data(&e, &res_token_index).unwrap();
+                        storage::get_res_emis_data(&e, &res_token_index).unwrap_optimized();
                     assert_eq!(new_reserve_emission_data.last_time, 1500000005);
                     assert_eq!(new_reserve_emission_data.index, 123461788);
                 }
@@ -1073,10 +1073,10 @@ mod tests {
                 &samwise,
                 false,
             )
-            .unwrap();
+            .unwrap_optimized();
 
             let new_user_emission_data =
-                storage::get_user_emissions(&e, &samwise, &res_token_index).unwrap();
+                storage::get_user_emissions(&e, &samwise, &res_token_index).unwrap_optimized();
             assert_eq!(new_user_emission_data.index, reserve_emission_data.index);
             assert_eq!(new_user_emission_data.accrued, 0);
         });
@@ -1124,10 +1124,10 @@ mod tests {
                 &samwise,
                 false,
             )
-            .unwrap();
+            .unwrap_optimized();
 
             let new_user_emission_data =
-                storage::get_user_emissions(&e, &samwise, &res_token_index).unwrap();
+                storage::get_user_emissions(&e, &samwise, &res_token_index).unwrap_optimized();
             assert_eq!(new_user_emission_data.index, reserve_emission_data.index);
             assert_eq!(new_user_emission_data.accrued, 6_1728394);
         });
@@ -1177,10 +1177,10 @@ mod tests {
                 &samwise,
                 false,
             )
-            .unwrap();
+            .unwrap_optimized();
 
             let new_user_emission_data =
-                storage::get_user_emissions(&e, &samwise, &res_token_index).unwrap();
+                storage::get_user_emissions(&e, &samwise, &res_token_index).unwrap_optimized();
             assert_eq!(new_user_emission_data.index, reserve_emission_data.index);
             assert_eq!(new_user_emission_data.accrued, 0_1000000);
         });
@@ -1234,10 +1234,10 @@ mod tests {
                 &samwise,
                 false,
             )
-            .unwrap();
+            .unwrap_optimized();
 
             let new_user_emission_data =
-                storage::get_user_emissions(&e, &samwise, &res_token_index).unwrap();
+                storage::get_user_emissions(&e, &samwise, &res_token_index).unwrap_optimized();
             assert_eq!(new_user_emission_data.index, reserve_emission_data.index);
             assert_eq!(new_user_emission_data.accrued, user_emission_data.accrued);
         });
@@ -1291,10 +1291,10 @@ mod tests {
                 &samwise,
                 false,
             )
-            .unwrap();
+            .unwrap_optimized();
 
             let new_user_emission_data =
-                storage::get_user_emissions(&e, &samwise, &res_token_index).unwrap();
+                storage::get_user_emissions(&e, &samwise, &res_token_index).unwrap_optimized();
             assert_eq!(new_user_emission_data.index, reserve_emission_data.index);
             assert_eq!(new_user_emission_data.accrued, 6_2700000);
         });
@@ -1348,10 +1348,10 @@ mod tests {
                 &samwise,
                 true,
             )
-            .unwrap();
+            .unwrap_optimized();
 
             let new_user_emission_data =
-                storage::get_user_emissions(&e, &samwise, &res_token_index).unwrap();
+                storage::get_user_emissions(&e, &samwise, &res_token_index).unwrap_optimized();
             assert_eq!(new_user_emission_data.index, reserve_emission_data.index);
             assert_eq!(new_user_emission_data.accrued, 0);
             assert_eq!(result, 6_2700000);
@@ -1400,10 +1400,10 @@ mod tests {
                 &samwise,
                 true,
             )
-            .unwrap();
+            .unwrap_optimized();
 
             let new_user_emission_data =
-                storage::get_user_emissions(&e, &samwise, &res_token_index).unwrap();
+                storage::get_user_emissions(&e, &samwise, &res_token_index).unwrap_optimized();
             assert_eq!(new_user_emission_data.index, reserve_emission_data.index);
             assert_eq!(new_user_emission_data.accrued, 0);
             assert_eq!(result, 6_1728394);

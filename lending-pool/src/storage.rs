@@ -1,4 +1,4 @@
-use soroban_sdk::{contracttype, map, vec, Address, BytesN, Env, Map, Symbol, Vec};
+use soroban_sdk::{contracttype, map, vec, Address, BytesN, Env, Map, Symbol, Vec, unwrap::UnwrapOptimized};
 
 use crate::{auctions::AuctionData, pool::Positions};
 
@@ -155,7 +155,7 @@ pub fn get_user_positions(e: &Env, user: &Address) -> Positions {
     e.storage()
         .get::<PoolDataKey, Positions>(&key)
         .unwrap_or(Ok(Positions::env_default(e)))
-        .unwrap()
+        .unwrap_optimized()
 }
 
 pub fn set_user_positions(e: &Env, user: &Address, positions: &Positions) {
@@ -170,7 +170,7 @@ pub fn set_user_positions(e: &Env, user: &Address, positions: &Positions) {
 /// ### Panics
 /// If the admin does not exist
 pub fn get_admin(e: &Env) -> Address {
-    e.storage().get_unchecked(&PoolDataKey::Admin).unwrap()
+    e.storage().get_unchecked(&PoolDataKey::Admin).unwrap_optimized()
 }
 
 /// Set a new admin
@@ -194,7 +194,7 @@ pub fn has_admin(e: &Env) -> bool {
 /// ### Panics
 /// If the name does not exist
 pub fn get_name(e: &Env) -> Symbol {
-    e.storage().get_unchecked(&PoolDataKey::Name).unwrap()
+    e.storage().get_unchecked(&PoolDataKey::Name).unwrap_optimized()
 }
 
 /// Set a pool name
@@ -213,7 +213,7 @@ pub fn set_name(e: &Env, name: &Symbol) {
 /// ### Panics
 /// If no backstop is set
 pub fn get_backstop(e: &Env) -> Address {
-    e.storage().get_unchecked(&PoolDataKey::Backstop).unwrap()
+    e.storage().get_unchecked(&PoolDataKey::Backstop).unwrap_optimized()
 }
 
 /// Set a new backstop ID
@@ -232,7 +232,7 @@ pub fn set_backstop(e: &Env, backstop: &Address) {
 /// ### Panics
 /// If the pool has not been initialized
 pub fn get_token_hashes(e: &Env) -> (BytesN<32>, BytesN<32>) {
-    e.storage().get_unchecked(&PoolDataKey::TokenHash).unwrap()
+    e.storage().get_unchecked(&PoolDataKey::TokenHash).unwrap_optimized()
 }
 
 /// Set the B and D token hashes
@@ -252,7 +252,7 @@ pub fn set_token_hashes(e: &Env, b_token_hash: &BytesN<32>, d_token_hash: &Bytes
 
 /// Fetch the BLND token ID
 pub fn get_blnd_token(e: &Env) -> Address {
-    e.storage().get_unchecked(&PoolDataKey::BLNDTkn).unwrap()
+    e.storage().get_unchecked(&PoolDataKey::BLNDTkn).unwrap_optimized()
 }
 
 /// Set a new BLND token ID
@@ -266,7 +266,7 @@ pub fn set_blnd_token(e: &Env, blnd_token_id: &Address) {
 
 /// Fetch the USDC token ID
 pub fn get_usdc_token(e: &Env) -> Address {
-    e.storage().get_unchecked(&PoolDataKey::USDCTkn).unwrap()
+    e.storage().get_unchecked(&PoolDataKey::USDCTkn).unwrap_optimized()
 }
 
 /// Set a new USDC token ID
@@ -285,7 +285,7 @@ pub fn set_usdc_token(e: &Env, usdc_token_id: &Address) {
 /// ### Panics
 /// If the pool's config is not set
 pub fn get_pool_config(e: &Env) -> PoolConfig {
-    e.storage().get_unchecked(&PoolDataKey::PoolConfig).unwrap()
+    e.storage().get_unchecked(&PoolDataKey::PoolConfig).unwrap_optimized()
 }
 
 /// Set the pool configuration
@@ -310,8 +310,8 @@ pub fn get_res_config(e: &Env, asset: &Address) -> ReserveConfig {
     let key = PoolDataKey::ResConfig(asset.clone());
     e.storage()
         .get::<PoolDataKey, ReserveConfig>(&key)
-        .unwrap()
-        .unwrap()
+        .unwrap_optimized()
+        .unwrap_optimized()
 }
 
 /// Set the reserve configuration for an asset
@@ -347,8 +347,8 @@ pub fn get_res_data(e: &Env, asset: &Address) -> ReserveData {
     let key = PoolDataKey::ResData(asset.clone());
     e.storage()
         .get::<PoolDataKey, ReserveData>(&key)
-        .unwrap()
-        .unwrap()
+        .unwrap_optimized()
+        .unwrap_optimized()
 }
 
 /// Set the reserve data for an asset
@@ -368,7 +368,7 @@ pub fn get_res_list(e: &Env) -> Vec<Address> {
     e.storage()
         .get::<PoolDataKey, Vec<Address>>(&PoolDataKey::ResList)
         .unwrap_or(Ok(vec![e])) // empty vec if nothing exists
-        .unwrap()
+        .unwrap_optimized()
 }
 
 /// Add a reserve to the back of the list and returns the index
@@ -402,7 +402,7 @@ pub fn get_res_emis_config(e: &Env, res_token_index: &u32) -> Option<ReserveEmis
     let key = PoolDataKey::EmisConfig(res_token_index.clone());
     let result = e.storage().get::<PoolDataKey, ReserveEmissionsConfig>(&key);
     match result {
-        Some(data) => Some(data.unwrap()),
+        Some(data) => Some(data.unwrap_optimized()),
         None => None,
     }
 }
@@ -430,7 +430,7 @@ pub fn get_res_emis_data(e: &Env, res_token_index: &u32) -> Option<ReserveEmissi
     let key = PoolDataKey::EmisData(res_token_index.clone());
     let result = e.storage().get::<PoolDataKey, ReserveEmissionsData>(&key);
     match result {
-        Some(data) => Some(data.unwrap()),
+        Some(data) => Some(data.unwrap_optimized()),
         None => None,
     }
 }
@@ -466,7 +466,7 @@ pub fn get_user_config(e: &Env, user: &Address) -> u128 {
     e.storage()
         .get::<PoolDataKey, u128>(&key)
         .unwrap_or(Ok(0))
-        .unwrap()
+        .unwrap_optimized()
 }
 
 /// Set the users reserve config
@@ -497,7 +497,7 @@ pub fn get_user_emissions(
     });
     let result = e.storage().get::<PoolDataKey, UserEmissionData>(&key);
     match result {
-        Some(data) => Some(data.unwrap()),
+        Some(data) => Some(data.unwrap_optimized()),
         None => None,
     }
 }
@@ -524,7 +524,7 @@ pub fn get_pool_emissions(e: &Env) -> Map<u32, u64> {
     e.storage()
         .get::<PoolDataKey, Map<u32, u64>>(&key)
         .unwrap_or(Ok(map![e]))
-        .unwrap()
+        .unwrap_optimized()
 }
 
 /// Set the pool reserve emissions
@@ -543,7 +543,7 @@ pub fn get_pool_emissions_expiration(e: &Env) -> u64 {
     e.storage()
         .get::<PoolDataKey, u64>(&key)
         .unwrap_or(Ok(0))
-        .unwrap()
+        .unwrap_optimized()
 }
 
 /// Set the pool emission configuration
@@ -572,8 +572,8 @@ pub fn get_auction(e: &Env, auction_type: &u32, user: &Address) -> AuctionData {
     });
     e.storage()
         .get::<PoolDataKey, AuctionData>(&key)
-        .unwrap()
-        .unwrap()
+        .unwrap_optimized()
+        .unwrap_optimized()
 }
 
 /// Check if an auction exists for the given type and user

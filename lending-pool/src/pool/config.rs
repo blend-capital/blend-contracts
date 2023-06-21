@@ -199,7 +199,7 @@ mod tests {
                 &blnd_id,
                 &usdc_id,
             )
-            .unwrap();
+            .unwrap_optimized();
 
             assert_eq!(storage::get_admin(&e), admin);
             assert_eq!(storage::get_name(&e), name);
@@ -249,7 +249,7 @@ mod tests {
             storage::set_admin(&e, &admin);
 
             // happy path
-            execute_update_pool(&e, &admin, 0_200_000_000u64).unwrap();
+            execute_update_pool(&e, &admin, 0_200_000_000u64).unwrap_optimized();
             let new_pool_config = storage::get_pool_config(&e);
             assert_eq!(new_pool_config.bstop_rate, 0_200_000_000u64);
             assert_eq!(new_pool_config.oracle, pool_config.oracle);
@@ -294,7 +294,7 @@ mod tests {
             storage::set_token_hashes(&e, &b_token_hash, &d_token_hash);
             storage::set_admin(&e, &bombadil);
 
-            initialize_reserve(&e, &bombadil, &asset_id_0, &metadata).unwrap();
+            initialize_reserve(&e, &bombadil, &asset_id_0, &metadata).unwrap_optimized();
 
             // if already exists blocks
             let result = initialize_reserve(&e, &bombadil, &asset_id_0, &metadata);
@@ -308,7 +308,7 @@ mod tests {
             let result = initialize_reserve(&e, &bombadil, &asset_id_1, &bad_metadata);
             assert_eq!(result, Err(PoolError::InvalidReserveMetadata));
 
-            initialize_reserve(&e, &bombadil, &asset_id_1, &metadata).unwrap();
+            initialize_reserve(&e, &bombadil, &asset_id_1, &metadata).unwrap_optimized();
 
             let res_config_0 = storage::get_res_config(&e, &asset_id_0);
             let res_config_1 = storage::get_res_config(&e, &asset_id_1);
@@ -393,7 +393,7 @@ mod tests {
             let result = execute_update_reserve(&e, &bombadil, &reserve_0.asset, &bad_metadata);
             assert_eq!(result, Err(PoolError::InvalidReserveMetadata));
 
-            execute_update_reserve(&e, &bombadil, &reserve_0.asset, &new_metadata).unwrap();
+            execute_update_reserve(&e, &bombadil, &reserve_0.asset, &new_metadata).unwrap_optimized();
 
             let res_config_updated = storage::get_res_config(&e, &reserve_0.asset);
             assert_eq!(res_config_updated.decimals, new_metadata.decimals);

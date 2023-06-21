@@ -1,6 +1,6 @@
 use crate::{constants::SCALAR_7, dependencies::BackstopClient, errors::PoolError, storage};
 use fixed_point_math::FixedPoint;
-use soroban_sdk::{Address, Env};
+use soroban_sdk::{Address, Env, unwrap::UnwrapOptimized};
 
 /// Update the pool status based on the backstop module
 pub fn execute_update_pool_status(e: &Env) -> Result<u32, PoolError> {
@@ -15,7 +15,7 @@ pub fn execute_update_pool_status(e: &Env) -> Result<u32, PoolError> {
 
     let (pool_tokens, pool_shares, shares_q4w) =
         backstop_client.pool_balance(&e.current_contract_address());
-    let q4w_pct = shares_q4w.fixed_div_floor(pool_shares, SCALAR_7).unwrap();
+    let q4w_pct = shares_q4w.fixed_div_floor(pool_shares, SCALAR_7).unwrap_optimized();
 
     if q4w_pct >= 0_5000000 {
         pool_config.status = 2;
@@ -94,7 +94,7 @@ mod tests {
             storage::set_admin(&e, &bombadil);
             storage::set_pool_config(&e, &pool_config);
 
-            set_pool_status(&e, &bombadil, 0).unwrap();
+            set_pool_status(&e, &bombadil, 0).unwrap_optimized();
 
             let new_pool_config = storage::get_pool_config(&e);
             assert_eq!(new_pool_config.status, 0);
@@ -208,7 +208,7 @@ mod tests {
             storage::set_admin(&e, &bombadil);
             storage::set_pool_config(&e, &pool_config);
 
-            let status = execute_update_pool_status(&e).unwrap();
+            let status = execute_update_pool_status(&e).unwrap_optimized();
 
             let new_pool_config = storage::get_pool_config(&e);
             assert_eq!(new_pool_config.status, status);
@@ -247,7 +247,7 @@ mod tests {
             storage::set_admin(&e, &bombadil);
             storage::set_pool_config(&e, &pool_config);
 
-            let status = execute_update_pool_status(&e).unwrap();
+            let status = execute_update_pool_status(&e).unwrap_optimized();
 
             let new_pool_config = storage::get_pool_config(&e);
             assert_eq!(new_pool_config.status, status);
@@ -287,7 +287,7 @@ mod tests {
             storage::set_admin(&e, &bombadil);
             storage::set_pool_config(&e, &pool_config);
 
-            let status = execute_update_pool_status(&e).unwrap();
+            let status = execute_update_pool_status(&e).unwrap_optimized();
 
             let new_pool_config = storage::get_pool_config(&e);
             assert_eq!(new_pool_config.status, status);
@@ -327,7 +327,7 @@ mod tests {
             storage::set_admin(&e, &bombadil);
             storage::set_pool_config(&e, &pool_config);
 
-            let status = execute_update_pool_status(&e).unwrap();
+            let status = execute_update_pool_status(&e).unwrap_optimized();
 
             let new_pool_config = storage::get_pool_config(&e);
             assert_eq!(new_pool_config.status, status);

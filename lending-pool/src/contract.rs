@@ -6,7 +6,7 @@ use crate::{
         self, PoolConfig, ReserveConfig, ReserveData, ReserveEmissionsConfig, ReserveEmissionsData,
     },
 };
-use soroban_sdk::{contractimpl, Address, BytesN, Env, Map, Symbol, Vec};
+use soroban_sdk::{contractimpl, Address, BytesN, Env, Map, Symbol, Vec, unwrap::UnwrapOptimized};
 
 /// ### Pool
 ///
@@ -339,10 +339,10 @@ impl PoolContractTrait for PoolContract {
     }
 
     fn update_status(e: Env) -> u32 {
-        let new_status = pool::execute_update_pool_status(&e).unwrap();
+        let new_status = pool::execute_update_pool_status(&e).unwrap_optimized();
 
         // msg.sender
-        let caller = e.call_stack().get(0).unwrap().unwrap().0;
+        let caller = e.call_stack().get(0).unwrap_optimized().unwrap_optimized().0;
         e.events()
             .publish((Symbol::new(&e, "set_status"), caller), new_status);
         new_status

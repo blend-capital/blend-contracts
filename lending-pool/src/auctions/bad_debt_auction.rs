@@ -7,7 +7,7 @@ use crate::{
 };
 use cast::i128;
 use fixed_point_math::FixedPoint;
-use soroban_sdk::{map, panic_with_error, vec, Address, Env};
+use soroban_sdk::{map, panic_with_error, vec, Address, Env, unwrap::UnwrapOptimized};
 
 use super::{fill_debt_token, get_fill_modifiers, AuctionData, AuctionQuote, AuctionType};
 
@@ -29,14 +29,14 @@ pub fn create_bad_debt_auction_data(e: &Env, backstop: &Address) -> AuctionData 
     let reserve_list = storage::get_res_list(e);
     let mut debt_value = 0;
     for (reserve_index, liability_balance) in backstop_positions.liabilities.iter_unchecked() {
-        let res_asset_address = reserve_list.get_unchecked(reserve_index).unwrap();
+        let res_asset_address = reserve_list.get_unchecked(reserve_index).unwrap_optimized();
         if liability_balance > 0 {
             let mut reserve = pool.load_reserve(e, &res_asset_address);
             let asset_to_base = oracle_client.get_price(&res_asset_address);
             let asset_balance = reserve.to_asset_from_d_token(liability_balance);
             debt_value += asset_balance
                 .fixed_mul_floor(i128(asset_to_base), 10i128.pow(oracle_decimals))
-                .unwrap();
+                .unwrap_optimized();
             auction_data.bid.set(reserve_index, liability_balance);
         }
     }
@@ -50,9 +50,9 @@ pub fn create_bad_debt_auction_data(e: &Env, backstop: &Address) -> AuctionData 
     let backstop_token_to_base = oracle_client.get_price(&backstop_token);
     let mut lot_amount = debt_value
         .fixed_mul_floor(1_4000000, SCALAR_7)
-        .unwrap()
+        .unwrap_optimized()
         .fixed_div_floor(i128(backstop_token_to_base), SCALAR_7)
-        .unwrap();
+        .unwrap_optimized();
     let (pool_backstop_balance, _, _) = backstop_client.pool_balance(&e.current_contract_address());
     lot_amount = pool_backstop_balance.min(lot_amount);
     // u32::MAX is the key for the backstop token
@@ -80,8 +80,8 @@ pub fn fill_bad_debt_auction(
     // bid only contains d_token asset amounts
     let reserve_list = storage::get_res_list(e);
     for (res_id, amount) in auction_data.bid.iter_unchecked() {
-        let res_asset_address = reserve_list.get_unchecked(res_id).unwrap();
-        let amount_modified = amount.fixed_mul_floor(bid_modifier, SCALAR_7).unwrap();
+        let res_asset_address = reserve_list.get_unchecked(res_id).unwrap_optimized();
+        let amount_modified = amount.fixed_mul_floor(bid_modifier, SCALAR_7).unwrap_optimized();
         let underlying_amount = fill_debt_token(
             e,
             &mut pool,
@@ -99,8 +99,8 @@ pub fn fill_bad_debt_auction(
     // lot only contains the backstop token
     let backstop_client = BackstopClient::new(&e, &backstop_address);
     let backstop_token_id = backstop_client.backstop_token();
-    let lot_amount = auction_data.lot.get_unchecked(u32::MAX).unwrap();
-    let lot_amount_modified = lot_amount.fixed_mul_floor(lot_modifier, SCALAR_7).unwrap();
+    let lot_amount = auction_data.lot.get_unchecked(u32::MAX).unwrap_optimized();
+    let lot_amount_modified = lot_amount.fixed_mul_floor(lot_modifier, SCALAR_7).unwrap_optimized();
     let backstop_client = BackstopClient::new(&e, &backstop_address);
     backstop_client.draw(&e.current_contract_address(), &lot_amount, &filler);
     auction_quote
@@ -123,7 +123,7 @@ mod tests {
     };
 
     use super::*;
-    use soroban_sdk::testutils::{Address as _, Ledger, LedgerInfo};
+    use soroban_sdk::{testutils::{Address as _, Ledger, LedgerInfo}, unwrap::UnwrapOptimized};
 
     #[test]
     fn test_create_bad_debt_auction_already_in_progress() {
@@ -238,19 +238,19 @@ mod tests {
             d_token_0.mint(&backstop_address, &10_0000000);
             d_token_1.mint(&backstop_address, &2_5000000);
 
-            let result = create_bad_debt_auction_data(&e, &backstop_address).unwrap();
+            let result = create_bad_debt_auction_data(&e, &backstop_address).unwrap_optimized();
 
             assert_eq!(result.block, 51);
             assert_eq!(
-                result.bid.get_unchecked(reserve_0.config.index).unwrap(),
+                result.bid.get_unchecked(reserve_0.config.index).unwrap_optimized(),
                 10_0000000
             );
             assert_eq!(
-                result.bid.get_unchecked(reserve_1.config.index).unwrap(),
+                result.bid.get_unchecked(reserve_1.config.index).unwrap_optimized(),
                 2_5000000
             );
             assert_eq!(result.bid.len(), 2);
-            assert_eq!(result.lot.get_unchecked(u32::MAX).unwrap(), 95_2000000);
+            assert_eq!(result.lot.get_unchecked(u32::MAX).unwrap_optimized(), 95_2000000);
             assert_eq!(result.lot.len(), 1);
         });
     }
@@ -323,19 +323,19 @@ mod tests {
             d_token_0.mint(&backstop_address, &10_0000000);
             d_token_1.mint(&backstop_address, &2_5000000);
 
-            let result = create_bad_debt_auction_data(&e, &backstop_address).unwrap();
+            let result = create_bad_debt_auction_data(&e, &backstop_address).unwrap_optimized();
 
             assert_eq!(result.block, 51);
             assert_eq!(
-                result.bid.get_unchecked(reserve_0.config.index).unwrap(),
+                result.bid.get_unchecked(reserve_0.config.index).unwrap_optimized(),
                 10_0000000
             );
             assert_eq!(
-                result.bid.get_unchecked(reserve_1.config.index).unwrap(),
+                result.bid.get_unchecked(reserve_1.config.index).unwrap_optimized(),
                 2_5000000
             );
             assert_eq!(result.bid.len(), 2);
-            assert_eq!(result.lot.get_unchecked(u32::MAX).unwrap(), 95_0000000);
+            assert_eq!(result.lot.get_unchecked(u32::MAX).unwrap_optimized(), 95_0000000);
             assert_eq!(result.lot.len(), 1);
         });
     }
@@ -410,19 +410,19 @@ mod tests {
             d_token_0.mint(&backstop_address, &10_0000000);
             d_token_1.mint(&backstop_address, &2_5000000);
 
-            let result = create_bad_debt_auction_data(&e, &backstop_address).unwrap();
+            let result = create_bad_debt_auction_data(&e, &backstop_address).unwrap_optimized();
 
             assert_eq!(result.block, 151);
             assert_eq!(
-                result.bid.get_unchecked(reserve_0.config.index).unwrap(),
+                result.bid.get_unchecked(reserve_0.config.index).unwrap_optimized(),
                 10_0000000
             );
             assert_eq!(
-                result.bid.get_unchecked(reserve_1.config.index).unwrap(),
+                result.bid.get_unchecked(reserve_1.config.index).unwrap_optimized(),
                 2_5000000
             );
             assert_eq!(result.bid.len(), 2);
-            assert_eq!(result.lot.get_unchecked(u32::MAX).unwrap(), 95_2004736);
+            assert_eq!(result.lot.get_unchecked(u32::MAX).unwrap_optimized(), 95_2004736);
             assert_eq!(result.lot.len(), 1);
         });
     }
@@ -515,16 +515,16 @@ mod tests {
             let result = fill_bad_debt_auction(&e, &auction_data, &samwise);
 
             assert_eq!(
-                result.lot.get_unchecked(0).unwrap(),
+                result.lot.get_unchecked(0).unwrap_optimized(),
                 (backstop_token_id, 95_2000000)
             );
             assert_eq!(result.lot.len(), 1);
             assert_eq!(
-                result.bid.get_unchecked(0).unwrap(),
+                result.bid.get_unchecked(0).unwrap_optimized(),
                 (reserve_0.asset, 7_5000000)
             );
             assert_eq!(
-                result.bid.get_unchecked(1).unwrap(),
+                result.bid.get_unchecked(1).unwrap_optimized(),
                 (reserve_1.asset, 1_8750000)
             );
             assert_eq!(result.bid.len(), 2);

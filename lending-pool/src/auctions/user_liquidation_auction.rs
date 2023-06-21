@@ -1,5 +1,6 @@
 use cast::i128;
 use fixed_point_math::FixedPoint;
+use soroban_sdk::unwrap::UnwrapOptimized;
 use soroban_sdk::{map, panic_with_error, vec, Address, Env};
 
 use crate::auctions::auction::AuctionData;
@@ -53,7 +54,7 @@ pub fn create_user_liq_auction_data(
         if b_token_balance == 0 && d_token_balance == 0 {
             continue;
         }
-        let res_asset_address = reserve_list.get_unchecked(i).unwrap();
+        let res_asset_address = reserve_list.get_unchecked(i).unwrap_optimized();
         let reserve = pool.load_reserve(e, &res_asset_address);
         let asset_to_base = i128(oracle_client.get_price(&reserve.asset));
 
@@ -62,10 +63,10 @@ pub fn create_user_liq_auction_data(
             let asset_collateral = reserve.to_effective_asset_from_b_token(b_token_balance);
             collateral_base += asset_to_base
                 .fixed_mul_floor(asset_collateral, 10i128.pow(reserve.decimals))
-                .unwrap();
+                .unwrap_optimized();
             if let Some(to_sell_entry) = liq_data.collateral.get(res_asset_address.clone()) {
                 // liquidator included some amount of collateral in the liquidation
-                let to_sell_amt_b_token = to_sell_entry.unwrap();
+                let to_sell_amt_b_token = to_sell_entry.unwrap_optimized();
                 require_nonnegative(e, &to_sell_amt_b_token);
                 liq_data
                     .collateral
@@ -77,12 +78,12 @@ pub fn create_user_liq_auction_data(
                         reserve.to_asset_from_b_token(to_sell_amt_b_token),
                         10i128.pow(reserve.decimals),
                     )
-                    .unwrap();
+                    .unwrap_optimized();
                 sell_collat_base += to_sell_amt_base;
 
                 scaled_cf += to_sell_amt_base
                     .fixed_mul_floor(i128(reserve.c_factor) * 100, SCALAR_7)
-                    .unwrap();
+                    .unwrap_optimized();
                 if to_sell_amt_b_token > b_token_balance {
                     panic_with_error!(e, PoolError::InvalidLot);
                 } else if to_sell_amt_b_token < b_token_balance {
@@ -101,11 +102,11 @@ pub fn create_user_liq_auction_data(
             let asset_liability = reserve.to_effective_asset_from_d_token(d_token_balance);
             liability_base += asset_to_base
                 .fixed_mul_floor(asset_liability, 10i128.pow(reserve.decimals))
-                .unwrap();
+                .unwrap_optimized();
 
             if let Some(to_buy_entry) = liq_data.liability.get(res_asset_address.clone()) {
                 // liquidator included some amount of liabilities in the liquidation
-                let to_buy_amt_d_token = to_buy_entry.unwrap();
+                let to_buy_amt_d_token = to_buy_entry.unwrap_optimized();
                 require_nonnegative(e, &to_buy_amt_d_token);
                 liq_data
                     .liability
@@ -117,11 +118,11 @@ pub fn create_user_liq_auction_data(
                         reserve.to_asset_from_d_token(to_buy_amt_d_token),
                         10i128.pow(reserve.decimals),
                     )
-                    .unwrap();
+                    .unwrap_optimized();
                 buy_liab_base += to_buy_amt_base;
                 scaled_lf += to_buy_amt_base
                     .fixed_mul_floor(i128(reserve.l_factor) * 100, SCALAR_7)
-                    .unwrap();
+                    .unwrap_optimized();
                 if to_buy_amt_d_token > d_token_balance {
                     panic_with_error!(e, PoolError::InvalidBids);
                 } else if to_buy_amt_d_token < d_token_balance {
@@ -147,32 +148,32 @@ pub fn create_user_liq_auction_data(
     // ensure liquidation size is fair and the collateral is large enough to allow for the auction to price the liquidation
     let weighted_cf = scaled_cf
         .fixed_div_floor(sell_collat_base * 100, SCALAR_7)
-        .unwrap();
+        .unwrap_optimized();
     // weighted_lf factor is the inverse of the liability factor
     let weighted_lf = SCALAR_9
         .fixed_div_floor(
-            scaled_lf.fixed_div_floor(buy_liab_base, SCALAR_7).unwrap(),
+            scaled_lf.fixed_div_floor(buy_liab_base, SCALAR_7).unwrap_optimized(),
             SCALAR_7,
         )
-        .unwrap();
-    let est_incentive = (SCALAR_7 - weighted_cf.fixed_div_ceil(weighted_lf, SCALAR_7).unwrap())
+        .unwrap_optimized();
+    let est_incentive = (SCALAR_7 - weighted_cf.fixed_div_ceil(weighted_lf, SCALAR_7).unwrap_optimized())
         .fixed_div_ceil(2_0000000, SCALAR_7)
-        .unwrap()
+        .unwrap_optimized()
         + SCALAR_7;
-    let max_target_liabilities = (liability_base.fixed_mul_ceil(1_0300000, SCALAR_7).unwrap()
+    let max_target_liabilities = (liability_base.fixed_mul_ceil(1_0300000, SCALAR_7).unwrap_optimized()
         - collateral_base)
         .fixed_div_ceil(
-            weighted_lf.fixed_mul_floor(1_0300000, SCALAR_7).unwrap()
-                - weighted_cf.fixed_mul_ceil(est_incentive, SCALAR_7).unwrap(),
+            weighted_lf.fixed_mul_floor(1_0300000, SCALAR_7).unwrap_optimized()
+                - weighted_cf.fixed_mul_ceil(est_incentive, SCALAR_7).unwrap_optimized(),
             SCALAR_7,
         )
-        .unwrap();
+        .unwrap_optimized();
     let min_target_liabilities = max_target_liabilities
         .fixed_div_ceil(1_1000000, SCALAR_7)
-        .unwrap(); //TODO: Assess whether 10% is an appropriate range here
+        .unwrap_optimized(); //TODO: Assess whether 10% is an appropriate range here
 
-    let max_collateral_lot = buy_liab_base.fixed_mul_floor(2_5000000, SCALAR_7).unwrap();
-    let min_collateral_lot = buy_liab_base.fixed_mul_floor(1_2500000, SCALAR_7).unwrap();
+    let max_collateral_lot = buy_liab_base.fixed_mul_floor(2_5000000, SCALAR_7).unwrap_optimized();
+    let min_collateral_lot = buy_liab_base.fixed_mul_floor(1_2500000, SCALAR_7).unwrap_optimized();
 
     if max_target_liabilities < buy_liab_base {
         panic_with_error!(e, PoolError::InvalidBidTooLarge);
@@ -209,18 +210,18 @@ pub fn fill_user_liq_auction(
 
     let reserve_list = storage::get_res_list(e);
     for i in 0..reserve_list.len() {
-        let bid_amount = auction_data.bid.get(i).unwrap_or(Ok(0)).unwrap();
-        let lot_amount = auction_data.lot.get(i).unwrap_or(Ok(0)).unwrap();
+        let bid_amount = auction_data.bid.get(i).unwrap_or(Ok(0)).unwrap_optimized();
+        let lot_amount = auction_data.lot.get(i).unwrap_or(Ok(0)).unwrap_optimized();
         if bid_amount == 0 && lot_amount == 0 {
             continue;
         }
 
-        let res_asset_address = reserve_list.get_unchecked(i).unwrap();
+        let res_asset_address = reserve_list.get_unchecked(i).unwrap_optimized();
         let reserve = pool.load_reserve(e, &res_asset_address);
 
         // bids are liabilities stored as debtTokens
         if bid_amount > 0 {
-            let mod_bid_amount = bid_amount.fixed_mul_floor(bid_modifier, SCALAR_7).unwrap();
+            let mod_bid_amount = bid_amount.fixed_mul_floor(bid_modifier, SCALAR_7).unwrap_optimized();
             let underlying_amount = fill_debt_token(
                 e,
                 &mut pool,
@@ -239,7 +240,7 @@ pub fn fill_user_liq_auction(
         if lot_amount > 0 {
             // pay out lot in blendTokens by transferring them from
             // the liquidated user to the auction filler
-            let mod_lot_amount = lot_amount.fixed_mul_floor(lot_modifier, SCALAR_7).unwrap();
+            let mod_lot_amount = lot_amount.fixed_mul_floor(lot_modifier, SCALAR_7).unwrap_optimized();
             // update both the filler and liquidated user's emissions
             // @dev: TODO: The reserve emissions update will short circuit on the second go,
             //       but this can be optimized to avoid a second read
@@ -415,15 +416,15 @@ mod tests {
             d_token_2.mint(&samwise, &02_7500000);
 
             e.budget().reset_unlimited();
-            let result = create_user_liq_auction_data(&e, &samwise, liquidation_data).unwrap();
+            let result = create_user_liq_auction_data(&e, &samwise, liquidation_data).unwrap_optimized();
             assert_eq!(result.block, 51);
             assert_eq!(
-                result.bid.get_unchecked(reserve_2.config.index).unwrap(),
+                result.bid.get_unchecked(reserve_2.config.index).unwrap_optimized(),
                 0_7000000
             );
             assert_eq!(result.bid.len(), 1);
             assert_eq!(
-                result.lot.get_unchecked(reserve_0.config.index).unwrap(),
+                result.lot.get_unchecked(reserve_0.config.index).unwrap_optimized(),
                 20_0000000
             );
             assert_eq!(result.lot.len(), 1);
@@ -1032,12 +1033,12 @@ mod tests {
 
             assert_eq!(result.block, 175);
             assert_eq!(
-                result.bid.get_unchecked(0).unwrap(),
+                result.bid.get_unchecked(0).unwrap_optimized(),
                 (reserve_2.asset, 0_5000000)
             );
             assert_eq!(result.bid.len(), 1);
             assert_eq!(
-                result.lot.get_unchecked(0).unwrap(),
+                result.lot.get_unchecked(0).unwrap_optimized(),
                 (reserve_0.config.b_token, 11_3636363)
             );
             assert_eq!(result.lot.len(), 1);
@@ -1124,16 +1125,16 @@ mod tests {
 
             e.budget().reset_unlimited();
             let result =
-                create_user_liq_auction_data(&e, &samwise, liquidation_data.clone()).unwrap();
+                create_user_liq_auction_data(&e, &samwise, liquidation_data.clone()).unwrap_optimized();
 
             assert_eq!(result.block, 51);
             assert_eq!(
-                result.bid.get_unchecked(reserve_1.config.index).unwrap(),
+                result.bid.get_unchecked(reserve_1.config.index).unwrap_optimized(),
                 200_7500000_0000000
             );
             assert_eq!(result.bid.len(), 1);
             assert_eq!(
-                result.lot.get_unchecked(reserve_0.config.index).unwrap(),
+                result.lot.get_unchecked(reserve_0.config.index).unwrap_optimized(),
                 3000_0000000
             );
             assert_eq!(result.lot.len(), 1);
@@ -1156,11 +1157,11 @@ mod tests {
             assert_eq!(result.lot.len(), 1);
             assert_eq!(result.block, 50 + 399);
             assert_eq!(
-                result.bid.get_unchecked(0).unwrap(),
+                result.bid.get_unchecked(0).unwrap_optimized(),
                 (reserve_1.asset, 1_0037500_0000000)
             );
             assert_eq!(
-                result.lot.get_unchecked(0).unwrap(),
+                result.lot.get_unchecked(0).unwrap_optimized(),
                 (reserve_0.config.b_token, 3000_0000000)
             );
             assert_eq!(b_token_0.balance(&frodo), 3000_0000000);
@@ -1249,16 +1250,16 @@ mod tests {
 
             e.budget().reset_unlimited();
             let result =
-                create_user_liq_auction_data(&e, &samwise, liquidation_data.clone()).unwrap();
+                create_user_liq_auction_data(&e, &samwise, liquidation_data.clone()).unwrap_optimized();
 
             assert_eq!(result.block, 51);
             assert_eq!(
-                result.bid.get_unchecked(reserve_1.config.index).unwrap(),
+                result.bid.get_unchecked(reserve_1.config.index).unwrap_optimized(),
                 2_7500000
             );
             assert_eq!(result.bid.len(), 1);
             assert_eq!(
-                result.lot.get_unchecked(reserve_0.config.index).unwrap(),
+                result.lot.get_unchecked(reserve_0.config.index).unwrap_optimized(),
                 00_0000001
             );
             assert_eq!(result.lot.len(), 1);
@@ -1281,9 +1282,9 @@ mod tests {
             assert_eq!(result.bid.len(), 1);
             assert_eq!(result.lot.len(), 1);
             assert_eq!(result.block, 50 + 400);
-            assert_eq!(result.bid.get_unchecked(0).unwrap(), (reserve_1.asset, 0));
+            assert_eq!(result.bid.get_unchecked(0).unwrap_optimized(), (reserve_1.asset, 0));
             assert_eq!(
-                result.lot.get_unchecked(0).unwrap(),
+                result.lot.get_unchecked(0).unwrap_optimized(),
                 (reserve_0.config.b_token, 00_0000001)
             );
             assert_eq!(b_token_0.balance(&frodo), 00_0000001);
@@ -1366,16 +1367,16 @@ mod tests {
 
             e.budget().reset_unlimited();
             let result =
-                create_user_liq_auction_data(&e, &samwise, liquidation_data.clone()).unwrap();
+                create_user_liq_auction_data(&e, &samwise, liquidation_data.clone()).unwrap_optimized();
 
             assert_eq!(result.block, 51);
             assert_eq!(
-                result.bid.get_unchecked(reserve_1.config.index).unwrap(),
+                result.bid.get_unchecked(reserve_1.config.index).unwrap_optimized(),
                 200_7500000_0000000
             );
             assert_eq!(result.bid.len(), 1);
             assert_eq!(
-                result.lot.get_unchecked(reserve_0.config.index).unwrap(),
+                result.lot.get_unchecked(reserve_0.config.index).unwrap_optimized(),
                 3000_0000000
             );
             assert_eq!(result.lot.len(), 1);
@@ -1398,11 +1399,11 @@ mod tests {
             assert_eq!(result.lot.len(), 1);
             assert_eq!(result.block, 50 + 399);
             assert_eq!(
-                result.bid.get_unchecked(0).unwrap(),
+                result.bid.get_unchecked(0).unwrap_optimized(),
                 (reserve_1.asset, 1_0037500_0000000)
             );
             assert_eq!(
-                result.lot.get_unchecked(0).unwrap(),
+                result.lot.get_unchecked(0).unwrap_optimized(),
                 (reserve_0.config.b_token, 3000_0000000)
             );
             assert_eq!(b_token_0.balance(&frodo), 3000_0000000);
@@ -1489,12 +1490,12 @@ mod tests {
 
             e.budget().reset_unlimited();
             let result =
-                create_user_liq_auction_data(&e, &samwise, liquidation_data.clone()).unwrap();
+                create_user_liq_auction_data(&e, &samwise, liquidation_data.clone()).unwrap_optimized();
 
             assert_eq!(result.block, 51);
-            assert_eq!(result.bid.get_unchecked(reserve_1.config.index).unwrap(), 1);
+            assert_eq!(result.bid.get_unchecked(reserve_1.config.index).unwrap_optimized(), 1);
             assert_eq!(result.bid.len(), 1);
-            assert_eq!(result.lot.get_unchecked(reserve_0.config.index).unwrap(), 2);
+            assert_eq!(result.lot.get_unchecked(reserve_0.config.index).unwrap_optimized(), 2);
             assert_eq!(result.lot.len(), 1);
             //scale up modifiers
             e.ledger().set(LedgerInfo {
@@ -1514,9 +1515,9 @@ mod tests {
             assert_eq!(result.bid.len(), 1);
             assert_eq!(result.lot.len(), 1);
             assert_eq!(result.block, 50 + 300);
-            assert_eq!(result.bid.get_unchecked(0).unwrap(), (reserve_1.asset, 0));
+            assert_eq!(result.bid.get_unchecked(0).unwrap_optimized(), (reserve_1.asset, 0));
             assert_eq!(
-                result.lot.get_unchecked(0).unwrap(),
+                result.lot.get_unchecked(0).unwrap_optimized(),
                 (reserve_0.config.b_token, 00_0000002)
             );
             assert_eq!(b_token_0.balance(&frodo), 00_0000002);

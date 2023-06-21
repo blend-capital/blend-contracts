@@ -3,7 +3,7 @@ use crate::{
     storage::{self, PoolEmissionConfig, ReserveEmissionsConfig, ReserveEmissionsData},
 };
 use fixed_point_math::FixedPoint;
-use soroban_sdk::{contracttype, map, panic_with_error, Address, Env, Map, Symbol, Vec};
+use soroban_sdk::{contracttype, map, panic_with_error, Address, Env, Map, Symbol, Vec, unwrap::UnwrapOptimized};
 
 use super::distributor;
 
@@ -32,8 +32,8 @@ pub fn get_reserve_emissions(
         let res_token_index = res_index * 3 + token_type;
         if storage::has_res_emis_data(e, &res_token_index) {
             return Some((
-                storage::get_res_emis_config(e, &res_token_index).unwrap(),
-                storage::get_res_emis_data(e, &res_token_index).unwrap(),
+                storage::get_res_emis_config(e, &res_token_index).unwrap_optimized(),
+                storage::get_res_emis_data(e, &res_token_index).unwrap_optimized(),
             ));
         }
         return None;
@@ -58,7 +58,7 @@ pub fn set_pool_emissions(e: &Env, res_emission_metadata: Vec<ReserveEmissionMet
 
     let reserve_list = storage::get_res_list(e);
     for res_emission in res_emission_metadata {
-        let metadata = res_emission.unwrap();
+        let metadata = res_emission.unwrap_optimized();
         let key = metadata.res_index * 2 + metadata.res_type;
         if metadata.res_type > 1 || reserve_list.get(metadata.res_index).is_none() {
             panic_with_error!(e, PoolError::BadRequest);
@@ -90,7 +90,7 @@ pub fn update_emissions_cycle(e: &Env, next_exp: u64, pool_eps: u64) -> u64 {
     let reserve_list = storage::get_res_list(e);
     for (res_token_id, res_eps_share) in pool_emissions.iter_unchecked() {
         let reserve_index = res_token_id / 2;
-        let res_asset_address = reserve_list.get_unchecked(reserve_index).unwrap();
+        let res_asset_address = reserve_list.get_unchecked(reserve_index).unwrap_optimized();
         // update emissions data first to use the previous config until the current ledger timestamp
         update_reserve_emission_data(e, &res_asset_address, res_token_id);
         update_reserve_emission_config(e, res_token_id, next_exp, pool_eps, res_eps_share);
@@ -131,7 +131,7 @@ fn update_reserve_emission_config(
     pool_eps: u64,
     eps_share: u64,
 ) {
-    let new_res_eps = eps_share.fixed_mul_floor(pool_eps, 1_0000000).unwrap();
+    let new_res_eps = eps_share.fixed_mul_floor(pool_eps, 1_0000000).unwrap_optimized();
     let new_reserve_emis_config = ReserveEmissionsConfig {
         expiration,
         eps: new_res_eps,
@@ -155,7 +155,7 @@ mod tests {
     use super::*;
     use soroban_sdk::{
         testutils::{Address as _, Ledger, LedgerInfo},
-        vec, Address,
+        vec, Address, unwrap::UnwrapOptimized,
     };
 
     /********** Update Emissions **********/
@@ -193,7 +193,7 @@ mod tests {
             storage::set_pool_emission_config(&e, &pool_emission_config);
             storage::set_pool_emissions(&e, &pool_emissions);
 
-            update_emissions(&e, next_exp, pool_eps).unwrap();
+            update_emissions(&e, next_exp, pool_eps).unwrap_optimized();
 
             let new_config = storage::get_pool_emission_config(&e);
             assert_eq!(new_config.last_time, next_exp);
@@ -248,7 +248,7 @@ mod tests {
             storage::set_pool_emission_config(&e, &pool_emission_config);
             storage::set_pool_emissions(&e, &pool_emissions);
 
-            let result = update_emissions(&e, next_exp, pool_eps).unwrap();
+            let result = update_emissions(&e, next_exp, pool_eps).unwrap_optimized();
 
             let new_config = storage::get_pool_emission_config(&e);
             assert_eq!(new_config.last_time, next_exp);
@@ -260,9 +260,9 @@ mod tests {
             assert!(storage::get_res_emis_config(&e, &ReserveUsage::supply_key(2)).is_none());
 
             let r_1_l_config =
-                storage::get_res_emis_config(&e, &ReserveUsage::liability_key(1)).unwrap();
+                storage::get_res_emis_config(&e, &ReserveUsage::liability_key(1)).unwrap_optimized();
             let r_1_s_config =
-                storage::get_res_emis_config(&e, &ReserveUsage::supply_key(1)).unwrap();
+                storage::get_res_emis_config(&e, &ReserveUsage::supply_key(1)).unwrap_optimized();
             assert_eq!(r_1_l_config.expiration, next_exp);
             assert_eq!(r_1_l_config.eps, 0_3750000);
             assert_eq!(r_1_s_config.expiration, next_exp);
@@ -270,8 +270,8 @@ mod tests {
 
             // verify empty data was created for both
             let r_1_l_data =
-                storage::get_res_emis_data(&e, &ReserveUsage::liability_key(1)).unwrap();
-            let r_1_s_data = storage::get_res_emis_data(&e, &ReserveUsage::supply_key(1)).unwrap();
+                storage::get_res_emis_data(&e, &ReserveUsage::liability_key(1)).unwrap_optimized();
+            let r_1_s_data = storage::get_res_emis_data(&e, &ReserveUsage::supply_key(1)).unwrap_optimized();
             assert_eq!(r_1_l_data.index, 0);
             assert_eq!(r_1_l_data.last_time, 1500000000);
             assert_eq!(r_1_s_data.index, 0);
@@ -348,7 +348,7 @@ mod tests {
             storage::set_res_emis_config(&e, &ReserveUsage::supply_key(2), &old_r_s_2_config);
             storage::set_res_emis_data(&e, &ReserveUsage::supply_key(2), &old_r_s_2_data);
 
-            let result = update_emissions(&e, next_exp, pool_eps).unwrap();
+            let result = update_emissions(&e, next_exp, pool_eps).unwrap_optimized();
 
             let new_config = storage::get_pool_emission_config(&e);
             assert_eq!(new_config.last_time, next_exp);
@@ -360,17 +360,17 @@ mod tests {
             assert!(storage::get_res_emis_config(&e, &ReserveUsage::liability_key(2)).is_none());
 
             let r_0_l_config =
-                storage::get_res_emis_config(&e, &ReserveUsage::liability_key(0)).unwrap();
+                storage::get_res_emis_config(&e, &ReserveUsage::liability_key(0)).unwrap_optimized();
             let r_2_s_config =
-                storage::get_res_emis_config(&e, &ReserveUsage::supply_key(2)).unwrap();
+                storage::get_res_emis_config(&e, &ReserveUsage::supply_key(2)).unwrap_optimized();
             assert_eq!(r_0_l_config.expiration, next_exp);
             assert_eq!(r_0_l_config.eps, 0_1250000);
             assert_eq!(r_2_s_config.expiration, next_exp);
             assert_eq!(r_2_s_config.eps, 0_3750000);
 
             let r_0_l_data =
-                storage::get_res_emis_data(&e, &ReserveUsage::liability_key(0)).unwrap();
-            let r_2_s_data = storage::get_res_emis_data(&e, &ReserveUsage::supply_key(2)).unwrap();
+                storage::get_res_emis_data(&e, &ReserveUsage::liability_key(0)).unwrap_optimized();
+            let r_2_s_data = storage::get_res_emis_data(&e, &ReserveUsage::supply_key(2)).unwrap_optimized();
             assert_eq!(r_0_l_data.index, 800000100);
             assert_eq!(r_0_l_data.last_time, 1500000000);
             assert_eq!(r_2_s_data.index, 600000500);
@@ -447,24 +447,24 @@ mod tests {
             storage::set_res_emis_config(&e, &ReserveUsage::supply_key(2), &old_r_s_2_config);
             storage::set_res_emis_data(&e, &ReserveUsage::supply_key(2), &old_r_s_2_data);
 
-            let result = update_emissions(&e, next_exp, pool_eps).unwrap();
+            let result = update_emissions(&e, next_exp, pool_eps).unwrap_optimized();
 
             let new_config = storage::get_pool_emission_config(&e);
             assert_eq!(new_config.last_time, next_exp);
             assert_eq!(result, next_exp);
 
             let r_0_l_config =
-                storage::get_res_emis_config(&e, &ReserveUsage::liability_key(0)).unwrap();
+                storage::get_res_emis_config(&e, &ReserveUsage::liability_key(0)).unwrap_optimized();
             let r_2_s_config =
-                storage::get_res_emis_config(&e, &ReserveUsage::supply_key(2)).unwrap();
+                storage::get_res_emis_config(&e, &ReserveUsage::supply_key(2)).unwrap_optimized();
             assert_eq!(r_0_l_config.expiration, next_exp);
             assert_eq!(r_0_l_config.eps, 0_1250000);
             assert_eq!(r_2_s_config.expiration, next_exp);
             assert_eq!(r_2_s_config.eps, 0_3750000);
 
             let r_0_l_data =
-                storage::get_res_emis_data(&e, &ReserveUsage::liability_key(0)).unwrap();
-            let r_2_s_data = storage::get_res_emis_data(&e, &ReserveUsage::supply_key(2)).unwrap();
+                storage::get_res_emis_data(&e, &ReserveUsage::liability_key(0)).unwrap_optimized();
+            let r_2_s_data = storage::get_res_emis_data(&e, &ReserveUsage::supply_key(2)).unwrap_optimized();
             assert_eq!(r_0_l_data.index, 800000100);
             assert_eq!(r_0_l_data.last_time, 1500000000);
             assert_eq!(r_2_s_data.index, 600000500);
@@ -478,24 +478,24 @@ mod tests {
                 network_id: Default::default(),
                 base_reserve: 10,
             });
-            let result = update_emissions(&e, next_exp_1, pool_eps).unwrap();
+            let result = update_emissions(&e, next_exp_1, pool_eps).unwrap_optimized();
 
             let new_config = storage::get_pool_emission_config(&e);
             assert_eq!(new_config.last_time, next_exp_1);
             assert_eq!(result, next_exp_1);
 
             let r_0_l_config =
-                storage::get_res_emis_config(&e, &ReserveUsage::liability_key(0)).unwrap();
+                storage::get_res_emis_config(&e, &ReserveUsage::liability_key(0)).unwrap_optimized();
             let r_2_s_config =
-                storage::get_res_emis_config(&e, &ReserveUsage::supply_key(2)).unwrap();
+                storage::get_res_emis_config(&e, &ReserveUsage::supply_key(2)).unwrap_optimized();
             assert_eq!(r_0_l_config.expiration, next_exp_1);
             assert_eq!(r_0_l_config.eps, 0_1250000);
             assert_eq!(r_2_s_config.expiration, next_exp_1);
             assert_eq!(r_2_s_config.eps, 0_3750000);
 
             let r_0_l_data =
-                storage::get_res_emis_data(&e, &ReserveUsage::liability_key(0)).unwrap();
-            let r_2_s_data = storage::get_res_emis_data(&e, &ReserveUsage::supply_key(2)).unwrap();
+                storage::get_res_emis_data(&e, &ReserveUsage::liability_key(0)).unwrap_optimized();
+            let r_2_s_data = storage::get_res_emis_data(&e, &ReserveUsage::supply_key(2)).unwrap_optimized();
             assert_eq!(r_0_l_data.last_time, 1500000000 + 604800);
             assert_eq!(
                 r_0_l_data.index,
@@ -514,23 +514,23 @@ mod tests {
                 network_id: Default::default(),
                 base_reserve: 10,
             });
-            let result = update_emissions(&e, next_exp_2, pool_eps).unwrap();
+            let result = update_emissions(&e, next_exp_2, pool_eps).unwrap_optimized();
             let new_config = storage::get_pool_emission_config(&e);
             assert_eq!(new_config.last_time, next_exp_2);
             assert_eq!(result, next_exp_2);
 
             let r_0_l_config =
-                storage::get_res_emis_config(&e, &ReserveUsage::liability_key(0)).unwrap();
+                storage::get_res_emis_config(&e, &ReserveUsage::liability_key(0)).unwrap_optimized();
             let r_2_s_config =
-                storage::get_res_emis_config(&e, &ReserveUsage::supply_key(2)).unwrap();
+                storage::get_res_emis_config(&e, &ReserveUsage::supply_key(2)).unwrap_optimized();
             assert_eq!(r_0_l_config.expiration, next_exp_2);
             assert_eq!(r_0_l_config.eps, 0_1250000);
             assert_eq!(r_2_s_config.expiration, next_exp_2);
             assert_eq!(r_2_s_config.eps, 0_3750000);
 
             let r_0_l_data =
-                storage::get_res_emis_data(&e, &ReserveUsage::liability_key(0)).unwrap();
-            let r_2_s_data = storage::get_res_emis_data(&e, &ReserveUsage::supply_key(2)).unwrap();
+                storage::get_res_emis_data(&e, &ReserveUsage::liability_key(0)).unwrap_optimized();
+            let r_2_s_data = storage::get_res_emis_data(&e, &ReserveUsage::supply_key(2)).unwrap_optimized();
             assert_eq!(r_0_l_data.last_time, 1500000000 + 604800 + 31536000);
             assert_eq!(
                 r_0_l_data.index,
@@ -555,23 +555,23 @@ mod tests {
                 network_id: Default::default(),
                 base_reserve: 10,
             });
-            let result = update_emissions(&e, next_exp_3, pool_eps).unwrap();
+            let result = update_emissions(&e, next_exp_3, pool_eps).unwrap_optimized();
             let new_config = storage::get_pool_emission_config(&e);
             assert_eq!(new_config.last_time, next_exp_3);
             assert_eq!(result, next_exp_3);
 
             let r_0_l_config =
-                storage::get_res_emis_config(&e, &ReserveUsage::liability_key(0)).unwrap();
+                storage::get_res_emis_config(&e, &ReserveUsage::liability_key(0)).unwrap_optimized();
             let r_2_s_config =
-                storage::get_res_emis_config(&e, &ReserveUsage::supply_key(2)).unwrap();
+                storage::get_res_emis_config(&e, &ReserveUsage::supply_key(2)).unwrap_optimized();
             assert_eq!(r_0_l_config.expiration, next_exp_3);
             assert_eq!(r_0_l_config.eps, 0_1250000);
             assert_eq!(r_2_s_config.expiration, next_exp_3);
             assert_eq!(r_2_s_config.eps, 0_3750000);
 
             let r_0_l_data =
-                storage::get_res_emis_data(&e, &ReserveUsage::liability_key(0)).unwrap();
-            let r_2_s_data = storage::get_res_emis_data(&e, &ReserveUsage::supply_key(2)).unwrap();
+                storage::get_res_emis_data(&e, &ReserveUsage::liability_key(0)).unwrap_optimized();
+            let r_2_s_data = storage::get_res_emis_data(&e, &ReserveUsage::supply_key(2)).unwrap_optimized();
             assert_eq!(
                 r_0_l_data.last_time,
                 1500000000 + 604800 + 604800 + 31536000 //+ 604800
@@ -688,7 +688,7 @@ mod tests {
             storage::set_pool_emission_config(&e, &pool_emission_config);
             storage::set_pool_emissions(&e, &pool_emissions);
 
-            set_pool_emissions(&e, res_emission_metadata).unwrap();
+            set_pool_emissions(&e, res_emission_metadata).unwrap_optimized();
 
             let new_pool_emission_config = storage::get_pool_emission_config(&e);
             assert_eq!(
@@ -701,15 +701,15 @@ mod tests {
             assert_eq!(
                 new_pool_emissions
                     .get(ReserveUsage::supply_key(0))
-                    .unwrap()
-                    .unwrap(),
+                    .unwrap_optimized()
+                    .unwrap_optimized(),
                 0_3500000
             );
             assert_eq!(
                 new_pool_emissions
                     .get(ReserveUsage::liability_key(3))
-                    .unwrap()
-                    .unwrap(),
+                    .unwrap_optimized()
+                    .unwrap_optimized(),
                 0_6500000
             );
         });
@@ -795,7 +795,7 @@ mod tests {
         e.as_contract(&pool_id, || {
             storage::set_pool_emissions(&e, &pool_emissions);
 
-            set_pool_emissions(&e, res_emission_metadata).unwrap();
+            set_pool_emissions(&e, res_emission_metadata).unwrap_optimized();
 
             let new_pool_emission_config = storage::get_pool_emission_config(&e);
             assert_eq!(new_pool_emission_config.last_time, 0);
@@ -805,15 +805,15 @@ mod tests {
             assert_eq!(
                 new_pool_emissions
                     .get(ReserveUsage::supply_key(0))
-                    .unwrap()
-                    .unwrap(),
+                    .unwrap_optimized()
+                    .unwrap_optimized(),
                 0_3400000
             );
             assert_eq!(
                 new_pool_emissions
                     .get(ReserveUsage::liability_key(3))
-                    .unwrap()
-                    .unwrap(),
+                    .unwrap_optimized()
+                    .unwrap_optimized(),
                 0_6500000
             );
         });

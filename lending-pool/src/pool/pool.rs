@@ -1,4 +1,4 @@
-use soroban_sdk::{map, panic_with_error, Address, Env, Map};
+use soroban_sdk::{map, panic_with_error, Address, Env, Map, contracttype, unwrap::UnwrapOptimized};
 
 use crate::{
     errors::PoolError,
@@ -29,7 +29,7 @@ impl Pool {
     /// * asset - The address of the underlying asset
     pub fn load_reserve(&mut self, e: &Env, asset: &Address) -> Reserve {
         if let Some(reserve) = self.reserves.get(asset.clone()) {
-            return reserve.unwrap();
+            return reserve.unwrap_optimized();
         }
         return Reserve::load(e, &self.config, asset);
     }

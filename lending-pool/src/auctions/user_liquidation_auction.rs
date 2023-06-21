@@ -216,7 +216,7 @@ pub fn fill_user_liq_auction(
         }
 
         let res_asset_address = reserve_list.get_unchecked(i).unwrap();
-        let mut reserve = pool.load_reserve(e, &res_asset_address);
+        let reserve = pool.load_reserve(e, &res_asset_address);
 
         // bids are liabilities stored as debtTokens
         if bid_amount > 0 {
@@ -262,11 +262,18 @@ pub fn fill_user_liq_auction(
                 false,
             );
             user_positions.remove_collateral(e, reserve.index, mod_lot_amount);
+            // TODO: Consider returning supply to avoid any required health check on withdrawal
             filler_positions.add_collateral(reserve.index, mod_lot_amount);
             // TODO: Is this confusing to quote in blendTokens?
-            auction_quote.lot.push_back((reserve.asset, mod_lot_amount));
+            auction_quote
+                .lot
+                .push_back((reserve.asset.clone(), mod_lot_amount));
         }
+
+        reserve.store(e);
     }
+    storage::set_user_positions(e, user, &user_positions);
+    storage::set_user_positions(e, filler, &filler_positions);
 
     auction_quote
 }

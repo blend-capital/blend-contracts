@@ -18,9 +18,9 @@ pub struct Reserve {
     pub index: u32,            // the reserve index in the pool
     pub l_factor: u32,         // the liability factor for the reserve
     pub c_factor: u32,         // the collateral factor for the reserve
-    pub decimals: u32,         // decimals used for balances
     pub max_util: u32,         // the maximum utilization rate for the reserve
     pub last_time: u64,        // the last block the data was updated
+    pub scalar: i128,           // scalar used for balances
     pub d_rate: i128,          // the conversion rate from dToken to underlying (9 decimals)
     pub b_rate: i128,          // the conversion rate from bToken to underlying (9 decimals)
     pub ir_mod: i128,          // the interest rate curve modifier
@@ -49,9 +49,9 @@ impl Reserve {
             index: reserve_config.index,
             l_factor: reserve_config.l_factor,
             c_factor: reserve_config.c_factor,
-            decimals: reserve_config.decimals,
             max_util: reserve_config.max_util,
             last_time: reserve_data.last_time,
+            scalar: 10i128.pow(reserve_config.decimals),
             d_rate: reserve_data.d_rate,
             b_rate: reserve_data.b_rate,
             ir_mod: reserve_data.ir_mod,
@@ -101,7 +101,7 @@ impl Reserve {
             let pre_update_b_rate = reserve.b_rate;
             let token_bal = TokenClient::new(e, &asset).balance(&e.current_contract_address());
             reserve.b_rate = (reserve.total_liabilities() + token_bal - reserve.backstop_credit)
-                .fixed_div_floor(reserve.b_supply, 10i128.pow(reserve.decimals))
+                .fixed_div_floor(reserve.b_supply, reserve.scalar)
                 .unwrap_optimized();
 
             // credit the backstop underlying from the accrued interest based on the backstop rate
@@ -109,7 +109,7 @@ impl Reserve {
             if pool_config.bstop_rate > 0 && b_rate_accrual > 0 {
                 reserve.backstop_credit += reserve.to_asset_from_b_token(
                     pre_update_supply
-                        .fixed_mul_floor(b_rate_accrual, 10i128.pow(reserve.decimals))
+                        .fixed_mul_floor(b_rate_accrual, reserve.scalar)
                         .unwrap_optimized()
                         .fixed_mul_floor(i128(pool_config.bstop_rate), SCALAR_9)
                         .unwrap_optimized(),
@@ -136,16 +136,9 @@ impl Reserve {
 
     /// Fetch the current utilization rate for the reserve normalized to 7 decimals
     pub fn utilization(&self) -> i128 {
-        if self.decimals < 7 {
-            (self.total_liabilities() * 10i128.pow(7 - self.decimals))
-                .fixed_div_floor(self.total_supply(), 10i128.pow(self.decimals))
-                .unwrap_optimized()
-        } else {
-            self.total_liabilities()
-                .fixed_div_floor(self.total_supply(), 10i128.pow(self.decimals))
-                .unwrap_optimized()
-                / (10i128.pow(self.decimals - 7))
-        }
+        self.total_liabilities()
+            .fixed_div_floor(self.total_supply(), 1_0000000)
+            .unwrap_optimized()
     }
 
     /// Require that the utilization rate is below the maximum allowed, or panic.
@@ -181,7 +174,7 @@ impl Reserve {
     /// * `b_tokens` - The amount of tokens to convert
     pub fn to_asset_from_b_token(&self, b_tokens: i128) -> i128 {
         b_tokens
-            .fixed_mul_floor(self.b_rate, 10i128.pow(self.decimals))
+            .fixed_mul_floor(self.b_rate, self.scalar)
             .unwrap_optimized()
     }
 

@@ -37,6 +37,7 @@ pub fn create_user_liq_auction_data(
     let mut pool = Pool::load(e);
     let oracle_client = OracleClient::new(e, &pool.config.oracle);
     let oracle_decimals = oracle_client.decimals();
+    let oracle_scalar = 10i128.pow(oracle_decimals);
 
     let user_positions = storage::get_user_positions(e, user);
     let reserve_list = storage::get_res_list(e);
@@ -56,13 +57,14 @@ pub fn create_user_liq_auction_data(
         }
         let res_asset_address = reserve_list.get_unchecked(i).unwrap_optimized();
         let reserve = pool.load_reserve(e, &res_asset_address);
+        let reserve_scalar = reserve.scalar;
         let asset_to_base = i128(oracle_client.get_price(&reserve.asset));
 
         if b_token_balance > 0 {
             // append users effective collateral to collateral_base
             let asset_collateral = reserve.to_effective_asset_from_b_token(b_token_balance);
             collateral_base += asset_to_base
-                .fixed_mul_floor(asset_collateral, 10i128.pow(reserve.decimals))
+                .fixed_mul_floor(asset_collateral, reserve_scalar)
                 .unwrap_optimized();
             if let Some(to_sell_entry) = liq_data.collateral.get(res_asset_address.clone()) {
                 // liquidator included some amount of collateral in the liquidation
@@ -76,7 +78,7 @@ pub fn create_user_liq_auction_data(
                 let to_sell_amt_base = asset_to_base
                     .fixed_mul_floor(
                         reserve.to_asset_from_b_token(to_sell_amt_b_token),
-                        10i128.pow(reserve.decimals),
+                        reserve_scalar,
                     )
                     .unwrap_optimized();
                 sell_collat_base += to_sell_amt_base;
@@ -101,7 +103,7 @@ pub fn create_user_liq_auction_data(
             // append users effective liability to liability_base
             let asset_liability = reserve.to_effective_asset_from_d_token(d_token_balance);
             liability_base += asset_to_base
-                .fixed_mul_floor(asset_liability, 10i128.pow(reserve.decimals))
+                .fixed_mul_floor(asset_liability, reserve_scalar)
                 .unwrap_optimized();
 
             if let Some(to_buy_entry) = liq_data.liability.get(res_asset_address.clone()) {
@@ -116,7 +118,7 @@ pub fn create_user_liq_auction_data(
                 let to_buy_amt_base = asset_to_base
                     .fixed_mul_floor(
                         reserve.to_asset_from_d_token(to_buy_amt_d_token),
-                        10i128.pow(reserve.decimals),
+                        reserve_scalar,
                     )
                     .unwrap_optimized();
                 buy_liab_base += to_buy_amt_base;
@@ -147,12 +149,12 @@ pub fn create_user_liq_auction_data(
 
     // ensure liquidation size is fair and the collateral is large enough to allow for the auction to price the liquidation
     let weighted_cf = scaled_cf
-        .fixed_div_floor(sell_collat_base * 100, 10i128.pow(oracle_decimals))
+        .fixed_div_floor(sell_collat_base * 100, oracle_scalar)
         .unwrap_optimized();
     // weighted_lf factor is the inverse of the liability factor
     let weighted_lf = SCALAR_9
         .fixed_div_floor(
-            scaled_lf.fixed_div_floor(buy_liab_base, 10i128.pow(oracle_decimals)).unwrap_optimized(),
+            scaled_lf.fixed_div_floor(buy_liab_base, oracle_scalar).unwrap_optimized(),
             SCALAR_7,
         )
         .unwrap_optimized();
@@ -248,7 +250,7 @@ pub fn fill_user_liq_auction(
                 e,
                 reserve.index * 2 + 1,
                 reserve.b_supply,
-                reserve.decimals,
+                reserve.scalar,
                 user,
                 user_positions.get_total_supply(reserve.index),
                 false,
@@ -257,7 +259,7 @@ pub fn fill_user_liq_auction(
                 e,
                 reserve.index * 2 + 1,
                 reserve.b_supply,
-                reserve.decimals,
+                reserve.scalar,
                 filler,
                 filler_positions.get_total_supply(reserve.index),
                 false,

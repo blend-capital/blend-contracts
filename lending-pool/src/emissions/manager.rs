@@ -110,7 +110,7 @@ fn update_reserve_emission_data(e: &Env, asset: &Address, res_token_id: u32) {
             1 => reserve_data.b_supply,
             _ => panic_with_error!(e, PoolError::BadRequest),
         };
-        distributor::update_emission_data(&e, res_token_id, supply, reserve_config.decimals);
+        distributor::update_emission_data(&e, res_token_id, supply, 10i128.pow(reserve_config.decimals));
     } else {
         // no data exists yet - first time this reserve token will get emission
         storage::set_res_emis_data(

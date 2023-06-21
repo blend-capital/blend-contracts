@@ -39,7 +39,7 @@ pub fn create_interest_auction_data(e: &Env, backstop: &Address) -> AuctionData 
         if reserve.backstop_credit > 0 {
             let asset_to_base = oracle_client.get_price(&res_asset_address);
             interest_value += i128(asset_to_base)
-                .fixed_mul_floor(reserve.backstop_credit, 10i128.pow(reserve.decimals))
+                .fixed_mul_floor(reserve.backstop_credit, reserve.scalar)
                 .unwrap_optimized();
             auction_data.lot.set(i, reserve.backstop_credit);
         }

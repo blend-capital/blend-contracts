@@ -37,7 +37,7 @@ pub fn execute_claim(e: &Env, from: &Address, reserve_token_ids: &Vec<u32>, to: 
                     &e,
                     reserve_token_id,
                     supply,
-                    reserve_config.decimals,
+                    10i128.pow(reserve_config.decimals),
                     &from,
                     user_balance,
                     true,
@@ -65,7 +65,7 @@ pub fn execute_claim(e: &Env, from: &Address, reserve_token_ids: &Vec<u32>, to: 
 /// ### Arguments
 /// * `res_token_id` - The reserve token being acted against => (reserve index * 2 + (0 for debtToken or 1 for blendToken))
 /// * `supply` - The current supply of the reserve token
-/// * `supply_decimals` - The decimals of the reserve token
+/// * `supply_scalar` - The scalar of the reserve token
 /// * `user` - The user performing an action against the reserve
 /// * `balance` - The current balance of the user
 /// * `claim` - Whether or not to claim the user's accrued emissions
@@ -76,17 +76,17 @@ pub fn update_emissions(
     e: &Env,
     res_token_id: u32,
     supply: i128,
-    supply_decimals: u32,
+    supply_scalar: i128,
     user: &Address,
     balance: i128,
     claim: bool,
 ) -> i128 {
-    if let Some(res_emis_data) = update_emission_data(e, res_token_id, supply, supply_decimals) {
+    if let Some(res_emis_data) = update_emission_data(e, res_token_id, supply, supply_scalar) {
         return update_user_emissions(
             e,
             &res_emis_data,
             res_token_id,
-            supply_decimals,
+            supply_scalar,
             user,
             balance,
             claim,
@@ -103,7 +103,7 @@ pub fn update_emissions(
 /// ### Arguments
 /// * `res_token_id` - The reserve token being acted against => (reserve index * 2 + (0 for debtToken or 1 for blendToken))
 /// * `supply` - The current supply of the reserve token
-/// * `supply_decimals` - The decimals of the reserve token
+/// * `supply_scalar` - The scalar of the reserve token
 ///
 /// ### Panics
 /// If the reserve update failed
@@ -111,7 +111,7 @@ pub fn update_emission_data(
     e: &Env,
     res_token_id: u32,
     supply: i128,
-    supply_decimals: u32,
+    supply_scalar: i128,
 ) -> Option<ReserveEmissionsData> {
     let token_emission_config = match storage::get_res_emis_config(e, &res_token_id) {
         Some(res) => res,
@@ -135,7 +135,7 @@ pub fn update_emission_data(
 
     let additional_idx = (i128(ledger_timestamp - token_emission_data.last_time)
         * i128(token_emission_config.eps))
-    .fixed_div_floor(supply, 10i128.pow(supply_decimals))
+    .fixed_div_floor(supply, supply_scalar)
     .unwrap_optimized();
     let new_data = ReserveEmissionsData {
         index: additional_idx + token_emission_data.index,
@@ -149,7 +149,7 @@ fn update_user_emissions(
     e: &Env,
     res_emis_data: &ReserveEmissionsData,
     res_token_id: u32,
-    supply_decimals: u32,
+    supply_scalar: i128,
     user: &Address,
     balance: i128,
     claim: bool,
@@ -161,7 +161,7 @@ fn update_user_emissions(
                 let to_accrue = balance
                     .fixed_mul_floor(
                         res_emis_data.index - user_data.index,
-                        10i128.pow(supply_decimals),
+                        supply_scalar,
                     )
                     .unwrap_optimized();
                 accrual += to_accrue;
@@ -175,7 +175,7 @@ fn update_user_emissions(
     } else {
         // user had tokens before emissions began, they are due any historical emissions
         let to_accrue = balance
-            .fixed_mul_floor(res_emis_data.index, 10i128.pow(supply_decimals))
+            .fixed_mul_floor(res_emis_data.index, supply_scalar)
             .unwrap_optimized();
         return set_user_emissions(
             e,

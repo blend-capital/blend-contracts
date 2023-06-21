@@ -179,7 +179,7 @@ pub(crate) fn fill_debt_token(
         e,
         reserve.index * 2,
         reserve.d_supply,
-        reserve.decimals,
+        reserve.scalar,
         user,
         positions.get_liabilities(reserve.index),
         false,

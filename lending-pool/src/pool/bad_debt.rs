@@ -55,7 +55,7 @@ fn transfer_bad_debt_to_backstop(e: &Env, user: &Address, backstop: &Address) {
             e,
             reserve_index,
             reserve_data.d_supply,
-            reserve_config.decimals,
+            10i128.pow(reserve_config.decimals),
             user,
             liability_balance,
             false,

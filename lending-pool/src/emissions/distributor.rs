@@ -1,12 +1,10 @@
 use cast::i128;
 use fixed_point_math::FixedPoint;
-use soroban_sdk::{Address, Env, Vec};
+use soroban_sdk::{Address, Env, Vec, panic_with_error};
 
 use crate::{
-    constants::SCALAR_7,
-    dependencies::{BackstopClient, TokenClient},
+    dependencies::{BackstopClient},
     errors::PoolError,
-    reserve::Reserve,
     storage::{self, ReserveEmissionsData, UserEmissionData},
 };
 
@@ -16,128 +14,100 @@ pub fn execute_claim(
     from: &Address,
     reserve_token_ids: &Vec<u32>,
     to: &Address,
-) -> Result<i128, PoolError> {
-    let to_claim = calc_claim(&e, from, reserve_token_ids)?;
+) -> i128 {
+    let positions = storage::get_user_positions(e, &from);
+    let reserve_list = storage::get_res_list(e);
+    let mut to_claim = 0;
+    for id in reserve_token_ids.clone() {
+        let reserve_token_id = id.unwrap();
+        let reserve_index = reserve_token_id / 2;
+        let reserve_addr = reserve_list.get(reserve_index);
+        match reserve_addr {
+            Some(res_addr) => {
+                let res_address = res_addr.unwrap();
+                let reserve_config = storage::get_res_config(e, &res_address);
+                let reserve_data = storage::get_res_data(e, &res_address);
+                let (user_balance, supply) = match reserve_token_id % 2 {
+                    0 => (positions.get_liabilities(reserve_index), reserve_data.d_supply),
+                    1 => (positions.get_collateral(reserve_index), reserve_data.b_supply),
+                    _ => panic_with_error!(e, PoolError::BadRequest),
+                };     
+                to_claim += update_emissions(&e, reserve_token_id, supply, reserve_config.decimals, &from, user_balance, true);
+            }
+            None => {
+                panic_with_error!(e, PoolError::BadRequest)
+            }
+        }
+    }
 
     if to_claim > 0 {
         let bkstp_addr = storage::get_backstop(e);
         let backstop = BackstopClient::new(&e, &bkstp_addr);
         backstop.pool_claim(&e.current_contract_address(), &to, &to_claim);
     }
-
-    Ok(to_claim)
+    to_claim
 }
 
-/// Update the emissions information about a reserve token
+/// Update the emissions information about a reserve token. Must be called before any update
+/// is made to the supply of debtTokens or blendTokens.
+/// 
+/// Returns the amount of tokens to claim, or zero if 'claim' is false
 ///
 /// ### Arguments
-/// * `reserve` - The reserve being updated
-/// * `res_token_type` - The reserve token being acted against (0 for dToken / 1 for bToken)
+/// * `res_token_id` - The reserve token being acted against => (reserve index * 2 + (0 for debtToken or 1 for blendToken))
+/// * `supply` - The current supply of the reserve token
+/// * `supply_decimals` - The decimals of the reserve token
 /// * `user` - The user performing an action against the reserve
+/// * `balance` - The current balance of the user
+/// * `claim` - Whether or not to claim the user's accrued emissions
 ///
-/// ### Errors
+/// ### Panics
 /// If the reserve update failed
-pub fn update_reserve(
+pub fn update_emissions(
     e: &Env,
-    reserve: &Reserve,
-    res_token_type: u32,
+    res_token_id: u32,
+    supply: i128,
+    supply_decimals: u32,
     user: &Address,
-) -> Result<(), PoolError> {
-    if let Some(res_emis_data) = update_emission_data(e, reserve, res_token_type)? {
-        update_user_emissions(e, reserve, res_token_type, &res_emis_data, user, false)?;
-        Ok(())
-    } else {
-        // no emissions data for the reserve exists - nothing to update
-        Ok(())
+    balance: i128,
+    claim: bool
+) -> i128 {
+    if let Some(res_emis_data) = update_emission_data(e, res_token_id, supply, supply_decimals) {
+        return update_user_emissions(e, &res_emis_data, res_token_id, supply_decimals, user, balance, claim);
     }
+    // no emissions data for the reserve exists - nothing to update
+    0
 }
 
-/// Determines emission total and resets all accrued emissions
+/// Update the reserve token emission data
 ///
-/// Does not send tokens
-///
-/// ### Arguments
-/// * `user` - The user to claim emissions for
-/// * `reserve_token_ids` - Vector of reserve token ids
-fn calc_claim(e: &Env, user: &Address, reserve_token_ids: &Vec<u32>) -> Result<i128, PoolError> {
-    let reserve_list = storage::get_res_list(e);
-    let mut to_claim = 0;
-    for id in reserve_token_ids.clone() {
-        // assumption is made that it is unlikely both reserve tokens will be claiming emissions in the same call
-        // TODO: verify this, if not, optimize the duplicate reserve call
-        let reserve_token_id = id.unwrap();
-        let reserve_addr = reserve_list.get(reserve_token_id / 3);
-        match reserve_addr {
-            Some(res_addr) => {
-                let reserve = Reserve::load(&e, res_addr.unwrap());
-                let to_claim_from_reserve =
-                    update_and_claim(&e, &reserve, reserve_token_id % 3, user).unwrap();
-                to_claim += to_claim_from_reserve;
-            }
-            None => {
-                return Err(PoolError::BadRequest);
-            }
-        }
-    }
-
-    Ok(to_claim)
-}
-
-/// Update and claim emissions for a user
+/// Returns the new ReserveEmissionData, if None if no data exists
 ///
 /// ### Arguments
-/// * `reserve` - The reserve being claimed
-/// * `res_token_type` - The reserve token being claimed (0 for dToken / 1 for bToken)
-/// * `user` - The user claiming
-fn update_and_claim(
-    e: &Env,
-    reserve: &Reserve,
-    res_token_type: u32,
-    user: &Address,
-) -> Result<i128, PoolError> {
-    if let Some(res_emis_data) = update_emission_data(e, reserve, res_token_type)? {
-        update_user_emissions(e, reserve, res_token_type, &res_emis_data, user, true)
-    } else {
-        // no emissions data for the reserve exists
-        // TODO: consider throwing error
-        Ok(0)
-    }
-}
-
-/// Update only the reserve token emission data
-///
-/// Returns the new ReserveEmissionData, if any
-///
-/// ### Arguments
-/// * `reserve` - The reserve being updated
-/// * `res_token_type` - The reserve token being acted against (0 for d_token / 1 for b_token)
-///
-/// ### Errors
+/// * `res_token_id` - The reserve token being acted against => (reserve index * 2 + (0 for debtToken or 1 for blendToken))
+/// * `supply` - The current supply of the reserve token
+/// * `supply_decimals` - The decimals of the reserve token
+/// 
+/// ### Panics
 /// If the reserve update failed
 pub fn update_emission_data(
     e: &Env,
-    reserve: &Reserve,
-    res_token_type: u32,
-) -> Result<Option<ReserveEmissionsData>, PoolError> {
-    let res_token_index: u32 = reserve.config.index * 3 + res_token_type;
-    let token_emission_config = match storage::get_res_emis_config(e, &res_token_index) {
+    res_token_id: u32,
+    supply: i128,
+    supply_decimals: u32,
+) -> Option<ReserveEmissionsData> {
+    let token_emission_config = match storage::get_res_emis_config(e, &res_token_id) {
         Some(res) => res,
-        None => return Ok(None), // no emission exist, no update is required
+        None => return None, // no emission exist, no update is required
     };
-    let token_emission_data = storage::get_res_emis_data(e, &res_token_index).unwrap(); // exists if config is written to
-
-    let total_supply = if res_token_type == 0 {
-        reserve.data.d_supply
-    } else {
-        reserve.data.b_supply
-    };
+    let token_emission_data = storage::get_res_emis_data(e, &res_token_id).unwrap(); // exists if config is written to
 
     if token_emission_data.last_time >= token_emission_config.expiration
         || e.ledger().timestamp() == token_emission_data.last_time
         || token_emission_config.eps == 0
-        || total_supply == 0
+        || supply == 0
     {
-        return Ok(Some(token_emission_data));
+        return Some(token_emission_data);
     }
 
     let ledger_timestamp = if e.ledger().timestamp() > token_emission_config.expiration {
@@ -148,91 +118,83 @@ pub fn update_emission_data(
 
     let additional_idx = (i128(ledger_timestamp - token_emission_data.last_time)
         * i128(token_emission_config.eps))
-    .fixed_div_floor(total_supply, reserve.scalar)
+    .fixed_div_floor(supply, 10i128.pow(supply_decimals))
     .unwrap();
     let new_data = ReserveEmissionsData {
         index: additional_idx + token_emission_data.index,
         last_time: e.ledger().timestamp(),
     };
-    storage::set_res_emis_data(e, &res_token_index, &new_data);
-    Ok(Some(new_data))
+    storage::set_res_emis_data(e, &res_token_id, &new_data);
+    Some(new_data)
 }
 
-pub fn update_user_emissions(
+fn update_user_emissions(
     e: &Env,
-    reserve: &Reserve,
-    res_token_type: u32,
     res_emis_data: &ReserveEmissionsData,
+    res_token_id: u32,
+    supply_decimals: u32,
     user: &Address,
-    to_claim: bool,
-) -> Result<i128, PoolError> {
-    let res_token_index: u32 = (reserve.config.index * 3) + res_token_type;
-
-    let token_addr = if res_token_type == 0 {
-        &reserve.config.d_token
-    } else {
-        &reserve.config.b_token
-    };
-    let user_bal = TokenClient::new(&e, token_addr).balance(&user);
-
-    if let Some(user_data) = storage::get_user_emissions(e, &user, &res_token_index) {
-        if user_data.index != res_emis_data.index || to_claim {
+    balance: i128,
+    claim: bool
+) -> i128 {
+    if let Some(user_data) = storage::get_user_emissions(e, &user, &res_token_id) {
+        if user_data.index != res_emis_data.index || claim {
             let mut accrual = user_data.accrued;
-            if user_bal != 0 {
-                let to_accrue = user_bal
-                    .fixed_mul_floor(res_emis_data.index - user_data.index, reserve.scalar)
+            if balance != 0 {
+                let to_accrue = balance
+                    .fixed_mul_floor(res_emis_data.index - user_data.index, 10i128.pow(supply_decimals))
                     .unwrap();
                 accrual += to_accrue;
             }
-            return Ok(set_user_emissions(
+            return set_user_emissions(
                 e,
                 &user,
-                res_token_index,
+                res_token_id,
                 res_emis_data.index,
                 accrual,
-                to_claim,
-            ));
+                claim,
+            );
         }
-        return Ok(0);
-    } else if user_bal == 0 {
+        return 0;
+    } else if balance == 0 {
         // first time the user registered an action with the asset since emissions were added
-        return Ok(set_user_emissions(
+        return set_user_emissions(
             e,
             &user,
-            res_token_index,
+            res_token_id,
             res_emis_data.index,
             0,
-            to_claim,
-        ));
+            claim,
+        );
     } else {
         // user had tokens before emissions began, they are due any historical emissions
-        let to_accrue = user_bal
-            .fixed_mul_floor(res_emis_data.index, reserve.scalar)
+        let to_accrue = balance
+            .fixed_mul_floor(res_emis_data.index, 10i128.pow(supply_decimals))
             .unwrap();
-        return Ok(set_user_emissions(
+        return set_user_emissions(
             e,
             &user,
-            res_token_index,
+            res_token_id,
             res_emis_data.index,
             to_accrue,
-            to_claim,
-        ));
+            claim,
+        );
     }
 }
 
 fn set_user_emissions(
     e: &Env,
     user: &Address,
-    res_token_index: u32,
+    res_token_id: u32,
     index: i128,
     accrued: i128,
-    to_claim: bool,
+    claim: bool,
 ) -> i128 {
-    if to_claim {
+    if claim {
         storage::set_user_emissions(
             e,
             &user,
-            &res_token_index,
+            &res_token_id,
             &UserEmissionData { index, accrued: 0 },
         );
         return accrued;
@@ -240,7 +202,7 @@ fn set_user_emissions(
         storage::set_user_emissions(
             e,
             &user,
-            &res_token_index,
+            &res_token_id,
             &UserEmissionData { index, accrued },
         );
         return 0;

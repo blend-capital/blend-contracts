@@ -1,11 +1,9 @@
 use crate::{
     errors::PoolError,
-    reserve::Reserve,
-    reserve_usage::ReserveUsage,
     storage::{self, PoolEmissionConfig, ReserveEmissionsConfig, ReserveEmissionsData},
 };
 use fixed_point_math::FixedPoint;
-use soroban_sdk::{contracttype, map, Address, Env, Map, Symbol, Vec};
+use soroban_sdk::{contracttype, map, Address, Env, Map, Symbol, Vec, panic_with_error};
 
 use super::distributor;
 
@@ -24,108 +22,24 @@ pub fn get_reserve_emissions(
     e: &Env,
     asset: &Address,
     token_type: u32,
-) -> Result<Option<(ReserveEmissionsConfig, ReserveEmissionsData)>, PoolError> {
+) -> Option<(ReserveEmissionsConfig, ReserveEmissionsData)> {
     if token_type > 1 {
-        return Err(PoolError::BadRequest);
+        panic_with_error!(e, PoolError::BadRequest);
     }
 
     let res_list = storage::get_res_list(e);
     if let Some(res_index) = res_list.first_index_of(asset) {
         let res_token_index = res_index * 3 + token_type;
         if storage::has_res_emis_data(e, &res_token_index) {
-            return Ok(Some((
+            return Some((
                 storage::get_res_emis_config(e, &res_token_index).unwrap(),
                 storage::get_res_emis_data(e, &res_token_index).unwrap(),
-            )));
+            ));
         }
-        return Ok(None);
+        return None;
     }
 
-    Err(PoolError::BadRequest)
-}
-
-/// Updates the pool's emissions for the next emission cycle
-///
-/// Needs to be run each time a new emission cycle starts
-///
-/// ### Errors
-/// If update has already been run for this emission cycle
-pub fn update_emissions(e: &Env, next_exp: u64, pool_eps: u64) -> Result<u64, PoolError> {
-    let mut pool_config = storage::get_pool_emission_config(e);
-    if next_exp <= pool_config.last_time {
-        return Err(PoolError::BadRequest);
-    }
-
-    let pool_reserve_usage = ReserveUsage::new(pool_config.config);
-
-    let pool_emissions = storage::get_pool_emissions(e);
-    let reserve_count = storage::get_res_list(e);
-    for i in 0..reserve_count.len() {
-        let res_asset_address = reserve_count.get_unchecked(i).unwrap();
-        if pool_reserve_usage.is_liability(i) {
-            let key = ReserveUsage::liability_key(i);
-            update_reserve_emission_data(e, res_asset_address.clone(), 0, key)?;
-
-            let res_eps_share = pool_emissions.get_unchecked(key).unwrap();
-            update_reserve_emission_config(e, key, next_exp, pool_eps, res_eps_share);
-        }
-        if pool_reserve_usage.is_supply(i) {
-            let key = ReserveUsage::supply_key(i);
-            update_reserve_emission_data(e, res_asset_address.clone(), 1, key)?;
-
-            let res_eps_share = pool_emissions.get_unchecked(key).unwrap();
-            update_reserve_emission_config(e, key, next_exp, pool_eps, res_eps_share);
-        }
-    }
-
-    pool_config.last_time = next_exp;
-    storage::set_pool_emission_config(e, &pool_config);
-    Ok(next_exp)
-}
-
-fn update_reserve_emission_data(
-    e: &Env,
-    res_asset_address: Address,
-    res_type: u32,
-    res_token_id: u32,
-) -> Result<(), PoolError> {
-    if storage::has_res_emis_data(e, &res_token_id) {
-        // data exists - update it with old config
-        let reserve = Reserve::load(&e, res_asset_address);
-        distributor::update_emission_data(&e, &reserve, res_type)?;
-        Ok(())
-    } else {
-        // no data exists yet - first time this reserve token will get emission
-        storage::set_res_emis_data(
-            e,
-            &res_token_id,
-            &ReserveEmissionsData {
-                index: 0,
-                last_time: e.ledger().timestamp(),
-            },
-        );
-        Ok(())
-    }
-}
-
-fn update_reserve_emission_config(
-    e: &Env,
-    key: u32,
-    expiration: u64,
-    pool_eps: u64,
-    eps_share: u64,
-) {
-    let new_res_eps = eps_share.fixed_mul_floor(pool_eps, 1_0000000).unwrap();
-    let new_reserve_emis_config = ReserveEmissionsConfig {
-        expiration,
-        eps: new_res_eps,
-    };
-
-    storage::set_res_emis_config(e, &key, &new_reserve_emis_config);
-    e.events().publish(
-        (Symbol::new(&e, "e_config"),),
-        (key, new_res_eps, expiration),
-    )
+    panic_with_error!(e, PoolError::BadRequest);
 }
 
 /// Set the pool emissions
@@ -136,46 +50,108 @@ fn update_reserve_emission_config(
 /// * `res_emission_metadata` - A vector of `ReserveEmissionMetadata` that details each reserve token's share
 ///                             if the total pool eps
 ///
-/// ### Errors
+/// ### Panics
 /// If the total share of the pool eps from the reserves is over 1
 pub fn set_pool_emissions(
     e: &Env,
     res_emission_metadata: Vec<ReserveEmissionMetadata>,
-) -> Result<(), PoolError> {
-    let cur_pool_emis_config = storage::get_pool_emission_config(e);
-
-    let mut pool_config: ReserveUsage = ReserveUsage { config: 0 };
+) {
     let mut pool_emissions: Map<u32, u64> = map![&e];
     let mut total_share = 0;
 
+    let reserve_list = storage::get_res_list(e);
     for res_emission in res_emission_metadata {
         let metadata = res_emission.unwrap();
-        let key: u32;
-        if metadata.res_type == 0 {
-            pool_config.set_liability(metadata.res_index, true);
-            key = ReserveUsage::liability_key(metadata.res_index);
-        } else {
-            pool_config.set_supply(metadata.res_index, true);
-            key = ReserveUsage::supply_key(metadata.res_index);
+        let key = metadata.res_index * 2 + metadata.res_type;
+        if metadata.res_type > 1 || reserve_list.get(metadata.res_index).is_none() {
+            panic_with_error!(e, PoolError::BadRequest);
         }
         pool_emissions.set(key, metadata.share);
         total_share += metadata.share;
     }
 
     if total_share > 1_0000000 {
-        return Err(PoolError::BadRequest);
+        panic_with_error!(e, PoolError::BadRequest);
     }
 
-    storage::set_pool_emission_config(
-        e,
-        &PoolEmissionConfig {
-            config: pool_config.config,
-            last_time: cur_pool_emis_config.last_time,
-        },
-    );
     storage::set_pool_emissions(e, &pool_emissions);
-    Ok(())
 }
+
+/// Updates the pool's emissions for the next emission cycle
+///
+/// Needs to be run each time a new emission cycle starts
+///
+/// ### Panics
+/// If update has already been run for this emission cycle
+pub fn update_emissions_cycle(e: &Env, next_exp: u64, pool_eps: u64) -> u64 {
+    let cur_exp = storage::get_pool_emissions_expiration(e);
+    if next_exp <= cur_exp {
+        panic_with_error!(e, PoolError::BadRequest);
+    }
+
+    let pool_emissions = storage::get_pool_emissions(e);
+    let reserve_list = storage::get_res_list(e);
+    for (res_token_id, res_eps_share) in pool_emissions.iter_unchecked() {
+        let reserve_index = res_token_id / 2;
+        let res_asset_address = reserve_list.get_unchecked(reserve_index).unwrap();
+        // update emissions data first to use the previous config until the current ledger timestamp
+        update_reserve_emission_data(e, &res_asset_address, res_token_id);
+        update_reserve_emission_config(e, res_token_id, next_exp, pool_eps, res_eps_share);
+    }
+
+    storage::set_pool_emissions_expiration(e, &cur_exp);
+    next_exp
+}
+
+fn update_reserve_emission_data(
+    e: &Env,
+    asset: &Address,
+    res_token_id: u32
+) {
+    if storage::has_res_emis_data(e, &res_token_id) {
+        // data exists - update it with old config
+        let reserve_config = storage::get_res_config(e, &asset);
+        let reserve_data = storage::get_res_data(e, &asset);
+        let supply = match res_token_id % 2 {
+            0 => reserve_data.d_supply,
+            1 => reserve_data.b_supply,
+            _ => panic_with_error!(e, PoolError::BadRequest),
+        };     
+        distributor::update_emission_data(&e, res_token_id, supply, reserve_config.decimals);
+    } else {
+        // no data exists yet - first time this reserve token will get emission
+        storage::set_res_emis_data(
+            e,
+            &res_token_id,
+            &ReserveEmissionsData {
+                index: 0,
+                last_time: e.ledger().timestamp(),
+            },
+        );
+    }
+}
+
+fn update_reserve_emission_config(
+    e: &Env,
+    res_token_id: u32,
+    expiration: u64,
+    pool_eps: u64,
+    eps_share: u64,
+) {
+    let new_res_eps = eps_share.fixed_mul_floor(pool_eps, 1_0000000).unwrap();
+    let new_reserve_emis_config = ReserveEmissionsConfig {
+        expiration,
+        eps: new_res_eps,
+    };
+
+    storage::set_res_emis_config(e, &res_token_id, &new_reserve_emis_config);
+    e.events().publish(
+        (Symbol::new(&e, "e_config"),),
+        (res_token_id, new_res_eps, expiration),
+    )
+}
+
+
 
 #[cfg(test)]
 mod tests {

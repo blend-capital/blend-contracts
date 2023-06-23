@@ -1,5 +1,5 @@
 use fixed_point_math::FixedPoint;
-use soroban_sdk::{Address, Env};
+use soroban_sdk::{panic_with_error, unwrap::UnwrapOptimized, Address, Env};
 
 use crate::{dependencies::PoolFactoryClient, errors::BackstopError, storage};
 
@@ -27,12 +27,11 @@ impl Pool {
     /// Verify the pool address was deployed by the Pool Factory
     ///
     /// Returns a Result
-    pub fn verify_pool(&self, e: &Env) -> Result<(), BackstopError> {
+    pub fn verify_pool(&self, e: &Env) {
         let pool_factory_client = PoolFactoryClient::new(e, &storage::get_pool_factory(e));
         if !pool_factory_client.is_pool(&self.contract_id) {
-            return Err(BackstopError::NotPool);
+            panic_with_error!(e, BackstopError::NotPool);
         }
-        Ok(())
     }
 
     /********** Setters / Lazy Getters / Storage **********/
@@ -163,7 +162,7 @@ impl Pool {
 
         tokens
             .fixed_mul_floor(pool_shares, self.get_tokens(e))
-            .unwrap()
+            .unwrap_optimized()
     }
 
     /// Convert a pool share balance to a token balance based on the current pool state
@@ -178,7 +177,7 @@ impl Pool {
 
         shares
             .fixed_mul_floor(self.get_tokens(e), pool_shares)
-            .unwrap()
+            .unwrap_optimized()
     }
 
     /// Deposit tokens and shares into the pool
@@ -207,17 +206,16 @@ impl Pool {
     /// ### Arguments
     /// * `tokens` - The amount of tokens to withdraw
     /// * `shares` - The amount of shares to withdraw
-    pub fn withdraw(&mut self, e: &Env, tokens: i128, shares: i128) -> Result<(), BackstopError> {
+    pub fn withdraw(&mut self, e: &Env, tokens: i128, shares: i128) {
         let cur_tokens = self.get_tokens(e);
         let cur_shares = self.get_shares(e);
         let cur_q4w = self.get_q4w(e);
         if tokens > cur_tokens || shares > cur_shares || shares > cur_q4w {
-            return Err(BackstopError::InsufficientFunds);
+            panic_with_error!(e, BackstopError::InsufficientFunds);
         }
         self.set_tokens(cur_tokens - tokens);
         self.set_shares(cur_shares - shares);
         self.set_q4w(cur_q4w - shares);
-        Ok(())
     }
 
     /// Queue withdraw for the pool
@@ -239,13 +237,12 @@ impl Pool {
     ///
     /// ### Arguments
     /// * `shares` - The amount of shares to dequeue from q4w
-    pub fn dequeue_q4w(&mut self, e: &Env, shares: i128) -> Result<(), BackstopError> {
+    pub fn dequeue_q4w(&mut self, e: &Env, shares: i128) {
         let cur_q4w = self.get_q4w(e);
         if shares > cur_q4w {
-            return Err(BackstopError::InsufficientFunds);
+            panic_with_error!(e, BackstopError::InsufficientFunds);
         }
         self.set_q4w(cur_q4w - shares);
-        Ok(())
     }
 
     /// Claim emissions from the pool
@@ -255,13 +252,12 @@ impl Pool {
     ///
     /// ### Arguments
     /// * `amount` - The amount of emissions you are trying to claim
-    pub fn claim(&mut self, e: &Env, amount: i128) -> Result<(), BackstopError> {
+    pub fn claim(&mut self, e: &Env, amount: i128) {
         let emissions = self.get_emissions(e);
         if emissions < amount {
-            return Err(BackstopError::InsufficientFunds);
+            panic_with_error!(e, BackstopError::InsufficientFunds);
         }
         self.set_emissions(emissions - amount);
-        Ok(())
     }
 }
 
@@ -288,19 +284,11 @@ mod tests {
         e.as_contract(&backstop_address, || {
             let pool = Pool::new(&e, pool_address.clone());
             let result = pool.verify_pool(&e);
-
-            match result {
-                Ok(_) => {
-                    assert!(true)
-                }
-                Err(_) => {
-                    assert!(false)
-                }
-            }
         });
     }
 
     #[test]
+    #[should_panic(expected = "HostError\nValue: Status(ContractError(10))")]
     fn test_verify_pool_not_valid() {
         let e = Env::default();
 
@@ -314,11 +302,6 @@ mod tests {
         e.as_contract(&backstop_address, || {
             let pool = Pool::new(&e, not_pool_address.clone());
             let result = pool.verify_pool(&e);
-
-            match result {
-                Ok(_) => assert!(false),
-                Err(err) => assert_eq!(err, BackstopError::NotPool),
-            }
         });
     }
 
@@ -559,7 +542,7 @@ mod tests {
             emissions: Some(0),
         };
 
-        pool.withdraw(&e, 50, 25).unwrap();
+        pool.withdraw(&e, 50, 25);
 
         assert_eq!(pool.get_shares(&e), 75);
         assert_eq!(pool.get_tokens(&e), 150);
@@ -567,6 +550,7 @@ mod tests {
     }
 
     #[test]
+    #[should_panic(expected = "HostError\nValue: Status(ContractError(6))")]
     fn test_withdraw_too_much() {
         let e = Env::default();
         let pool_address = Address::random(&e);
@@ -579,7 +563,6 @@ mod tests {
         };
 
         let result = pool.withdraw(&e, 201, 25);
-        assert_eq!(result, Err(BackstopError::InsufficientFunds));
     }
 
     #[test]
@@ -594,7 +577,7 @@ mod tests {
             emissions: Some(0),
         };
 
-        pool.dequeue_q4w(&e, 25).unwrap();
+        pool.dequeue_q4w(&e, 25);
 
         assert_eq!(pool.get_shares(&e), 100);
         assert_eq!(pool.get_tokens(&e), 200);
@@ -602,6 +585,7 @@ mod tests {
     }
 
     #[test]
+    #[should_panic(expected = "HostError\nValue: Status(ContractError(6))")]
     fn test_dequeue_q4w_too_much() {
         let e = Env::default();
         let pool_address = Address::random(&e);
@@ -614,7 +598,6 @@ mod tests {
         };
 
         let result = pool.dequeue_q4w(&e, 26);
-        assert_eq!(result, Err(BackstopError::InsufficientFunds));
     }
 
     #[test]
@@ -629,7 +612,7 @@ mod tests {
             emissions: Some(0),
         };
 
-        pool.withdraw(&e, 50, 25).unwrap();
+        pool.withdraw(&e, 50, 25);
 
         assert_eq!(pool.get_shares(&e), 75);
         assert_eq!(pool.get_tokens(&e), 150);
@@ -648,11 +631,12 @@ mod tests {
             emissions: Some(123),
         };
 
-        pool.claim(&e, 100).unwrap();
+        pool.claim(&e, 100);
         assert_eq!(pool.get_emissions(&e), 23);
     }
 
     #[test]
+    #[should_panic(expected = "HostError\nValue: Status(ContractError(6))")]
     fn test_claim_too_much() {
         let e = Env::default();
         let pool_address = Address::random(&e);
@@ -665,6 +649,5 @@ mod tests {
         };
 
         let result = pool.claim(&e, 124);
-        assert_eq!(result, Err(BackstopError::InsufficientFunds));
     }
 }

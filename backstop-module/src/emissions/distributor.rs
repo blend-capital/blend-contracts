@@ -1,6 +1,6 @@
 use cast::{i128, u64};
 use fixed_point_math::FixedPoint;
-use soroban_sdk::{vec, Address, Env, Vec};
+use soroban_sdk::{panic_with_error, unwrap::UnwrapOptimized, vec, Address, Env, Vec};
 
 use crate::{
     constants::SCALAR_7,
@@ -10,9 +10,9 @@ use crate::{
     user::User,
 };
 
-pub fn distribute(e: &Env) -> Result<(), BackstopError> {
+pub fn distribute(e: &Env) {
     if e.ledger().timestamp() < storage::get_next_distribution(&e) {
-        return Err(BackstopError::BadRequest);
+        panic_with_error!(e, BackstopError::BadRequest);
     }
     let next_distribution = e.ledger().timestamp() + 7 * 24 * 60 * 60;
     storage::set_next_distribution(&e, &next_distribution);
@@ -26,7 +26,10 @@ pub fn distribute(e: &Env) -> Result<(), BackstopError> {
     // fetch total tokens of BLND in the reward zone
     let mut total_tokens: i128 = 0;
     for rz_pool_index in 0..rz_len {
-        let rz_pool = reward_zone.get(rz_pool_index).unwrap().unwrap();
+        let rz_pool = reward_zone
+            .get(rz_pool_index)
+            .unwrap_optimized()
+            .unwrap_optimized();
         let pool_tokens = storage::get_pool_tokens(&e, &rz_pool);
         rz_tokens.push_back(pool_tokens);
         total_tokens += i128(pool_tokens);
@@ -34,44 +37,44 @@ pub fn distribute(e: &Env) -> Result<(), BackstopError> {
 
     // store pools EPS and distribute emissions to backstop depositors
     for rz_pool_index in 0..rz_len {
-        let rz_pool = reward_zone.get(rz_pool_index).unwrap().unwrap();
-        let cur_pool_tokens = i128(rz_tokens.pop_front_unchecked().unwrap());
+        let rz_pool = reward_zone
+            .get(rz_pool_index)
+            .unwrap_optimized()
+            .unwrap_optimized();
+        let cur_pool_tokens = i128(rz_tokens.pop_front_unchecked().unwrap_optimized());
         let share = cur_pool_tokens
             .fixed_div_floor(total_tokens, SCALAR_7)
-            .unwrap();
+            .unwrap_optimized();
 
         // store pool EPS and distribute pool's emissions
-        let pool_eps = share.fixed_mul_floor(0_3000000, SCALAR_7).unwrap();
+        let pool_eps = share
+            .fixed_mul_floor(0_3000000, SCALAR_7)
+            .unwrap_optimized();
         let pool_emissions = storage::get_pool_emis(&e, &rz_pool) + (pool_eps * 7 * 24 * 60 * 60);
         storage::set_pool_eps(&e, &rz_pool, &pool_eps);
         storage::set_pool_emis(&e, &rz_pool, &pool_emissions);
 
         // distribute backstop depositor emissions
-        let pool_backstop_eps = share.fixed_mul_floor(0_7000000, SCALAR_7).unwrap();
+        let pool_backstop_eps = share
+            .fixed_mul_floor(0_7000000, SCALAR_7)
+            .unwrap_optimized();
         set_backstop_emission_config(
             e,
             &rz_pool,
-            u64(pool_backstop_eps).unwrap(),
+            u64(pool_backstop_eps).unwrap_optimized(),
             next_distribution,
-        )?;
+        );
     }
-
-    Ok(())
 }
 
 /// Set a new EPS for the backstop
-pub fn set_backstop_emission_config(
-    e: &Env,
-    pool_id: &Address,
-    eps: u64,
-    expiration: u64,
-) -> Result<(), BackstopError> {
+pub fn set_backstop_emission_config(e: &Env, pool_id: &Address, eps: u64, expiration: u64) {
     let opt_emis_config = storage::get_backstop_emis_config(&e, pool_id);
     match opt_emis_config {
         Some(emis_config) => {
             // a previous config exists - update it before setting new EPS
             let total_shares = storage::get_pool_shares(e, pool_id);
-            update_backstop_emission_index_with_config(e, pool_id, emis_config, total_shares)?;
+            update_backstop_emission_index_with_config(e, pool_id, emis_config, total_shares);
         }
         None => {
             // first time the backstop is receiving emissions - ensure data is written
@@ -87,14 +90,10 @@ pub fn set_backstop_emission_config(
     };
     let backstop_emis_config = BackstopEmissionConfig { expiration, eps };
     storage::set_backstop_emis_config(e, pool_id, &backstop_emis_config);
-    Ok(())
 }
 
 /// Update the backstop emissions index for deposits
-pub fn update_backstop_emission_index(
-    e: &Env,
-    pool: &mut Pool,
-) -> Result<Option<i128>, BackstopError> {
+pub fn update_backstop_emission_index(e: &Env, pool: &mut Pool) -> Option<i128> {
     if let Some(emis_config) = storage::get_backstop_emis_config(e, &pool.contract_id) {
         let total_shares = pool.get_shares(e);
         return update_backstop_emission_index_with_config(
@@ -104,7 +103,7 @@ pub fn update_backstop_emission_index(
             total_shares,
         );
     } else {
-        return Ok(None);
+        return None;
     }
 }
 
@@ -114,17 +113,17 @@ fn update_backstop_emission_index_with_config(
     pool_id: &Address,
     emis_config: BackstopEmissionConfig,
     total_shares: i128,
-) -> Result<Option<i128>, BackstopError> {
+) -> Option<i128> {
     let ledger_time = e.ledger().timestamp();
 
-    let emis_data = storage::get_backstop_emis_data(e, &pool_id).unwrap(); // exists if config is written to
+    let emis_data = storage::get_backstop_emis_data(e, &pool_id).unwrap_optimized(); // exists if config is written to
     if emis_data.last_time >= emis_config.expiration
         || e.ledger().timestamp() == emis_data.last_time
         || emis_config.eps == 0
         || total_shares == 0
     {
         // emis_data already updated or expired
-        return Ok(Some(emis_data.index));
+        return Some(emis_data.index);
     }
 
     let max_timestamp = if ledger_time > emis_config.expiration {
@@ -135,26 +134,21 @@ fn update_backstop_emission_index_with_config(
 
     let additional_idx = (i128(max_timestamp - emis_data.last_time) * i128(emis_config.eps))
         .fixed_div_floor(total_shares, SCALAR_7)
-        .unwrap();
+        .unwrap_optimized();
     let new_data = BackstopEmissionsData {
         index: additional_idx + emis_data.index,
         last_time: e.ledger().timestamp(),
     };
     storage::set_backstop_emis_data(e, &pool_id, &new_data);
-    Ok(Some(new_data.index))
+    Some(new_data.index)
 }
 
 /// Update the backstop emissions index for the user and pool
 ///
 /// Returns the number of tokens that need to be transfered to `user` when `to_claim`
 /// is true, or returns zero.
-pub fn update_emission_index(
-    e: &Env,
-    pool: &mut Pool,
-    user: &mut User,
-    to_claim: bool,
-) -> Result<i128, BackstopError> {
-    if let Some(backstop_emis_index) = update_backstop_emission_index(e, pool)? {
+pub fn update_emission_index(e: &Env, pool: &mut Pool, user: &mut User, to_claim: bool) -> i128 {
+    if let Some(backstop_emis_index) = update_backstop_emission_index(e, pool) {
         let user_bal = user.get_shares(e);
 
         if let Some(user_data) = storage::get_user_emis_data(e, &pool.contract_id, &user.id) {
@@ -163,46 +157,46 @@ pub fn update_emission_index(
                 if user_bal != 0 {
                     let to_accrue = user_bal
                         .fixed_mul_floor(backstop_emis_index - user_data.index, SCALAR_7)
-                        .unwrap();
+                        .unwrap_optimized();
                     accrual += to_accrue;
                 }
-                return Ok(set_user_emissions(
+                return set_user_emissions(
                     e,
                     &pool.contract_id,
                     &user.id,
                     backstop_emis_index,
                     accrual,
                     to_claim,
-                ));
+                );
             }
-            return Ok(0);
+            return 0;
         } else if user_bal == 0 {
             // first time the user registered an action with the asset since emissions were added
-            return Ok(set_user_emissions(
+            return set_user_emissions(
                 e,
                 &pool.contract_id,
                 &user.id,
                 backstop_emis_index,
                 0,
                 to_claim,
-            ));
+            );
         } else {
             // user had tokens before emissions began, they are due any historical emissions
             let to_accrue = user_bal
                 .fixed_mul_floor(backstop_emis_index, SCALAR_7)
-                .unwrap();
-            return Ok(set_user_emissions(
+                .unwrap_optimized();
+            return set_user_emissions(
                 e,
                 &pool.contract_id,
                 &user.id,
                 backstop_emis_index,
                 to_accrue,
                 to_claim,
-            ));
+            );
         }
     }
     // else - no emissions need to be updated
-    Ok(0)
+    0
 }
 
 fn set_user_emissions(
@@ -273,56 +267,56 @@ mod tests {
             storage::set_pool_emis(&e, &pool_1, &100_123_0000000);
 
             let result = distribute(&e);
-            match result {
-                Ok(_) => {
-                    assert_eq!(
-                        storage::get_next_distribution(&e),
-                        BACKSTOP_EPOCH + 7 * 24 * 60 * 60
-                    );
-                    assert_eq!(storage::get_pool_tokens(&e, &pool_1), 300_000_0000000);
-                    assert_eq!(storage::get_pool_tokens(&e, &pool_2), 200_000_0000000);
-                    assert_eq!(storage::get_pool_tokens(&e, &pool_3), 500_000_0000000);
-                    assert_eq!(storage::get_pool_eps(&e, &pool_1), 0_0900000);
-                    assert_eq!(storage::get_pool_eps(&e, &pool_2), 0_0600000);
-                    assert_eq!(storage::get_pool_eps(&e, &pool_3), 0_1500000);
-                    assert_eq!(storage::get_pool_emis(&e, &pool_1), 154_555_0000000);
-                    assert_eq!(storage::get_pool_emis(&e, &pool_2), 36_288_0000000);
-                    assert_eq!(storage::get_pool_emis(&e, &pool_3), 90_720_0000000);
-                    let new_pool_1_config = storage::get_backstop_emis_config(&e, &pool_1).unwrap();
-                    let new_pool_1_data = storage::get_backstop_emis_data(&e, &pool_1).unwrap();
-                    assert_eq!(new_pool_1_config.eps, 0_2100000);
-                    assert_eq!(
-                        new_pool_1_config.expiration,
-                        BACKSTOP_EPOCH + 7 * 24 * 60 * 60
-                    );
-                    // old config applied up to block timestamp
-                    assert_eq!(new_pool_1_data.index, 928916);
-                    assert_eq!(new_pool_1_data.last_time, BACKSTOP_EPOCH);
-                    let new_pool_2_config = storage::get_backstop_emis_config(&e, &pool_2).unwrap();
-                    let new_pool_2_data = storage::get_backstop_emis_data(&e, &pool_2).unwrap();
-                    assert_eq!(new_pool_2_config.eps, 0_1400000);
-                    assert_eq!(
-                        new_pool_2_config.expiration,
-                        BACKSTOP_EPOCH + 7 * 24 * 60 * 60
-                    );
-                    assert_eq!(new_pool_2_data.index, 0);
-                    assert_eq!(new_pool_2_data.last_time, BACKSTOP_EPOCH);
-                    let new_pool_3_config = storage::get_backstop_emis_config(&e, &pool_3).unwrap();
-                    let new_pool_3_data = storage::get_backstop_emis_data(&e, &pool_3).unwrap();
-                    assert_eq!(new_pool_3_config.eps, 0_3500000);
-                    assert_eq!(
-                        new_pool_3_config.expiration,
-                        BACKSTOP_EPOCH + 7 * 24 * 60 * 60
-                    );
-                    assert_eq!(new_pool_3_data.index, 0);
-                    assert_eq!(new_pool_3_data.last_time, BACKSTOP_EPOCH);
-                }
-                Err(_) => assert!(false),
-            }
+
+            assert_eq!(
+                storage::get_next_distribution(&e),
+                BACKSTOP_EPOCH + 7 * 24 * 60 * 60
+            );
+            assert_eq!(storage::get_pool_tokens(&e, &pool_1), 300_000_0000000);
+            assert_eq!(storage::get_pool_tokens(&e, &pool_2), 200_000_0000000);
+            assert_eq!(storage::get_pool_tokens(&e, &pool_3), 500_000_0000000);
+            assert_eq!(storage::get_pool_eps(&e, &pool_1), 0_0900000);
+            assert_eq!(storage::get_pool_eps(&e, &pool_2), 0_0600000);
+            assert_eq!(storage::get_pool_eps(&e, &pool_3), 0_1500000);
+            assert_eq!(storage::get_pool_emis(&e, &pool_1), 154_555_0000000);
+            assert_eq!(storage::get_pool_emis(&e, &pool_2), 36_288_0000000);
+            assert_eq!(storage::get_pool_emis(&e, &pool_3), 90_720_0000000);
+            let new_pool_1_config =
+                storage::get_backstop_emis_config(&e, &pool_1).unwrap_optimized();
+            let new_pool_1_data = storage::get_backstop_emis_data(&e, &pool_1).unwrap_optimized();
+            assert_eq!(new_pool_1_config.eps, 0_2100000);
+            assert_eq!(
+                new_pool_1_config.expiration,
+                BACKSTOP_EPOCH + 7 * 24 * 60 * 60
+            );
+            // old config applied up to block timestamp
+            assert_eq!(new_pool_1_data.index, 928916);
+            assert_eq!(new_pool_1_data.last_time, BACKSTOP_EPOCH);
+            let new_pool_2_config =
+                storage::get_backstop_emis_config(&e, &pool_2).unwrap_optimized();
+            let new_pool_2_data = storage::get_backstop_emis_data(&e, &pool_2).unwrap_optimized();
+            assert_eq!(new_pool_2_config.eps, 0_1400000);
+            assert_eq!(
+                new_pool_2_config.expiration,
+                BACKSTOP_EPOCH + 7 * 24 * 60 * 60
+            );
+            assert_eq!(new_pool_2_data.index, 0);
+            assert_eq!(new_pool_2_data.last_time, BACKSTOP_EPOCH);
+            let new_pool_3_config =
+                storage::get_backstop_emis_config(&e, &pool_3).unwrap_optimized();
+            let new_pool_3_data = storage::get_backstop_emis_data(&e, &pool_3).unwrap_optimized();
+            assert_eq!(new_pool_3_config.eps, 0_3500000);
+            assert_eq!(
+                new_pool_3_config.expiration,
+                BACKSTOP_EPOCH + 7 * 24 * 60 * 60
+            );
+            assert_eq!(new_pool_3_data.index, 0);
+            assert_eq!(new_pool_3_data.last_time, BACKSTOP_EPOCH);
         });
     }
 
     #[test]
+    #[should_panic(expected = "HostError\nValue: Status(ContractError(1))")]
     fn test_distribute_too_early() {
         let e = Env::default();
         e.ledger().set(LedgerInfo {
@@ -347,13 +341,6 @@ mod tests {
             storage::set_pool_tokens(&e, &pool_3, &500_000_0000000);
 
             let result = distribute(&e);
-            match result {
-                Ok(_) => assert!(false),
-                Err(err) => match err {
-                    BackstopError::BadRequest => assert!(true),
-                    _ => assert!(false),
-                },
-            }
         });
     }
 
@@ -399,9 +386,10 @@ mod tests {
 
             let mut pool = Pool::new(&e, pool_1.clone());
             let mut user = User::new(pool_1.clone(), samwise.clone());
-            let result = update_emission_index(&e, &mut pool, &mut user, false).unwrap();
-            let new_backstop_data = storage::get_backstop_emis_data(&e, &pool_1).unwrap();
-            let new_user_data = storage::get_user_emis_data(&e, &pool_1, &samwise).unwrap();
+            let result = update_emission_index(&e, &mut pool, &mut user, false);
+            let new_backstop_data = storage::get_backstop_emis_data(&e, &pool_1).unwrap_optimized();
+            let new_user_data =
+                storage::get_user_emis_data(&e, &pool_1, &samwise).unwrap_optimized();
             assert_eq!(result, 0);
             assert_eq!(new_backstop_data.last_time, block_timestamp);
             assert_eq!(new_backstop_data.index, 8248888);
@@ -435,7 +423,7 @@ mod tests {
 
             let mut pool = Pool::new(&e, pool_1.clone());
             let mut user = User::new(pool_1.clone(), samwise.clone());
-            let result = update_emission_index(&e, &mut pool, &mut user, false).unwrap();
+            let result = update_emission_index(&e, &mut pool, &mut user, false);
             let new_backstop_data = storage::get_backstop_emis_data(&e, &pool_1);
             let new_user_data = storage::get_user_emis_data(&e, &pool_1, &samwise);
             assert_eq!(result, 0);
@@ -484,9 +472,10 @@ mod tests {
 
             let mut pool = Pool::new(&e, pool_1.clone());
             let mut user = User::new(pool_1.clone(), samwise.clone());
-            let result = update_emission_index(&e, &mut pool, &mut user, true).unwrap();
-            let new_backstop_data = storage::get_backstop_emis_data(&e, &pool_1).unwrap();
-            let new_user_data = storage::get_user_emis_data(&e, &pool_1, &samwise).unwrap();
+            let result = update_emission_index(&e, &mut pool, &mut user, true);
+            let new_backstop_data = storage::get_backstop_emis_data(&e, &pool_1).unwrap_optimized();
+            let new_user_data =
+                storage::get_user_emis_data(&e, &pool_1, &samwise).unwrap_optimized();
             assert_eq!(result, 7_4139996);
             assert_eq!(new_backstop_data.last_time, block_timestamp);
             assert_eq!(new_backstop_data.index, 8248888);
@@ -529,9 +518,10 @@ mod tests {
 
             let mut pool = Pool::new(&e, pool_1.clone());
             let mut user = User::new(pool_1.clone(), samwise.clone());
-            let result = update_emission_index(&e, &mut pool, &mut user, true).unwrap();
-            let new_backstop_data = storage::get_backstop_emis_data(&e, &pool_1).unwrap();
-            let new_user_data = storage::get_user_emis_data(&e, &pool_1, &samwise).unwrap();
+            let result = update_emission_index(&e, &mut pool, &mut user, true);
+            let new_backstop_data = storage::get_backstop_emis_data(&e, &pool_1).unwrap_optimized();
+            let new_user_data =
+                storage::get_user_emis_data(&e, &pool_1, &samwise).unwrap_optimized();
             assert_eq!(result, 0);
             assert_eq!(new_backstop_data.last_time, block_timestamp);
             assert_eq!(new_backstop_data.index, 34588222);
@@ -575,9 +565,10 @@ mod tests {
 
             let mut pool = Pool::new(&e, pool_1.clone());
             let mut user = User::new(pool_1.clone(), samwise.clone());
-            let result = update_emission_index(&e, &mut pool, &mut user, false).unwrap();
-            let new_backstop_data = storage::get_backstop_emis_data(&e, &pool_1).unwrap();
-            let new_user_data = storage::get_user_emis_data(&e, &pool_1, &samwise).unwrap();
+            let result = update_emission_index(&e, &mut pool, &mut user, false);
+            let new_backstop_data = storage::get_backstop_emis_data(&e, &pool_1).unwrap_optimized();
+            let new_user_data =
+                storage::get_user_emis_data(&e, &pool_1, &samwise).unwrap_optimized();
             assert_eq!(result, 0);
             assert_eq!(new_backstop_data.last_time, block_timestamp);
             assert_eq!(new_backstop_data.index, 34566000);

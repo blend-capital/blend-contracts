@@ -1,13 +1,9 @@
 use cast::i128;
-use soroban_sdk::{Address, Env};
+use soroban_sdk::{panic_with_error, Address, Env};
 
 use crate::{constants::BACKSTOP_EPOCH, errors::BackstopError, storage};
 
-pub fn add_to_reward_zone(
-    e: &Env,
-    to_add: Address,
-    to_remove: Address,
-) -> Result<(), BackstopError> {
+pub fn add_to_reward_zone(e: &Env, to_add: Address, to_remove: Address) {
     let mut reward_zone = storage::get_reward_zone(&e);
     let max_rz_len = 10 + (i128(e.ledger().timestamp() - BACKSTOP_EPOCH) >> 23); // bit-shift 23 is ~97 day interval
 
@@ -20,13 +16,13 @@ pub fn add_to_reward_zone(
         // if pools don't adopt their distributions, the tokens will be lost
         let next_distribution = storage::get_next_distribution(&e);
         if next_distribution != 0 && e.ledger().timestamp() < next_distribution - 5 * 24 * 60 * 60 {
-            return Err(BackstopError::BadRequest);
+            panic_with_error!(e, BackstopError::BadRequest);
         }
 
         // attempt to swap the "to_remove"
         // TODO: Once there is a defined limit of "backstop minimum", ensure it is reached!
         if storage::get_pool_tokens(&e, &to_add) <= storage::get_pool_tokens(&e, &to_remove) {
-            return Err(BackstopError::InvalidRewardZoneEntry);
+            panic_with_error!(e, BackstopError::InvalidRewardZoneEntry);
         }
 
         // swap to_add for to_remove
@@ -36,12 +32,11 @@ pub fn add_to_reward_zone(
                 reward_zone.set(idx, to_add.clone());
                 storage::set_pool_eps(&e, &to_remove, &0);
             }
-            None => return Err(BackstopError::InvalidRewardZoneEntry),
+            None => panic_with_error!(e, BackstopError::InvalidRewardZoneEntry),
         }
     }
 
     storage::set_reward_zone(&e, &reward_zone);
-    Ok(())
 }
 
 #[cfg(test)]
@@ -70,19 +65,14 @@ mod tests {
         let to_add = Address::random(&e);
 
         e.as_contract(&backstop_addr, || {
-            let result = add_to_reward_zone(
+            add_to_reward_zone(
                 &e,
                 to_add.clone(),
                 Address::from_contract_id(&BytesN::from_array(&e, &[0u8; 32])),
             );
-            match result {
-                Ok(_) => {
-                    let actual_rz = storage::get_reward_zone(&e);
-                    let expected_rz: Vec<Address> = vec![&e, to_add];
-                    assert_eq!(actual_rz, expected_rz);
-                }
-                Err(_) => assert!(false),
-            }
+            let actual_rz = storage::get_reward_zone(&e);
+            let expected_rz: Vec<Address> = vec![&e, to_add];
+            assert_eq!(actual_rz, expected_rz);
         });
     }
 
@@ -115,23 +105,18 @@ mod tests {
 
         e.as_contract(&backstop_addr, || {
             storage::set_reward_zone(&e, &reward_zone);
-            let result = add_to_reward_zone(
+            add_to_reward_zone(
                 &e,
                 to_add.clone(),
                 Address::from_contract_id(&BytesN::from_array(&e, &[0u8; 32])),
             );
-            match result {
-                Ok(_) => {
-                    let actual_rz = storage::get_reward_zone(&e);
-                    reward_zone.push_front(to_add);
-                    assert_eq!(actual_rz, reward_zone);
-                }
-                Err(_) => assert!(false),
-            }
+            let actual_rz = storage::get_reward_zone(&e);
+            reward_zone.push_front(to_add);
+            assert_eq!(actual_rz, reward_zone);
         });
     }
-
     #[test]
+    #[should_panic(expected = "HostError\nValue: Status(ContractError(4))")]
     fn test_add_to_rz_takes_floor_for_size() {
         let e = Env::default();
         e.ledger().set(LedgerInfo {
@@ -160,18 +145,11 @@ mod tests {
 
         e.as_contract(&backstop_addr, || {
             storage::set_reward_zone(&e, &reward_zone);
-            let result = add_to_reward_zone(
+            add_to_reward_zone(
                 &e,
                 to_add.clone(),
                 Address::from_contract_id(&BytesN::from_array(&e, &[0u8; 32])),
             );
-            match result {
-                Ok(_) => assert!(false),
-                Err(err) => match err {
-                    BackstopError::InvalidRewardZoneEntry => assert!(true),
-                    _ => assert!(false),
-                },
-            }
         });
     }
 
@@ -210,22 +188,19 @@ mod tests {
             storage::set_pool_tokens(&e, &to_add, &100);
             storage::set_pool_tokens(&e, &to_remove, &99);
 
-            let result = add_to_reward_zone(&e, to_add.clone(), to_remove.clone());
-            match result {
-                Ok(_) => {
-                    let remove_eps = storage::get_pool_eps(&e, &to_remove);
-                    assert_eq!(remove_eps, 0);
-                    let actual_rz = storage::get_reward_zone(&e);
-                    assert_eq!(actual_rz.len(), 10);
-                    reward_zone.set(7, to_add);
-                    assert_eq!(actual_rz, reward_zone);
-                }
-                Err(_) => assert!(false),
-            }
+            add_to_reward_zone(&e, to_add.clone(), to_remove.clone());
+
+            let remove_eps = storage::get_pool_eps(&e, &to_remove);
+            assert_eq!(remove_eps, 0);
+            let actual_rz = storage::get_reward_zone(&e);
+            assert_eq!(actual_rz.len(), 10);
+            reward_zone.set(7, to_add);
+            assert_eq!(actual_rz, reward_zone);
         });
     }
 
     #[test]
+    #[should_panic(expected = "HostError\nValue: Status(ContractError(4))")]
     fn test_add_to_rz_swap_not_enough_tokens() {
         let e = Env::default();
         e.ledger().set(LedgerInfo {
@@ -260,18 +235,12 @@ mod tests {
             storage::set_pool_tokens(&e, &to_add, &100);
             storage::set_pool_tokens(&e, &to_remove, &100);
 
-            let result = add_to_reward_zone(&e, to_add.clone(), to_remove);
-            match result {
-                Ok(_) => assert!(false),
-                Err(err) => match err {
-                    BackstopError::InvalidRewardZoneEntry => assert!(true),
-                    _ => assert!(false),
-                },
-            }
+            add_to_reward_zone(&e, to_add.clone(), to_remove);
         });
     }
 
     #[test]
+    #[should_panic(expected = "HostError\nValue: Status(ContractError(4))")]
     fn test_add_to_rz_to_remove_not_in_rz() {
         let e = Env::default();
         e.ledger().set(LedgerInfo {
@@ -306,18 +275,12 @@ mod tests {
             storage::set_pool_tokens(&e, &to_add, &100);
             storage::set_pool_tokens(&e, &to_remove, &99);
 
-            let result = add_to_reward_zone(&e, to_add.clone(), to_remove);
-            match result {
-                Ok(_) => assert!(false),
-                Err(err) => match err {
-                    BackstopError::InvalidRewardZoneEntry => assert!(true),
-                    _ => assert!(false),
-                },
-            }
+            add_to_reward_zone(&e, to_add.clone(), to_remove);
         });
     }
 
     #[test]
+    #[should_panic(expected = "HostError\nValue: Status(ContractError(1))")]
     fn test_add_to_rz_swap_too_soon_to_distribution() {
         let e = Env::default();
         e.ledger().set(LedgerInfo {
@@ -352,14 +315,7 @@ mod tests {
             storage::set_pool_tokens(&e, &to_add, &100);
             storage::set_pool_tokens(&e, &to_remove, &99);
 
-            let result = add_to_reward_zone(&e, to_add, to_remove);
-            match result {
-                Ok(_) => assert!(false),
-                Err(err) => match err {
-                    BackstopError::BadRequest => assert!(true),
-                    _ => assert!(false),
-                },
-            }
+            add_to_reward_zone(&e, to_add, to_remove);
         });
     }
 }

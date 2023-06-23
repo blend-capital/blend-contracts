@@ -44,7 +44,7 @@ pub trait PoolFactoryTrait {
 impl PoolFactoryTrait for PoolFactory {
     fn initialize(e: Env, pool_init_meta: PoolInitMeta) {
         if storage::has_pool_init_meta(&e) {
-            panic!("already initialized");
+            panic_with_error!(&e, PoolFactoryError::AlreadyInitialized);
         }
         storage::set_pool_init_meta(&e, &pool_init_meta);
     }

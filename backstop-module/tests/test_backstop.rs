@@ -1,6 +1,7 @@
 #![cfg(test)]
 use soroban_sdk::{
     testutils::{Address as AddressTestTrait, Ledger, LedgerInfo},
+    unwrap::UnwrapOptimized,
     vec, Address, Env, IntoVal, Symbol, Vec,
 };
 
@@ -126,7 +127,7 @@ fn test_backstop_wasm_smoke() {
     );
     let cur_q4w = backstop_client.withdrawal_queue(&pool_address, &samwise);
     assert_eq!(cur_q4w.len(), 1);
-    let first_q4w = cur_q4w.first().unwrap().unwrap();
+    let first_q4w = cur_q4w.first().unwrap_optimized().unwrap_optimized();
     assert_eq!(first_q4w.amount, shares_minted);
     assert_eq!(first_q4w.exp, START_TIME + 30 * 24 * 60 * 60);
 

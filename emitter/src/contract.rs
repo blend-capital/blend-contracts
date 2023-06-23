@@ -34,7 +34,7 @@ pub trait EmitterContractTrait {
     ///
     /// ### Errors
     /// If the input contract does not have more backstop deposits than the listed backstop module
-    fn swap_backstop(e: Env, new_backstop_id: Address) -> Result<(), EmitterError>;
+    fn swap_backstop(e: Env, new_backstop_id: Address);
 }
 
 #[contractimpl]
@@ -67,11 +67,10 @@ impl EmitterContractTrait for EmitterContract {
         storage::get_backstop(&e)
     }
 
-    fn swap_backstop(e: Env, new_backstop_id: Address) -> Result<(), EmitterError> {
-        emitter::execute_swap_backstop(&e, new_backstop_id.clone())?;
+    fn swap_backstop(e: Env, new_backstop_id: Address) {
+        emitter::execute_swap_backstop(&e, new_backstop_id.clone());
 
         e.events()
             .publish((Symbol::new(&e, "swap"),), (new_backstop_id,));
-        Ok(())
     }
 }

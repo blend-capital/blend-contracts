@@ -4,7 +4,7 @@ use crate::{
     errors::EmitterError,
     storage,
 };
-use soroban_sdk::{Address, Env};
+use soroban_sdk::{panic_with_error, Address, Env};
 
 /// Perform a distribution
 pub fn execute_distribute(e: &Env, backstop: &Address) -> Result<i128, EmitterError> {
@@ -22,7 +22,7 @@ pub fn execute_distribute(e: &Env, backstop: &Address) -> Result<i128, EmitterEr
 }
 
 /// Perform a backstop swap
-pub fn execute_swap_backstop(e: &Env, new_backstop_id: Address) -> Result<(), EmitterError> {
+pub fn execute_swap_backstop(e: &Env, new_backstop_id: Address) {
     let backstop = storage::get_backstop(e);
     let backstop_token = BackstopClient::new(&e, &backstop).backstop_token();
     let backstop_token_client = TokenClient::new(&e, &backstop_token);
@@ -31,8 +31,7 @@ pub fn execute_swap_backstop(e: &Env, new_backstop_id: Address) -> Result<(), Em
     let new_backstop_balance = backstop_token_client.balance(&new_backstop_id);
     if new_backstop_balance > backstop_balance {
         storage::set_backstop(e, &new_backstop_id);
-        Ok(())
     } else {
-        return Err(EmitterError::InsufficientBackstopSize);
+        panic_with_error!(e, EmitterError::InsufficientBackstopSize);
     }
 }

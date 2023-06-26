@@ -1,6 +1,6 @@
 use crate::{constants::SCALAR_7, dependencies::BackstopClient, errors::PoolError, storage};
 use fixed_point_math::FixedPoint;
-use soroban_sdk::{Address, Env, unwrap::UnwrapOptimized, panic_with_error};
+use soroban_sdk::{panic_with_error, unwrap::UnwrapOptimized, Address, Env};
 
 /// Update the pool status based on the backstop module
 pub fn execute_update_pool_status(e: &Env) -> u32 {
@@ -15,7 +15,9 @@ pub fn execute_update_pool_status(e: &Env) -> u32 {
 
     let (pool_tokens, pool_shares, shares_q4w) =
         backstop_client.pool_balance(&e.current_contract_address());
-    let q4w_pct = shares_q4w.fixed_div_floor(pool_shares, SCALAR_7).unwrap_optimized();
+    let q4w_pct = shares_q4w
+        .fixed_div_floor(pool_shares, SCALAR_7)
+        .unwrap_optimized();
 
     if q4w_pct >= 0_5000000 {
         pool_config.status = 2;
@@ -92,7 +94,7 @@ mod tests {
             storage::set_admin(&e, &bombadil);
             storage::set_pool_config(&e, &pool_config);
 
-            set_pool_status(&e, &bombadil, 0).unwrap_optimized();
+            set_pool_status(&e, &bombadil, 0);
 
             let new_pool_config = storage::get_pool_config(&e);
             assert_eq!(new_pool_config.status, 0);
@@ -100,6 +102,7 @@ mod tests {
     }
 
     #[test]
+    #[should_panic(expected = "Status(ContractError(1))")]
     fn test_set_pool_status_requires_admin() {
         let e = Env::default();
         e.mock_all_auths();
@@ -131,15 +134,12 @@ mod tests {
             storage::set_admin(&e, &bombadil);
             storage::set_pool_config(&e, &pool_config);
 
-            let result = set_pool_status(&e, &sauron, 0);
-            assert_eq!(result, Err(PoolError::NotAuthorized));
-
-            let new_pool_config = storage::get_pool_config(&e);
-            assert_eq!(new_pool_config.status, 1);
+            set_pool_status(&e, &sauron, 0);
         });
     }
 
     #[test]
+    #[should_panic(expected = "Status(ContractError(11))")]
     fn test_set_pool_status_blocks_without_backstop_minimum() {
         let e = Env::default();
         e.mock_all_auths();
@@ -170,8 +170,7 @@ mod tests {
             storage::set_admin(&e, &bombadil);
             storage::set_pool_config(&e, &pool_config);
 
-            let result = set_pool_status(&e, &bombadil, 0);
-            assert_eq!(result, Err(PoolError::InvalidPoolStatus));
+            set_pool_status(&e, &bombadil, 0);
         });
     }
 
@@ -206,7 +205,7 @@ mod tests {
             storage::set_admin(&e, &bombadil);
             storage::set_pool_config(&e, &pool_config);
 
-            let status = execute_update_pool_status(&e).unwrap_optimized();
+            let status = execute_update_pool_status(&e);
 
             let new_pool_config = storage::get_pool_config(&e);
             assert_eq!(new_pool_config.status, status);
@@ -245,7 +244,7 @@ mod tests {
             storage::set_admin(&e, &bombadil);
             storage::set_pool_config(&e, &pool_config);
 
-            let status = execute_update_pool_status(&e).unwrap_optimized();
+            let status = execute_update_pool_status(&e);
 
             let new_pool_config = storage::get_pool_config(&e);
             assert_eq!(new_pool_config.status, status);
@@ -285,7 +284,7 @@ mod tests {
             storage::set_admin(&e, &bombadil);
             storage::set_pool_config(&e, &pool_config);
 
-            let status = execute_update_pool_status(&e).unwrap_optimized();
+            let status = execute_update_pool_status(&e);
 
             let new_pool_config = storage::get_pool_config(&e);
             assert_eq!(new_pool_config.status, status);
@@ -325,7 +324,7 @@ mod tests {
             storage::set_admin(&e, &bombadil);
             storage::set_pool_config(&e, &pool_config);
 
-            let status = execute_update_pool_status(&e).unwrap_optimized();
+            let status = execute_update_pool_status(&e);
 
             let new_pool_config = storage::get_pool_config(&e);
             assert_eq!(new_pool_config.status, status);
@@ -334,6 +333,8 @@ mod tests {
     }
 
     #[test]
+    #[should_panic(expected = "Status(ContractError(11))")]
+
     fn test_update_pool_status_admin_frozen() {
         let e = Env::default();
         e.mock_all_auths();
@@ -364,8 +365,7 @@ mod tests {
             storage::set_admin(&e, &bombadil);
             storage::set_pool_config(&e, &pool_config);
 
-            let result = execute_update_pool_status(&e);
-            assert_eq!(result, Err(PoolError::InvalidPoolStatus));
+            execute_update_pool_status(&e);
         });
     }
 }

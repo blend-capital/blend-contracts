@@ -1,4 +1,6 @@
-use soroban_sdk::{contracttype, panic_with_error, vec, Address, Env, Vec, unwrap::UnwrapOptimized};
+use soroban_sdk::{
+    contracttype, panic_with_error, unwrap::UnwrapOptimized, vec, Address, Env, Vec,
+};
 
 use crate::{
     emissions, errors::PoolError, pool::Positions, storage, validator::require_nonnegative,
@@ -15,7 +17,7 @@ pub struct Request {
     pub amount: i128,
 }
 
-// A token action to be taken by the pool
+/// A token action to be taken by the pool
 #[derive(Clone)]
 #[contracttype]
 pub struct Action {
@@ -231,4 +233,586 @@ pub fn build_actions_from_request(
         pool.cache_reserve(reserve);
     }
     (actions, new_positions, check_health)
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{storage::PoolConfig, testutils};
+
+    use super::*;
+    use soroban_sdk::testutils::{Address as _, Ledger, LedgerInfo};
+
+    // d_rate -> 1_000_001_142
+    // b_rate -> 1_000_000_686
+
+    /***** supply *****/
+
+    #[test]
+    fn test_build_actions_from_request_supply() {
+        let e = Env::default();
+        e.mock_all_auths();
+
+        let bombadil = Address::random(&e);
+        let samwise = Address::random(&e);
+        let pool = Address::random(&e);
+
+        let (underlying, _) = testutils::create_token_contract(&e, &bombadil);
+        let (reserve_config, reserve_data) = testutils::default_reserve_meta(&e);
+        testutils::create_reserve(&e, &pool, &underlying, &reserve_config, &reserve_data);
+
+        e.ledger().set(LedgerInfo {
+            timestamp: 600,
+            protocol_version: 1,
+            sequence_number: 1234,
+            network_id: Default::default(),
+            base_reserve: 10,
+        });
+        let pool_config = PoolConfig {
+            oracle: Address::random(&e),
+            bstop_rate: 0_100_000_000,
+            status: 0,
+        };
+        e.as_contract(&pool, || {
+            storage::set_pool_config(&e, &pool_config);
+
+            let mut pool = Pool::load(&e);
+
+            let requests = vec![
+                &e,
+                Request {
+                    request_type: 0,
+                    reserve_index: 0,
+                    amount: 10_1234567,
+                },
+            ];
+            let (actions, positions, health_check) =
+                build_actions_from_request(&e, &mut pool, &samwise, requests);
+
+            assert_eq!(health_check, false);
+
+            assert_eq!(actions.len(), 1);
+            let action = actions.get_unchecked(0).unwrap_optimized();
+            assert_eq!(action.asset, underlying);
+            assert_eq!(action.tokens_out, 0);
+            assert_eq!(action.tokens_in, 10_1234567);
+
+            assert_eq!(positions.liabilities.len(), 0);
+            assert_eq!(positions.collateral.len(), 0);
+            assert_eq!(positions.supply.len(), 1);
+            assert_eq!(positions.get_supply(0), 10_1234488);
+
+            let reserve = pool.load_reserve(&e, &underlying);
+            assert_eq!(
+                reserve.b_supply,
+                reserve_data.b_supply + positions.get_supply(0)
+            );
+        });
+    }
+
+    /***** withdraw *****/
+
+    #[test]
+    fn test_build_actions_from_request_withdraw() {
+        let e = Env::default();
+        e.mock_all_auths();
+
+        let bombadil = Address::random(&e);
+        let samwise = Address::random(&e);
+        let pool = Address::random(&e);
+
+        let (underlying_1, _) = testutils::create_token_contract(&e, &bombadil);
+        let (reserve_config, reserve_data) = testutils::default_reserve_meta(&e);
+        testutils::create_reserve(&e, &pool, &underlying_1, &reserve_config, &reserve_data);
+
+        e.ledger().set(LedgerInfo {
+            timestamp: 600,
+            protocol_version: 1,
+            sequence_number: 1234,
+            network_id: Default::default(),
+            base_reserve: 10,
+        });
+        let pool_config = PoolConfig {
+            oracle: Address::random(&e),
+            bstop_rate: 0_200_000_000,
+            status: 0,
+        };
+        let mut user_positions = Positions::env_default(&e);
+        user_positions.add_supply(0, 20_0000000);
+        e.as_contract(&pool, || {
+            storage::set_pool_config(&e, &pool_config);
+            storage::set_user_positions(&e, &samwise, &user_positions);
+
+            let mut pool = Pool::load(&e);
+
+            let requests = vec![
+                &e,
+                Request {
+                    request_type: 1,
+                    reserve_index: 0,
+                    amount: 10_1234567,
+                },
+            ];
+            let (actions, positions, health_check) =
+                build_actions_from_request(&e, &mut pool, &samwise, requests);
+
+            assert_eq!(health_check, false);
+
+            assert_eq!(actions.len(), 1);
+            let action = actions.get_unchecked(0).unwrap_optimized();
+            assert_eq!(action.asset, underlying_1);
+            assert_eq!(action.tokens_out, 10_1234567);
+            assert_eq!(action.tokens_in, 0);
+
+            assert_eq!(positions.liabilities.len(), 0);
+            assert_eq!(positions.collateral.len(), 0);
+            assert_eq!(positions.supply.len(), 1);
+            assert_eq!(positions.get_supply(0), 9_8765502);
+
+            let reserve = pool.load_reserve(&e, &underlying_1);
+            assert_eq!(
+                reserve.b_supply,
+                reserve_data.b_supply - (20_0000000 - 9_8765502)
+            );
+        });
+    }
+
+    #[test]
+    fn test_build_actions_from_request_withdraw_over_balance() {
+        let e = Env::default();
+        e.mock_all_auths();
+
+        let bombadil = Address::random(&e);
+        let samwise = Address::random(&e);
+        let pool = Address::random(&e);
+
+        let (underlying_1, _) = testutils::create_token_contract(&e, &bombadil);
+        let (reserve_config, reserve_data) = testutils::default_reserve_meta(&e);
+        testutils::create_reserve(&e, &pool, &underlying_1, &reserve_config, &reserve_data);
+
+        e.ledger().set(LedgerInfo {
+            timestamp: 600,
+            protocol_version: 1,
+            sequence_number: 1234,
+            network_id: Default::default(),
+            base_reserve: 10,
+        });
+        let pool_config = PoolConfig {
+            oracle: Address::random(&e),
+            bstop_rate: 0_200_000_000,
+            status: 0,
+        };
+        let mut user_positions = Positions::env_default(&e);
+        user_positions.add_supply(0, 20_0000000);
+        e.as_contract(&pool, || {
+            storage::set_pool_config(&e, &pool_config);
+            storage::set_user_positions(&e, &samwise, &user_positions);
+
+            let mut pool = Pool::load(&e);
+
+            let requests = vec![
+                &e,
+                Request {
+                    request_type: 1,
+                    reserve_index: 0,
+                    amount: 21_0000000,
+                },
+            ];
+            let (actions, positions, health_check) =
+                build_actions_from_request(&e, &mut pool, &samwise, requests);
+
+            assert_eq!(health_check, false);
+
+            assert_eq!(actions.len(), 1);
+            let action = actions.get_unchecked(0).unwrap_optimized();
+            assert_eq!(action.asset, underlying_1);
+            assert_eq!(action.tokens_out, 20_0000137);
+            assert_eq!(action.tokens_in, 0);
+
+            assert_eq!(positions.liabilities.len(), 0);
+            assert_eq!(positions.collateral.len(), 0);
+            assert_eq!(positions.supply.len(), 0);
+
+            let reserve = pool.load_reserve(&e, &underlying_1);
+            assert_eq!(reserve.b_supply, reserve_data.b_supply - 20_0000000);
+        });
+    }
+
+    /***** supply collateral *****/
+
+    #[test]
+    fn test_build_actions_from_request_supply_collateral() {
+        let e = Env::default();
+        e.mock_all_auths();
+
+        let bombadil = Address::random(&e);
+        let samwise = Address::random(&e);
+        let pool = Address::random(&e);
+
+        let (underlying, _) = testutils::create_token_contract(&e, &bombadil);
+        let (reserve_config, reserve_data) = testutils::default_reserve_meta(&e);
+        testutils::create_reserve(&e, &pool, &underlying, &reserve_config, &reserve_data);
+
+        e.ledger().set(LedgerInfo {
+            timestamp: 600,
+            protocol_version: 1,
+            sequence_number: 1234,
+            network_id: Default::default(),
+            base_reserve: 10,
+        });
+        let pool_config = PoolConfig {
+            oracle: Address::random(&e),
+            bstop_rate: 0_100_000_000,
+            status: 0,
+        };
+        e.as_contract(&pool, || {
+            storage::set_pool_config(&e, &pool_config);
+
+            let mut pool = Pool::load(&e);
+
+            let requests = vec![
+                &e,
+                Request {
+                    request_type: 2,
+                    reserve_index: 0,
+                    amount: 10_1234567,
+                },
+            ];
+            let (actions, positions, health_check) =
+                build_actions_from_request(&e, &mut pool, &samwise, requests);
+
+            assert_eq!(health_check, false);
+
+            assert_eq!(actions.len(), 1);
+            let action = actions.get_unchecked(0).unwrap_optimized();
+            assert_eq!(action.asset, underlying);
+            assert_eq!(action.tokens_out, 0);
+            assert_eq!(action.tokens_in, 10_1234567);
+
+            assert_eq!(positions.liabilities.len(), 0);
+            assert_eq!(positions.collateral.len(), 1);
+            assert_eq!(positions.supply.len(), 0);
+            assert_eq!(positions.get_collateral(0), 10_1234488);
+
+            let reserve = pool.load_reserve(&e, &underlying);
+            assert_eq!(
+                reserve.b_supply,
+                reserve_data.b_supply + positions.get_collateral(0)
+            );
+        });
+    }
+
+    /***** withdraw collateral *****/
+
+    #[test]
+    fn test_build_actions_from_request_withdraw_collateral() {
+        let e = Env::default();
+        e.mock_all_auths();
+
+        let bombadil = Address::random(&e);
+        let samwise = Address::random(&e);
+        let pool = Address::random(&e);
+
+        let (underlying_1, _) = testutils::create_token_contract(&e, &bombadil);
+        let (reserve_config, reserve_data) = testutils::default_reserve_meta(&e);
+        testutils::create_reserve(&e, &pool, &underlying_1, &reserve_config, &reserve_data);
+
+        e.ledger().set(LedgerInfo {
+            timestamp: 600,
+            protocol_version: 1,
+            sequence_number: 1234,
+            network_id: Default::default(),
+            base_reserve: 10,
+        });
+        let pool_config = PoolConfig {
+            oracle: Address::random(&e),
+            bstop_rate: 0_200_000_000,
+            status: 0,
+        };
+        let mut user_positions = Positions::env_default(&e);
+        user_positions.add_collateral(0, 20_0000000);
+        e.as_contract(&pool, || {
+            storage::set_pool_config(&e, &pool_config);
+            storage::set_user_positions(&e, &samwise, &user_positions);
+
+            let mut pool = Pool::load(&e);
+
+            let requests = vec![
+                &e,
+                Request {
+                    request_type: 3,
+                    reserve_index: 0,
+                    amount: 10_1234567,
+                },
+            ];
+            let (actions, positions, health_check) =
+                build_actions_from_request(&e, &mut pool, &samwise, requests);
+
+            assert_eq!(health_check, true);
+
+            assert_eq!(actions.len(), 1);
+            let action = actions.get_unchecked(0).unwrap_optimized();
+            assert_eq!(action.asset, underlying_1);
+            assert_eq!(action.tokens_out, 10_1234567);
+            assert_eq!(action.tokens_in, 0);
+
+            assert_eq!(positions.liabilities.len(), 0);
+            assert_eq!(positions.collateral.len(), 1);
+            assert_eq!(positions.supply.len(), 0);
+            assert_eq!(positions.get_collateral(0), 9_8765502);
+
+            let reserve = pool.load_reserve(&e, &underlying_1);
+            assert_eq!(
+                reserve.b_supply,
+                reserve_data.b_supply - (20_0000000 - 9_8765502)
+            );
+        });
+    }
+
+    #[test]
+    fn test_build_actions_from_request_withdraw_collateral_over_balance() {
+        let e = Env::default();
+        e.mock_all_auths();
+
+        let bombadil = Address::random(&e);
+        let samwise = Address::random(&e);
+        let pool = Address::random(&e);
+
+        let (underlying_1, _) = testutils::create_token_contract(&e, &bombadil);
+        let (reserve_config, reserve_data) = testutils::default_reserve_meta(&e);
+        testutils::create_reserve(&e, &pool, &underlying_1, &reserve_config, &reserve_data);
+
+        e.ledger().set(LedgerInfo {
+            timestamp: 600,
+            protocol_version: 1,
+            sequence_number: 1234,
+            network_id: Default::default(),
+            base_reserve: 10,
+        });
+        let pool_config = PoolConfig {
+            oracle: Address::random(&e),
+            bstop_rate: 0_200_000_000,
+            status: 0,
+        };
+        let mut user_positions = Positions::env_default(&e);
+        user_positions.add_collateral(0, 20_0000000);
+        e.as_contract(&pool, || {
+            storage::set_pool_config(&e, &pool_config);
+            storage::set_user_positions(&e, &samwise, &user_positions);
+
+            let mut pool = Pool::load(&e);
+
+            let requests = vec![
+                &e,
+                Request {
+                    request_type: 3,
+                    reserve_index: 0,
+                    amount: 21_0000000,
+                },
+            ];
+            let (actions, positions, health_check) =
+                build_actions_from_request(&e, &mut pool, &samwise, requests);
+
+            assert_eq!(health_check, true);
+
+            assert_eq!(actions.len(), 1);
+            let action = actions.get_unchecked(0).unwrap_optimized();
+            assert_eq!(action.asset, underlying_1);
+            assert_eq!(action.tokens_out, 20_0000137);
+            assert_eq!(action.tokens_in, 0);
+
+            assert_eq!(positions.liabilities.len(), 0);
+            assert_eq!(positions.collateral.len(), 0);
+            assert_eq!(positions.supply.len(), 0);
+
+            let reserve = pool.load_reserve(&e, &underlying_1);
+            assert_eq!(reserve.b_supply, reserve_data.b_supply - 20_0000000);
+        });
+    }
+
+    /***** borrow *****/
+
+    #[test]
+    fn test_build_actions_from_request_borrow() {
+        let e = Env::default();
+        e.mock_all_auths();
+
+        let bombadil = Address::random(&e);
+        let samwise = Address::random(&e);
+        let pool = Address::random(&e);
+
+        let (underlying_1, _) = testutils::create_token_contract(&e, &bombadil);
+        let (reserve_config, reserve_data) = testutils::default_reserve_meta(&e);
+        testutils::create_reserve(&e, &pool, &underlying_1, &reserve_config, &reserve_data);
+
+        e.ledger().set(LedgerInfo {
+            timestamp: 600,
+            protocol_version: 1,
+            sequence_number: 1234,
+            network_id: Default::default(),
+            base_reserve: 10,
+        });
+        let pool_config = PoolConfig {
+            oracle: Address::random(&e),
+            bstop_rate: 0_200_000_000,
+            status: 0,
+        };
+        e.as_contract(&pool, || {
+            storage::set_pool_config(&e, &pool_config);
+
+            let mut pool = Pool::load(&e);
+
+            let requests = vec![
+                &e,
+                Request {
+                    request_type: 4,
+                    reserve_index: 0,
+                    amount: 10_1234567,
+                },
+            ];
+            let (actions, positions, health_check) =
+                build_actions_from_request(&e, &mut pool, &samwise, requests);
+
+            assert_eq!(health_check, true);
+
+            assert_eq!(actions.len(), 1);
+            let action = actions.get_unchecked(0).unwrap_optimized();
+            assert_eq!(action.asset, underlying_1);
+            assert_eq!(action.tokens_out, 10_1234567);
+            assert_eq!(action.tokens_in, 0);
+
+            assert_eq!(positions.liabilities.len(), 1);
+            assert_eq!(positions.collateral.len(), 0);
+            assert_eq!(positions.supply.len(), 0);
+            assert_eq!(positions.get_liabilities(0), 10_1234452);
+
+            let reserve = pool.load_reserve(&e, &underlying_1);
+            assert_eq!(reserve.d_supply, reserve_data.d_supply + 10_1234452);
+        });
+    }
+
+    /***** repay *****/
+
+    #[test]
+    fn test_build_actions_from_request_repay() {
+        let e = Env::default();
+        e.mock_all_auths();
+
+        let bombadil = Address::random(&e);
+        let samwise = Address::random(&e);
+        let pool = Address::random(&e);
+
+        let (underlying_1, _) = testutils::create_token_contract(&e, &bombadil);
+        let (reserve_config, reserve_data) = testutils::default_reserve_meta(&e);
+        testutils::create_reserve(&e, &pool, &underlying_1, &reserve_config, &reserve_data);
+
+        e.ledger().set(LedgerInfo {
+            timestamp: 600,
+            protocol_version: 1,
+            sequence_number: 1234,
+            network_id: Default::default(),
+            base_reserve: 10,
+        });
+        let pool_config = PoolConfig {
+            oracle: Address::random(&e),
+            bstop_rate: 0_200_000_000,
+            status: 0,
+        };
+        let mut user_positions = Positions::env_default(&e);
+        user_positions.add_liabilities(0, 20_0000000);
+        e.as_contract(&pool, || {
+            storage::set_pool_config(&e, &pool_config);
+            storage::set_user_positions(&e, &samwise, &user_positions);
+
+            let mut pool = Pool::load(&e);
+
+            let requests = vec![
+                &e,
+                Request {
+                    request_type: 5,
+                    reserve_index: 0,
+                    amount: 10_1234567,
+                },
+            ];
+            let (actions, positions, health_check) =
+                build_actions_from_request(&e, &mut pool, &samwise, requests);
+
+            assert_eq!(health_check, false);
+
+            assert_eq!(actions.len(), 1);
+            let action = actions.get_unchecked(0).unwrap_optimized();
+            assert_eq!(action.asset, underlying_1);
+            assert_eq!(action.tokens_out, 0);
+            assert_eq!(action.tokens_in, 10_1234567);
+
+            assert_eq!(positions.liabilities.len(), 1);
+            assert_eq!(positions.collateral.len(), 0);
+            assert_eq!(positions.supply.len(), 0);
+            let d_tokens_repaid = 10_1234451;
+            assert_eq!(positions.get_liabilities(0), 20_0000000 - d_tokens_repaid);
+
+            let reserve = pool.load_reserve(&e, &underlying_1);
+            assert_eq!(reserve.d_supply, reserve_data.d_supply - d_tokens_repaid);
+        });
+    }
+
+    #[test]
+    fn test_build_actions_from_request_repay_over_balance() {
+        let e = Env::default();
+        e.mock_all_auths();
+
+        let bombadil = Address::random(&e);
+        let samwise = Address::random(&e);
+        let pool = Address::random(&e);
+
+        let (underlying_1, _) = testutils::create_token_contract(&e, &bombadil);
+        let (reserve_config, reserve_data) = testutils::default_reserve_meta(&e);
+        testutils::create_reserve(&e, &pool, &underlying_1, &reserve_config, &reserve_data);
+
+        e.ledger().set(LedgerInfo {
+            timestamp: 600,
+            protocol_version: 1,
+            sequence_number: 1234,
+            network_id: Default::default(),
+            base_reserve: 10,
+        });
+        let pool_config = PoolConfig {
+            oracle: Address::random(&e),
+            bstop_rate: 0_200_000_000,
+            status: 0,
+        };
+        let mut user_positions = Positions::env_default(&e);
+        user_positions.add_liabilities(0, 20_0000000);
+        e.as_contract(&pool, || {
+            storage::set_pool_config(&e, &pool_config);
+            storage::set_user_positions(&e, &samwise, &user_positions);
+
+            let mut pool = Pool::load(&e);
+
+            let requests = vec![
+                &e,
+                Request {
+                    request_type: 5,
+                    reserve_index: 0,
+                    amount: 21_0000000,
+                },
+            ];
+            let (actions, positions, health_check) =
+                build_actions_from_request(&e, &mut pool, &samwise, requests);
+
+            assert_eq!(health_check, false);
+
+            assert_eq!(actions.len(), 1);
+            let action = actions.get_unchecked(0).unwrap_optimized();
+            assert_eq!(action.asset, underlying_1);
+            assert_eq!(action.tokens_out, 0_9999771);
+            assert_eq!(action.tokens_in, 21_0000000);
+
+            assert_eq!(positions.liabilities.len(), 0);
+            assert_eq!(positions.collateral.len(), 0);
+            assert_eq!(positions.supply.len(), 0);
+
+            let reserve = pool.load_reserve(&e, &underlying_1);
+            assert_eq!(reserve.d_supply, reserve_data.d_supply - 20_0000000);
+        });
+    }
 }

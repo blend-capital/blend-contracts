@@ -1,6 +1,6 @@
 use cast::i128;
 use fixed_point_math::FixedPoint;
-use soroban_sdk::{contracttype, panic_with_error, Address, Env, unwrap::UnwrapOptimized};
+use soroban_sdk::{contracttype, panic_with_error, unwrap::UnwrapOptimized, Address, Env};
 
 use crate::{
     constants::{SCALAR_7, SCALAR_9},
@@ -20,7 +20,7 @@ pub struct Reserve {
     pub c_factor: u32,         // the collateral factor for the reserve
     pub max_util: u32,         // the maximum utilization rate for the reserve
     pub last_time: u64,        // the last block the data was updated
-    pub scalar: i128,           // scalar used for balances
+    pub scalar: i128,          // scalar used for balances
     pub d_rate: i128,          // the conversion rate from dToken to underlying (9 decimals)
     pub b_rate: i128,          // the conversion rate from bToken to underlying (9 decimals)
     pub ir_mod: i128,          // the interest rate curve modifier
@@ -75,21 +75,6 @@ impl Reserve {
         );
         reserve.ir_mod = new_ir_mod;
 
-        // credit the backstop underlying from the accrued interest based on the backstop rate
-        if pool_config.bstop_rate > 0 {
-            let backstop_rate = i128(pool_config.bstop_rate);
-            let b_accrual = (loan_accrual - SCALAR_9)
-                .fixed_mul_floor(cur_util, SCALAR_7)
-                .unwrap_optimized();
-            let bstop_amount = reserve
-                .total_supply()
-                .fixed_mul_floor(b_accrual, SCALAR_9)
-                .unwrap_optimized()
-                .fixed_mul_floor(backstop_rate, SCALAR_9)
-                .unwrap_optimized();
-            reserve.backstop_credit += bstop_amount;
-        }
-
         reserve.d_rate = loan_accrual
             .fixed_mul_ceil(reserve.d_rate, SCALAR_9)
             .unwrap_optimized();
@@ -98,25 +83,26 @@ impl Reserve {
             // TODO: Is it safe to calculate b_rate from accrual? If any unexpected token loss occurs
             //       the transfer rate will become unrecoverable.
             let pre_update_supply = reserve.total_supply();
-            let pre_update_b_rate = reserve.b_rate;
             let token_bal = TokenClient::new(e, &asset).balance(&e.current_contract_address());
-            reserve.b_rate = (reserve.total_liabilities() + token_bal - reserve.backstop_credit)
-                .fixed_div_floor(reserve.b_supply, reserve.scalar)
-                .unwrap_optimized();
 
             // credit the backstop underlying from the accrued interest based on the backstop rate
-            let b_rate_accrual = reserve.b_rate - pre_update_b_rate;
-            if pool_config.bstop_rate > 0 && b_rate_accrual > 0 {
-                reserve.backstop_credit += reserve.to_asset_from_b_token(
-                    pre_update_supply
-                        .fixed_mul_floor(b_rate_accrual, reserve.scalar)
-                        .unwrap_optimized()
-                        .fixed_mul_floor(i128(pool_config.bstop_rate), SCALAR_9)
-                        .unwrap_optimized(),
-                );
+            let accrued_supply = reserve.total_liabilities() + token_bal
+                - reserve.backstop_credit
+                - pre_update_supply;
+            if pool_config.bstop_rate > 0 && accrued_supply > 0 {
+                let new_backstop_credit = accrued_supply
+                    .fixed_mul_floor(i128(pool_config.bstop_rate), SCALAR_9)
+                    .unwrap_optimized();
+                reserve.backstop_credit += new_backstop_credit;
+                // update b_rate with new backstop_credit
+                reserve.b_rate = (reserve.total_liabilities() + token_bal
+                    - reserve.backstop_credit)
+                    .fixed_div_floor(reserve.b_supply, SCALAR_9)
+                    .unwrap_optimized();
             }
         }
 
+        reserve.last_time = e.ledger().timestamp();
         reserve
     }
 
@@ -137,7 +123,7 @@ impl Reserve {
     /// Fetch the current utilization rate for the reserve normalized to 7 decimals
     pub fn utilization(&self) -> i128 {
         self.total_liabilities()
-            .fixed_div_floor(self.total_supply(), 1_0000000)
+            .fixed_div_floor(self.total_supply(), SCALAR_7)
             .unwrap_optimized()
     }
 
@@ -165,7 +151,9 @@ impl Reserve {
     /// ### Arguments
     /// * `d_tokens` - The amount of tokens to convert
     pub fn to_asset_from_d_token(&self, d_tokens: i128) -> i128 {
-        d_tokens.fixed_mul_ceil(self.d_rate, SCALAR_9).unwrap_optimized()
+        d_tokens
+            .fixed_mul_ceil(self.d_rate, SCALAR_9)
+            .unwrap_optimized()
     }
 
     /// Convert b_tokens to the corresponding asset value
@@ -174,7 +162,7 @@ impl Reserve {
     /// * `b_tokens` - The amount of tokens to convert
     pub fn to_asset_from_b_token(&self, b_tokens: i128) -> i128 {
         b_tokens
-            .fixed_mul_floor(self.b_rate, self.scalar)
+            .fixed_mul_floor(self.b_rate, SCALAR_9)
             .unwrap_optimized()
     }
 
@@ -207,7 +195,9 @@ impl Reserve {
     /// ### Arguments
     /// * `amount` - The amount of tokens to convert
     pub fn to_d_token_up(&self, amount: i128) -> i128 {
-        amount.fixed_div_ceil(self.d_rate, SCALAR_9).unwrap_optimized()
+        amount
+            .fixed_div_ceil(self.d_rate, SCALAR_9)
+            .unwrap_optimized()
     }
 
     /// Convert asset tokens to the corresponding d token value - rounding down
@@ -215,7 +205,9 @@ impl Reserve {
     /// ### Arguments
     /// * `amount` - The amount of tokens to convert
     pub fn to_d_token_down(&self, amount: i128) -> i128 {
-        amount.fixed_div_floor(self.d_rate, SCALAR_9).unwrap_optimized()
+        amount
+            .fixed_div_floor(self.d_rate, SCALAR_9)
+            .unwrap_optimized()
     }
 
     /// Convert asset tokens to the corresponding b token value - round up
@@ -223,7 +215,9 @@ impl Reserve {
     /// ### Arguments
     /// * `amount` - The amount of tokens to convert
     pub fn to_b_token_up(&self, amount: i128) -> i128 {
-        amount.fixed_div_ceil(self.b_rate, SCALAR_9).unwrap_optimized()
+        amount
+            .fixed_div_ceil(self.b_rate, SCALAR_9)
+            .unwrap_optimized()
     }
 
     /// Convert asset tokens to the corresponding b token value - round down
@@ -231,6 +225,290 @@ impl Reserve {
     /// ### Arguments
     /// * `amount` - The amount of tokens to convert
     pub fn to_b_token_down(&self, amount: i128) -> i128 {
-        amount.fixed_div_floor(self.b_rate, SCALAR_9).unwrap_optimized()
+        amount
+            .fixed_div_floor(self.b_rate, SCALAR_9)
+            .unwrap_optimized()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::testutils;
+    use soroban_sdk::testutils::{Address as _, Ledger, LedgerInfo};
+
+    #[test]
+    fn test_load_reserve() {
+        let e = Env::default();
+        e.mock_all_auths();
+
+        let bombadil = Address::random(&e);
+        let pool = Address::random(&e);
+        let oracle = Address::random(&e);
+
+        let (underlying, _) = testutils::create_token_contract(&e, &bombadil);
+        let (reserve_config, mut reserve_data) = testutils::default_reserve_meta(&e);
+        reserve_data.d_rate = 1_345_678_123;
+        reserve_data.b_rate = 1_123_456_789;
+        reserve_data.d_supply = 65_0000000;
+        reserve_data.b_supply = 99_0000000;
+        testutils::create_reserve(&e, &pool, &underlying, &reserve_config, &reserve_data);
+
+        e.ledger().set(LedgerInfo {
+            timestamp: 123456 * 5,
+            protocol_version: 1,
+            sequence_number: 123456,
+            network_id: Default::default(),
+            base_reserve: 10,
+        });
+        let pool_config = PoolConfig {
+            oracle,
+            bstop_rate: 0_200_000_000,
+            status: 0,
+        };
+        e.as_contract(&pool, || {
+            storage::set_pool_config(&e, &pool_config);
+            let reserve = Reserve::load(&e, &pool_config, &underlying);
+
+            // (accrual: 1_002_957_369, util: .7864352)
+            assert_eq!(reserve.d_rate, 1_349_657_792);
+            assert_eq!(reserve.b_rate, 1_125_547_121);
+            assert_eq!(reserve.ir_mod, 1_044_981_440);
+            assert_eq!(reserve.d_supply, 65_0000000);
+            assert_eq!(reserve.b_supply, 99_0000000);
+            assert_eq!(reserve.backstop_credit, 0_0517357);
+            assert_eq!(reserve.last_time, 617280);
+        });
+    }
+
+    #[test]
+    fn test_store() {
+        let e = Env::default();
+        e.mock_all_auths();
+
+        let bombadil = Address::random(&e);
+        let pool = Address::random(&e);
+        let oracle = Address::random(&e);
+
+        let (underlying, _) = testutils::create_token_contract(&e, &bombadil);
+        let (reserve_config, mut reserve_data) = testutils::default_reserve_meta(&e);
+        reserve_data.d_rate = 1_345_678_123;
+        reserve_data.b_rate = 1_123_456_789;
+        reserve_data.d_supply = 65_0000000;
+        reserve_data.b_supply = 99_0000000;
+        testutils::create_reserve(&e, &pool, &underlying, &reserve_config, &reserve_data);
+
+        e.ledger().set(LedgerInfo {
+            timestamp: 123456 * 5,
+            protocol_version: 1,
+            sequence_number: 123456,
+            network_id: Default::default(),
+            base_reserve: 10,
+        });
+        let pool_config = PoolConfig {
+            oracle,
+            bstop_rate: 0_200_000_000,
+            status: 0,
+        };
+        e.as_contract(&pool, || {
+            storage::set_pool_config(&e, &pool_config);
+            let reserve = Reserve::load(&e, &pool_config, &underlying);
+            reserve.store(&e);
+
+            let reserve_data = storage::get_res_data(&e, &underlying);
+
+            // (accrual: 1_002_957_369, util: .7864352)
+            assert_eq!(reserve_data.d_rate, 1_349_657_792);
+            assert_eq!(reserve_data.b_rate, 1_125_547_121);
+            assert_eq!(reserve_data.ir_mod, 1_044_981_440);
+            assert_eq!(reserve_data.d_supply, 65_0000000);
+            assert_eq!(reserve_data.b_supply, 99_0000000);
+            assert_eq!(reserve_data.backstop_credit, 0_0517357);
+            assert_eq!(reserve_data.last_time, 617280);
+        });
+    }
+
+    #[test]
+    fn test_utilization() {
+        let e = Env::default();
+
+        let mut reserve = testutils::default_reserve(&e);
+        reserve.d_rate = 1_345_678_123;
+        reserve.b_rate = 1_123_456_789;
+        reserve.b_supply = 99_0000000;
+        reserve.d_supply = 65_0000000;
+
+        let result = reserve.utilization();
+
+        assert_eq!(result, 0_7864352);
+    }
+
+    #[test]
+    fn test_require_utilization_below_max_pass() {
+        let e = Env::default();
+
+        let mut reserve = testutils::default_reserve(&e);
+        reserve.b_supply = 99_0000000;
+        reserve.d_supply = 65_0000000;
+
+        reserve.require_utilization_below_max(&e);
+        // no panic
+        assert!(true);
+    }
+
+    #[test]
+    #[should_panic(expected = "Status(ContractError(12))")]
+    fn test_require_utilization_under_max_panic() {
+        let e = Env::default();
+
+        let mut reserve = testutils::default_reserve(&e);
+        reserve.b_supply = 100_0000000;
+        reserve.d_supply = 95_0000100;
+
+        reserve.require_utilization_below_max(&e);
+    }
+
+    /***** Token Transfer Math *****/
+
+    #[test]
+    fn test_to_asset_from_d_token() {
+        let e = Env::default();
+
+        let mut reserve = testutils::default_reserve(&e);
+        reserve.d_rate = 1_321_834_961;
+        reserve.b_supply = 99_0000000;
+        reserve.d_supply = 65_0000000;
+
+        let result = reserve.to_asset_from_d_token(1_1234567);
+
+        assert_eq!(result, 1_4850244);
+    }
+
+    #[test]
+    fn test_to_asset_from_b_token() {
+        let e = Env::default();
+
+        let mut reserve = testutils::default_reserve(&e);
+        reserve.b_rate = 1_321_834_961;
+        reserve.b_supply = 99_0000000;
+        reserve.d_supply = 65_0000000;
+
+        let result = reserve.to_asset_from_b_token(1_1234567);
+
+        assert_eq!(result, 1_4850243);
+    }
+
+    #[test]
+    fn test_to_effective_asset_from_d_token() {
+        let e = Env::default();
+
+        let mut reserve = testutils::default_reserve(&e);
+        reserve.d_rate = 1_321_834_961;
+        reserve.b_supply = 99_0000000;
+        reserve.d_supply = 65_0000000;
+        reserve.l_factor = 1_1000000;
+
+        let result = reserve.to_effective_asset_from_d_token(1_1234567);
+
+        assert_eq!(result, 1_3500222);
+    }
+
+    #[test]
+    fn test_to_effective_asset_from_b_token() {
+        let e = Env::default();
+
+        let mut reserve = testutils::default_reserve(&e);
+        reserve.b_rate = 1_321_834_961;
+        reserve.b_supply = 99_0000000;
+        reserve.d_supply = 65_0000000;
+        reserve.c_factor = 0_8500000;
+
+        let result = reserve.to_effective_asset_from_b_token(1_1234567);
+
+        assert_eq!(result, 1_2622706);
+    }
+
+    #[test]
+    fn test_total_liabilities() {
+        let e = Env::default();
+
+        let mut reserve = testutils::default_reserve(&e);
+        reserve.d_rate = 1_823_912_692;
+        reserve.b_supply = 99_0000000;
+        reserve.d_supply = 65_0000000;
+
+        let result = reserve.total_liabilities();
+
+        assert_eq!(result, 118_5543250);
+    }
+
+    #[test]
+    fn test_total_supply() {
+        let e = Env::default();
+
+        let mut reserve = testutils::default_reserve(&e);
+        reserve.b_rate = 1_823_912_692;
+        reserve.b_supply = 99_0000000;
+        reserve.d_supply = 65_0000000;
+
+        let result = reserve.total_supply();
+
+        assert_eq!(result, 180_5673565);
+    }
+
+    #[test]
+    fn test_to_d_token_up() {
+        let e = Env::default();
+
+        let mut reserve = testutils::default_reserve(&e);
+        reserve.d_rate = 1_321_834_961;
+        reserve.b_supply = 99_0000000;
+        reserve.d_supply = 65_0000000;
+
+        let result = reserve.to_d_token_up(1_4850243);
+
+        assert_eq!(result, 1_1234567);
+    }
+
+    #[test]
+    fn test_to_d_token_down() {
+        let e = Env::default();
+
+        let mut reserve = testutils::default_reserve(&e);
+        reserve.d_rate = 1_321_834_961;
+        reserve.b_supply = 99_0000000;
+        reserve.d_supply = 65_0000000;
+
+        let result = reserve.to_d_token_down(1_4850243);
+
+        assert_eq!(result, 1_1234566);
+    }
+
+    #[test]
+    fn test_to_b_token_up() {
+        let e = Env::default();
+
+        let mut reserve = testutils::default_reserve(&e);
+        reserve.b_rate = 1_321_834_961;
+        reserve.b_supply = 99_0000000;
+        reserve.d_supply = 65_0000000;
+
+        let result = reserve.to_b_token_up(1_4850243);
+
+        assert_eq!(result, 1_1234567);
+    }
+
+    #[test]
+    fn test_to_b_token_down() {
+        let e = Env::default();
+
+        let mut reserve = testutils::default_reserve(&e);
+        reserve.b_rate = 1_321_834_961;
+        reserve.b_supply = 99_0000000;
+        reserve.d_supply = 65_0000000;
+
+        let result = reserve.to_b_token_down(1_4850243);
+
+        assert_eq!(result, 1_1234566);
     }
 }

@@ -1,4 +1,4 @@
-use soroban_sdk::{map, panic_with_error, Address, Env, Symbol, unwrap::UnwrapOptimized};
+use soroban_sdk::{map, panic_with_error, unwrap::UnwrapOptimized, Address, Env, Symbol};
 
 use crate::{
     dependencies::TokenClient,
@@ -116,11 +116,7 @@ fn burn_backstop_bad_debt(e: &Env, backstop: &Address) {
 
 #[cfg(test)]
 mod tests {
-    use crate::{
-        auctions::AuctionData,
-        storage::PoolConfig,
-        testutils::{create_blnd_token, create_reserve, setup_reserve},
-    };
+    use crate::{auctions::AuctionData, pool::Positions, storage::PoolConfig, testutils};
 
     use super::*;
     use soroban_sdk::{
@@ -136,143 +132,140 @@ mod tests {
         e.mock_all_auths();
 
         e.ledger().set(LedgerInfo {
-            timestamp: 1500000000,
+            timestamp: 600,
             protocol_version: 1,
             sequence_number: 123,
             network_id: Default::default(),
             base_reserve: 10,
         });
 
-        let pool_address = Address::random(&e);
-        let backstop_address = Address::random(&e);
+        let pool = Address::random(&e);
+        let backstop = Address::random(&e);
 
         let samwise = Address::random(&e);
         let bombadil = Address::random(&e);
 
-        let mut reserve_0 = create_reserve(&e);
-        setup_reserve(&e, &pool_address, &bombadil, &mut reserve_0);
+        let (underlying_1, _) = testutils::create_token_contract(&e, &bombadil);
+        let (reserve_config, reserve_data) = testutils::default_reserve_meta(&e);
+        testutils::create_reserve(&e, &pool, &underlying_1, &reserve_config, &reserve_data);
 
-        let mut reserve_1 = create_reserve(&e);
-        reserve_1.config.index = 1;
-        setup_reserve(&e, &pool_address, &bombadil, &mut reserve_1);
+        let (underlying_2, _) = testutils::create_token_contract(&e, &bombadil);
+        let (reserve_config, reserve_data) = testutils::default_reserve_meta(&e);
+        testutils::create_reserve(&e, &pool, &underlying_2, &reserve_config, &reserve_data);
 
         let pool_config = PoolConfig {
             oracle: Address::random(&e),
             bstop_rate: 0_100_000_000,
             status: 0,
         };
-
-        // setup user (collateralize reserve 0 and borrow reserve 1)
-        let liability_amount_0 = 24_0000000;
-        let liability_amount_1 = 25_0000000;
-
-        e.as_contract(&pool_address, || {
+        let mut user_positions = Positions::env_default(&e);
+        user_positions.add_liabilities(0, 24_0000000);
+        user_positions.add_liabilities(1, 25_0000000);
+        e.as_contract(&pool, || {
             storage::set_pool_config(&e, &pool_config);
-            storage::set_backstop(&e, &backstop_address);
-            let mut user_config = ReserveUsage::new(0);
-            user_config.set_liability(0, true);
-            user_config.set_liability(1, true);
-            storage::set_user_config(&e, &samwise, &user_config.config);
-
-            let d_token_0 = TokenClient::new(&e, &reserve_0.config.d_token);
-            d_token_0.mint(&samwise, &liability_amount_0);
-            let d_token_1 = TokenClient::new(&e, &reserve_1.config.d_token);
-            d_token_1.mint(&samwise, &liability_amount_1);
+            storage::set_backstop(&e, &backstop);
+            storage::set_user_positions(&e, &samwise, &user_positions);
 
             e.budget().reset_unlimited();
-            transfer_bad_debt_to_backstop(&e, &samwise, &backstop_address).unwrap_optimized();
+            manage_bad_debt(&e, &samwise);
 
-            assert_eq!(d_token_0.balance(&samwise), 0);
-            assert_eq!(d_token_0.balance(&backstop_address), liability_amount_0);
-            assert_eq!(d_token_1.balance(&samwise), 0);
-            assert_eq!(d_token_1.balance(&backstop_address), liability_amount_1);
-
-            let reserve_0_data = storage::get_res_data(&e, &reserve_0.asset);
-            let reserve_1_data = storage::get_res_data(&e, &reserve_1.asset);
-            assert_eq!(reserve_0_data.last_time, 1500000000);
-            assert_eq!(reserve_1_data.last_time, 1500000000);
+            let new_user_positions = storage::get_user_positions(&e, &samwise);
+            let new_backstop_positions = storage::get_user_positions(&e, &backstop);
+            assert_eq!(new_user_positions.collateral.len(), 0);
+            assert_eq!(new_user_positions.liabilities.len(), 0);
+            assert_eq!(new_backstop_positions.get_liabilities(0), 24_0000000);
+            assert_eq!(new_backstop_positions.get_liabilities(1), 25_0000000);
         });
     }
 
     #[test]
-    fn test_transfer_bad_debt_with_collateral_errors() {
+    #[should_panic(expected = "Status(ContractError(2))")]
+    fn test_transfer_bad_debt_with_collateral_panics() {
         let e = Env::default();
         e.mock_all_auths();
 
-        let pool_address = Address::random(&e);
-        let backstop_address = Address::random(&e);
+        e.ledger().set(LedgerInfo {
+            timestamp: 600,
+            protocol_version: 1,
+            sequence_number: 123,
+            network_id: Default::default(),
+            base_reserve: 10,
+        });
+
+        let pool = Address::random(&e);
+        let backstop = Address::random(&e);
 
         let samwise = Address::random(&e);
         let bombadil = Address::random(&e);
 
-        let mut reserve_0 = create_reserve(&e);
-        setup_reserve(&e, &pool_address, &bombadil, &mut reserve_0);
+        let (underlying_1, _) = testutils::create_token_contract(&e, &bombadil);
+        let (reserve_config, reserve_data) = testutils::default_reserve_meta(&e);
+        testutils::create_reserve(&e, &pool, &underlying_1, &reserve_config, &reserve_data);
 
-        let mut reserve_1 = create_reserve(&e);
-        reserve_1.config.index = 1;
-        setup_reserve(&e, &pool_address, &bombadil, &mut reserve_1);
+        let (underlying_2, _) = testutils::create_token_contract(&e, &bombadil);
+        let (reserve_config, reserve_data) = testutils::default_reserve_meta(&e);
+        testutils::create_reserve(&e, &pool, &underlying_2, &reserve_config, &reserve_data);
 
         let pool_config = PoolConfig {
             oracle: Address::random(&e),
             bstop_rate: 0_100_000_000,
             status: 0,
         };
-
-        e.as_contract(&pool_address, || {
+        let mut user_positions = Positions::env_default(&e);
+        user_positions.add_collateral(0, 1);
+        user_positions.add_liabilities(0, 24_0000000);
+        user_positions.add_liabilities(1, 25_0000000);
+        e.as_contract(&pool, || {
             storage::set_pool_config(&e, &pool_config);
-            storage::set_backstop(&e, &backstop_address);
-            let mut user_config = ReserveUsage::new(0);
-            user_config.set_liability(0, true);
-            user_config.set_liability(1, true);
-            user_config.set_supply(1, true);
-            storage::set_user_config(&e, &samwise, &user_config.config);
+            storage::set_backstop(&e, &backstop);
+            storage::set_user_positions(&e, &samwise, &user_positions);
 
-            let result = transfer_bad_debt_to_backstop(&e, &samwise, &backstop_address);
-
-            match result {
-                Ok(_) => assert!(false),
-                Err(error) => assert_eq!(error, PoolError::BadRequest),
-            }
+            e.budget().reset_unlimited();
+            manage_bad_debt(&e, &samwise);
         });
     }
 
     #[test]
-    fn test_transfer_bad_debt_without_liability_errors() {
+    #[should_panic(expected = "Status(ContractError(2))")]
+    fn test_transfer_bad_debt_without_liabilities_panics() {
         let e = Env::default();
         e.mock_all_auths();
 
-        let pool_address = Address::random(&e);
-        let backstop_address = Address::random(&e);
+        e.ledger().set(LedgerInfo {
+            timestamp: 600,
+            protocol_version: 1,
+            sequence_number: 123,
+            network_id: Default::default(),
+            base_reserve: 10,
+        });
+
+        let pool = Address::random(&e);
+        let backstop = Address::random(&e);
 
         let samwise = Address::random(&e);
         let bombadil = Address::random(&e);
 
-        let mut reserve_0 = create_reserve(&e);
-        setup_reserve(&e, &pool_address, &bombadil, &mut reserve_0);
+        let (underlying_1, _) = testutils::create_token_contract(&e, &bombadil);
+        let (reserve_config, reserve_data) = testutils::default_reserve_meta(&e);
+        testutils::create_reserve(&e, &pool, &underlying_1, &reserve_config, &reserve_data);
 
-        let mut reserve_1 = create_reserve(&e);
-        reserve_1.config.index = 1;
-        setup_reserve(&e, &pool_address, &bombadil, &mut reserve_1);
+        let (underlying_2, _) = testutils::create_token_contract(&e, &bombadil);
+        let (reserve_config, reserve_data) = testutils::default_reserve_meta(&e);
+        testutils::create_reserve(&e, &pool, &underlying_2, &reserve_config, &reserve_data);
 
         let pool_config = PoolConfig {
             oracle: Address::random(&e),
             bstop_rate: 0_100_000_000,
             status: 0,
         };
-
-        e.as_contract(&pool_address, || {
+        let user_positions = Positions::env_default(&e);
+        e.as_contract(&pool, || {
             storage::set_pool_config(&e, &pool_config);
-            storage::set_backstop(&e, &backstop_address);
-            let mut user_config = ReserveUsage::new(0);
-            user_config.set_supply(1, true);
-            storage::set_user_config(&e, &samwise, &user_config.config);
+            storage::set_backstop(&e, &backstop);
+            storage::set_user_positions(&e, &samwise, &user_positions);
 
-            let result = transfer_bad_debt_to_backstop(&e, &samwise, &backstop_address);
-
-            match result {
-                Ok(_) => assert!(false),
-                Err(error) => assert_eq!(error, PoolError::BadRequest),
-            }
+            e.budget().reset_unlimited();
+            manage_bad_debt(&e, &samwise);
         });
     }
 
@@ -293,19 +286,24 @@ mod tests {
 
         let bombadil = Address::random(&e);
 
-        let pool_address = Address::random(&e);
-        let backstop_address = Address::random(&e);
+        let pool = Address::random(&e);
+        let backstop = Address::random(&e);
 
-        let (_, blnd_client) = create_blnd_token(&e, &pool_address, &bombadil);
+        let (_, blnd_client) = testutils::create_blnd_token(&e, &pool, &bombadil);
 
-        let mut reserve_0 = create_reserve(&e);
-        setup_reserve(&e, &pool_address, &bombadil, &mut reserve_0);
+        let (underlying_1, _) = testutils::create_token_contract(&e, &bombadil);
+        let (reserve_config, mut reserve_data) = testutils::default_reserve_meta(&e);
+        reserve_data.last_time = 1499995000;
+        let initial_d_supply_1 = reserve_data.d_supply;
+        testutils::create_reserve(&e, &pool, &underlying_1, &reserve_config, &reserve_data);
 
-        let mut reserve_1 = create_reserve(&e);
-        reserve_1.config.index = 1;
-        setup_reserve(&e, &pool_address, &bombadil, &mut reserve_1);
+        let (underlying_2, _) = testutils::create_token_contract(&e, &bombadil);
+        let (reserve_config, mut reserve_data) = testutils::default_reserve_meta(&e);
+        reserve_data.last_time = 1499995000;
+        let initial_d_supply_2 = reserve_data.d_supply;
+        testutils::create_reserve(&e, &pool, &underlying_2, &reserve_config, &reserve_data);
 
-        blnd_client.mint(&backstop_address, &123);
+        blnd_client.mint(&backstop, &123);
 
         let pool_config = PoolConfig {
             oracle: Address::random(&e),
@@ -313,47 +311,32 @@ mod tests {
             status: 0,
         };
 
-        // setup user (collateralize reserve 0 and borrow reserve 1)
-        let liability_amount_0 = 24_0000000;
-        let liability_amount_1 = 25_0000000;
-
-        e.as_contract(&pool_address, || {
+        let mut backstop_positions = Positions::env_default(&e);
+        backstop_positions.add_liabilities(0, 24_0000000);
+        backstop_positions.add_liabilities(1, 25_0000000);
+        e.as_contract(&pool, || {
             storage::set_pool_config(&e, &pool_config);
-            storage::set_backstop(&e, &backstop_address);
-
-            let d_token_0 = TokenClient::new(&e, &reserve_0.config.d_token);
-            d_token_0.mint(&backstop_address, &liability_amount_0);
-            reserve_0.add_liability(&liability_amount_0);
-            reserve_0.set_data(&e);
-            let d_token_supply_0 = reserve_0.data.d_supply;
-            let d_token_1 = TokenClient::new(&e, &reserve_1.config.d_token);
-            d_token_1.mint(&backstop_address, &liability_amount_1);
-            reserve_1.add_liability(&liability_amount_1);
-            reserve_1.set_data(&e);
-            let d_token_supply_1 = reserve_1.data.d_supply;
+            storage::set_backstop(&e, &backstop);
+            storage::set_user_positions(&e, &backstop, &backstop_positions);
 
             e.budget().reset_unlimited();
-            burn_backstop_bad_debt(&e, &backstop_address).unwrap_optimized();
+            manage_bad_debt(&e, &backstop);
 
-            assert_eq!(d_token_0.balance(&backstop_address), 0);
-            assert_eq!(d_token_1.balance(&backstop_address), 0);
+            let new_backstop_positions = storage::get_user_positions(&e, &backstop);
+            assert_eq!(new_backstop_positions.collateral.len(), 0);
+            assert_eq!(new_backstop_positions.liabilities.len(), 0);
 
-            let reserve_0_data = storage::get_res_data(&e, &reserve_0.asset);
-            let reserve_1_data = storage::get_res_data(&e, &reserve_1.asset);
-            assert_eq!(reserve_0_data.last_time, 1500000000);
-            assert_eq!(
-                reserve_0_data.d_supply,
-                d_token_supply_0 - liability_amount_0
-            );
+            let reserve_1_data = storage::get_res_data(&e, &underlying_1);
+            let reserve_2_data = storage::get_res_data(&e, &underlying_2);
             assert_eq!(reserve_1_data.last_time, 1500000000);
-            assert_eq!(
-                reserve_1_data.d_supply,
-                d_token_supply_1 - liability_amount_1
-            );
+            assert_eq!(reserve_1_data.d_supply, initial_d_supply_1 - 24_0000000);
+            assert_eq!(reserve_2_data.last_time, 1500000000);
+            assert_eq!(reserve_2_data.d_supply, initial_d_supply_2 - 25_0000000);
         });
     }
 
     #[test]
+    #[should_panic(expected = "Status(ContractError(2))")]
     fn test_burn_backstop_bad_debt_with_balance_panics() {
         let e = Env::default();
         e.mock_all_auths();
@@ -368,19 +351,22 @@ mod tests {
 
         let bombadil = Address::random(&e);
 
-        let pool_address = Address::random(&e);
-        let backstop_address = Address::random(&e);
+        let pool = Address::random(&e);
+        let backstop = Address::random(&e);
 
-        let (_, blnd_client) = create_blnd_token(&e, &pool_address, &bombadil);
+        let (_, blnd_client) = testutils::create_blnd_token(&e, &pool, &bombadil);
 
-        let mut reserve_0 = create_reserve(&e);
-        setup_reserve(&e, &pool_address, &bombadil, &mut reserve_0);
+        let (underlying_1, _) = testutils::create_token_contract(&e, &bombadil);
+        let (reserve_config, mut reserve_data) = testutils::default_reserve_meta(&e);
+        reserve_data.last_time = 1499995000;
+        testutils::create_reserve(&e, &pool, &underlying_1, &reserve_config, &reserve_data);
 
-        let mut reserve_1 = create_reserve(&e);
-        reserve_1.config.index = 1;
-        setup_reserve(&e, &pool_address, &bombadil, &mut reserve_1);
+        let (underlying_2, _) = testutils::create_token_contract(&e, &bombadil);
+        let (reserve_config, mut reserve_data) = testutils::default_reserve_meta(&e);
+        reserve_data.last_time = 1499995000;
+        testutils::create_reserve(&e, &pool, &underlying_2, &reserve_config, &reserve_data);
 
-        blnd_client.mint(&backstop_address, &10_000_0000001);
+        blnd_client.mint(&backstop, &10_000_0000001);
 
         let pool_config = PoolConfig {
             oracle: Address::random(&e),
@@ -388,30 +374,21 @@ mod tests {
             status: 0,
         };
 
-        // setup user (collateralize reserve 0 and borrow reserve 1)
-        let liability_amount_0 = 24_0000000;
-        let liability_amount_1 = 25_0000000;
-
-        e.as_contract(&pool_address, || {
+        let mut backstop_positions = Positions::env_default(&e);
+        backstop_positions.add_liabilities(0, 24_0000000);
+        backstop_positions.add_liabilities(1, 25_0000000);
+        e.as_contract(&pool, || {
             storage::set_pool_config(&e, &pool_config);
-            storage::set_backstop(&e, &backstop_address);
-
-            let d_token_0 = TokenClient::new(&e, &reserve_0.config.d_token);
-            d_token_0.mint(&backstop_address, &liability_amount_0);
-            reserve_0.add_liability(&liability_amount_0);
-            reserve_0.set_data(&e);
-            let d_token_1 = TokenClient::new(&e, &reserve_1.config.d_token);
-            d_token_1.mint(&backstop_address, &liability_amount_1);
-            reserve_1.add_liability(&liability_amount_1);
-            reserve_1.set_data(&e);
+            storage::set_backstop(&e, &backstop);
+            storage::set_user_positions(&e, &backstop, &backstop_positions);
 
             e.budget().reset_unlimited();
-            let result = burn_backstop_bad_debt(&e, &backstop_address);
-            assert_eq!(result, Err(PoolError::BadRequest));
+            manage_bad_debt(&e, &backstop);
         });
     }
 
     #[test]
+    #[should_panic(expected = "Status(ContractError(103))")]
     fn test_burn_backstop_bad_debt_with_auction_panics() {
         let e = Env::default();
         e.mock_all_auths();
@@ -426,17 +403,22 @@ mod tests {
 
         let bombadil = Address::random(&e);
 
-        let pool_address = Address::random(&e);
-        let backstop_address = Address::random(&e);
+        let pool = Address::random(&e);
+        let backstop = Address::random(&e);
 
-        create_blnd_token(&e, &pool_address, &bombadil);
+        let (_, blnd_client) = testutils::create_blnd_token(&e, &pool, &bombadil);
 
-        let mut reserve_0 = create_reserve(&e);
-        setup_reserve(&e, &pool_address, &bombadil, &mut reserve_0);
+        let (underlying_1, _) = testutils::create_token_contract(&e, &bombadil);
+        let (reserve_config, mut reserve_data) = testutils::default_reserve_meta(&e);
+        reserve_data.last_time = 1499995000;
+        testutils::create_reserve(&e, &pool, &underlying_1, &reserve_config, &reserve_data);
 
-        let mut reserve_1 = create_reserve(&e);
-        reserve_1.config.index = 1;
-        setup_reserve(&e, &pool_address, &bombadil, &mut reserve_1);
+        let (underlying_2, _) = testutils::create_token_contract(&e, &bombadil);
+        let (reserve_config, mut reserve_data) = testutils::default_reserve_meta(&e);
+        reserve_data.last_time = 1499995000;
+        testutils::create_reserve(&e, &pool, &underlying_2, &reserve_config, &reserve_data);
+
+        blnd_client.mint(&backstop, &10_0000001);
 
         let pool_config = PoolConfig {
             oracle: Address::random(&e),
@@ -444,28 +426,19 @@ mod tests {
             status: 0,
         };
 
-        // setup user (collateralize reserve 0 and borrow reserve 1)
-        let liability_amount_0 = 24_0000000;
-        let liability_amount_1 = 25_0000000;
-
-        e.as_contract(&pool_address, || {
+        let mut backstop_positions = Positions::env_default(&e);
+        backstop_positions.add_liabilities(0, 24_0000000);
+        backstop_positions.add_liabilities(1, 25_0000000);
+        e.as_contract(&pool, || {
             storage::set_pool_config(&e, &pool_config);
-            storage::set_backstop(&e, &backstop_address);
-
-            let d_token_0 = TokenClient::new(&e, &reserve_0.config.d_token);
-            d_token_0.mint(&backstop_address, &liability_amount_0);
-            reserve_0.add_liability(&liability_amount_0);
-            reserve_0.set_data(&e);
-            let d_token_1 = TokenClient::new(&e, &reserve_1.config.d_token);
-            d_token_1.mint(&backstop_address, &liability_amount_1);
-            reserve_1.add_liability(&liability_amount_1);
-            reserve_1.set_data(&e);
+            storage::set_backstop(&e, &backstop);
+            storage::set_user_positions(&e, &backstop, &backstop_positions);
 
             // mock a created liquidation auction
             storage::set_auction(
                 &e,
                 &1,
-                &backstop_address,
+                &backstop,
                 &AuctionData {
                     bid: map![&e],
                     lot: map![&e],
@@ -474,8 +447,7 @@ mod tests {
             );
 
             e.budget().reset_unlimited();
-            let result = burn_backstop_bad_debt(&e, &backstop_address);
-            assert_eq!(result, Err(PoolError::AuctionInProgress));
+            manage_bad_debt(&e, &backstop);
         });
     }
 }

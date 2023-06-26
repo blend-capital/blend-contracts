@@ -1,4 +1,6 @@
-use soroban_sdk::{contracttype, map, vec, Address, Env, Map, Symbol, Vec, unwrap::UnwrapOptimized};
+use soroban_sdk::{
+    contracttype, map, unwrap::UnwrapOptimized, vec, Address, Env, Map, Symbol, Vec,
+};
 
 use crate::{auctions::AuctionData, pool::Positions};
 
@@ -166,7 +168,9 @@ pub fn set_user_positions(e: &Env, user: &Address, positions: &Positions) {
 /// ### Panics
 /// If the admin does not exist
 pub fn get_admin(e: &Env) -> Address {
-    e.storage().get_unchecked(&PoolDataKey::Admin).unwrap_optimized()
+    e.storage()
+        .get_unchecked(&PoolDataKey::Admin)
+        .unwrap_optimized()
 }
 
 /// Set a new admin
@@ -201,7 +205,9 @@ pub fn set_name(e: &Env, name: &Symbol) {
 /// ### Panics
 /// If no backstop is set
 pub fn get_backstop(e: &Env) -> Address {
-    e.storage().get_unchecked(&PoolDataKey::Backstop).unwrap_optimized()
+    e.storage()
+        .get_unchecked(&PoolDataKey::Backstop)
+        .unwrap_optimized()
 }
 
 /// Set a new backstop ID
@@ -217,7 +223,9 @@ pub fn set_backstop(e: &Env, backstop: &Address) {
 
 /// Fetch the BLND token ID
 pub fn get_blnd_token(e: &Env) -> Address {
-    e.storage().get_unchecked(&PoolDataKey::BLNDTkn).unwrap_optimized()
+    e.storage()
+        .get_unchecked(&PoolDataKey::BLNDTkn)
+        .unwrap_optimized()
 }
 
 /// Set a new BLND token ID
@@ -231,7 +239,9 @@ pub fn set_blnd_token(e: &Env, blnd_token_id: &Address) {
 
 /// Fetch the USDC token ID
 pub fn get_usdc_token(e: &Env) -> Address {
-    e.storage().get_unchecked(&PoolDataKey::USDCTkn).unwrap_optimized()
+    e.storage()
+        .get_unchecked(&PoolDataKey::USDCTkn)
+        .unwrap_optimized()
 }
 
 /// Set a new USDC token ID
@@ -250,7 +260,9 @@ pub fn set_usdc_token(e: &Env, usdc_token_id: &Address) {
 /// ### Panics
 /// If the pool's config is not set
 pub fn get_pool_config(e: &Env) -> PoolConfig {
-    e.storage().get_unchecked(&PoolDataKey::PoolConfig).unwrap_optimized()
+    e.storage()
+        .get_unchecked(&PoolDataKey::PoolConfig)
+        .unwrap_optimized()
 }
 
 /// Set the pool configuration

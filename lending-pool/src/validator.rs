@@ -15,13 +15,13 @@ pub fn require_nonnegative(e: &Env, amount: &i128) {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use soroban_sdk::testutils::Address as _;
+// #[cfg(test)]
+// mod tests {
+//     use soroban_sdk::testutils::Address as _;
 
-    use crate::dependencies::TokenClient;
-    use crate::storage;
-    use crate::testutils::{create_mock_oracle, create_reserve, setup_reserve};
+//     use crate::dependencies::TokenClient;
+//     use crate::storage;
+//     use crate::testutils::{create_mock_oracle, create_reserve, setup_reserve};
 
-    use super::*;
-}
+//     use super::*;
+// }

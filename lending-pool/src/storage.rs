@@ -6,15 +6,6 @@ use crate::{auctions::AuctionData, pool::Positions};
 
 /********** Storage Types **********/
 
-/// An action a user can take against the pool
-#[derive(Clone)]
-#[contracttype]
-pub struct Action {
-    pub action_type: u32, // 0 = supply, 1 = collateral deposit, 2 = withdrawal, 3 = borrow, 4 = repay
-    pub reserve_index: u32,
-    pub amount: i128,
-}
-
 /// The pool's config
 #[derive(Clone)]
 #[contracttype]

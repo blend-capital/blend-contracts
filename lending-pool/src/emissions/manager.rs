@@ -31,7 +31,7 @@ pub fn get_reserve_emissions(
 
     let res_list = storage::get_res_list(e);
     if let Some(res_index) = res_list.first_index_of(asset) {
-        let res_token_index = res_index * 3 + token_type;
+        let res_token_index = res_index * 2 + token_type;
         if storage::has_res_emis_data(e, &res_token_index) {
             return Some((
                 storage::get_res_emis_config(e, &res_token_index).unwrap_optimized(),

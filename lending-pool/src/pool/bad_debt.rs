@@ -89,8 +89,7 @@ fn burn_backstop_bad_debt(e: &Env, backstop: &Address) {
         panic_with_error!(e, PoolError::BadRequest);
     }
 
-    let backstop_positions = storage::get_user_positions(e, backstop);
-    let mut new_backstop_positions = backstop_positions.clone();
+    let mut backstop_positions = storage::get_user_positions(e, backstop);
 
     let pool_config = storage::get_pool_config(e);
     let reserve_list = storage::get_res_list(e);
@@ -109,9 +108,9 @@ fn burn_backstop_bad_debt(e: &Env, backstop: &Address) {
             );
         }
     }
-    new_backstop_positions.liabilities = map![e];
+    backstop_positions.liabilities = map![e];
 
-    storage::set_user_positions(e, &backstop, &new_backstop_positions);
+    storage::set_user_positions(e, &backstop, &backstop_positions);
 }
 
 #[cfg(test)]

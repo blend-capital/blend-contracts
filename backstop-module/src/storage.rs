@@ -1,4 +1,4 @@
-use soroban_sdk::{contracttype, vec, Address, Env, Vec};
+use soroban_sdk::{contracttype, unwrap::UnwrapOptimized, vec, Address, Env, Vec};
 
 /********** Storage Types **********/
 
@@ -73,8 +73,8 @@ pub enum BackstopDataKey {
 pub fn get_pool_factory(e: &Env) -> Address {
     e.storage()
         .get::<BackstopDataKey, Address>(&BackstopDataKey::PoolFact)
-        .unwrap()
-        .unwrap()
+        .unwrap_optimized()
+        .unwrap_optimized()
 }
 
 /// Set the pool factory
@@ -90,8 +90,8 @@ pub fn set_pool_factory(e: &Env, pool_factory_id: &Address) {
 pub fn get_blnd_token(e: &Env) -> Address {
     e.storage()
         .get::<BackstopDataKey, Address>(&BackstopDataKey::BLNDTkn)
-        .unwrap()
-        .unwrap()
+        .unwrap_optimized()
+        .unwrap_optimized()
 }
 
 /// Set the BLND token id
@@ -107,8 +107,8 @@ pub fn set_blnd_token(e: &Env, blnd_token_id: &Address) {
 pub fn get_backstop_token(e: &Env) -> Address {
     e.storage()
         .get::<BackstopDataKey, Address>(&BackstopDataKey::BckstpTkn)
-        .unwrap()
-        .unwrap()
+        .unwrap_optimized()
+        .unwrap_optimized()
 }
 
 /// Checks if a backstop token is set for the backstop
@@ -140,7 +140,7 @@ pub fn get_shares(e: &Env, pool: &Address, user: &Address) -> i128 {
     e.storage()
         .get::<BackstopDataKey, i128>(&key)
         .unwrap_or(Ok(0))
-        .unwrap()
+        .unwrap_optimized()
 }
 
 /// Set share balance for a user deposit in a pool
@@ -174,7 +174,7 @@ pub fn get_q4w(e: &Env, pool: &Address, user: &Address) -> Vec<Q4W> {
     e.storage()
         .get::<BackstopDataKey, Vec<Q4W>>(&key)
         .unwrap_or(Ok(vec![e]))
-        .unwrap()
+        .unwrap_optimized()
 }
 
 /// Set the array of Q4W for a user's deposits in a pool
@@ -202,7 +202,7 @@ pub fn get_pool_shares(e: &Env, pool: &Address) -> i128 {
     e.storage()
         .get::<BackstopDataKey, i128>(&key)
         .unwrap_or(Ok(0))
-        .unwrap()
+        .unwrap_optimized()
 }
 
 /// Set share deposit total for a pool
@@ -226,7 +226,7 @@ pub fn get_pool_q4w(e: &Env, pool: &Address) -> i128 {
     e.storage()
         .get::<BackstopDataKey, i128>(&key)
         .unwrap_or(Ok(0))
-        .unwrap()
+        .unwrap_optimized()
 }
 
 /// Set the total amount of shares queued for withdrawal for a pool
@@ -250,7 +250,7 @@ pub fn get_pool_tokens(e: &Env, pool: &Address) -> i128 {
     e.storage()
         .get::<BackstopDataKey, i128>(&key)
         .unwrap_or(Ok(0))
-        .unwrap()
+        .unwrap_optimized()
 }
 
 /// Set the balance of tokens in the backstop for a pool
@@ -270,7 +270,7 @@ pub fn get_next_distribution(e: &Env) -> u64 {
     e.storage()
         .get::<BackstopDataKey, u64>(&BackstopDataKey::NextDist)
         .unwrap_or(Ok(0))
-        .unwrap()
+        .unwrap_optimized()
 }
 
 /// Set the timestamp of when the next distribution window opens
@@ -289,7 +289,7 @@ pub fn get_reward_zone(e: &Env) -> Vec<Address> {
     e.storage()
         .get::<BackstopDataKey, Vec<Address>>(&BackstopDataKey::RewardZone)
         .unwrap_or(Ok(vec![&e]))
-        .unwrap()
+        .unwrap_optimized()
 }
 
 /// Set the reward zone
@@ -310,7 +310,7 @@ pub fn get_pool_eps(e: &Env, pool: &Address) -> i128 {
     e.storage()
         .get::<BackstopDataKey, i128>(&key)
         .unwrap_or(Ok(0))
-        .unwrap()
+        .unwrap_optimized()
 }
 
 /// Set the current emissions EPS the backstop is distributing to the pool
@@ -332,7 +332,7 @@ pub fn get_pool_emis(e: &Env, pool: &Address) -> i128 {
     e.storage()
         .get::<BackstopDataKey, i128>(&key)
         .unwrap_or(Ok(0))
-        .unwrap()
+        .unwrap_optimized()
 }
 
 /// Set the current emissions allotment the backstop has distributed to the pool
@@ -357,7 +357,7 @@ pub fn get_backstop_emis_config(e: &Env, pool: &Address) -> Option<BackstopEmiss
         .storage()
         .get::<BackstopDataKey, BackstopEmissionConfig>(&key);
     match result {
-        Some(data) => Some(data.unwrap()),
+        Some(data) => Some(data.unwrap_optimized()),
         None => None,
     }
 }
@@ -387,7 +387,7 @@ pub fn get_backstop_emis_data(e: &Env, pool: &Address) -> Option<BackstopEmissio
         .storage()
         .get::<BackstopDataKey, BackstopEmissionsData>(&key);
     match result {
-        Some(data) => Some(data.unwrap()),
+        Some(data) => Some(data.unwrap_optimized()),
         None => None,
     }
 }
@@ -415,7 +415,7 @@ pub fn get_user_emis_data(e: &Env, pool: &Address, user: &Address) -> Option<Use
     });
     let result = e.storage().get::<BackstopDataKey, UserEmissionData>(&key);
     match result {
-        Some(data) => Some(data.unwrap()),
+        Some(data) => Some(data.unwrap_optimized()),
         None => None,
     }
 }

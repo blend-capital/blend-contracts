@@ -65,6 +65,11 @@ impl Reserve {
             return reserve;
         }
 
+        if reserve.b_supply == 0 {
+            reserve.last_time = e.ledger().timestamp();
+            return reserve;
+        }
+
         let cur_util = reserve.utilization();
         let (loan_accrual, new_ir_mod) = calc_accrual(
             e,
@@ -79,27 +84,23 @@ impl Reserve {
             .fixed_mul_ceil(reserve.d_rate, SCALAR_9)
             .unwrap_optimized();
 
-        if reserve.b_supply != 0 {
-            // TODO: Is it safe to calculate b_rate from accrual? If any unexpected token loss occurs
-            //       the transfer rate will become unrecoverable.
-            let pre_update_supply = reserve.total_supply();
-            let token_bal = TokenClient::new(e, &asset).balance(&e.current_contract_address());
+        // TODO: Is it safe to calculate b_rate from accrual? If any unexpected token loss occurs
+        //       the transfer rate will become unrecoverable.
+        let pre_update_supply = reserve.total_supply();
+        let token_bal = TokenClient::new(e, &asset).balance(&e.current_contract_address());
 
-            // credit the backstop underlying from the accrued interest based on the backstop rate
-            let accrued_supply = reserve.total_liabilities() + token_bal
-                - reserve.backstop_credit
-                - pre_update_supply;
-            if pool_config.bstop_rate > 0 && accrued_supply > 0 {
-                let new_backstop_credit = accrued_supply
-                    .fixed_mul_floor(i128(pool_config.bstop_rate), SCALAR_9)
-                    .unwrap_optimized();
-                reserve.backstop_credit += new_backstop_credit;
-                // update b_rate with new backstop_credit
-                reserve.b_rate = (reserve.total_liabilities() + token_bal
-                    - reserve.backstop_credit)
-                    .fixed_div_floor(reserve.b_supply, SCALAR_9)
-                    .unwrap_optimized();
-            }
+        // credit the backstop underlying from the accrued interest based on the backstop rate
+        let accrued_supply =
+            reserve.total_liabilities() + token_bal - reserve.backstop_credit - pre_update_supply;
+        if pool_config.bstop_rate > 0 && accrued_supply > 0 {
+            let new_backstop_credit = accrued_supply
+                .fixed_mul_floor(i128(pool_config.bstop_rate), SCALAR_9)
+                .unwrap_optimized();
+            reserve.backstop_credit += new_backstop_credit;
+            // update b_rate with new backstop_credit
+            reserve.b_rate = (reserve.total_liabilities() + token_bal - reserve.backstop_credit)
+                .fixed_div_floor(reserve.b_supply, SCALAR_9)
+                .unwrap_optimized();
         }
 
         reserve.last_time = e.ledger().timestamp();

@@ -283,6 +283,50 @@ mod tests {
     }
 
     #[test]
+    fn test_load_reserve_zero_supply() {
+        let e = Env::default();
+        e.mock_all_auths();
+
+        let bombadil = Address::random(&e);
+        let pool = Address::random(&e);
+        let oracle = Address::random(&e);
+
+        let (underlying, _) = testutils::create_token_contract(&e, &bombadil);
+        let (reserve_config, mut reserve_data) = testutils::default_reserve_meta(&e);
+        reserve_data.d_rate = 0;
+        reserve_data.b_rate = 0;
+        reserve_data.d_supply = 0;
+        reserve_data.b_supply = 0;
+        testutils::create_reserve(&e, &pool, &underlying, &reserve_config, &reserve_data);
+
+        e.ledger().set(LedgerInfo {
+            timestamp: 123456 * 5,
+            protocol_version: 1,
+            sequence_number: 123456,
+            network_id: Default::default(),
+            base_reserve: 10,
+        });
+        let pool_config = PoolConfig {
+            oracle,
+            bstop_rate: 0_200_000_000,
+            status: 0,
+        };
+        e.as_contract(&pool, || {
+            storage::set_pool_config(&e, &pool_config);
+            let reserve = Reserve::load(&e, &pool_config, &underlying);
+
+            // (accrual: 1_002_957_369, util: .7864352)q
+            assert_eq!(reserve.d_rate, 0);
+            assert_eq!(reserve.b_rate, 0);
+            assert_eq!(reserve.ir_mod, 1_000_000_000);
+            assert_eq!(reserve.d_supply, 0);
+            assert_eq!(reserve.b_supply, 0);
+            assert_eq!(reserve.backstop_credit, 0);
+            assert_eq!(reserve.last_time, 617280);
+        });
+    }
+
+    #[test]
     fn test_store() {
         let e = Env::default();
         e.mock_all_auths();

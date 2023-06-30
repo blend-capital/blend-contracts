@@ -87,7 +87,7 @@ pub fn initialize_reserve(e: &Env, from: &Address, asset: &Address, config: &Res
     };
     storage::set_res_config(e, asset, &reserve_config);
     let init_data = ReserveData {
-        b_rate: 10i128.pow(config.decimals),
+        b_rate: 1_000_000_000,
         d_rate: 1_000_000_000,
         ir_mod: 1_000_000_000,
         d_supply: 0,

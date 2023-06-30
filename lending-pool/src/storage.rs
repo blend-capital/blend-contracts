@@ -188,7 +188,7 @@ pub fn get_backstop(e: &Env) -> Address {
 /// * `backstop` - The address of the backstop
 pub fn set_backstop(e: &Env, backstop: &Address) {
     e.storage()
-        .set::<Symbol, Address>(&Symbol::new(e, "Admin"), backstop);
+        .set::<Symbol, Address>(&Symbol::new(e, "Backstop"), backstop);
 }
 
 /********** External Token Contracts **********/

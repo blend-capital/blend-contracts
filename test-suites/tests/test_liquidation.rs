@@ -18,12 +18,12 @@ fn test_liquidations() {
 
     // Mint users tokens
     fixture.tokens[TokenIndex::XLM as usize].mint(&samwise, &(100_000 * SCALAR_7));
-    fixture.tokens[TokenIndex::WETH as usize].mint(&samwise, &(5 * SCALAR_7));
+    fixture.tokens[TokenIndex::WETH as usize].mint(&samwise, &(5 * 10i128.pow(9)));
     // Supply tokens
     pool_fixture.pool.supply(
         &frodo,
         &fixture.tokens[TokenIndex::USDC as usize].address,
-        &(10_000 * SCALAR_7),
+        &(10_000 * 10i128.pow(6)),
     );
     let sam_b_tokens_xlm = pool_fixture.pool.supply(
         &samwise,
@@ -33,13 +33,13 @@ fn test_liquidations() {
     let sam_b_tokens_weth = pool_fixture.pool.supply(
         &samwise,
         &fixture.tokens[TokenIndex::WETH as usize].address,
-        &(5 * SCALAR_7),
+        &(5 * 10i128.pow(9)),
     );
     // Borrow tokens
     pool_fixture.pool.borrow(
         &samwise,
         &fixture.tokens[TokenIndex::USDC as usize].address,
-        &(10_000 * SCALAR_7),
+        &(10_000 * 10i128.pow(6)),
         &samwise,
     ); //sams max USDC is .75*.95*.1*80_000 + .8*.95*2_000*5 = 13_300 USDC
     pool_fixture.pool.borrow(
@@ -73,13 +73,13 @@ fn test_liquidations() {
     // type 2 is an interest auction
     let auction_data = pool_fixture.pool.new_auction(&2);
     let usdc_lot_amount = auction_data.lot.get_unchecked(0).unwrap();
-    assert_approx_eq_abs(usdc_lot_amount, 85_8461538, 5000000);
+    assert_approx_eq_abs(usdc_lot_amount, 85_846153, 5000000);
     let xlm_lot_amount = auction_data.lot.get_unchecked(1).unwrap();
     assert_approx_eq_abs(xlm_lot_amount, 83_0769231, 5000000);
     let weth_lot_amount = auction_data.lot.get_unchecked(2).unwrap();
-    assert_approx_eq_abs(weth_lot_amount, 0_0025989, 5000000);
+    assert_approx_eq_abs(weth_lot_amount, 0_002598900, 5000000);
     let usdc_bid_amount = auction_data.bid.get(u32::MAX).unwrap().unwrap();
-    assert_approx_eq_abs(usdc_bid_amount, 143_7824001, 5000000);
+    assert_approx_eq_abs(usdc_bid_amount, 143_782400, 5000000);
     assert_eq!(auction_data.block, 968563);
     // Assumed max liquidation:
 
@@ -88,7 +88,7 @@ fn test_liquidations() {
             &fixture.env,
             (
                 fixture.tokens[TokenIndex::WETH as usize].address.clone(),
-                1_9968884
+                1_996_888_400
             ),
             (
                 fixture.tokens[TokenIndex::XLM as usize].address.clone(),
@@ -99,7 +99,7 @@ fn test_liquidations() {
             &fixture.env,
             (
                 fixture.tokens[TokenIndex::USDC as usize].address.clone(),
-                2386_4828850
+                2386_482885
             ),
             (
                 fixture.tokens[TokenIndex::XLM as usize].address.clone(),
@@ -142,8 +142,8 @@ fn test_liquidations() {
     );
     assert_approx_eq_abs(
         frodo_usdc_balance - fixture.tokens[TokenIndex::USDC as usize].balance(&frodo),
-        2500 * SCALAR_7,
-        SCALAR_7,
+        2500 * 10i128.pow(6),
+        10i128.pow(6),
     );
     assert_approx_eq_abs(
         frodo_xlm_balance - fixture.tokens[TokenIndex::XLM as usize].balance(&frodo),
@@ -240,8 +240,8 @@ fn test_liquidations() {
     );
     assert_approx_eq_abs(
         frodo_usdc_balance - fixture.tokens[TokenIndex::USDC as usize].balance(&frodo),
-        5981_7507920,
-        SCALAR_7,
+        5981_750792,
+        10i128.pow(6),
     );
     assert_approx_eq_abs(
         frodo_xlm_balance - fixture.tokens[TokenIndex::XLM as usize].balance(&frodo),
@@ -318,8 +318,8 @@ fn test_liquidations() {
     );
     assert_approx_eq_abs(
         frodo_usdc_pre_fill - fixture.tokens[TokenIndex::USDC as usize].balance(&frodo),
-        1993_9169310,
-        SCALAR_7,
+        1993_916931,
+        10i128.pow(6),
     );
     assert_eq!(
         bad_debt_auction_quote_xlm_bid,

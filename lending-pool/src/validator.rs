@@ -60,9 +60,17 @@ pub fn require_util_under_cap(
         user_action_liabilities = reserve.to_asset_from_d_token(user_action.d_token_delta);
     }
     let util = (reserve.total_liabilities() + user_action_liabilities)
-        .fixed_div_floor(reserve.total_supply(e) + user_action_supply, SCALAR_7)
+        .fixed_div_floor(reserve.total_supply(e) + user_action_supply, reserve.scalar)
         .unwrap_or(0); // can fail if div by 0 (no supply)
-    if util > i128(reserve.config.max_util) {
+
+    let scaled_max_util: i128;
+    if reserve.config.decimals >= 7 {
+        scaled_max_util = i128(reserve.config.max_util) * 10i128.pow(reserve.config.decimals - 7);
+    } else {
+        scaled_max_util = i128(reserve.config.max_util) / 10i128.pow(7 - reserve.config.decimals);
+    }
+
+    if util > scaled_max_util {
         return Err(PoolError::InvalidUtilRate);
     }
     Ok(())
@@ -169,6 +177,70 @@ mod tests {
         });
 
         user_action.d_token_delta = 20_0000100;
+        e.as_contract(&pool_id, || {
+            let result = require_util_under_cap(&e, &mut reserve_0, &user_action);
+            assert_eq!(result, Err(PoolError::InvalidUtilRate));
+        });
+    }
+
+    #[test]
+    fn test_require_utilization_under_cap_large_decimal() {
+        let e = Env::default();
+        e.mock_all_auths();
+        let pool_id = Address::random(&e);
+
+        let bombadil = Address::random(&e);
+
+        let mut reserve_0 = create_reserve(&e);
+        reserve_0.config.decimals = 9;
+        reserve_0.scalar = 1_000_000_000;
+        reserve_0.data.b_supply = 100_000_000_000;
+        reserve_0.data.d_supply = 75_000_000_000;
+        setup_reserve(&e, &pool_id, &bombadil, &mut reserve_0);
+
+        let mut user_action = UserAction {
+            asset: reserve_0.asset.clone(),
+            d_token_delta: 20_000_000_000,
+            b_token_delta: 0,
+        };
+        e.as_contract(&pool_id, || {
+            let result = require_util_under_cap(&e, &mut reserve_0, &user_action);
+            assert_eq!(result, Ok(()));
+        });
+
+        user_action.d_token_delta = 20_000_010_000;
+        e.as_contract(&pool_id, || {
+            let result = require_util_under_cap(&e, &mut reserve_0, &user_action);
+            assert_eq!(result, Err(PoolError::InvalidUtilRate));
+        });
+    }
+
+    #[test]
+    fn test_require_utilization_under_cap_small_decimal() {
+        let e = Env::default();
+        e.mock_all_auths();
+        let pool_id = Address::random(&e);
+
+        let bombadil = Address::random(&e);
+
+        let mut reserve_0 = create_reserve(&e);
+        reserve_0.config.decimals = 5;
+        reserve_0.scalar = 1_000_00;
+        reserve_0.data.b_supply = 100_000_00;
+        reserve_0.data.d_supply = 75_000_00;
+        setup_reserve(&e, &pool_id, &bombadil, &mut reserve_0);
+
+        let mut user_action = UserAction {
+            asset: reserve_0.asset.clone(),
+            d_token_delta: 20_000_00,
+            b_token_delta: 0,
+        };
+        e.as_contract(&pool_id, || {
+            let result = require_util_under_cap(&e, &mut reserve_0, &user_action);
+            assert_eq!(result, Ok(()));
+        });
+
+        user_action.d_token_delta = 20_001_00;
         e.as_contract(&pool_id, || {
             let result = require_util_under_cap(&e, &mut reserve_0, &user_action);
             assert_eq!(result, Err(PoolError::InvalidUtilRate));

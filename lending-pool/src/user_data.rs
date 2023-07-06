@@ -46,15 +46,16 @@ impl UserData {
             let mut reserve = Reserve::load(&e, res_asset_address.clone());
             // do not write rate information to chain
             reserve.update_rates(e, pool_config.bstop_rate);
-            let asset_to_base = oracle_client.get_price(&res_asset_address);
+
+            let asset_to_base = i128(oracle_client.get_price(&res_asset_address));
 
             if user_config.is_collateral(i) {
                 // append users effective collateral to collateral_base
                 let b_token_client = TokenClient::new(e, &reserve.config.b_token);
                 let b_token_balance = b_token_client.balance(user);
                 let asset_collateral = reserve.to_effective_asset_from_b_token(e, b_token_balance);
-                collateral_base += asset_collateral
-                    .fixed_mul_floor(i128(asset_to_base), SCALAR_7)
+                collateral_base += asset_to_base
+                    .fixed_mul_floor(asset_collateral, reserve.scalar)
                     .unwrap();
             }
 
@@ -63,8 +64,8 @@ impl UserData {
                 let d_token_client = TokenClient::new(e, &reserve.config.d_token);
                 let d_token_balance = d_token_client.balance(user);
                 let asset_liability = reserve.to_effective_asset_from_d_token(d_token_balance);
-                liability_base += asset_liability
-                    .fixed_mul_floor(i128(asset_to_base), SCALAR_7)
+                liability_base += asset_to_base
+                    .fixed_mul_floor(asset_liability, reserve.scalar)
                     .unwrap();
             }
 
@@ -73,16 +74,16 @@ impl UserData {
                 if action.b_token_delta != 0 {
                     let asset_collateral =
                         reserve.to_effective_asset_from_b_token(e, action.b_token_delta);
-                    collateral_base += asset_collateral
-                        .fixed_mul_floor(i128(asset_to_base), SCALAR_7)
+                    collateral_base += asset_to_base
+                        .fixed_mul_floor(asset_collateral, reserve.scalar)
                         .unwrap();
                 }
 
                 if action.d_token_delta != 0 {
                     let asset_liability =
                         reserve.to_effective_asset_from_d_token(action.d_token_delta);
-                    liability_base += asset_liability
-                        .fixed_mul_floor(i128(asset_to_base), SCALAR_7)
+                    liability_base += asset_to_base
+                        .fixed_mul_floor(asset_liability, reserve.scalar)
                         .unwrap();
                 }
             }
@@ -298,6 +299,68 @@ mod tests {
         let liability_amount = 24_0000000;
         let collateral_amount = 25_0000000;
         let additional_liability = -5_0000000;
+
+        e.as_contract(&pool_id, || {
+            storage::set_user_config(&e, &samwise, &0x000000000000000A);
+
+            TokenClient::new(&e, &reserve_0.config.b_token).mint(&samwise, &collateral_amount);
+            TokenClient::new(&e, &reserve_1.config.d_token).mint(&samwise, &liability_amount);
+        });
+
+        let pool_config = PoolConfig {
+            oracle: oracle_id,
+            bstop_rate: 0_100_000_000,
+            status: 0,
+        };
+
+        let user_action = UserAction {
+            asset: reserve_1.asset.clone(),
+            d_token_delta: additional_liability,
+            b_token_delta: 0,
+        };
+        e.as_contract(&pool_id, || {
+            let user_data = UserData::load(&e, &pool_config, &samwise, &user_action);
+            assert_eq!(user_data.liability_base, 190_0000000);
+            assert_eq!(user_data.collateral_base, 187_5000000);
+        });
+    }
+
+    #[test]
+    fn test_load_user_normalizes_decimals() {
+        let e = Env::default();
+        e.mock_all_auths();
+        let pool_id = Address::random(&e);
+
+        let bombadil = Address::random(&e);
+        let samwise = Address::random(&e);
+
+        let mut reserve_0 = create_reserve(&e);
+        reserve_0.config.decimals = 5;
+        reserve_0.scalar = 1_00000;
+        reserve_0.config.c_factor = 0_7500000;
+        reserve_0.config.l_factor = 0_5500000;
+        reserve_0.b_rate = Some(1_000_000_000);
+        reserve_0.data.d_rate = 1_100_000_000;
+        setup_reserve(&e, &pool_id, &bombadil, &mut reserve_0);
+
+        let mut reserve_1 = create_reserve(&e);
+        reserve_1.config.decimals = 9;
+        reserve_1.scalar = 1_000_000_000;
+        reserve_1.config.c_factor = 0_7000000;
+        reserve_1.config.l_factor = 0_6000000;
+        reserve_1.b_rate = Some(1_100_000_000);
+        reserve_1.data.d_rate = 1_200_000_000;
+        reserve_1.config.index = 1;
+        setup_reserve(&e, &pool_id, &bombadil, &mut reserve_1);
+
+        let (oracle_id, oracle_client) = create_mock_oracle(&e);
+        oracle_client.set_price(&reserve_0.asset, &10_0000000);
+        oracle_client.set_price(&reserve_1.asset, &5_0000000);
+
+        // setup user (collateralize reserve 0 and borrow reserve 1)
+        let collateral_amount = 25_00000;
+        let liability_amount = 24_000_000_000;
+        let additional_liability = -5_000_000_000;
 
         e.as_contract(&pool_id, || {
             storage::set_user_config(&e, &samwise, &0x000000000000000A);

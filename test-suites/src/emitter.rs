@@ -1,7 +1,7 @@
 use soroban_sdk::{testutils::Address as _, Address, Env};
 
 mod emitter_contract {
-    soroban_sdk::contractimport!(file = "../target/wasm32-unknown-unknown/optimized/emitter.wasm");
+    soroban_sdk::contractimport!(file = "../target/wasm32-unknown-unknown/release/emitter.wasm");
 }
 pub use emitter_contract::{
     Client as EmitterClient, EmitterDataKey, EmitterError, WASM as EMITTER_WASM,

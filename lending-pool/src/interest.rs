@@ -12,8 +12,8 @@ use crate::{
 ///
 /// ### Arguments
 /// * `config` - The Reserve config to calculate an accrual for
-/// * `cur_util` - The current utilization rate of the reserve
-/// * `ir_mod` - The current interest rate modifier of the reserve
+/// * `cur_util` - The current utilization rate of the reserve (7 decimals)
+/// * `ir_mod` - The current interest rate modifier of the reserve (9 decimals)
 /// * `last_block` - The last block an accrual was performed
 ///
 /// ### Returns

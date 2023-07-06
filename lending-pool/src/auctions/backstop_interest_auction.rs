@@ -99,12 +99,12 @@ pub fn fill_interest_auction(
             .unwrap_optimized();
         auction_quote
             .lot
-            .push_back((reserve.asset.clone(), lot_amount_modified));
+            .push_back((res_asset_address.clone(), lot_amount_modified));
         reserve.backstop_credit -= lot_amount_modified;
         // TODO: Is this necessary? Might be impossible for backstop credit to become negative
         require_nonnegative(e, &reserve.backstop_credit);
         reserve.store(e);
-        TokenClient::new(e, &reserve.asset).transfer(
+        TokenClient::new(e, &res_asset_address).transfer(
             &e.current_contract_address(),
             &filler,
             &lot_amount_modified,

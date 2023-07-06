@@ -1,5 +1,6 @@
 use soroban_sdk::{
-    contracttype, panic_with_error, unwrap::UnwrapOptimized, vec, Address, Env, Vec,
+    contracttype, panic_with_error, unwrap::UnwrapOptimized, vec, xdr::int128_helpers, Address,
+    Env, Vec,
 };
 
 use crate::{
@@ -99,25 +100,19 @@ pub fn build_actions_from_request(
                     false,
                 );
                 let cur_b_tokens = new_positions.get_supply(request.reserve_index);
-                let b_tokens_burnt = reserve.to_b_token_up(request.amount);
-                if b_tokens_burnt > cur_b_tokens {
-                    let amount = reserve.to_asset_from_b_token(cur_b_tokens);
-                    reserve.b_supply -= cur_b_tokens;
-                    new_positions.remove_supply(e, request.reserve_index, cur_b_tokens);
-                    actions.push_back(Action {
-                        asset: asset.clone(),
-                        tokens_out: amount,
-                        tokens_in: 0,
-                    });
-                } else {
-                    reserve.b_supply -= b_tokens_burnt;
-                    new_positions.remove_supply(e, request.reserve_index, b_tokens_burnt);
-                    actions.push_back(Action {
-                        asset: asset.clone(),
-                        tokens_out: request.amount,
-                        tokens_in: 0,
-                    });
+                let mut to_burn = reserve.to_b_token_up(request.amount);
+                let mut tokens_out = request.amount;
+                if to_burn > cur_b_tokens {
+                    to_burn = cur_b_tokens;
+                    tokens_out = reserve.to_asset_from_b_token(cur_b_tokens);
                 }
+                reserve.b_supply -= to_burn;
+                new_positions.remove_supply(e, request.reserve_index, to_burn);
+                actions.push_back(Action {
+                    asset: asset.clone(),
+                    tokens_out,
+                    tokens_in: 0,
+                });
             }
             2 => {
                 // supply collateral
@@ -151,25 +146,19 @@ pub fn build_actions_from_request(
                     false,
                 );
                 let cur_b_tokens = new_positions.get_collateral(request.reserve_index);
-                let b_tokens_burnt = reserve.to_b_token_up(request.amount);
-                if b_tokens_burnt > cur_b_tokens {
-                    let amount = reserve.to_asset_from_b_token(cur_b_tokens);
-                    reserve.b_supply -= cur_b_tokens;
-                    new_positions.remove_collateral(e, request.reserve_index, cur_b_tokens);
-                    actions.push_back(Action {
-                        asset: asset.clone(),
-                        tokens_out: amount,
-                        tokens_in: 0,
-                    });
-                } else {
-                    reserve.b_supply -= b_tokens_burnt;
-                    new_positions.remove_collateral(e, request.reserve_index, b_tokens_burnt);
-                    actions.push_back(Action {
-                        asset: asset.clone(),
-                        tokens_out: request.amount,
-                        tokens_in: 0,
-                    });
+                let mut to_burn = reserve.to_b_token_up(request.amount);
+                let mut tokens_out = request.amount;
+                if to_burn > cur_b_tokens {
+                    to_burn = cur_b_tokens;
+                    tokens_out = reserve.to_asset_from_b_token(cur_b_tokens);
                 }
+                reserve.b_supply -= to_burn;
+                new_positions.remove_collateral(e, request.reserve_index, to_burn);
+                actions.push_back(Action {
+                    asset: asset.clone(),
+                    tokens_out,
+                    tokens_in: 0,
+                });
                 check_health = true;
             }
             4 => {

@@ -1,21 +1,16 @@
 use crate::{
-    contract::require_nonnegative, dependencies::TokenClient, emissions, errors::BackstopError,
-    pool::Pool, storage, user::User,
+    contract::require_nonnegative, dependencies::TokenClient, emissions, pool::Pool, storage,
+    user::User,
 };
 use soroban_sdk::{Address, Env};
 
 /// Perform a deposit into the backstop module
-pub fn execute_deposit(
-    e: &Env,
-    from: &Address,
-    pool_address: &Address,
-    amount: i128,
-) -> Result<i128, BackstopError> {
-    require_nonnegative(amount)?;
+pub fn execute_deposit(e: &Env, from: &Address, pool_address: &Address, amount: i128) -> i128 {
+    require_nonnegative(e, amount);
     let mut user = User::new(pool_address.clone(), from.clone());
     let mut pool = Pool::new(e, pool_address.clone());
 
-    emissions::update_emission_index(e, &mut pool, &mut user, false)?;
+    emissions::update_emission_index(e, &mut pool, &mut user, false);
 
     let to_mint = pool.convert_to_shares(e, amount);
 
@@ -30,7 +25,7 @@ pub fn execute_deposit(
     user.add_shares(e, to_mint);
     user.write_shares(e);
 
-    Ok(to_mint)
+    to_mint
 }
 
 #[cfg(test)]
@@ -59,13 +54,13 @@ mod tests {
 
         // initialize pool 0 with funds + some profit
         e.as_contract(&backstop_address, || {
-            execute_deposit(&e, &frodo, &pool_0_id, 25_0000000).unwrap();
-            execute_donate(&e, &frodo, &pool_0_id, 25_0000000).unwrap();
+            execute_deposit(&e, &frodo, &pool_0_id, 25_0000000);
+            execute_donate(&e, &frodo, &pool_0_id, 25_0000000);
         });
 
         e.as_contract(&backstop_address, || {
-            let shares_0 = execute_deposit(&e, &samwise, &pool_0_id, 30_0000000).unwrap();
-            let shares_1 = execute_deposit(&e, &samwise, &pool_1_id, 70_0000000).unwrap();
+            let shares_0 = execute_deposit(&e, &samwise, &pool_0_id, 30_0000000);
+            let shares_1 = execute_deposit(&e, &samwise, &pool_1_id, 70_0000000);
 
             assert_eq!(shares_0, storage::get_shares(&e, &pool_0_id, &samwise));
             assert_eq!(shares_0, 15_0000000);
@@ -99,7 +94,7 @@ mod tests {
         backstop_token_client.mint(&samwise, &100_0000000);
 
         e.as_contract(&backstop_address, || {
-            execute_deposit(&e, &samwise, &pool_0_id, 100_0000001).unwrap();
+            execute_deposit(&e, &samwise, &pool_0_id, 100_0000001);
 
             // TODO: Handle token errors gracefully
             assert!(false);
@@ -107,6 +102,7 @@ mod tests {
     }
 
     #[test]
+    #[should_panic(expected = "HostError\nValue: Status(ContractError(11))")]
     fn test_execute_deposit_negative_tokens() {
         let e = Env::default();
         e.mock_all_auths();
@@ -120,15 +116,7 @@ mod tests {
         backstop_token_client.mint(&samwise, &100_0000000);
 
         e.as_contract(&backstop_address, || {
-            let res = execute_deposit(&e, &samwise, &pool_0_id, -100);
-
-            match res {
-                Ok(_) => assert!(false),
-                Err(err) => match err {
-                    BackstopError::NegativeAmount => assert!(true),
-                    _ => assert!(false),
-                },
-            }
+            execute_deposit(&e, &samwise, &pool_0_id, -100);
         });
     }
 }

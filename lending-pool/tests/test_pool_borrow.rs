@@ -105,9 +105,9 @@ fn test_pool_borrow_one_stroop_insufficient_collateral_for_two() {
         block: 6307200 * 90 + 1,
     };
     match result {
-        Ok(_) => assert_eq!(result.unwrap().unwrap(), expected_data),
+        Ok(_) => assert_eq!(result.unwrap_optimized().unwrap_optimized(), expected_data),
         Err(_) => {
-            println!("{:?}", (result.unwrap().unwrap()));
+            println!("{:?}", (result.unwrap_optimized().unwrap_optimized()));
             assert!(false)
         }
     }

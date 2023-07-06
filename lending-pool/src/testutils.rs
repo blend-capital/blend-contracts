@@ -1,20 +1,19 @@
 #![cfg(any(test, feature = "testutils"))]
 
 use crate::{
-    dependencies::{
-        BackstopClient, BlendTokenClient, TokenClient, BACKSTOP_WASM, B_TOKEN_WASM, D_TOKEN_WASM,
-        TOKEN_WASM,
-    },
-    reserve::Reserve,
+    constants::SCALAR_9,
+    dependencies::{BackstopClient, TokenClient, BACKSTOP_WASM, TOKEN_WASM},
+    pool::Reserve,
     storage::{self, ReserveConfig, ReserveData},
 };
-use soroban_sdk::{testutils::Address as _, Address, Env, IntoVal};
+use fixed_point_math::FixedPoint;
+use soroban_sdk::{testutils::Address as _, unwrap::UnwrapOptimized, Address, Env, IntoVal};
 
 //************************************************
 //           External Contract Helpers
 //************************************************
 
-//***** Token *****
+// ***** Token *****
 
 pub(crate) fn create_token_contract<'a>(e: &Env, admin: &Address) -> (Address, TokenClient<'a>) {
     let contract_address = Address::random(e);
@@ -59,34 +58,6 @@ pub(crate) fn create_usdc_token<'a>(
         storage::set_usdc_token(e, &contract_address);
     });
     (contract_address, client)
-}
-
-pub(crate) fn create_b_token_from_id<'a>(
-    e: &Env,
-    contract_address: &Address,
-    pool_address: &Address,
-    asset: &Address,
-    res_index: u32,
-) -> BlendTokenClient<'a> {
-    e.register_contract_wasm(contract_address, B_TOKEN_WASM);
-    let client = BlendTokenClient::new(e, contract_address);
-    client.initialize(pool_address, &7, &"unit".into_val(e), &"test".into_val(e));
-    client.initialize_asset(pool_address, asset, &res_index);
-    client
-}
-
-pub(crate) fn create_d_token_from_id<'a>(
-    e: &Env,
-    contract_address: &Address,
-    pool_address: &Address,
-    asset: &Address,
-    res_index: u32,
-) -> BlendTokenClient<'a> {
-    e.register_contract_wasm(contract_address, D_TOKEN_WASM);
-    let client = BlendTokenClient::new(e, contract_address);
-    client.initialize(pool_address, &7, &"unit".into_val(e), &"test".into_val(e));
-    client.initialize_asset(pool_address, asset, &res_index);
-    client
 }
 
 //***** Oracle ******
@@ -160,12 +131,27 @@ pub(crate) fn setup_backstop(
 
 //***** Reserve *****
 
-pub(crate) fn create_reserve(e: &Env) -> Reserve {
+pub(crate) fn default_reserve(e: &Env) -> Reserve {
     Reserve {
-        asset: Address::random(&e),
-        config: ReserveConfig {
-            b_token: Address::random(&e),
-            d_token: Address::random(&e),
+        asset: Address::random(e),
+        index: 0,
+        l_factor: 0_7500000,
+        c_factor: 0_7500000,
+        max_util: 0_9500000,
+        last_time: 0,
+        scalar: 1_0000000,
+        d_rate: 1_000_000_000,
+        b_rate: 1_000_000_000,
+        ir_mod: 1_000_000_000,
+        b_supply: 100_0000000,
+        d_supply: 75_0000000,
+        backstop_credit: 0,
+    }
+}
+
+pub(crate) fn default_reserve_meta(e: &Env) -> (ReserveConfig, ReserveData) {
+    (
+        ReserveConfig {
             decimals: 7,
             c_factor: 0_7500000,
             l_factor: 0_7500000,
@@ -177,48 +163,51 @@ pub(crate) fn create_reserve(e: &Env) -> Reserve {
             reactivity: 0_000_002_000, // 10e-5
             index: 0,
         },
-        data: ReserveData {
+        ReserveData {
+            b_rate: 1_000_000_000,
             d_rate: 1_000_000_000,
             ir_mod: 1_000_000_000,
             b_supply: 100_0000000,
             d_supply: 75_0000000,
             last_time: 0,
+            backstop_credit: 0,
         },
-        scalar: 10i128.pow(7),
-        b_rate: Some(1_000_000_000),
-    }
+    )
 }
 
-/// Expects a valid b_rate to be set
-pub(crate) fn setup_reserve(
+/// Create a reserve based on the supplied config and data.
+///
+/// Mints the appropriate amount of underlying tokens to the pool based on the
+/// b and d token supply and rates.
+///
+/// Returns the underlying asset address.
+pub(crate) fn create_reserve(
     e: &Env,
     pool_address: &Address,
-    admin: &Address,
-    reserve: &mut Reserve,
+    token_address: &Address,
+    reserve_config: &ReserveConfig,
+    reserve_data: &ReserveData,
 ) {
+    let mut new_reserve_config = reserve_config.clone();
     e.as_contract(pool_address, || {
-        let index = storage::push_res_list(e, &reserve.asset);
-        reserve.config.index = index;
-        storage::set_res_config(e, &reserve.asset, &reserve.config);
-        storage::set_res_data(e, &reserve.asset, &reserve.data);
+        let index = storage::push_res_list(e, &token_address);
+        new_reserve_config.index = index;
+        storage::set_res_config(e, &token_address, &new_reserve_config);
+        storage::set_res_data(e, &token_address, &reserve_data);
     });
-    let asset_client = create_token_from_id(e, &reserve.asset, admin);
-    create_b_token_from_id(
-        e,
-        &reserve.config.b_token,
-        pool_address,
-        &reserve.asset,
-        reserve.config.index,
-    );
-    create_d_token_from_id(
-        e,
-        &reserve.config.d_token,
-        pool_address,
-        &reserve.asset,
-        reserve.config.index,
-    );
+    let underlying_client = TokenClient::new(e, token_address);
 
     // mint pool assets to set expected b_rate
-    let to_mint_pool = reserve.total_supply(e) - reserve.total_liabilities();
-    asset_client.mint(&pool_address, &to_mint_pool);
+    let total_supply = reserve_data
+        .b_supply
+        .fixed_mul_floor(reserve_data.b_rate, SCALAR_9)
+        .unwrap_optimized();
+    let total_liabilities = reserve_data
+        .d_supply
+        .fixed_mul_floor(reserve_data.d_rate, SCALAR_9)
+        .unwrap_optimized();
+    let to_mint_pool = total_supply - total_liabilities - reserve_data.backstop_credit;
+    underlying_client
+        .mock_all_auths()
+        .mint(&pool_address, &to_mint_pool);
 }

@@ -1,13 +1,13 @@
 use crate::{constants::SCALAR_7, dependencies::BackstopClient, errors::PoolError, storage};
 use fixed_point_math::FixedPoint;
-use soroban_sdk::{Address, Env};
+use soroban_sdk::{panic_with_error, unwrap::UnwrapOptimized, Address, Env};
 
 /// Update the pool status based on the backstop module
-pub fn execute_update_pool_status(e: &Env) -> Result<u32, PoolError> {
+pub fn execute_update_pool_status(e: &Env) -> u32 {
     let mut pool_config = storage::get_pool_config(e);
     if pool_config.status > 2 {
         // pool has been admin frozen and can only be restored by the admin
-        return Err(PoolError::InvalidPoolStatus);
+        panic_with_error!(e, PoolError::InvalidPoolStatus);
     }
 
     let backstop_id = storage::get_backstop(e);
@@ -15,7 +15,9 @@ pub fn execute_update_pool_status(e: &Env) -> Result<u32, PoolError> {
 
     let (pool_tokens, pool_shares, shares_q4w) =
         backstop_client.pool_balance(&e.current_contract_address());
-    let q4w_pct = shares_q4w.fixed_div_floor(pool_shares, SCALAR_7).unwrap();
+    let q4w_pct = shares_q4w
+        .fixed_div_floor(pool_shares, SCALAR_7)
+        .unwrap_optimized();
 
     if q4w_pct >= 0_5000000 {
         pool_config.status = 2;
@@ -26,13 +28,13 @@ pub fn execute_update_pool_status(e: &Env) -> Result<u32, PoolError> {
     }
     storage::set_pool_config(e, &pool_config);
 
-    Ok(pool_config.status)
+    pool_config.status
 }
 
 /// Update the pool status
-pub fn set_pool_status(e: &Env, admin: &Address, pool_status: u32) -> Result<(), PoolError> {
+pub fn set_pool_status(e: &Env, admin: &Address, pool_status: u32) {
     if admin.clone() != storage::get_admin(e) {
-        return Err(PoolError::NotAuthorized);
+        panic_with_error!(e, PoolError::NotAuthorized);
     }
 
     if pool_status == 0 {
@@ -42,15 +44,13 @@ pub fn set_pool_status(e: &Env, admin: &Address, pool_status: u32) -> Result<(),
 
         let (pool_tokens, _, _) = backstop_client.pool_balance(&e.current_contract_address());
         if pool_tokens < 1_000_000_0000000 {
-            return Err(PoolError::InvalidPoolStatus);
+            panic_with_error!(e, PoolError::InvalidPoolStatus);
         }
     }
 
     let mut pool_config = storage::get_pool_config(e);
     pool_config.status = pool_status;
     storage::set_pool_config(e, &pool_config);
-
-    Ok(())
 }
 
 #[cfg(test)]
@@ -94,7 +94,7 @@ mod tests {
             storage::set_admin(&e, &bombadil);
             storage::set_pool_config(&e, &pool_config);
 
-            set_pool_status(&e, &bombadil, 0).unwrap();
+            set_pool_status(&e, &bombadil, 0);
 
             let new_pool_config = storage::get_pool_config(&e);
             assert_eq!(new_pool_config.status, 0);
@@ -102,6 +102,7 @@ mod tests {
     }
 
     #[test]
+    #[should_panic(expected = "Status(ContractError(1))")]
     fn test_set_pool_status_requires_admin() {
         let e = Env::default();
         e.mock_all_auths();
@@ -133,15 +134,12 @@ mod tests {
             storage::set_admin(&e, &bombadil);
             storage::set_pool_config(&e, &pool_config);
 
-            let result = set_pool_status(&e, &sauron, 0);
-            assert_eq!(result, Err(PoolError::NotAuthorized));
-
-            let new_pool_config = storage::get_pool_config(&e);
-            assert_eq!(new_pool_config.status, 1);
+            set_pool_status(&e, &sauron, 0);
         });
     }
 
     #[test]
+    #[should_panic(expected = "Status(ContractError(11))")]
     fn test_set_pool_status_blocks_without_backstop_minimum() {
         let e = Env::default();
         e.mock_all_auths();
@@ -172,8 +170,7 @@ mod tests {
             storage::set_admin(&e, &bombadil);
             storage::set_pool_config(&e, &pool_config);
 
-            let result = set_pool_status(&e, &bombadil, 0);
-            assert_eq!(result, Err(PoolError::InvalidPoolStatus));
+            set_pool_status(&e, &bombadil, 0);
         });
     }
 
@@ -208,7 +205,7 @@ mod tests {
             storage::set_admin(&e, &bombadil);
             storage::set_pool_config(&e, &pool_config);
 
-            let status = execute_update_pool_status(&e).unwrap();
+            let status = execute_update_pool_status(&e);
 
             let new_pool_config = storage::get_pool_config(&e);
             assert_eq!(new_pool_config.status, status);
@@ -247,7 +244,7 @@ mod tests {
             storage::set_admin(&e, &bombadil);
             storage::set_pool_config(&e, &pool_config);
 
-            let status = execute_update_pool_status(&e).unwrap();
+            let status = execute_update_pool_status(&e);
 
             let new_pool_config = storage::get_pool_config(&e);
             assert_eq!(new_pool_config.status, status);
@@ -287,7 +284,7 @@ mod tests {
             storage::set_admin(&e, &bombadil);
             storage::set_pool_config(&e, &pool_config);
 
-            let status = execute_update_pool_status(&e).unwrap();
+            let status = execute_update_pool_status(&e);
 
             let new_pool_config = storage::get_pool_config(&e);
             assert_eq!(new_pool_config.status, status);
@@ -327,7 +324,7 @@ mod tests {
             storage::set_admin(&e, &bombadil);
             storage::set_pool_config(&e, &pool_config);
 
-            let status = execute_update_pool_status(&e).unwrap();
+            let status = execute_update_pool_status(&e);
 
             let new_pool_config = storage::get_pool_config(&e);
             assert_eq!(new_pool_config.status, status);
@@ -336,6 +333,8 @@ mod tests {
     }
 
     #[test]
+    #[should_panic(expected = "Status(ContractError(11))")]
+
     fn test_update_pool_status_admin_frozen() {
         let e = Env::default();
         e.mock_all_auths();
@@ -366,8 +365,7 @@ mod tests {
             storage::set_admin(&e, &bombadil);
             storage::set_pool_config(&e, &pool_config);
 
-            let result = execute_update_pool_status(&e);
-            assert_eq!(result, Err(PoolError::InvalidPoolStatus));
+            execute_update_pool_status(&e);
         });
     }
 }

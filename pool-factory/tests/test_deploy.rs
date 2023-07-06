@@ -25,14 +25,10 @@ fn test_deploy() {
     let oracle = Address::random(&e);
     let backstop_id = Address::random(&e);
     let backstop_rate: u64 = 100000;
-    let b_token_hash = e.install_contract_wasm(b_token::WASM);
-    let d_token_hash = e.install_contract_wasm(d_token::WASM);
     let blnd_id = Address::random(&e);
     let usdc_id = Address::random(&e);
 
     let pool_init_meta = PoolInitMeta {
-        b_token_hash: b_token_hash.clone(),
-        d_token_hash: d_token_hash.clone(),
         backstop: backstop_id.clone(),
         pool_hash: wasm_hash.clone(),
         blnd_id: blnd_id.clone(),
@@ -55,21 +51,21 @@ fn test_deploy() {
         let storage = e.storage();
         assert_eq!(
             storage
-                .get::<_, Address>(&PoolDataKey::Admin)
+                .get::<_, Address>(&Symbol::new(&e, "Admin"))
                 .unwrap()
                 .unwrap(),
             bombadil.clone()
         );
         assert_eq!(
             storage
-                .get::<_, Address>(&PoolDataKey::Backstop)
+                .get::<_, Address>(&Symbol::new(&e, "Backstop"))
                 .unwrap()
                 .unwrap(),
             backstop_id.clone()
         );
         assert_eq!(
             storage
-                .get::<_, PoolConfig>(&PoolDataKey::PoolConfig)
+                .get::<_, PoolConfig>(&Symbol::new(&e, "PoolConfig"))
                 .unwrap()
                 .unwrap(),
             PoolConfig {
@@ -78,23 +74,17 @@ fn test_deploy() {
                 status: 1
             }
         );
+
         assert_eq!(
             storage
-                .get::<_, (BytesN<32>, BytesN<32>)>(&PoolDataKey::TokenHash)
-                .unwrap()
-                .unwrap(),
-            (b_token_hash, d_token_hash)
-        );
-        assert_eq!(
-            storage
-                .get::<_, Address>(&PoolDataKey::BLNDTkn)
+                .get::<_, Address>(&Symbol::new(&e, "BLNDTkn"))
                 .unwrap()
                 .unwrap(),
             blnd_id.clone()
         );
         assert_eq!(
             storage
-                .get::<_, Address>(&PoolDataKey::USDCTkn)
+                .get::<_, Address>(&Symbol::new(&e, "USDCTkn"))
                 .unwrap()
                 .unwrap(),
             usdc_id.clone()

@@ -1,6 +1,8 @@
-use soroban_sdk::{contracttype, map, vec, Address, BytesN, Env, Map, Symbol, Vec};
+use soroban_sdk::{
+    contracttype, map, unwrap::UnwrapOptimized, vec, Address, Env, Map, Symbol, Vec,
+};
 
-use crate::auctions::AuctionData;
+use crate::{auctions::AuctionData, pool::Positions};
 
 /********** Storage Types **********/
 
@@ -9,7 +11,7 @@ use crate::auctions::AuctionData;
 #[contracttype]
 pub struct PoolConfig {
     pub oracle: Address,
-    pub bstop_rate: u64,
+    pub bstop_rate: u64, // the rate the backstop takes on accrued debt interest, expressed in 9 decimals
     pub status: u32,
 }
 
@@ -21,47 +23,32 @@ pub struct PoolEmissionConfig {
     pub last_time: u64,
 }
 
-/// The mutable configuration information about a reserve asset
-#[derive(Clone)]
-#[contracttype]
-pub struct ReserveMetadata {
-    pub decimals: u32,   // the decimals used in both the bToken and underlying contract
-    pub c_factor: u32,   // the collateral factor for the reserve scaled to 7 decimals
-    pub l_factor: u32,   // the liability factor for the reserve scaled to 7 decimals
-    pub util: u32,       // the target utilization rate scaled to 7 decimals
-    pub max_util: u32,   // the maximum allowed utilization rate scaled to 7 decimals
-    pub r_one: u32,      // the R1 value in the interest rate formula scaled to 7 decimals
-    pub r_two: u32,      // the R2 value in the interest rate formula scaled to 7 decimals
-    pub r_three: u32,    // the R3 value in the interest rate formula scaled to 7 decimals
-    pub reactivity: u32, // the reactivity constant for the reserve scaled to 9 decimals
-}
-
 /// The configuration information about a reserve asset
 #[derive(Clone)]
 #[contracttype]
 pub struct ReserveConfig {
-    pub b_token: Address, // the address of the bToken contract
-    pub d_token: Address, // the address of the dToken contract
-    pub index: u32,       // the index of the reserve in the list
-    pub decimals: u32,    // the decimals used in both the bToken and underlying contract
-    pub c_factor: u32,    // the collateral factor for the reserve scaled to 7 decimals
-    pub l_factor: u32,    // the liability factor for the reserve scaled to 7 decimals
-    pub util: u32,        // the target utilization rate scaled to 7 decimals
-    pub max_util: u32,    // the maximum allowed utilization rate scaled to 7 decimals
-    pub r_one: u32,       // the R1 value in the interest rate formula scaled to 7 decimals
-    pub r_two: u32,       // the R2 value in the interest rate formula scaled to 7 decimals
-    pub r_three: u32,     // the R3 value in the interest rate formula scaled to 7 decimals
-    pub reactivity: u32,  // the reactivity constant for the reserve scaled to 9 decimals
+    pub index: u32,      // the index of the reserve in the list
+    pub decimals: u32,   // the decimals used in both the bToken and underlying contract
+    pub c_factor: u32,   // the collateral factor for the reserve scaled expressed in 7 decimals
+    pub l_factor: u32,   // the liability factor for the reserve scaled expressed in 7 decimals
+    pub util: u32,       // the target utilization rate scaled expressed in 7 decimals
+    pub max_util: u32,   // the maximum allowed utilization rate scaled expressed in 7 decimals
+    pub r_one: u32,      // the R1 value in the interest rate formula scaled expressed in 7 decimals
+    pub r_two: u32,      // the R2 value in the interest rate formula scaled expressed in 7 decimals
+    pub r_three: u32,    // the R3 value in the interest rate formula scaled expressed in 7 decimals
+    pub reactivity: u32, // the reactivity constant for the reserve scaled expressed in 9 decimals
 }
 
 /// The data for a reserve asset
 #[derive(Clone)]
 #[contracttype]
 pub struct ReserveData {
-    pub d_rate: i128, // the conversion rate from dToken to underlying - NOTE: stored as 9 decimals
+    pub d_rate: i128, // the conversion rate from dToken to underlying expressed in 9 decimals
+    pub b_rate: i128, // the conversion rate from bToken to underlying expressed with the underlying's decimals
     pub ir_mod: i128, // the interest rate curve modifier
     pub b_supply: i128, // the total supply of b tokens
     pub d_supply: i128, // the total supply of d tokens
+    pub backstop_credit: i128, // the amount of underlying tokens currently owed to the backstop
     pub last_time: u64, // the last block the data was updated
 }
 
@@ -111,37 +98,16 @@ pub struct AuctionKey {
 #[derive(Clone)]
 #[contracttype]
 pub enum PoolDataKey {
-    // The address that can manage the pool
-    Admin,
-    // The name of the pool
-    Name,
-    // The backstop ID for the pool
-    Backstop,
-    // Token Hashes
-    TokenHash,
-    // BLND token ID
-    BLNDTkn,
-    // USDC token ID
-    USDCTkn,
-    // The config of the pool
-    PoolConfig,
-    // A list of the next reserve emission allocation percentages
-    PoolEmis,
-    // The reserve configuration for emissions
-    PEConfig,
     // A map of underlying asset's contract address to reserve config
     ResConfig(Address),
     // A map of underlying asset's contract address to reserve data
     ResData(Address),
-    // A list of reserve where index -> underlying asset's contract address
-    // -> note: dropped reserves are still present
-    ResList,
     // The reserve's emission config
     EmisConfig(u32),
     // The reserve's emission data
     EmisData(u32),
-    // The configuration settings for a user
-    UserConfig(Address),
+    // Map of positions in the pool for a user
+    Positions(Address),
     // The emission information for a reserve asset for a user
     UserEmis(UserReserveKey),
     // The auction's data
@@ -152,14 +118,31 @@ pub enum PoolDataKey {
 
 /********** Storage **********/
 
+/********** User **********/
+
+pub fn get_user_positions(e: &Env, user: &Address) -> Positions {
+    let key = PoolDataKey::Positions(user.clone());
+    e.storage()
+        .get::<PoolDataKey, Positions>(&key)
+        .unwrap_or(Ok(Positions::env_default(e)))
+        .unwrap_optimized()
+}
+
+pub fn set_user_positions(e: &Env, user: &Address, positions: &Positions) {
+    let key = PoolDataKey::Positions(user.clone());
+    e.storage().set::<PoolDataKey, Positions>(&key, positions);
+}
+
 /********** Admin **********/
 
 // Fetch the current admin Address
 ///
-/// ### Errors
+/// ### Panics
 /// If the admin does not exist
 pub fn get_admin(e: &Env) -> Address {
-    e.storage().get_unchecked(&PoolDataKey::Admin).unwrap()
+    e.storage()
+        .get_unchecked(&Symbol::new(e, "Admin"))
+        .unwrap_optimized()
 }
 
 /// Set a new admin
@@ -168,23 +151,15 @@ pub fn get_admin(e: &Env) -> Address {
 /// * `new_admin` - The Address for the admin
 pub fn set_admin(e: &Env, new_admin: &Address) {
     e.storage()
-        .set::<PoolDataKey, Address>(&PoolDataKey::Admin, new_admin);
+        .set::<Symbol, Address>(&Symbol::new(e, "Admin"), new_admin);
 }
 
 /// Checks if an admin is set
 pub fn has_admin(e: &Env) -> bool {
-    e.storage().has(&PoolDataKey::Admin)
+    e.storage().has(&Symbol::new(e, "Admin"))
 }
 
 /********** Metadata **********/
-
-// Fetch the pools name
-///
-/// ### Errors
-/// If the name does not exist
-pub fn get_name(e: &Env) -> Symbol {
-    e.storage().get_unchecked(&PoolDataKey::Name).unwrap()
-}
 
 /// Set a pool name
 ///
@@ -192,17 +167,19 @@ pub fn get_name(e: &Env) -> Symbol {
 /// * `name` - The Name of the pool
 pub fn set_name(e: &Env, name: &Symbol) {
     e.storage()
-        .set::<PoolDataKey, Symbol>(&PoolDataKey::Name, name);
+        .set::<Symbol, Symbol>(&Symbol::new(e, "Name"), name);
 }
 
 /********** Backstop **********/
 
 /// Fetch the backstop ID for the pool
 ///
-/// ### Errors
+/// ### Panics
 /// If no backstop is set
 pub fn get_backstop(e: &Env) -> Address {
-    e.storage().get_unchecked(&PoolDataKey::Backstop).unwrap()
+    e.storage()
+        .get_unchecked(&Symbol::new(e, "Backstop"))
+        .unwrap_optimized()
 }
 
 /// Set a new backstop ID
@@ -211,37 +188,16 @@ pub fn get_backstop(e: &Env) -> Address {
 /// * `backstop` - The address of the backstop
 pub fn set_backstop(e: &Env, backstop: &Address) {
     e.storage()
-        .set::<PoolDataKey, Address>(&PoolDataKey::Backstop, backstop);
-}
-
-/********** Token Hashes **********/
-
-/// Fetch the B and D token hashes for the pool
-///
-/// ### Errors
-/// If the pool has not been initialized
-pub fn get_token_hashes(e: &Env) -> (BytesN<32>, BytesN<32>) {
-    e.storage().get_unchecked(&PoolDataKey::TokenHash).unwrap()
-}
-
-/// Set the B and D token hashes
-///
-/// ### Arguments
-/// * `b_token_hash` - The hash of the WASM b_token implementation
-/// * `d_token_hash` - The hash of the WASM d_token implementation
-pub fn set_token_hashes(e: &Env, b_token_hash: &BytesN<32>, d_token_hash: &BytesN<32>) {
-    let key = PoolDataKey::TokenHash;
-    e.storage().set::<PoolDataKey, (BytesN<32>, BytesN<32>)>(
-        &key,
-        &(b_token_hash.clone(), d_token_hash.clone()),
-    );
+        .set::<Symbol, Address>(&Symbol::new(e, "Backstop"), backstop);
 }
 
 /********** External Token Contracts **********/
 
 /// Fetch the BLND token ID
 pub fn get_blnd_token(e: &Env) -> Address {
-    e.storage().get_unchecked(&PoolDataKey::BLNDTkn).unwrap()
+    e.storage()
+        .get_unchecked(&Symbol::new(e, "BLNDTkn"))
+        .unwrap_optimized()
 }
 
 /// Set a new BLND token ID
@@ -250,12 +206,14 @@ pub fn get_blnd_token(e: &Env) -> Address {
 /// * `blnd_token_id` - The ID of the BLND token
 pub fn set_blnd_token(e: &Env, blnd_token_id: &Address) {
     e.storage()
-        .set::<PoolDataKey, Address>(&PoolDataKey::BLNDTkn, blnd_token_id);
+        .set::<Symbol, Address>(&Symbol::new(e, "BLNDTkn"), blnd_token_id);
 }
 
 /// Fetch the USDC token ID
 pub fn get_usdc_token(e: &Env) -> Address {
-    e.storage().get_unchecked(&PoolDataKey::USDCTkn).unwrap()
+    e.storage()
+        .get_unchecked(&Symbol::new(e, "USDCTkn"))
+        .unwrap_optimized()
 }
 
 /// Set a new USDC token ID
@@ -264,17 +222,19 @@ pub fn get_usdc_token(e: &Env) -> Address {
 /// * `usdc_token_id` - The ID of the USDC token
 pub fn set_usdc_token(e: &Env, usdc_token_id: &Address) {
     e.storage()
-        .set::<PoolDataKey, Address>(&PoolDataKey::USDCTkn, usdc_token_id);
+        .set::<Symbol, Address>(&Symbol::new(e, "USDCTkn"), usdc_token_id);
 }
 
 /********** Pool Config **********/
 
 /// Fetch the pool configuration
 ///
-/// ### Errors
+/// ### Panics
 /// If the pool's config is not set
 pub fn get_pool_config(e: &Env) -> PoolConfig {
-    e.storage().get_unchecked(&PoolDataKey::PoolConfig).unwrap()
+    e.storage()
+        .get_unchecked(&Symbol::new(e, "PoolConfig"))
+        .unwrap_optimized()
 }
 
 /// Set the pool configuration
@@ -282,8 +242,8 @@ pub fn get_pool_config(e: &Env) -> PoolConfig {
 /// ### Arguments
 /// * `config` - The contract address of the oracle
 pub fn set_pool_config(e: &Env, config: &PoolConfig) {
-    let key = PoolDataKey::PoolConfig;
-    e.storage().set::<PoolDataKey, PoolConfig>(&key, config);
+    e.storage()
+        .set::<Symbol, PoolConfig>(&Symbol::new(e, "PoolConfig"), config);
 }
 
 /********** Reserve Config (ResConfig) **********/
@@ -293,14 +253,14 @@ pub fn set_pool_config(e: &Env, config: &PoolConfig) {
 /// ### Arguments
 /// * `asset` - The contract address of the asset
 ///
-/// ### Errors
+/// ### Panics
 /// If the reserve does not exist
 pub fn get_res_config(e: &Env, asset: &Address) -> ReserveConfig {
     let key = PoolDataKey::ResConfig(asset.clone());
     e.storage()
         .get::<PoolDataKey, ReserveConfig>(&key)
-        .unwrap()
-        .unwrap()
+        .unwrap_optimized()
+        .unwrap_optimized()
 }
 
 /// Set the reserve configuration for an asset
@@ -330,14 +290,14 @@ pub fn has_res(e: &Env, asset: &Address) -> bool {
 /// ### Arguments
 /// * `asset` - The contract address of the asset
 ///
-/// ### Errors
+/// ### Panics
 /// If the reserve does not exist
 pub fn get_res_data(e: &Env, asset: &Address) -> ReserveData {
     let key = PoolDataKey::ResData(asset.clone());
     e.storage()
         .get::<PoolDataKey, ReserveData>(&key)
-        .unwrap()
-        .unwrap()
+        .unwrap_optimized()
+        .unwrap_optimized()
 }
 
 /// Set the reserve data for an asset
@@ -355,9 +315,9 @@ pub fn set_res_data(e: &Env, asset: &Address, data: &ReserveData) {
 /// Fetch the list of reserves
 pub fn get_res_list(e: &Env) -> Vec<Address> {
     e.storage()
-        .get::<PoolDataKey, Vec<Address>>(&PoolDataKey::ResList)
+        .get::<Symbol, Vec<Address>>(&Symbol::new(e, "ResList"))
         .unwrap_or(Ok(vec![e])) // empty vec if nothing exists
-        .unwrap()
+        .unwrap_optimized()
 }
 
 /// Add a reserve to the back of the list and returns the index
@@ -365,7 +325,7 @@ pub fn get_res_list(e: &Env) -> Vec<Address> {
 /// ### Arguments
 /// * `asset` - The contract address of the underlying asset
 ///
-/// ### Errors
+/// ### Panics
 /// If the number of reserves in the list exceeds 32
 ///
 // @dev: Once added it can't be removed
@@ -377,7 +337,7 @@ pub fn push_res_list(e: &Env, asset: &Address) -> u32 {
     res_list.push_back(asset.clone());
     let new_index = res_list.len() - 1;
     e.storage()
-        .set::<PoolDataKey, Vec<Address>>(&PoolDataKey::ResList, &res_list);
+        .set::<Symbol, Vec<Address>>(&Symbol::new(e, "ResList"), &res_list);
     new_index
 }
 
@@ -391,7 +351,7 @@ pub fn get_res_emis_config(e: &Env, res_token_index: &u32) -> Option<ReserveEmis
     let key = PoolDataKey::EmisConfig(res_token_index.clone());
     let result = e.storage().get::<PoolDataKey, ReserveEmissionsConfig>(&key);
     match result {
-        Some(data) => Some(data.unwrap()),
+        Some(data) => Some(data.unwrap_optimized()),
         None => None,
     }
 }
@@ -419,7 +379,7 @@ pub fn get_res_emis_data(e: &Env, res_token_index: &u32) -> Option<ReserveEmissi
     let key = PoolDataKey::EmisData(res_token_index.clone());
     let result = e.storage().get::<PoolDataKey, ReserveEmissionsData>(&key);
     match result {
-        Some(data) => Some(data.unwrap()),
+        Some(data) => Some(data.unwrap_optimized()),
         None => None,
     }
 }
@@ -444,30 +404,6 @@ pub fn set_res_emis_data(e: &Env, res_token_index: &u32, res_emis_data: &Reserve
         .set::<PoolDataKey, ReserveEmissionsData>(&key, res_emis_data);
 }
 
-/********** UserConfig **********/
-
-/// Fetch the users reserve config
-///
-/// ### Arguments
-/// * `user` - The address of the user
-pub fn get_user_config(e: &Env, user: &Address) -> u128 {
-    let key = PoolDataKey::UserConfig(user.clone());
-    e.storage()
-        .get::<PoolDataKey, u128>(&key)
-        .unwrap_or(Ok(0))
-        .unwrap()
-}
-
-/// Set the users reserve config
-///
-/// ### Arguments
-/// * `user` - The address of the user
-/// * `config` - The reserve config for the user
-pub fn set_user_config(e: &Env, user: &Address, config: &u128) {
-    let key = PoolDataKey::UserConfig(user.clone());
-    e.storage().set::<PoolDataKey, u128>(&key, config);
-}
-
 /********** User Emissions **********/
 
 /// Fetch the users emission data for a reserve's b or d token
@@ -486,7 +422,7 @@ pub fn get_user_emissions(
     });
     let result = e.storage().get::<PoolDataKey, UserEmissionData>(&key);
     match result {
-        Some(data) => Some(data.unwrap()),
+        Some(data) => Some(data.unwrap_optimized()),
         None => None,
     }
 }
@@ -509,11 +445,10 @@ pub fn set_user_emissions(e: &Env, user: &Address, res_token_index: &u32, data: 
 
 /// Fetch the pool reserve emissions
 pub fn get_pool_emissions(e: &Env) -> Map<u32, u64> {
-    let key = PoolDataKey::PoolEmis;
     e.storage()
-        .get::<PoolDataKey, Map<u32, u64>>(&key)
+        .get::<Symbol, Map<u32, u64>>(&Symbol::new(e, "PoolEmis"))
         .unwrap_or(Ok(map![e]))
-        .unwrap()
+        .unwrap_optimized()
 }
 
 /// Set the pool reserve emissions
@@ -521,31 +456,25 @@ pub fn get_pool_emissions(e: &Env) -> Map<u32, u64> {
 /// ### Arguments
 /// * `emissions` - The map of emissions by reserve token id to EPS
 pub fn set_pool_emissions(e: &Env, emissions: &Map<u32, u64>) {
-    let key = PoolDataKey::PoolEmis;
     e.storage()
-        .set::<PoolDataKey, Map<u32, u64>>(&key, emissions);
+        .set::<Symbol, Map<u32, u64>>(&Symbol::new(e, "PoolEmis"), emissions);
 }
 
-/// Fetch the pool emission configuration
-pub fn get_pool_emission_config(e: &Env) -> PoolEmissionConfig {
-    let key = PoolDataKey::PEConfig;
+/// Fetch the pool emission expiration timestamps
+pub fn get_pool_emissions_expiration(e: &Env) -> u64 {
     e.storage()
-        .get::<PoolDataKey, PoolEmissionConfig>(&key)
-        .unwrap_or(Ok(PoolEmissionConfig {
-            config: 0,
-            last_time: 0,
-        }))
-        .unwrap()
+        .get::<Symbol, u64>(&Symbol::new(e, "EmisExp"))
+        .unwrap_or(Ok(0))
+        .unwrap_optimized()
 }
 
 /// Set the pool emission configuration
 ///
 /// ### Arguments
-/// * `config` - The pool's emission configuration
-pub fn set_pool_emission_config(e: &Env, config: &PoolEmissionConfig) {
-    let key = PoolDataKey::PEConfig;
+/// * `expiration` - The pool's emission configuration
+pub fn set_pool_emissions_expiration(e: &Env, expiration: &u64) {
     e.storage()
-        .set::<PoolDataKey, PoolEmissionConfig>(&key, config);
+        .set::<Symbol, u64>(&Symbol::new(e, "EmisExp"), expiration);
 }
 
 /********** Auctions ***********/
@@ -556,7 +485,7 @@ pub fn set_pool_emission_config(e: &Env, config: &PoolEmissionConfig) {
 /// * `auction_type` - The type of auction
 /// * `user` - The user who is auctioning off assets
 ///
-/// ### Errors
+/// ### Panics
 /// If the auction does not exist
 pub fn get_auction(e: &Env, auction_type: &u32, user: &Address) -> AuctionData {
     let key = PoolDataKey::Auction(AuctionKey {
@@ -565,8 +494,8 @@ pub fn get_auction(e: &Env, auction_type: &u32, user: &Address) -> AuctionData {
     });
     e.storage()
         .get::<PoolDataKey, AuctionData>(&key)
-        .unwrap()
-        .unwrap()
+        .unwrap_optimized()
+        .unwrap_optimized()
 }
 
 /// Check if an auction exists for the given type and user

@@ -1,4 +1,4 @@
-use soroban_sdk::{Address, Env, Vec};
+use soroban_sdk::{panic_with_error, unwrap::UnwrapOptimized, Address, Env, Vec};
 
 use crate::{
     errors::BackstopError,
@@ -110,20 +110,16 @@ impl User {
     ///
     /// ### Errors
     /// If the amount to queue is greater than the available shares
-    pub fn try_queue_shares_for_withdrawal(
-        &mut self,
-        e: &Env,
-        to_q: i128,
-    ) -> Result<Q4W, BackstopError> {
+    pub fn try_queue_shares_for_withdrawal(&mut self, e: &Env, to_q: i128) -> Q4W {
         let mut user_q4w = self.get_q4w(e);
         let mut q4w_amt: i128 = 0;
         for q4w in user_q4w.iter() {
-            q4w_amt += q4w.unwrap().amount
+            q4w_amt += q4w.unwrap_optimized().amount
         }
 
         let shares = self.get_shares(e);
         if shares - q4w_amt < to_q {
-            return Err(BackstopError::InvalidBalance);
+            panic_with_error!(e, BackstopError::InvalidBalance);
         }
 
         // user has enough tokens to withdrawal, add Q4W
@@ -135,7 +131,7 @@ impl User {
         user_q4w.push_back(new_q4w.clone());
         self.set_q4w(user_q4w);
 
-        Ok(new_q4w)
+        new_q4w
     }
 
     /// Dequeue shares from the withdrawal queue
@@ -156,13 +152,13 @@ impl User {
         e: &Env,
         to_dequeue: i128,
         require_expired: bool,
-    ) -> Result<(), BackstopError> {
+    ) {
         // validate the invoke has enough unlocked Q4W to claim
         // manage the q4w list while verifying
         let mut user_q4w = self.get_q4w(e);
         let mut left_to_dequeue: i128 = to_dequeue;
         for _index in 0..user_q4w.len() {
-            let mut cur_q4w = user_q4w.pop_front_unchecked().unwrap();
+            let mut cur_q4w = user_q4w.pop_front_unchecked().unwrap_optimized();
             if !require_expired || cur_q4w.exp <= e.ledger().timestamp() {
                 if cur_q4w.amount > left_to_dequeue {
                     // last record we need to update, but the q4w should remain
@@ -179,16 +175,15 @@ impl User {
                     left_to_dequeue -= cur_q4w.amount;
                 }
             } else {
-                return Err(BackstopError::NotExpired);
+                panic_with_error!(e, BackstopError::NotExpired);
             }
         }
 
         if left_to_dequeue > 0 {
-            return Err(BackstopError::InvalidBalance);
+            panic_with_error!(e, BackstopError::InvalidBalance);
         }
 
         self.set_q4w(user_q4w);
-        Ok(())
     }
 
     /// Withdraw shares from the user
@@ -202,13 +197,11 @@ impl User {
     ///
     /// ### Errors
     /// If the amount to queue is greater than the available shares
-    pub fn try_withdraw_shares(&mut self, e: &Env, to_withdraw: i128) -> Result<(), BackstopError> {
-        self.try_dequeue_shares_for_withdrawal(e, to_withdraw, true)?;
+    pub fn try_withdraw_shares(&mut self, e: &Env, to_withdraw: i128) {
+        self.try_dequeue_shares_for_withdrawal(e, to_withdraw, true);
 
         let shares_left = self.get_shares(e) - to_withdraw;
         self.set_shares(shares_left);
-
-        Ok(())
     }
 }
 
@@ -353,17 +346,12 @@ mod tests {
         e.as_contract(&backstop_addr, || {
             let to_queue = 500;
             let res_q4w = user.try_queue_shares_for_withdrawal(&e, to_queue);
-            match res_q4w {
-                Ok(q4w) => {
-                    assert_eq!(q4w.amount, to_queue);
-                    assert_eq!(q4w.exp, 10000 + 30 * 24 * 60 * 60);
+            assert_eq!(res_q4w.amount, to_queue);
+            assert_eq!(res_q4w.exp, 10000 + 30 * 24 * 60 * 60);
 
-                    // validate method stores q4w in cache
-                    let cached_q4w = user.get_q4w(&e);
-                    assert_eq_vec_q4w(&cached_q4w, &vec![&e, q4w]);
-                }
-                Err(_) => assert!(false),
-            }
+            // validate method stores q4w in cache
+            let cached_q4w = user.get_q4w(&e);
+            assert_eq_vec_q4w(&cached_q4w, &vec![&e, res_q4w]);
         });
     }
 
@@ -398,19 +386,15 @@ mod tests {
         e.as_contract(&backstop_addr, || {
             let to_queue = 500;
             let res_q4w = user.try_queue_shares_for_withdrawal(&e, to_queue);
-            match res_q4w {
-                Ok(q4w) => {
-                    cur_q4w.push_back(q4w);
-                    // validate method stores q4w in cache
-                    let cached_q4w = user.get_q4w(&e);
-                    assert_eq_vec_q4w(&cached_q4w, &cur_q4w);
-                }
-                Err(_) => assert!(false),
-            }
+            cur_q4w.push_back(res_q4w);
+            // validate method stores q4w in cache
+            let cached_q4w = user.get_q4w(&e);
+            assert_eq_vec_q4w(&cached_q4w, &cur_q4w);
         });
     }
 
     #[test]
+    #[should_panic(expected = "HostError\nValue: Status(ContractError(2))")]
     fn test_try_q4w_over_shares_panics() {
         let e = Env::default();
 
@@ -440,18 +424,12 @@ mod tests {
 
         e.as_contract(&backstop_addr, || {
             let to_queue = 801;
-            let res_q4w = user.try_queue_shares_for_withdrawal(&e, to_queue);
-            match res_q4w {
-                Ok(_) => assert!(false),
-                Err(err) => match err {
-                    BackstopError::InvalidBalance => assert!(true),
-                    _ => assert!(false),
-                },
-            }
+            user.try_queue_shares_for_withdrawal(&e, to_queue);
         });
     }
 
     #[test]
+    #[should_panic(expected = "HostError\nValue: Status(ContractError(2))")]
     fn test_try_withdraw_shares_no_q4w_panics() {
         let e = Env::default();
 
@@ -474,14 +452,7 @@ mod tests {
 
         e.as_contract(&backstop_addr, || {
             let to_wd = 1;
-            let res = user.try_withdraw_shares(&e, to_wd);
-            match res {
-                Ok(_) => assert!(false),
-                Err(err) => match err {
-                    BackstopError::InvalidBalance => assert!(true),
-                    _ => assert!(false),
-                },
-            }
+            user.try_withdraw_shares(&e, to_wd);
         });
     }
 
@@ -515,15 +486,11 @@ mod tests {
 
         e.as_contract(&backstop_addr, || {
             let to_wd = 200;
-            let res = user.try_withdraw_shares(&e, to_wd);
-            match res {
-                Ok(_) => {
-                    let q4w = user.get_q4w(&e);
-                    assert_eq_vec_q4w(&q4w, &vec![&e]);
-                    assert_eq!(user.get_shares(&e), 800);
-                }
-                Err(_) => assert!(false),
-            }
+            user.try_withdraw_shares(&e, to_wd);
+            let q4w = user.get_q4w(&e);
+
+            assert_eq_vec_q4w(&q4w, &vec![&e]);
+            assert_eq!(user.get_shares(&e), 800);
         });
     }
 
@@ -557,22 +524,18 @@ mod tests {
 
         e.as_contract(&backstop_addr, || {
             let to_wd = 150;
-            let res = user.try_withdraw_shares(&e, to_wd);
-            match res {
-                Ok(_) => {
-                    let expected_q4w = vec![
-                        &e,
-                        Q4W {
-                            amount: 50,
-                            exp: 12592000,
-                        },
-                    ];
-                    let q4w = user.get_q4w(&e);
-                    assert_eq_vec_q4w(&q4w, &expected_q4w);
-                    assert_eq!(user.get_shares(&e), 850);
-                }
-                Err(_) => assert!(false),
-            }
+            user.try_withdraw_shares(&e, to_wd);
+            let expected_q4w = vec![
+                &e,
+                Q4W {
+                    amount: 50,
+                    exp: 12592000,
+                },
+            ];
+            let q4w = user.get_q4w(&e);
+
+            assert_eq_vec_q4w(&q4w, &expected_q4w);
+            assert_eq!(user.get_shares(&e), 850);
         });
     }
 
@@ -614,30 +577,27 @@ mod tests {
 
         e.as_contract(&backstop_addr, || {
             let to_wd = 300;
-            let res = user.try_withdraw_shares(&e, to_wd);
-            match res {
-                Ok(_) => {
-                    let expected_q4w = vec![
-                        &e,
-                        Q4W {
-                            amount: 25,
-                            exp: 12592000,
-                        },
-                        Q4W {
-                            amount: 50,
-                            exp: 19592000,
-                        },
-                    ];
-                    let q4w = user.get_q4w(&e);
-                    assert_eq_vec_q4w(&q4w, &expected_q4w);
-                    assert_eq!(user.get_shares(&e), 700);
-                }
-                Err(_) => assert!(false),
-            }
+            user.try_withdraw_shares(&e, to_wd);
+            let expected_q4w = vec![
+                &e,
+                Q4W {
+                    amount: 25,
+                    exp: 12592000,
+                },
+                Q4W {
+                    amount: 50,
+                    exp: 19592000,
+                },
+            ];
+            let q4w = user.get_q4w(&e);
+
+            assert_eq_vec_q4w(&q4w, &expected_q4w);
+            assert_eq!(user.get_shares(&e), 700);
         });
     }
 
     #[test]
+    #[should_panic(expected = "HostError\nValue: Status(ContractError(3))")]
     fn test_try_withdraw_shares_multiple_entries_not_exp() {
         let e = Env::default();
 
@@ -675,19 +635,7 @@ mod tests {
 
         e.as_contract(&backstop_addr, || {
             let to_wd = 300;
-            let res = user.try_withdraw_shares(&e, to_wd);
-            match res {
-                Ok(_) => assert!(false),
-                Err(err) => match err {
-                    BackstopError::NotExpired => {
-                        // verify q4w vec was not modified
-                        let q4w = user.get_q4w(&e);
-                        assert_eq_vec_q4w(&q4w, &cur_q4w);
-                        assert_eq!(user.get_shares(&e), 1000);
-                    }
-                    _ => assert!(false),
-                },
-            }
+            user.try_withdraw_shares(&e, to_wd);
         });
     }
 
@@ -730,46 +678,71 @@ mod tests {
         e.as_contract(&backstop_addr, || {
             let to_dequeue = 300;
 
-            // verify exp is respected when specified
-            let res = user.try_dequeue_shares_for_withdrawal(&e, to_dequeue, true);
-            match res {
-                Ok(_) => assert!(false),
-                Err(err) => match err {
-                    BackstopError::NotExpired => {
-                        // verify q4w vec was not modified
-                        let q4w = user.get_q4w(&e);
-                        assert_eq_vec_q4w(&q4w, &cur_q4w);
-                        assert_eq!(user.get_shares(&e), 1000);
-                    }
-                    _ => assert!(false),
-                },
-            }
-
             // verify exp is ignored if only dequeueing
-            let res = user.try_dequeue_shares_for_withdrawal(&e, to_dequeue, false);
-            match res {
-                Ok(_) => {
-                    let expected_q4w = vec![
-                        &e,
-                        Q4W {
-                            amount: 25,
-                            exp: 12592000,
-                        },
-                        Q4W {
-                            amount: 50,
-                            exp: 19592000,
-                        },
-                    ];
-                    let q4w = user.get_q4w(&e);
-                    assert_eq_vec_q4w(&q4w, &expected_q4w);
-                    assert_eq!(user.get_shares(&e), 1000);
-                }
-                Err(_) => assert!(false),
-            }
+            user.try_dequeue_shares_for_withdrawal(&e, to_dequeue, false);
+            let expected_q4w = vec![
+                &e,
+                Q4W {
+                    amount: 25,
+                    exp: 12592000,
+                },
+                Q4W {
+                    amount: 50,
+                    exp: 19592000,
+                },
+            ];
+            let q4w = user.get_q4w(&e);
+            assert_eq_vec_q4w(&q4w, &expected_q4w);
+            assert_eq!(user.get_shares(&e), 1000);
         });
     }
 
     #[test]
+    #[should_panic(expected = "HostError\nValue: Status(ContractError(3))")]
+    fn test_try_dequeue_shares_require_expireed_expect_panic() {
+        let e = Env::default();
+
+        let backstop_addr = Address::random(&e);
+
+        let cur_q4w = vec![
+            &e,
+            Q4W {
+                amount: 125,
+                exp: 10000000,
+            },
+            Q4W {
+                amount: 200,
+                exp: 12592000,
+            },
+            Q4W {
+                amount: 50,
+                exp: 19592000,
+            },
+        ];
+        let mut user = User {
+            pool: Address::random(&e),
+            id: Address::random(&e),
+            shares: Some(1000),
+            q4w: Some(cur_q4w.clone()),
+        };
+
+        e.ledger().set(LedgerInfo {
+            protocol_version: 1,
+            sequence_number: 1,
+            timestamp: 11192000,
+            network_id: Default::default(),
+            base_reserve: 10,
+        });
+
+        e.as_contract(&backstop_addr, || {
+            let to_dequeue = 300;
+            // verify exp is respected when specified
+            user.try_dequeue_shares_for_withdrawal(&e, to_dequeue, true);
+        });
+    }
+
+    #[test]
+    #[should_panic(expected = "HostError\nValue: Status(ContractError(2))")]
     fn test_try_withdraw_shares_over_total() {
         let e = Env::default();
 
@@ -807,19 +780,7 @@ mod tests {
 
         e.as_contract(&backstop_addr, || {
             let to_dequeue = 376;
-            let res = user.try_dequeue_shares_for_withdrawal(&e, to_dequeue, false);
-            match res {
-                Ok(_) => assert!(false),
-                Err(err) => match err {
-                    BackstopError::InvalidBalance => {
-                        // verify q4w vec was not modified
-                        let q4w = user.get_q4w(&e);
-                        assert_eq_vec_q4w(&q4w, &cur_q4w);
-                        assert_eq!(user.get_shares(&e), 1000);
-                    }
-                    _ => assert!(false),
-                },
-            }
+            user.try_dequeue_shares_for_withdrawal(&e, to_dequeue, false);
         });
     }
 }

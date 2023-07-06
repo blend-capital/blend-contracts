@@ -2,43 +2,31 @@ use crate::{
     contract::require_nonnegative, dependencies::TokenClient, errors::BackstopError, pool::Pool,
     storage, user::User,
 };
-use soroban_sdk::{Address, Env, Vec};
+use soroban_sdk::{panic_with_error, Address, Env, Vec};
 
 use super::update_emission_index;
 
 // TODO: Deposit emissions back into the backstop automatically after 80/20 BLND deposit function added
 
 /// Perform a claim for pool emissions by a pool from the backstop module
-pub fn execute_pool_claim(
-    e: &Env,
-    pool_address: &Address,
-    to: &Address,
-    amount: i128,
-) -> Result<(), BackstopError> {
-    require_nonnegative(amount)?;
+pub fn execute_pool_claim(e: &Env, pool_address: &Address, to: &Address, amount: i128) {
+    require_nonnegative(e, amount);
 
     let mut pool = Pool::new(e, pool_address.clone());
-    pool.verify_pool(&e)?;
-    pool.claim(e, amount)?;
+    pool.verify_pool(&e);
+    pool.claim(e, amount);
     pool.write_emissions(&e);
 
     if amount > 0 {
         let blnd_token = TokenClient::new(e, &storage::get_blnd_token(e));
         blnd_token.transfer(&e.current_contract_address(), &to, &amount);
     }
-
-    Ok(())
 }
 
 /// Perform a claim for backstop deposit emissions by a user from the backstop module
-pub fn execute_claim(
-    e: &Env,
-    from: &Address,
-    pool_addresses: &Vec<Address>,
-    to: &Address,
-) -> Result<i128, BackstopError> {
+pub fn execute_claim(e: &Env, from: &Address, pool_addresses: &Vec<Address>, to: &Address) -> i128 {
     if pool_addresses.len() == 0 {
-        return Err(BackstopError::BadRequest);
+        panic_with_error!(e, BackstopError::BadRequest);
     }
 
     let mut claimed: i128 = 0;
@@ -46,7 +34,7 @@ pub fn execute_claim(
         let mut pool = Pool::new(e, pool_addr.clone());
         let mut pool_user = User::new(pool_addr, from.clone());
 
-        claimed += update_emission_index(e, &mut pool, &mut pool_user, true)?;
+        claimed += update_emission_index(e, &mut pool, &mut pool_user, true);
     }
 
     if claimed > 0 {
@@ -54,7 +42,7 @@ pub fn execute_claim(
         blnd_token.transfer(&e.current_contract_address(), &to, &claimed);
     }
 
-    Ok(claimed)
+    claimed
 }
 
 #[cfg(test)]
@@ -67,6 +55,7 @@ mod tests {
     use super::*;
     use soroban_sdk::{
         testutils::{Address as _, Ledger, LedgerInfo},
+        unwrap::UnwrapOptimized,
         vec,
     };
 
@@ -74,6 +63,39 @@ mod tests {
 
     #[test]
     fn test_pool_claim() {
+        let e = Env::default();
+        e.mock_all_auths();
+
+        let bombadil = Address::random(&e);
+        let samwise = Address::random(&e);
+
+        let backstop_address = Address::random(&e);
+        let pool_1_id = Address::random(&e);
+        let (_, pool_factory) = create_mock_pool_factory(&e, &backstop_address);
+        pool_factory.set_pool(&pool_1_id);
+
+        let (_, blnd_token_client) = create_blnd_token(&e, &backstop_address, &bombadil);
+        blnd_token_client.mint(&backstop_address, &100_000_0000000);
+
+        e.as_contract(&backstop_address, || {
+            storage::set_pool_emis(&e, &pool_1_id, &50_000_0000000);
+
+            execute_pool_claim(&e, &pool_1_id, &samwise, 42_000_0000000);
+            assert_eq!(
+                blnd_token_client.balance(&backstop_address),
+                100_000_0000000 - 42_000_0000000
+            );
+            assert_eq!(blnd_token_client.balance(&samwise), 42_000_0000000);
+            assert_eq!(
+                storage::get_pool_emis(&e, &pool_1_id),
+                50_000_0000000 - 42_000_0000000
+            );
+        });
+    }
+
+    #[test]
+    #[should_panic(expected = "HostError\nValue: Status(ContractError(10))")]
+    fn test_pool_claim_non_pool() {
         let e = Env::default();
         e.mock_all_auths();
 
@@ -91,23 +113,12 @@ mod tests {
 
         e.as_contract(&backstop_address, || {
             storage::set_pool_emis(&e, &pool_1_id, &50_000_0000000);
-
-            let result = execute_pool_claim(&e, &not_pool_id, &samwise, 42_000_0000000);
-            assert_eq!(result, Err(BackstopError::NotPool));
-
-            execute_pool_claim(&e, &pool_1_id, &samwise, 42_000_0000000).unwrap();
-            assert_eq!(
-                blnd_token_client.balance(&backstop_address),
-                100_000_0000000 - 42_000_0000000
-            );
-            assert_eq!(blnd_token_client.balance(&samwise), 42_000_0000000);
-            assert_eq!(
-                storage::get_pool_emis(&e, &pool_1_id),
-                50_000_0000000 - 42_000_0000000
-            );
+            execute_pool_claim(&e, &not_pool_id, &samwise, 42_000_0000000);
         });
     }
+
     #[test]
+    #[should_panic(expected = "HostError\nValue: Status(ContractError(11))")]
     fn test_pool_claim_negative_amount() {
         let e = Env::default();
         e.mock_all_auths();
@@ -125,15 +136,7 @@ mod tests {
 
         e.as_contract(&backstop_address, || {
             storage::set_pool_emis(&e, &pool_1_id, &50_000_0000000);
-
-            let result = execute_pool_claim(&e, &pool_1_id, &samwise, -42_000_0000000);
-            match result {
-                Ok(_) => assert!(false),
-                Err(err) => match err {
-                    BackstopError::NegativeAmount => assert!(true),
-                    _ => assert!(false),
-                },
-            }
+            execute_pool_claim(&e, &pool_1_id, &samwise, -42_000_0000000);
         });
     }
 
@@ -207,8 +210,7 @@ mod tests {
                 &samwise,
                 &vec![&e, pool_1_id.clone(), pool_2_id.clone()],
                 &frodo,
-            )
-            .unwrap();
+            );
             assert_eq!(result, 75_3145677 + 5_0250000);
             assert_eq!(blnd_token_client.balance(&frodo), 75_3145677 + 5_0250000);
             assert_eq!(
@@ -216,15 +218,19 @@ mod tests {
                 100_0000000 - (75_3145677 + 5_0250000)
             );
 
-            let new_backstop_1_data = storage::get_backstop_emis_data(&e, &pool_1_id).unwrap();
-            let new_user_1_data = storage::get_user_emis_data(&e, &pool_1_id, &samwise).unwrap();
+            let new_backstop_1_data =
+                storage::get_backstop_emis_data(&e, &pool_1_id).unwrap_optimized();
+            let new_user_1_data =
+                storage::get_user_emis_data(&e, &pool_1_id, &samwise).unwrap_optimized();
             assert_eq!(new_backstop_1_data.last_time, block_timestamp);
             assert_eq!(new_backstop_1_data.index, 82322222);
             assert_eq!(new_user_1_data.accrued, 0);
             assert_eq!(new_user_1_data.index, 82322222);
 
-            let new_backstop_2_data = storage::get_backstop_emis_data(&e, &pool_2_id).unwrap();
-            let new_user_2_data = storage::get_user_emis_data(&e, &pool_2_id, &samwise).unwrap();
+            let new_backstop_2_data =
+                storage::get_backstop_emis_data(&e, &pool_2_id).unwrap_optimized();
+            let new_user_2_data =
+                storage::get_user_emis_data(&e, &pool_2_id, &samwise).unwrap_optimized();
             assert_eq!(new_backstop_2_data.last_time, block_timestamp);
             assert_eq!(new_backstop_2_data.index, 6700000);
             assert_eq!(new_user_2_data.accrued, 0);
@@ -300,8 +306,7 @@ mod tests {
                 &samwise,
                 &vec![&e, pool_1_id.clone(), pool_2_id.clone()],
                 &frodo,
-            )
-            .unwrap();
+            );
             assert_eq!(result, 75_3145677 + 5_0250000);
             assert_eq!(blnd_token_client.balance(&frodo), 75_3145677 + 5_0250000);
             assert_eq!(
@@ -309,15 +314,19 @@ mod tests {
                 200_0000000 - (75_3145677 + 5_0250000)
             );
 
-            let new_backstop_1_data = storage::get_backstop_emis_data(&e, &pool_1_id).unwrap();
-            let new_user_1_data = storage::get_user_emis_data(&e, &pool_1_id, &samwise).unwrap();
+            let new_backstop_1_data =
+                storage::get_backstop_emis_data(&e, &pool_1_id).unwrap_optimized();
+            let new_user_1_data =
+                storage::get_user_emis_data(&e, &pool_1_id, &samwise).unwrap_optimized();
             assert_eq!(new_backstop_1_data.last_time, block_timestamp);
             assert_eq!(new_backstop_1_data.index, 82322222);
             assert_eq!(new_user_1_data.accrued, 0);
             assert_eq!(new_user_1_data.index, 82322222);
 
-            let new_backstop_2_data = storage::get_backstop_emis_data(&e, &pool_2_id).unwrap();
-            let new_user_2_data = storage::get_user_emis_data(&e, &pool_2_id, &samwise).unwrap();
+            let new_backstop_2_data =
+                storage::get_backstop_emis_data(&e, &pool_2_id).unwrap_optimized();
+            let new_user_2_data =
+                storage::get_user_emis_data(&e, &pool_2_id, &samwise).unwrap_optimized();
             assert_eq!(new_backstop_2_data.last_time, block_timestamp);
             assert_eq!(new_backstop_2_data.index, 6700000);
             assert_eq!(new_user_2_data.accrued, 0);
@@ -336,8 +345,7 @@ mod tests {
                 &samwise,
                 &vec![&e, pool_1_id.clone(), pool_2_id.clone()],
                 &frodo,
-            )
-            .unwrap();
+            );
             assert_eq!(result_1, 1005235710);
             assert_eq!(
                 blnd_token_client.balance(&frodo),
@@ -348,15 +356,19 @@ mod tests {
                 200_0000000 - (75_3145677 + 5_0250000) - (1005235710)
             );
 
-            let new_backstop_1_data = storage::get_backstop_emis_data(&e, &pool_1_id).unwrap();
-            let new_user_1_data = storage::get_user_emis_data(&e, &pool_1_id, &samwise).unwrap();
+            let new_backstop_1_data =
+                storage::get_backstop_emis_data(&e, &pool_1_id).unwrap_optimized();
+            let new_user_1_data =
+                storage::get_user_emis_data(&e, &pool_1_id, &samwise).unwrap_optimized();
             assert_eq!(new_backstop_1_data.last_time, block_timestamp_1);
             assert_eq!(new_backstop_1_data.index, 164622222);
             assert_eq!(new_user_1_data.accrued, 0);
             assert_eq!(new_user_1_data.index, 164622222);
 
-            let new_backstop_2_data = storage::get_backstop_emis_data(&e, &pool_2_id).unwrap();
-            let new_user_2_data = storage::get_user_emis_data(&e, &pool_2_id, &samwise).unwrap();
+            let new_backstop_2_data =
+                storage::get_backstop_emis_data(&e, &pool_2_id).unwrap_optimized();
+            let new_user_2_data =
+                storage::get_user_emis_data(&e, &pool_2_id, &samwise).unwrap_optimized();
             assert_eq!(new_backstop_2_data.last_time, block_timestamp_1);
             assert_eq!(new_backstop_2_data.index, 41971428);
             assert_eq!(new_user_2_data.accrued, 0);
@@ -420,21 +432,24 @@ mod tests {
                 &samwise,
                 &vec![&e, pool_1_id.clone(), pool_2_id.clone()],
                 &frodo,
-            )
-            .unwrap();
+            );
             assert_eq!(result, 0);
             assert_eq!(blnd_token_client.balance(&frodo), 0);
             assert_eq!(blnd_token_client.balance(&backstop_address), 100_0000000);
 
-            let new_backstop_1_data = storage::get_backstop_emis_data(&e, &pool_1_id).unwrap();
-            let new_user_1_data = storage::get_user_emis_data(&e, &pool_1_id, &samwise).unwrap();
+            let new_backstop_1_data =
+                storage::get_backstop_emis_data(&e, &pool_1_id).unwrap_optimized();
+            let new_user_1_data =
+                storage::get_user_emis_data(&e, &pool_1_id, &samwise).unwrap_optimized();
             assert_eq!(new_backstop_1_data.last_time, block_timestamp);
             assert_eq!(new_backstop_1_data.index, 82322222);
             assert_eq!(new_user_1_data.accrued, 0);
             assert_eq!(new_user_1_data.index, 82322222);
 
-            let new_backstop_2_data = storage::get_backstop_emis_data(&e, &pool_2_id).unwrap();
-            let new_user_2_data = storage::get_user_emis_data(&e, &pool_2_id, &samwise).unwrap();
+            let new_backstop_2_data =
+                storage::get_backstop_emis_data(&e, &pool_2_id).unwrap_optimized();
+            let new_user_2_data =
+                storage::get_user_emis_data(&e, &pool_2_id, &samwise).unwrap_optimized();
             assert_eq!(new_backstop_2_data.last_time, block_timestamp);
             assert_eq!(new_backstop_2_data.index, 6700000);
             assert_eq!(new_user_2_data.accrued, 0);

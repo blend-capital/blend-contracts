@@ -1,5 +1,5 @@
 use soroban_sdk::{
-    contracttype, panic_with_error, unwrap::UnwrapOptimized, vec, xdr::int128_helpers, Address,
+    contracttype, panic_with_error, unwrap::UnwrapOptimized, vec, Address,
     Env, Vec,
 };
 
@@ -72,7 +72,7 @@ pub fn build_actions_from_request(
                 // supply
                 emissions::update_emissions(
                     e,
-                    request.reserve_index * 2,
+                    request.reserve_index * 2 + 1,
                     reserve.b_supply,
                     reserve.scalar,
                     from,
@@ -92,7 +92,7 @@ pub fn build_actions_from_request(
                 // withdraw
                 emissions::update_emissions(
                     e,
-                    request.reserve_index * 2,
+                    request.reserve_index * 2 + 1,
                     reserve.b_supply,
                     reserve.scalar,
                     from,
@@ -118,7 +118,7 @@ pub fn build_actions_from_request(
                 // supply collateral
                 emissions::update_emissions(
                     e,
-                    request.reserve_index * 2,
+                    request.reserve_index * 2 + 1,
                     reserve.b_supply,
                     reserve.scalar,
                     from,
@@ -138,7 +138,7 @@ pub fn build_actions_from_request(
                 // withdraw collateral
                 emissions::update_emissions(
                     e,
-                    request.reserve_index * 2,
+                    request.reserve_index * 2 + 1,
                     reserve.b_supply,
                     reserve.scalar,
                     from,

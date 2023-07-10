@@ -7,6 +7,11 @@ pub fn add_to_reward_zone(e: &Env, to_add: Address, to_remove: Address) {
     let mut reward_zone = storage::get_reward_zone(&e);
     let max_rz_len = 10 + (i128(e.ledger().timestamp() - BACKSTOP_EPOCH) >> 23); // bit-shift 23 is ~97 day interval
 
+    // ensure an entity in the reward zone cannot be included twice
+    if reward_zone.contains(to_add.clone()) {
+        panic_with_error!(e, BackstopError::BadRequest);
+    }
+
     if max_rz_len > i128(reward_zone.len()) {
         // there is room in the reward zone. Add whatever
         // TODO: Once there is a defined limit of "backstop minimum", ensure it is reached!
@@ -316,6 +321,46 @@ mod tests {
             storage::set_pool_tokens(&e, &to_remove, &99);
 
             add_to_reward_zone(&e, to_add, to_remove);
+        });
+    }
+
+    #[test]
+    #[should_panic(expected = "ContractError(1)")]
+    fn test_add_to_rz_already_exists_panics() {
+        let e = Env::default();
+        e.ledger().set(LedgerInfo {
+            timestamp: BACKSTOP_EPOCH,
+            protocol_version: 1,
+            sequence_number: 0,
+            network_id: Default::default(),
+            base_reserve: 10,
+        });
+
+        let backstop_addr = Address::random(&e);
+        let to_add = Address::random(&e);
+        let to_remove = Address::random(&e);
+        let reward_zone: Vec<Address> = vec![
+            &e,
+            Address::random(&e),
+            to_remove.clone(),
+            Address::random(&e),
+            Address::random(&e),
+            Address::random(&e),
+            Address::random(&e),
+            Address::random(&e),
+            to_add.clone(),
+            Address::random(&e),
+            Address::random(&e),
+        ];
+
+        e.as_contract(&backstop_addr, || {
+            storage::set_reward_zone(&e, &reward_zone);
+            storage::set_next_distribution(&e, &(BACKSTOP_EPOCH + 5 * 24 * 60 * 60));
+            storage::set_pool_eps(&e, &to_remove, &1);
+            storage::set_pool_tokens(&e, &to_add, &100);
+            storage::set_pool_tokens(&e, &to_remove, &99);
+
+            add_to_reward_zone(&e, to_add.clone(), to_remove.clone());
         });
     }
 }

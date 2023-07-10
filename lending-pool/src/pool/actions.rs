@@ -1,6 +1,5 @@
 use soroban_sdk::{
-    contracttype, panic_with_error, unwrap::UnwrapOptimized, vec, Address,
-    Env, Vec,
+    contracttype, panic_with_error, unwrap::UnwrapOptimized, vec, Address, Env, Vec,
 };
 
 use crate::{

@@ -1,6 +1,6 @@
 use crate::{
-    contract::require_nonnegative, dependencies::TokenClient, emissions, errors::BackstopError,
-    pool::Pool, storage, user::User,
+    contract::require_nonnegative, dependencies::TokenClient, emissions, pool::Pool, storage,
+    user::User,
 };
 use soroban_sdk::{Address, Env};
 

@@ -54,7 +54,6 @@ pub enum BackstopDataKey {
     NextDist,
     RewardZone,
     PoolEPS(Address),
-    PoolEmis(Address),
     BEmisCfg(Address),
     BEmisData(Address),
     UEmisData(PoolUserKey),
@@ -321,28 +320,6 @@ pub fn get_pool_eps(e: &Env, pool: &Address) -> i128 {
 pub fn set_pool_eps(e: &Env, pool: &Address, eps: &i128) {
     let key = BackstopDataKey::PoolEPS(pool.clone());
     e.storage().set::<BackstopDataKey, i128>(&key, eps);
-}
-
-/// Get current emissions allotment the backstop has distributed to the pool
-///
-/// ### Arguments
-/// * `pool` - The pool
-pub fn get_pool_emis(e: &Env, pool: &Address) -> i128 {
-    let key = BackstopDataKey::PoolEmis(pool.clone());
-    e.storage()
-        .get::<BackstopDataKey, i128>(&key)
-        .unwrap_or(Ok(0))
-        .unwrap_optimized()
-}
-
-/// Set the current emissions allotment the backstop has distributed to the pool
-///
-/// ### Arguments
-/// * `pool` - The pool
-/// * `amount` - The pool's emission allotment
-pub fn set_pool_emis(e: &Env, pool: &Address, amount: &i128) {
-    let key = BackstopDataKey::PoolEmis(pool.clone());
-    e.storage().set::<BackstopDataKey, i128>(&key, amount);
 }
 
 /********** Backstop Depositor Emissions **********/

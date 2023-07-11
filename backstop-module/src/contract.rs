@@ -111,17 +111,6 @@ pub trait BackstopModuleContractTrait {
     /// Fetch the EPS (emissions per second) for the current distribution window of a pool
     fn pool_eps(e: Env, pool_address: Address) -> i128;
 
-    /// Allow a pool to claim emissions
-    ///
-    /// ### Arguments
-    /// * `from` - The address of the pool claiming emissions
-    /// * `to` - The Address to send to emissions to
-    /// * `amount` - The amount of emissions to claim
-    ///
-    /// ### Errors
-    /// If the pool has no emissions left to claim
-    fn pool_claim(e: Env, pool_address: Address, to: Address, amount: i128);
-
     /// Claim backstop deposit emissions from a list of pools for `from`
     ///
     /// Returns the amount of BLND emissions claimed
@@ -270,17 +259,6 @@ impl BackstopModuleContractTrait for BackstopModuleContract {
 
     fn pool_eps(e: Env, pool_address: Address) -> i128 {
         storage::get_pool_eps(&e, &pool_address)
-    }
-
-    fn pool_claim(e: Env, pool_address: Address, to: Address, amount: i128) {
-        // TODO: Unit test this once `env.recorded_top_authorizations()`
-        //       can be executed from WASM, or add `test_auth` file
-        pool_address.require_auth();
-
-        emissions::execute_pool_claim(&e, &pool_address, &to, amount);
-
-        e.events()
-            .publish((Symbol::new(&e, "pool_claim"), pool_address), (to, amount));
     }
 
     fn claim(e: Env, from: Address, pool_addresses: Vec<Address>, to: Address) {

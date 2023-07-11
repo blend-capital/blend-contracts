@@ -10,7 +10,6 @@ pub struct Pool {
     shares: Option<i128>,
     tokens: Option<i128>,
     q4w: Option<i128>,
-    emissions: Option<i128>,
 }
 
 impl Pool {
@@ -20,7 +19,6 @@ impl Pool {
             shares: None,
             tokens: None,
             q4w: None,
-            emissions: None,
         }
     }
 
@@ -120,34 +118,6 @@ impl Pool {
         }
     }
 
-    /// Get the pool's total emissions tokens from the cache or the ledger
-    pub fn get_emissions(&mut self, e: &Env) -> i128 {
-        match self.emissions {
-            Some(bal) => bal,
-            None => {
-                let bal = storage::get_pool_emis(e, &self.contract_id);
-                self.emissions = Some(bal);
-                bal
-            }
-        }
-    }
-
-    /// Set the pool's total emissions
-    ///
-    /// ### Arguments
-    /// * `amount` - The pool's emissions
-    pub fn set_emissions(&mut self, amount: i128) {
-        self.emissions = Some(amount)
-    }
-
-    /// Write the currently cached pool's total emissions to the ledger
-    pub fn write_emissions(&self, e: &Env) {
-        match self.emissions {
-            Some(bal) => storage::set_pool_emis(e, &self.contract_id, &bal),
-            None => panic!("nothing to write"),
-        }
-    }
-
     /********** Logic **********/
 
     /// Convert a token balance to a share balance based on the current pool state
@@ -243,21 +213,6 @@ impl Pool {
             panic_with_error!(e, BackstopError::InsufficientFunds);
         }
         self.set_q4w(cur_q4w - shares);
-    }
-
-    /// Claim emissions from the pool
-    ///
-    /// Updates cached values but does not write:
-    /// * emissions
-    ///
-    /// ### Arguments
-    /// * `amount` - The amount of emissions you are trying to claim
-    pub fn claim(&mut self, e: &Env, amount: i128) {
-        let emissions = self.get_emissions(e);
-        if emissions < amount {
-            panic_with_error!(e, BackstopError::InsufficientFunds);
-        }
-        self.set_emissions(emissions - amount);
     }
 }
 
@@ -409,38 +364,6 @@ mod tests {
         });
     }
 
-    #[test]
-    fn test_emission_cache() {
-        let e = Env::default();
-
-        let backstop_address = Address::random(&e);
-        let pool_address = Address::random(&e);
-        let mut pool = Pool::new(&e, pool_address.clone());
-
-        let first_amt = 100;
-        e.as_contract(&backstop_address, || {
-            storage::set_pool_emis(&e, &pool_address, &first_amt);
-            let first_result = pool.get_emissions(&e);
-            assert_eq!(first_result, first_amt);
-
-            // cached version returned
-            storage::set_pool_emis(&e, &pool_address, &1);
-            let cached_result = pool.get_emissions(&e);
-            assert_eq!(cached_result, first_amt);
-
-            // new amount gets set and stored
-            let second_amt = 200;
-            pool.set_emissions(second_amt);
-            let second_result = pool.get_emissions(&e);
-            assert_eq!(second_result, second_amt);
-
-            // write stores to chain
-            pool.write_emissions(&e);
-            let chain_result = storage::get_pool_emis(&e, &pool_address);
-            assert_eq!(chain_result, second_amt);
-        });
-    }
-
     /********** Logic **********/
 
     #[test]
@@ -452,7 +375,6 @@ mod tests {
             shares: Some(0),
             tokens: Some(0),
             q4w: Some(0),
-            emissions: Some(0),
         };
 
         let to_convert = 1234567;
@@ -469,7 +391,6 @@ mod tests {
             shares: Some(80321),
             tokens: Some(103302),
             q4w: Some(0),
-            emissions: Some(0),
         };
 
         let to_convert = 1234567;
@@ -486,7 +407,6 @@ mod tests {
             shares: Some(0),
             tokens: Some(0),
             q4w: Some(0),
-            emissions: Some(0),
         };
 
         let to_convert = 1234567;
@@ -503,7 +423,6 @@ mod tests {
             shares: Some(80321),
             tokens: Some(103302),
             q4w: Some(0),
-            emissions: Some(0),
         };
 
         let to_convert = 40000;
@@ -520,7 +439,6 @@ mod tests {
             shares: Some(100),
             tokens: Some(200),
             q4w: Some(25),
-            emissions: Some(0),
         };
 
         pool.deposit(&e, 50, 25);
@@ -539,7 +457,6 @@ mod tests {
             shares: Some(100),
             tokens: Some(200),
             q4w: Some(25),
-            emissions: Some(0),
         };
 
         pool.withdraw(&e, 50, 25);
@@ -559,10 +476,9 @@ mod tests {
             shares: Some(100),
             tokens: Some(200),
             q4w: Some(25),
-            emissions: Some(0),
         };
 
-        let result = pool.withdraw(&e, 201, 25);
+        pool.withdraw(&e, 201, 25);
     }
 
     #[test]
@@ -574,7 +490,6 @@ mod tests {
             shares: Some(100),
             tokens: Some(200),
             q4w: Some(25),
-            emissions: Some(0),
         };
 
         pool.dequeue_q4w(&e, 25);
@@ -594,10 +509,9 @@ mod tests {
             shares: Some(100),
             tokens: Some(200),
             q4w: Some(25),
-            emissions: Some(0),
         };
 
-        let result = pool.dequeue_q4w(&e, 26);
+        pool.dequeue_q4w(&e, 26);
     }
 
     #[test]
@@ -609,7 +523,6 @@ mod tests {
             shares: Some(100),
             tokens: Some(200),
             q4w: Some(25),
-            emissions: Some(0),
         };
 
         pool.withdraw(&e, 50, 25);
@@ -617,36 +530,5 @@ mod tests {
         assert_eq!(pool.get_shares(&e), 75);
         assert_eq!(pool.get_tokens(&e), 150);
         assert_eq!(pool.get_q4w(&e), 0);
-    }
-
-    #[test]
-    fn test_claim() {
-        let e = Env::default();
-        let pool_address = Address::random(&e);
-        let mut pool = Pool {
-            contract_id: pool_address.clone(),
-            shares: Some(100),
-            tokens: Some(200),
-            q4w: Some(25),
-            emissions: Some(123),
-        };
-
-        pool.claim(&e, 100);
-        assert_eq!(pool.get_emissions(&e), 23);
-    }
-
-    #[test]
-    #[should_panic(expected = "HostError\nValue: Status(ContractError(6))")]
-    fn test_claim_too_much() {
-        let e = Env::default();
-        let pool_address = Address::random(&e);
-        let mut pool = Pool {
-            contract_id: pool_address.clone(),
-            shares: Some(100),
-            tokens: Some(200),
-            q4w: Some(25),
-            emissions: Some(123),
-        };
-        pool.claim(&e, 124);
     }
 }

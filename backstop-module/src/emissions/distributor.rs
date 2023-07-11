@@ -4,6 +4,7 @@ use soroban_sdk::{panic_with_error, unwrap::UnwrapOptimized, vec, Address, Env, 
 
 use crate::{
     constants::SCALAR_7,
+    dependencies::TokenClient,
     errors::BackstopError,
     pool::Pool,
     storage::{self, BackstopEmissionConfig, BackstopEmissionsData, UserEmissionData},
@@ -35,6 +36,7 @@ pub fn distribute(e: &Env) {
         total_tokens += i128(pool_tokens);
     }
 
+    let blnd_token_client = TokenClient::new(e, &storage::get_blnd_token(e));
     // store pools EPS and distribute emissions to backstop depositors
     for rz_pool_index in 0..rz_len {
         let rz_pool = reward_zone
@@ -46,13 +48,17 @@ pub fn distribute(e: &Env) {
             .fixed_div_floor(total_tokens, SCALAR_7)
             .unwrap_optimized();
 
-        // store pool EPS and distribute pool's emissions
+        // store pool EPS and distribute pool's emissions via allowances to pool
         let pool_eps = share
             .fixed_mul_floor(0_3000000, SCALAR_7)
             .unwrap_optimized();
-        let pool_emissions = storage::get_pool_emis(&e, &rz_pool) + (pool_eps * 7 * 24 * 60 * 60);
+        let new_pool_emissions = pool_eps * 7 * 24 * 60 * 60;
+        blnd_token_client.increase_allowance(
+            &e.current_contract_address(),
+            &rz_pool,
+            &new_pool_emissions,
+        );
         storage::set_pool_eps(&e, &rz_pool, &pool_eps);
-        storage::set_pool_emis(&e, &rz_pool, &pool_emissions);
 
         // distribute backstop depositor emissions
         let pool_backstop_eps = share
@@ -218,7 +224,7 @@ fn set_user_emissions(
 
 #[cfg(test)]
 mod tests {
-    use crate::constants::BACKSTOP_EPOCH;
+    use crate::{constants::BACKSTOP_EPOCH, testutils};
 
     use super::*;
     use soroban_sdk::{
@@ -239,7 +245,9 @@ mod tests {
             base_reserve: 10,
         });
 
-        let backstop_addr = Address::random(&e);
+        let bombadil = Address::random(&e);
+        let backstop = Address::random(&e);
+        let (_, blnd_token_client) = testutils::create_blnd_token(&e, &backstop, &bombadil);
         let pool_1 = Address::random(&e);
         let pool_2 = Address::random(&e);
         let pool_3 = Address::random(&e);
@@ -253,7 +261,7 @@ mod tests {
             index: 887766,
             last_time: BACKSTOP_EPOCH - 12345,
         };
-        e.as_contract(&backstop_addr, || {
+        e.as_contract(&backstop, || {
             storage::set_next_distribution(&e, &BACKSTOP_EPOCH);
             storage::set_reward_zone(&e, &reward_zone);
             storage::set_backstop_emis_config(&e, &pool_1, &pool_1_emissions_config);
@@ -264,7 +272,7 @@ mod tests {
             storage::set_pool_shares(&e, &pool_1, &300_000_0000000);
             storage::set_pool_shares(&e, &pool_2, &200_000_0000000);
             storage::set_pool_shares(&e, &pool_3, &500_000_0000000);
-            storage::set_pool_emis(&e, &pool_1, &100_123_0000000);
+            blnd_token_client.increase_allowance(&backstop, &pool_1, &100_123_0000000);
 
             distribute(&e);
 
@@ -278,9 +286,18 @@ mod tests {
             assert_eq!(storage::get_pool_eps(&e, &pool_1), 0_0900000);
             assert_eq!(storage::get_pool_eps(&e, &pool_2), 0_0600000);
             assert_eq!(storage::get_pool_eps(&e, &pool_3), 0_1500000);
-            assert_eq!(storage::get_pool_emis(&e, &pool_1), 154_555_0000000);
-            assert_eq!(storage::get_pool_emis(&e, &pool_2), 36_288_0000000);
-            assert_eq!(storage::get_pool_emis(&e, &pool_3), 90_720_0000000);
+            assert_eq!(
+                blnd_token_client.allowance(&backstop, &pool_1),
+                154_555_0000000
+            );
+            assert_eq!(
+                blnd_token_client.allowance(&backstop, &pool_2),
+                36_288_0000000
+            );
+            assert_eq!(
+                blnd_token_client.allowance(&backstop, &pool_3),
+                90_720_0000000
+            );
             let new_pool_1_config =
                 storage::get_backstop_emis_config(&e, &pool_1).unwrap_optimized();
             let new_pool_1_data = storage::get_backstop_emis_data(&e, &pool_1).unwrap_optimized();

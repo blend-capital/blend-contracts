@@ -1,27 +1,9 @@
-use crate::{
-    contract::require_nonnegative, dependencies::TokenClient, errors::BackstopError, pool::Pool,
-    storage, user::User,
-};
+use crate::{dependencies::TokenClient, errors::BackstopError, pool::Pool, storage, user::User};
 use soroban_sdk::{panic_with_error, Address, Env, Vec};
 
 use super::update_emission_index;
 
 // TODO: Deposit emissions back into the backstop automatically after 80/20 BLND deposit function added
-
-/// Perform a claim for pool emissions by a pool from the backstop module
-pub fn execute_pool_claim(e: &Env, pool_address: &Address, to: &Address, amount: i128) {
-    require_nonnegative(e, amount);
-
-    let mut pool = Pool::new(e, pool_address.clone());
-    pool.verify_pool(&e);
-    pool.claim(e, amount);
-    pool.write_emissions(&e);
-
-    if amount > 0 {
-        let blnd_token = TokenClient::new(e, &storage::get_blnd_token(e));
-        blnd_token.transfer(&e.current_contract_address(), &to, &amount);
-    }
-}
 
 /// Perform a claim for backstop deposit emissions by a user from the backstop module
 pub fn execute_claim(e: &Env, from: &Address, pool_addresses: &Vec<Address>, to: &Address) -> i128 {
@@ -49,7 +31,7 @@ pub fn execute_claim(e: &Env, from: &Address, pool_addresses: &Vec<Address>, to:
 mod tests {
     use crate::{
         storage::{BackstopEmissionConfig, BackstopEmissionsData, UserEmissionData},
-        testutils::{create_blnd_token, create_mock_pool_factory},
+        testutils::create_blnd_token,
     };
 
     use super::*;
@@ -58,87 +40,6 @@ mod tests {
         unwrap::UnwrapOptimized,
         vec,
     };
-
-    /********** pool_claim **********/
-
-    #[test]
-    fn test_pool_claim() {
-        let e = Env::default();
-        e.mock_all_auths();
-
-        let bombadil = Address::random(&e);
-        let samwise = Address::random(&e);
-
-        let backstop_address = Address::random(&e);
-        let pool_1_id = Address::random(&e);
-        let (_, pool_factory) = create_mock_pool_factory(&e, &backstop_address);
-        pool_factory.set_pool(&pool_1_id);
-
-        let (_, blnd_token_client) = create_blnd_token(&e, &backstop_address, &bombadil);
-        blnd_token_client.mint(&backstop_address, &100_000_0000000);
-
-        e.as_contract(&backstop_address, || {
-            storage::set_pool_emis(&e, &pool_1_id, &50_000_0000000);
-
-            execute_pool_claim(&e, &pool_1_id, &samwise, 42_000_0000000);
-            assert_eq!(
-                blnd_token_client.balance(&backstop_address),
-                100_000_0000000 - 42_000_0000000
-            );
-            assert_eq!(blnd_token_client.balance(&samwise), 42_000_0000000);
-            assert_eq!(
-                storage::get_pool_emis(&e, &pool_1_id),
-                50_000_0000000 - 42_000_0000000
-            );
-        });
-    }
-
-    #[test]
-    #[should_panic(expected = "HostError\nValue: Status(ContractError(10))")]
-    fn test_pool_claim_non_pool() {
-        let e = Env::default();
-        e.mock_all_auths();
-
-        let bombadil = Address::random(&e);
-        let samwise = Address::random(&e);
-
-        let backstop_address = Address::random(&e);
-        let not_pool_id = Address::random(&e);
-        let pool_1_id = Address::random(&e);
-        let (_, pool_factory) = create_mock_pool_factory(&e, &backstop_address);
-        pool_factory.set_pool(&pool_1_id);
-
-        let (_, blnd_token_client) = create_blnd_token(&e, &backstop_address, &bombadil);
-        blnd_token_client.mint(&backstop_address, &100_000_0000000);
-
-        e.as_contract(&backstop_address, || {
-            storage::set_pool_emis(&e, &pool_1_id, &50_000_0000000);
-            execute_pool_claim(&e, &not_pool_id, &samwise, 42_000_0000000);
-        });
-    }
-
-    #[test]
-    #[should_panic(expected = "HostError\nValue: Status(ContractError(11))")]
-    fn test_pool_claim_negative_amount() {
-        let e = Env::default();
-        e.mock_all_auths();
-
-        let bombadil = Address::random(&e);
-        let samwise = Address::random(&e);
-
-        let backstop_address = Address::random(&e);
-        let pool_1_id = Address::random(&e);
-        let (_, pool_factory) = create_mock_pool_factory(&e, &backstop_address);
-        pool_factory.set_pool(&pool_1_id);
-
-        let (_, blnd_token_client) = create_blnd_token(&e, &backstop_address, &bombadil);
-        blnd_token_client.mint(&backstop_address, &100_000_0000000);
-
-        e.as_contract(&backstop_address, || {
-            storage::set_pool_emis(&e, &pool_1_id, &50_000_0000000);
-            execute_pool_claim(&e, &pool_1_id, &samwise, -42_000_0000000);
-        });
-    }
 
     /********** claim **********/
 

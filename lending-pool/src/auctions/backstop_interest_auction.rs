@@ -17,10 +17,6 @@ pub fn create_interest_auction_data(e: &Env, backstop: &Address) -> AuctionData 
         panic_with_error!(e, PoolError::AuctionInProgress);
     }
 
-    // TODO: Determine if any threshold should be required to create interest auction
-    //       It is currently guaranteed that if no auction is active, some interest
-    //       will be generated.
-
     let pool = Pool::load(e);
     let oracle_client = OracleClient::new(e, &pool.config.oracle);
 
@@ -43,6 +39,11 @@ pub fn create_interest_auction_data(e: &Env, backstop: &Address) -> AuctionData 
                 .unwrap_optimized();
             auction_data.lot.set(i, reserve.backstop_credit);
         }
+    }
+
+    // Ensure that the interest value is at least 200 USDC
+    if interest_value <= 200_0000000 {
+        panic_with_error!(e, PoolError::InterestTooSmall);
     }
 
     if auction_data.lot.len() == 0 || interest_value == 0 {
@@ -162,7 +163,8 @@ mod tests {
     }
 
     #[test]
-    fn test_create_interest_auction() {
+    #[should_panic(expected = "ContractError(109)")]
+    fn test_create_interest_auction_under_threshold() {
         let e = Env::default();
         e.mock_all_auths();
         e.budget().reset_unlimited(); // setup exhausts budget
@@ -268,6 +270,118 @@ mod tests {
                     .get_unchecked(reserve_config_1.index)
                     .unwrap_optimized(),
                 2_5000000
+            );
+            assert_eq!(result.lot.len(), 2);
+        });
+    }
+
+    #[test]
+    fn test_create_interest_auction() {
+        let e = Env::default();
+        e.mock_all_auths();
+        e.budget().reset_unlimited(); // setup exhausts budget
+
+        e.ledger().set(LedgerInfo {
+            timestamp: 12345,
+            protocol_version: 1,
+            sequence_number: 50,
+            network_id: Default::default(),
+            base_reserve: 10,
+        });
+
+        let bombadil = Address::random(&e);
+
+        let pool_address = Address::random(&e);
+        let (usdc_id, _) = testutils::create_usdc_token(&e, &pool_address, &bombadil);
+        let (backstop_address, _backstop_client) = testutils::create_backstop(&e);
+        testutils::setup_backstop(
+            &e,
+            &pool_address,
+            &backstop_address,
+            &Address::random(&e),
+            &Address::random(&e),
+        );
+        let (oracle_id, oracle_client) = testutils::create_mock_oracle(&e);
+
+        let (underlying_0, _) = testutils::create_token_contract(&e, &bombadil);
+        let (mut reserve_config_0, mut reserve_data_0) = testutils::default_reserve_meta(&e);
+        reserve_data_0.b_rate = 1_100_000_000;
+        reserve_data_0.last_time = 12345;
+        reserve_config_0.index = 0;
+        testutils::create_reserve(
+            &e,
+            &pool_address,
+            &underlying_0,
+            &reserve_config_0,
+            &reserve_data_0,
+        );
+
+        let (underlying_1, _) = testutils::create_token_contract(&e, &bombadil);
+        let (mut reserve_config_1, mut reserve_data_1) = testutils::default_reserve_meta(&e);
+        reserve_data_1.b_rate = 1_100_000_000;
+        reserve_data_1.last_time = 12345;
+        reserve_config_1.index = 1;
+        testutils::create_reserve(
+            &e,
+            &pool_address,
+            &underlying_1,
+            &reserve_config_1,
+            &reserve_data_1,
+        );
+
+        let (underlying_2, _) = testutils::create_token_contract(&e, &bombadil);
+        let (mut reserve_config_2, mut reserve_data_2) = testutils::default_reserve_meta(&e);
+        reserve_data_2.b_rate = 1_100_000_000;
+        reserve_data_2.last_time = 12345;
+        reserve_config_2.index = 1;
+        testutils::create_reserve(
+            &e,
+            &pool_address,
+            &underlying_2,
+            &reserve_config_2,
+            &reserve_data_2,
+        );
+
+        oracle_client.set_price(&underlying_0, &2_0000000);
+        oracle_client.set_price(&underlying_1, &4_0000000);
+        oracle_client.set_price(&underlying_2, &100_0000000);
+        oracle_client.set_price(&usdc_id, &1_0000000);
+
+        let pool_config = PoolConfig {
+            oracle: oracle_id,
+            bstop_rate: 0_100_000_000,
+            status: 0,
+        };
+        e.as_contract(&pool_address, || {
+            storage::set_pool_config(&e, &pool_config);
+            let pool = Pool::load(&e);
+            let mut reserve_0 = pool.load_reserve(&e, &underlying_0);
+            reserve_0.backstop_credit += 100_0000000;
+            reserve_0.store(&e);
+            let mut reserve_1 = pool.load_reserve(&e, &underlying_1);
+            reserve_1.backstop_credit += 25_0000000;
+            reserve_1.store(&e);
+            let result = create_interest_auction_data(&e, &backstop_address);
+
+            assert_eq!(result.block, 51);
+            assert_eq!(
+                result.bid.get_unchecked(u32::MAX).unwrap_optimized(),
+                420_0000000
+            );
+            assert_eq!(result.bid.len(), 1);
+            assert_eq!(
+                result
+                    .lot
+                    .get_unchecked(reserve_config_0.index)
+                    .unwrap_optimized(),
+                100_0000000
+            );
+            assert_eq!(
+                result
+                    .lot
+                    .get_unchecked(reserve_config_1.index)
+                    .unwrap_optimized(),
+                25_0000000
             );
             assert_eq!(result.lot.len(), 2);
         });

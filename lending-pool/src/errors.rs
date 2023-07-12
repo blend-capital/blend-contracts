@@ -28,4 +28,5 @@ pub enum PoolError {
     InvalidLotTooSmall = 106,
     InvalidBidTooLarge = 107,
     InvalidBidTooSmall = 108,
+    InterestTooSmall = 109,
 }

@@ -1,7 +1,8 @@
 use crate::{
-    backstop, emissions,
+    backstop::{self, PoolBalance, UserBalance, Q4W},
+    emissions,
     errors::BackstopError,
-    storage::{self, Q4W},
+    storage,
 };
 use soroban_sdk::{contractimpl, panic_with_error, Address, Env, Symbol, Vec};
 
@@ -67,14 +68,7 @@ pub trait BackstopModuleContractTrait {
     /// ### Arguments
     /// * `pool_address` - The address of the pool
     /// * `user` - The user to fetch the balance for
-    fn balance(e: Env, pool_address: Address, user: Address) -> i128;
-
-    /// Fetch the withdrawal queue for the user
-    ///
-    /// ### Arguments
-    /// * `pool_address` - The address of the pool
-    /// * `user` - The user to fetch the q4w for
-    fn withdrawal_queue(e: Env, pool_address: Address, user: Address) -> Vec<Q4W>;
+    fn user_balance(e: Env, pool: Address, user: Address) -> UserBalance;
 
     /// Fetch the balances for the pool
     ///
@@ -82,18 +76,18 @@ pub trait BackstopModuleContractTrait {
     ///
     /// ### Arguments
     /// * `pool_address` - The address of the pool
-    fn pool_balance(e: Env, pool_address: Address) -> (i128, i128, i128);
+    fn pool_balance(e: Env, pool_address: Address) -> PoolBalance;
 
     /// Fetch the backstop token for the backstop
     fn backstop_token(e: Env) -> Address;
 
     /********** Emissions **********/
 
-    /// Distribute BLND from the Emitter
-    fn distribute(e: Env);
+    /// Update the backstop for the next emissions cycle from the Emitter
+    fn update_emission_cycle(e: Env);
 
-    /// Fetch the next distribution window in seconds since epoch in UTC
-    fn next_distribution(e: Env) -> u64;
+    /// Fetch the next emission cycle window in seconds since epoch in UTC
+    fn next_emission_cycle(e: Env) -> u64;
 
     /// Add a pool to the reward zone, and if the reward zone is full, a pool to remove
     ///
@@ -216,20 +210,12 @@ impl BackstopModuleContractTrait for BackstopModuleContract {
         to_withdraw
     }
 
-    fn balance(e: Env, pool: Address, user: Address) -> i128 {
-        storage::get_shares(&e, &pool, &user)
+    fn user_balance(e: Env, pool: Address, user: Address) -> UserBalance {
+        storage::get_user_balance(&e, &pool, &user)
     }
 
-    fn withdrawal_queue(e: Env, pool: Address, user: Address) -> Vec<Q4W> {
-        storage::get_q4w(&e, &pool, &user)
-    }
-
-    fn pool_balance(e: Env, pool: Address) -> (i128, i128, i128) {
-        (
-            storage::get_pool_tokens(&e, &pool),
-            storage::get_pool_shares(&e, &pool),
-            storage::get_pool_q4w(&e, &pool),
-        )
+    fn pool_balance(e: Env, pool: Address) -> PoolBalance {
+        storage::get_pool_balance(&e, &pool)
     }
 
     fn backstop_token(e: Env) -> Address {
@@ -238,12 +224,12 @@ impl BackstopModuleContractTrait for BackstopModuleContract {
 
     /********** Emissions **********/
 
-    fn distribute(e: Env) {
-        emissions::distribute(&e);
+    fn update_emission_cycle(e: Env) {
+        emissions::update_emission_cycle(&e);
     }
 
-    fn next_distribution(e: Env) -> u64 {
-        storage::get_next_distribution(&e)
+    fn next_emission_cycle(e: Env) -> u64 {
+        storage::get_next_emission_cycle(&e)
     }
 
     fn add_reward(e: Env, to_add: Address, to_remove: Address) {

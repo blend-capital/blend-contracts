@@ -1,14 +1,8 @@
 use soroban_sdk::{contracttype, unwrap::UnwrapOptimized, vec, Address, Env, Vec};
 
-/********** Storage Types **********/
+use crate::backstop::{PoolBalance, UserBalance};
 
-/// A deposit that is queued for withdrawal
-#[derive(Clone)]
-#[contracttype]
-pub struct Q4W {
-    pub amount: i128, // the amount of shares queued for withdrawal
-    pub exp: u64,     // the expiration of the withdrawal
-}
+/********** Storage Types **********/
 
 // The emission configuration for a pool's backstop
 #[derive(Clone)]
@@ -46,12 +40,9 @@ pub struct PoolUserKey {
 #[derive(Clone)]
 #[contracttype]
 pub enum BackstopDataKey {
-    Shares(PoolUserKey),
-    Q4W(PoolUserKey),
-    PoolTkn(Address),
-    PoolShares(Address),
-    PoolQ4W(Address),
-    NextDist,
+    UserBalance(PoolUserKey),
+    PoolBalance(Address),
+    NextEmis,
     RewardZone,
     PoolEPS(Address),
     BEmisCfg(Address),
@@ -126,159 +117,86 @@ pub fn set_backstop_token(e: &Env, backstop_token_id: &Address) {
 
 /********** User Shares **********/
 
-/// Fetch the balance of shares for a given pool for a user
+/// Fetch the balance's for a given user
 ///
 /// ### Arguments
-/// * `pool` - The pool the backstop deposit represents
+/// * `pool` - The pool the balance is associated with
 /// * `user` - The owner of the deposit
-pub fn get_shares(e: &Env, pool: &Address, user: &Address) -> i128 {
-    let key = BackstopDataKey::Shares(PoolUserKey {
+pub fn get_user_balance(e: &Env, pool: &Address, user: &Address) -> UserBalance {
+    let key = BackstopDataKey::UserBalance(PoolUserKey {
         pool: pool.clone(),
         user: user.clone(),
     });
     e.storage()
-        .get::<BackstopDataKey, i128>(&key)
-        .unwrap_or(Ok(0))
+        .get::<BackstopDataKey, UserBalance>(&key)
+        .unwrap_or(Ok(UserBalance {
+            shares: 0,
+            q4w: vec![e],
+        }))
         .unwrap_optimized()
 }
 
 /// Set share balance for a user deposit in a pool
 ///
 /// ### Arguments
-/// * `pool` - The pool the backstop deposit represents
+/// * `pool` - The pool the balance is associated with
 /// * `user` - The owner of the deposit
-/// * `amount` - The amount of shares
-pub fn set_shares(e: &Env, pool: &Address, user: &Address, amount: &i128) {
-    let key = BackstopDataKey::Shares(PoolUserKey {
-        pool: pool.clone(),
-        user: user.clone(),
-    });
-    e.storage().set::<BackstopDataKey, i128>(&key, amount);
-}
-
-/********** User Queued for Withdrawal **********/
-
-/// Fetch the current withdrawals the user has queued for a given pool
-///
-/// Returns an empty vec if no q4w's are present
-///
-/// ### Arguments
-/// * `pool` - The pool the backstop deposit represents
-/// * `user` - The owner of the deposit
-pub fn get_q4w(e: &Env, pool: &Address, user: &Address) -> Vec<Q4W> {
-    let key = BackstopDataKey::Q4W(PoolUserKey {
+/// * `balance` - The user balance
+pub fn set_user_balance(e: &Env, pool: &Address, user: &Address, balance: &UserBalance) {
+    let key = BackstopDataKey::UserBalance(PoolUserKey {
         pool: pool.clone(),
         user: user.clone(),
     });
     e.storage()
-        .get::<BackstopDataKey, Vec<Q4W>>(&key)
-        .unwrap_or(Ok(vec![e]))
-        .unwrap_optimized()
+        .set::<BackstopDataKey, UserBalance>(&key, balance);
 }
 
-/// Set the array of Q4W for a user's deposits in a pool
+/********** Pool Balance **********/
+
+/// Fetch the balances for a given pool
 ///
 /// ### Arguments
-/// * `pool` - The pool the backstop deposit represents
-/// * `user` - The owner of the deposit
-/// * `qw4` - The array of queued withdrawals
-pub fn set_q4w(e: &Env, pool: &Address, user: &Address, q4w: &Vec<Q4W>) {
-    let key = BackstopDataKey::Q4W(PoolUserKey {
-        pool: pool.clone(),
-        user: user.clone(),
-    });
-    e.storage().set::<BackstopDataKey, Vec<Q4W>>(&key, q4w);
-}
-
-/********** Pool Shares **********/
-
-/// Fetch the total balance of shares for a given pool
-///
-/// ### Arguments
-/// * `pool` - The pool the backstop deposit represents
-pub fn get_pool_shares(e: &Env, pool: &Address) -> i128 {
-    let key = BackstopDataKey::PoolShares(pool.clone());
+/// * `pool` - The pool the deposit is associated with
+pub fn get_pool_balance(e: &Env, pool: &Address) -> PoolBalance {
+    let key = BackstopDataKey::PoolBalance(pool.clone());
     e.storage()
-        .get::<BackstopDataKey, i128>(&key)
-        .unwrap_or(Ok(0))
+        .get::<BackstopDataKey, PoolBalance>(&key)
+        .unwrap_or(Ok(PoolBalance {
+            shares: 0,
+            tokens: 0,
+            q4w: 0,
+        }))
         .unwrap_optimized()
 }
 
-/// Set share deposit total for a pool
+/// Set the balances for a pool
 ///
 /// ### Arguments
-/// * `pool` - The pool the backstop deposit represents
-/// * `amount` - The amount of shares
-pub fn set_pool_shares(e: &Env, pool: &Address, amount: &i128) {
-    let key = BackstopDataKey::PoolShares(pool.clone());
-    e.storage().set::<BackstopDataKey, i128>(&key, &amount);
-}
-
-/********** Pool Queued for Withdrawal **********/
-
-/// Fetch the total balance of shares queued for withdraw for a given pool
-///
-/// ### Arguments
-/// * `pool` - The pool the backstop deposit represents
-pub fn get_pool_q4w(e: &Env, pool: &Address) -> i128 {
-    let key = BackstopDataKey::PoolQ4W(pool.clone());
+/// * `pool` - The pool the deposit is associated with
+/// * `balance` - The pool balances
+pub fn set_pool_balance(e: &Env, pool: &Address, balance: &PoolBalance) {
+    let key = BackstopDataKey::PoolBalance(pool.clone());
     e.storage()
-        .get::<BackstopDataKey, i128>(&key)
-        .unwrap_or(Ok(0))
-        .unwrap_optimized()
-}
-
-/// Set the total amount of shares queued for withdrawal for a pool
-///
-/// ### Arguments
-/// * `pool` - The pool the backstop deposit represents
-/// * `amount` - The amount of shares queued for withdrawal for the pool
-pub fn set_pool_q4w(e: &Env, pool: &Address, amount: &i128) {
-    let key = BackstopDataKey::PoolQ4W(pool.clone());
-    e.storage().set::<BackstopDataKey, i128>(&key, amount);
-}
-
-/********** Pool Tokens **********/
-
-/// Get the balance of tokens in the backstop for a pool
-///
-/// ### Arguments
-/// * `pool` - The pool the backstop balance belongs to
-pub fn get_pool_tokens(e: &Env, pool: &Address) -> i128 {
-    let key = BackstopDataKey::PoolTkn(pool.clone());
-    e.storage()
-        .get::<BackstopDataKey, i128>(&key)
-        .unwrap_or(Ok(0))
-        .unwrap_optimized()
-}
-
-/// Set the balance of tokens in the backstop for a pool
-///
-/// ### Arguments
-/// * `pool` - The pool the backstop balance belongs to
-/// * `amount` - The amount of tokens attributed to the pool
-pub fn set_pool_tokens(e: &Env, pool: &Address, amount: &i128) {
-    let key = BackstopDataKey::PoolTkn(pool.clone());
-    e.storage().set::<BackstopDataKey, i128>(&key, amount);
+        .set::<BackstopDataKey, PoolBalance>(&key, &balance);
 }
 
 /********** Distribution / Reward Zone **********/
 
-/// Get the timestamp of when the next distribution window opens
-pub fn get_next_distribution(e: &Env) -> u64 {
+/// Get the timestamp of when the next emission cycle begins
+pub fn get_next_emission_cycle(e: &Env) -> u64 {
     e.storage()
-        .get::<BackstopDataKey, u64>(&BackstopDataKey::NextDist)
+        .get::<BackstopDataKey, u64>(&BackstopDataKey::NextEmis)
         .unwrap_or(Ok(0))
         .unwrap_optimized()
 }
 
-/// Set the timestamp of when the next distribution window opens
+/// Set the timestamp of when the next emission cycle begins
 ///
 /// ### Arguments
 /// * `timestamp` - The timestamp the distribution window will open
-pub fn set_next_distribution(e: &Env, timestamp: &u64) {
+pub fn set_next_emission_cycle(e: &Env, timestamp: &u64) {
     e.storage()
-        .set::<BackstopDataKey, u64>(&BackstopDataKey::NextDist, timestamp);
+        .set::<BackstopDataKey, u64>(&BackstopDataKey::NextEmis, timestamp);
 }
 
 /// Get the current pool addresses that are in the reward zone
@@ -324,7 +242,7 @@ pub fn set_pool_eps(e: &Env, pool: &Address, eps: &i128) {
 
 /********** Backstop Depositor Emissions **********/
 
-/// Get the pool's backstop emissions config, or None if
+/// Get the pool's backstop emissions config, or None
 ///
 /// ### Arguments
 /// * `pool` - The pool
@@ -337,6 +255,15 @@ pub fn get_backstop_emis_config(e: &Env, pool: &Address) -> Option<BackstopEmiss
         Some(data) => Some(data.unwrap_optimized()),
         None => None,
     }
+}
+
+/// Check if the pool's backstop emissions config is set
+///
+/// ### Arguments
+/// * `pool` - The pool
+pub fn has_backstop_emis_config(e: &Env, pool: &Address) -> bool {
+    let key = BackstopDataKey::BEmisCfg(pool.clone());
+    e.storage().has::<BackstopDataKey>(&key)
 }
 
 /// Set the pool's backstop emissions config

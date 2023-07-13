@@ -1,27 +1,9 @@
-use crate::{
-    contract::require_nonnegative, dependencies::TokenClient, errors::BackstopError, pool::Pool,
-    storage, user::User,
-};
+use crate::{dependencies::TokenClient, errors::BackstopError, storage};
 use soroban_sdk::{panic_with_error, Address, Env, Vec};
 
-use super::update_emission_index;
+use super::update_emissions;
 
 // TODO: Deposit emissions back into the backstop automatically after 80/20 BLND deposit function added
-
-/// Perform a claim for pool emissions by a pool from the backstop module
-pub fn execute_pool_claim(e: &Env, pool_address: &Address, to: &Address, amount: i128) {
-    require_nonnegative(e, amount);
-
-    let mut pool = Pool::new(e, pool_address.clone());
-    pool.verify_pool(&e);
-    pool.claim(e, amount);
-    pool.write_emissions(&e);
-
-    if amount > 0 {
-        let blnd_token = TokenClient::new(e, &storage::get_blnd_token(e));
-        blnd_token.transfer(&e.current_contract_address(), &to, &amount);
-    }
-}
 
 /// Perform a claim for backstop deposit emissions by a user from the backstop module
 pub fn execute_claim(e: &Env, from: &Address, pool_addresses: &Vec<Address>, to: &Address) -> i128 {
@@ -30,11 +12,10 @@ pub fn execute_claim(e: &Env, from: &Address, pool_addresses: &Vec<Address>, to:
     }
 
     let mut claimed: i128 = 0;
-    for pool_addr in pool_addresses.iter_unchecked() {
-        let mut pool = Pool::new(e, pool_addr.clone());
-        let mut pool_user = User::new(pool_addr, from.clone());
-
-        claimed += update_emission_index(e, &mut pool, &mut pool_user, true);
+    for pool_id in pool_addresses.iter_unchecked() {
+        let pool_balance = storage::get_pool_balance(e, &pool_id);
+        let user_balance = storage::get_user_balance(e, &pool_id, &from);
+        claimed += update_emissions(e, &pool_id, &pool_balance, from, &user_balance, true);
     }
 
     if claimed > 0 {
@@ -48,8 +29,9 @@ pub fn execute_claim(e: &Env, from: &Address, pool_addresses: &Vec<Address>, to:
 #[cfg(test)]
 mod tests {
     use crate::{
+        backstop::{PoolBalance, UserBalance},
         storage::{BackstopEmissionConfig, BackstopEmissionsData, UserEmissionData},
-        testutils::{create_blnd_token, create_mock_pool_factory},
+        testutils::create_blnd_token,
     };
 
     use super::*;
@@ -58,87 +40,6 @@ mod tests {
         unwrap::UnwrapOptimized,
         vec,
     };
-
-    /********** pool_claim **********/
-
-    #[test]
-    fn test_pool_claim() {
-        let e = Env::default();
-        e.mock_all_auths();
-
-        let bombadil = Address::random(&e);
-        let samwise = Address::random(&e);
-
-        let backstop_address = Address::random(&e);
-        let pool_1_id = Address::random(&e);
-        let (_, pool_factory) = create_mock_pool_factory(&e, &backstop_address);
-        pool_factory.set_pool(&pool_1_id);
-
-        let (_, blnd_token_client) = create_blnd_token(&e, &backstop_address, &bombadil);
-        blnd_token_client.mint(&backstop_address, &100_000_0000000);
-
-        e.as_contract(&backstop_address, || {
-            storage::set_pool_emis(&e, &pool_1_id, &50_000_0000000);
-
-            execute_pool_claim(&e, &pool_1_id, &samwise, 42_000_0000000);
-            assert_eq!(
-                blnd_token_client.balance(&backstop_address),
-                100_000_0000000 - 42_000_0000000
-            );
-            assert_eq!(blnd_token_client.balance(&samwise), 42_000_0000000);
-            assert_eq!(
-                storage::get_pool_emis(&e, &pool_1_id),
-                50_000_0000000 - 42_000_0000000
-            );
-        });
-    }
-
-    #[test]
-    #[should_panic(expected = "HostError\nValue: Status(ContractError(10))")]
-    fn test_pool_claim_non_pool() {
-        let e = Env::default();
-        e.mock_all_auths();
-
-        let bombadil = Address::random(&e);
-        let samwise = Address::random(&e);
-
-        let backstop_address = Address::random(&e);
-        let not_pool_id = Address::random(&e);
-        let pool_1_id = Address::random(&e);
-        let (_, pool_factory) = create_mock_pool_factory(&e, &backstop_address);
-        pool_factory.set_pool(&pool_1_id);
-
-        let (_, blnd_token_client) = create_blnd_token(&e, &backstop_address, &bombadil);
-        blnd_token_client.mint(&backstop_address, &100_000_0000000);
-
-        e.as_contract(&backstop_address, || {
-            storage::set_pool_emis(&e, &pool_1_id, &50_000_0000000);
-            execute_pool_claim(&e, &not_pool_id, &samwise, 42_000_0000000);
-        });
-    }
-
-    #[test]
-    #[should_panic(expected = "HostError\nValue: Status(ContractError(11))")]
-    fn test_pool_claim_negative_amount() {
-        let e = Env::default();
-        e.mock_all_auths();
-
-        let bombadil = Address::random(&e);
-        let samwise = Address::random(&e);
-
-        let backstop_address = Address::random(&e);
-        let pool_1_id = Address::random(&e);
-        let (_, pool_factory) = create_mock_pool_factory(&e, &backstop_address);
-        pool_factory.set_pool(&pool_1_id);
-
-        let (_, blnd_token_client) = create_blnd_token(&e, &backstop_address, &bombadil);
-        blnd_token_client.mint(&backstop_address, &100_000_0000000);
-
-        e.as_contract(&backstop_address, || {
-            storage::set_pool_emis(&e, &pool_1_id, &50_000_0000000);
-            execute_pool_claim(&e, &pool_1_id, &samwise, -42_000_0000000);
-        });
-    }
 
     /********** claim **********/
 
@@ -198,12 +99,42 @@ mod tests {
             storage::set_backstop_emis_data(&e, &pool_2_id, &backstop_2_emissions_data);
             storage::set_user_emis_data(&e, &pool_2_id, &samwise, &user_2_emissions_data);
 
-            storage::set_pool_tokens(&e, &pool_1_id, &200_0000000);
-            storage::set_pool_shares(&e, &pool_1_id, &150_0000000);
-            storage::set_shares(&e, &pool_1_id, &samwise, &9_0000000);
-            storage::set_pool_tokens(&e, &pool_2_id, &75_0000000);
-            storage::set_pool_shares(&e, &pool_2_id, &70_0000000);
-            storage::set_shares(&e, &pool_2_id, &samwise, &7_5000000);
+            storage::set_pool_balance(
+                &e,
+                &pool_1_id,
+                &PoolBalance {
+                    shares: 150_0000000,
+                    tokens: 200_0000000,
+                    q4w: 2_0000000,
+                },
+            );
+            storage::set_user_balance(
+                &e,
+                &pool_1_id,
+                &samwise,
+                &UserBalance {
+                    shares: 9_0000000,
+                    q4w: vec![&e],
+                },
+            );
+            storage::set_pool_balance(
+                &e,
+                &pool_2_id,
+                &PoolBalance {
+                    shares: 70_0000000,
+                    tokens: 75_0000000,
+                    q4w: 3_5000000,
+                },
+            );
+            storage::set_user_balance(
+                &e,
+                &pool_2_id,
+                &samwise,
+                &UserBalance {
+                    shares: 7_5000000,
+                    q4w: vec![&e],
+                },
+            );
 
             let result = execute_claim(
                 &e,
@@ -294,12 +225,42 @@ mod tests {
             storage::set_backstop_emis_data(&e, &pool_2_id, &backstop_2_emissions_data);
             storage::set_user_emis_data(&e, &pool_2_id, &samwise, &user_2_emissions_data);
 
-            storage::set_pool_tokens(&e, &pool_1_id, &200_0000000);
-            storage::set_pool_shares(&e, &pool_1_id, &150_0000000);
-            storage::set_shares(&e, &pool_1_id, &samwise, &9_0000000);
-            storage::set_pool_tokens(&e, &pool_2_id, &75_0000000);
-            storage::set_pool_shares(&e, &pool_2_id, &70_0000000);
-            storage::set_shares(&e, &pool_2_id, &samwise, &7_5000000);
+            storage::set_pool_balance(
+                &e,
+                &pool_1_id,
+                &PoolBalance {
+                    shares: 150_0000000,
+                    tokens: 200_0000000,
+                    q4w: 2_0000000,
+                },
+            );
+            storage::set_user_balance(
+                &e,
+                &pool_1_id,
+                &samwise,
+                &UserBalance {
+                    shares: 9_0000000,
+                    q4w: vec![&e],
+                },
+            );
+            storage::set_pool_balance(
+                &e,
+                &pool_2_id,
+                &PoolBalance {
+                    shares: 70_0000000,
+                    tokens: 75_0000000,
+                    q4w: 3_5000000,
+                },
+            );
+            storage::set_user_balance(
+                &e,
+                &pool_2_id,
+                &samwise,
+                &UserBalance {
+                    shares: 7_5000000,
+                    q4w: vec![&e],
+                },
+            );
 
             let result = execute_claim(
                 &e,
@@ -422,10 +383,24 @@ mod tests {
             storage::set_backstop_emis_config(&e, &pool_2_id, &backstop_2_emissions_config);
             storage::set_backstop_emis_data(&e, &pool_2_id, &backstop_2_emissions_data);
 
-            storage::set_pool_tokens(&e, &pool_1_id, &200_0000000);
-            storage::set_pool_shares(&e, &pool_1_id, &150_0000000);
-            storage::set_pool_tokens(&e, &pool_2_id, &75_0000000);
-            storage::set_pool_shares(&e, &pool_2_id, &70_0000000);
+            storage::set_pool_balance(
+                &e,
+                &pool_1_id,
+                &PoolBalance {
+                    shares: 150_0000000,
+                    tokens: 200_0000000,
+                    q4w: 0,
+                },
+            );
+            storage::set_pool_balance(
+                &e,
+                &pool_2_id,
+                &PoolBalance {
+                    shares: 70_0000000,
+                    tokens: 75_0000000,
+                    q4w: 0,
+                },
+            );
 
             let result = execute_claim(
                 &e,

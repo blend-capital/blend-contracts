@@ -1,14 +1,17 @@
-use crate::{contract::require_nonnegative, dependencies::TokenClient, pool::Pool, storage};
+use crate::{contract::require_nonnegative, dependencies::TokenClient, storage};
 use soroban_sdk::{Address, Env};
+
+use super::require_is_from_pool_factory;
 
 /// Perform a draw from a pool's backstop
 pub fn execute_draw(e: &Env, pool_address: &Address, amount: i128, to: &Address) {
     require_nonnegative(e, amount);
-    let mut pool = Pool::new(e, pool_address.clone()); // TODO: Fix
-    pool.verify_pool(&e);
+    require_is_from_pool_factory(e, pool_address);
 
-    pool.withdraw(e, amount, 0);
-    pool.write_tokens(&e);
+    let mut pool_balance = storage::get_pool_balance(e, pool_address);
+
+    pool_balance.withdraw(e, amount, 0);
+    storage::set_pool_balance(e, pool_address, &pool_balance);
 
     let backstop_token = TokenClient::new(e, &storage::get_backstop_token(e));
     backstop_token.transfer(&e.current_contract_address(), &to, &amount);
@@ -17,13 +20,13 @@ pub fn execute_draw(e: &Env, pool_address: &Address, amount: i128, to: &Address)
 /// Perform a donation to a pool's backstop
 pub fn execute_donate(e: &Env, from: &Address, pool_address: &Address, amount: i128) {
     require_nonnegative(e, amount);
-    let mut pool = Pool::new(e, pool_address.clone());
 
     let backstop_token = TokenClient::new(e, &storage::get_backstop_token(e));
     backstop_token.transfer(&from, &e.current_contract_address(), &amount);
 
-    pool.deposit(e, amount, 0);
-    pool.write_tokens(&e);
+    let mut pool_balance = storage::get_pool_balance(e, pool_address);
+    pool_balance.deposit(amount, 0);
+    storage::set_pool_balance(e, pool_address, &pool_balance);
 }
 
 #[cfg(test)]
@@ -59,13 +62,15 @@ mod tests {
 
         e.as_contract(&backstop_id, || {
             execute_donate(&e, &samwise, &pool_0_id, 30_0000000);
-            assert_eq!(storage::get_pool_shares(&e, &pool_0_id), 25_0000000);
-            assert_eq!(storage::get_pool_tokens(&e, &pool_0_id), 55_0000000);
+
+            let new_pool_balance = storage::get_pool_balance(&e, &pool_0_id);
+            assert_eq!(new_pool_balance.shares, 25_0000000);
+            assert_eq!(new_pool_balance.tokens, 55_0000000);
         });
     }
 
     #[test]
-    #[should_panic(expected = "HostError\nValue: Status(ContractError(11))")]
+    #[should_panic(expected = "ContractError(11)")]
     fn test_execute_donate_negative_amount() {
         let e = Env::default();
         e.mock_all_auths();
@@ -114,15 +119,17 @@ mod tests {
 
         e.as_contract(&backstop_address, || {
             execute_draw(&e, &pool_0_id, 30_0000000, &samwise);
-            assert_eq!(storage::get_pool_shares(&e, &pool_0_id), 50_0000000);
-            assert_eq!(storage::get_pool_tokens(&e, &pool_0_id), 20_0000000);
+
+            let new_pool_balance = storage::get_pool_balance(&e, &pool_0_id);
+            assert_eq!(new_pool_balance.shares, 50_0000000);
+            assert_eq!(new_pool_balance.tokens, 20_0000000);
             assert_eq!(backstop_token_client.balance(&backstop_address), 20_0000000);
             assert_eq!(backstop_token_client.balance(&samwise), 30_0000000);
         });
     }
 
     #[test]
-    #[should_panic(expected = "HostError\nValue: Status(ContractError(10))")]
+    #[should_panic(expected = "ContractError(10)")]
     fn test_execute_draw_requires_pool_factory_verification() {
         let e = Env::default();
         e.mock_all_auths();
@@ -181,7 +188,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "HostError\nValue: Status(ContractError(11))")]
+    #[should_panic(expected = "ContractError(11)")]
     fn test_execute_draw_negative_amount() {
         let e = Env::default();
         e.mock_all_auths();

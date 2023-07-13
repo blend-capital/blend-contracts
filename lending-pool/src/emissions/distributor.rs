@@ -3,7 +3,7 @@ use fixed_point_math::FixedPoint;
 use soroban_sdk::{panic_with_error, unwrap::UnwrapOptimized, Address, Env, Vec};
 
 use crate::{
-    dependencies::BackstopClient,
+    dependencies::TokenClient,
     errors::PoolError,
     storage::{self, ReserveEmissionsData, UserEmissionData},
 };
@@ -50,9 +50,14 @@ pub fn execute_claim(e: &Env, from: &Address, reserve_token_ids: &Vec<u32>, to: 
     }
 
     if to_claim > 0 {
-        let bkstp_addr = storage::get_backstop(e);
-        let backstop = BackstopClient::new(&e, &bkstp_addr);
-        backstop.pool_claim(&e.current_contract_address(), &to, &to_claim);
+        let backstop = storage::get_backstop(e);
+        let blnd_token = storage::get_blnd_token(e);
+        TokenClient::new(e, &blnd_token).transfer_from(
+            &e.current_contract_address(),
+            &backstop,
+            &to,
+            &to_claim,
+        );
     }
     to_claim
 }
@@ -214,9 +219,7 @@ fn set_user_emissions(
 
 #[cfg(test)]
 mod tests {
-    use crate::{
-        dependencies::BackstopDataKey, pool::Positions, storage::ReserveEmissionsConfig, testutils,
-    };
+    use crate::{pool::Positions, storage::ReserveEmissionsConfig, testutils};
 
     use super::*;
     use soroban_sdk::{
@@ -991,16 +994,11 @@ mod tests {
         let samwise = Address::random(&e);
         let merry = Address::random(&e);
 
-        let (blnd_token, blnd_token_client) = testutils::create_blnd_token(&e, &pool, &bombadil);
-        let (backstop_token, _) = testutils::create_token_contract(&e, &bombadil);
-        let (backstop, _) = testutils::create_backstop(&e);
-        testutils::setup_backstop(&e, &pool, &backstop, &backstop_token, &blnd_token);
+        let (_, blnd_token_client) = testutils::create_blnd_token(&e, &pool, &bombadil);
+        let backstop = Address::random(&e);
         // mock backstop having emissions for pool
         e.as_contract(&backstop, || {
-            e.storage().set::<BackstopDataKey, i128>(
-                &BackstopDataKey::PoolEmis(pool.clone()),
-                &100_000_0000000_i128,
-            );
+            blnd_token_client.increase_allowance(&backstop, &pool, &100_000_0000000_i128);
         });
         blnd_token_client.mint(&backstop, &100_000_0000000);
 
@@ -1031,6 +1029,7 @@ mod tests {
         user_positions.add_supply(1, 1_000_000_000);
         user_positions.add_collateral(1, 1_000_000_000);
         e.as_contract(&pool, || {
+            storage::set_backstop(&e, &backstop);
             storage::set_user_positions(&e, &samwise, &user_positions);
 
             let reserve_emission_config_0 = ReserveEmissionsConfig {
@@ -1115,17 +1114,13 @@ mod tests {
         let bombadil = Address::random(&e);
         let samwise = Address::random(&e);
         let merry = Address::random(&e);
+        let backstop = Address::random(&e);
 
-        let (blnd_token, blnd_token_client) = testutils::create_blnd_token(&e, &pool, &bombadil);
-        let (backstop_token, _) = testutils::create_token_contract(&e, &bombadil);
-        let (backstop, _) = testutils::create_backstop(&e);
-        testutils::setup_backstop(&e, &pool, &backstop, &backstop_token, &blnd_token);
+        let (_, blnd_token_client) = testutils::create_blnd_token(&e, &pool, &bombadil);
+
         // mock backstop having emissions for pool
         e.as_contract(&backstop, || {
-            e.storage().set::<BackstopDataKey, i128>(
-                &BackstopDataKey::PoolEmis(pool.clone()),
-                &100_000_0000000_i128,
-            );
+            blnd_token_client.increase_allowance(&backstop, &pool, &100_000_0000000_i128);
         });
         blnd_token_client.mint(&backstop, &100_000_0000000);
 
@@ -1156,6 +1151,7 @@ mod tests {
         user_positions.add_supply(1, 1_000_000_000);
         user_positions.add_collateral(1, 1_000_000_000);
         e.as_contract(&pool, || {
+            storage::set_backstop(&e, &backstop);
             storage::set_user_positions(&e, &samwise, &user_positions);
 
             let reserve_emission_config_0 = ReserveEmissionsConfig {

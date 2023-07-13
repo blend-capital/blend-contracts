@@ -1,29 +1,23 @@
-use crate::{
-    contract::require_nonnegative, dependencies::TokenClient, emissions, pool::Pool, storage,
-    user::User,
-};
+use crate::{contract::require_nonnegative, dependencies::TokenClient, emissions, storage};
 use soroban_sdk::{Address, Env};
 
 /// Perform a deposit into the backstop module
 pub fn execute_deposit(e: &Env, from: &Address, pool_address: &Address, amount: i128) -> i128 {
     require_nonnegative(e, amount);
-    let mut user = User::new(pool_address.clone(), from.clone());
-    let mut pool = Pool::new(e, pool_address.clone());
+    let mut pool_balance = storage::get_pool_balance(e, pool_address);
+    let mut user_balance = storage::get_user_balance(e, pool_address, from);
 
-    emissions::update_emission_index(e, &mut pool, &mut user, false);
-
-    let to_mint = pool.convert_to_shares(e, amount);
+    emissions::update_emissions(e, pool_address, &pool_balance, from, &user_balance, false);
 
     let backstop_token_client = TokenClient::new(e, &storage::get_backstop_token(e));
     backstop_token_client.transfer(&from, &e.current_contract_address(), &amount);
 
-    // "mint" shares
-    pool.deposit(e, amount, to_mint);
-    pool.write_shares(e);
-    pool.write_tokens(e);
+    let to_mint = pool_balance.convert_to_shares(amount);
+    pool_balance.deposit(amount, to_mint);
+    user_balance.add_shares(to_mint);
 
-    user.add_shares(e, to_mint);
-    user.write_shares(e);
+    storage::set_pool_balance(e, pool_address, &pool_balance);
+    storage::set_user_balance(e, pool_address, from, &user_balance);
 
     to_mint
 }
@@ -62,14 +56,23 @@ mod tests {
             let shares_0 = execute_deposit(&e, &samwise, &pool_0_id, 30_0000000);
             let shares_1 = execute_deposit(&e, &samwise, &pool_1_id, 70_0000000);
 
-            assert_eq!(shares_0, storage::get_shares(&e, &pool_0_id, &samwise));
+            let new_pool_0_balance = storage::get_pool_balance(&e, &pool_0_id);
+            assert_eq!(new_pool_0_balance.shares, 40_0000000);
+            assert_eq!(new_pool_0_balance.tokens, 80_0000000);
+            assert_eq!(new_pool_0_balance.q4w, 0);
+
+            let new_user_balance_0 = storage::get_user_balance(&e, &pool_0_id, &samwise);
+            assert_eq!(new_user_balance_0.shares, shares_0);
             assert_eq!(shares_0, 15_0000000);
-            assert_eq!(storage::get_pool_shares(&e, &pool_0_id), 40_0000000);
-            assert_eq!(storage::get_pool_tokens(&e, &pool_0_id), 80_0000000);
-            assert_eq!(storage::get_shares(&e, &pool_1_id, &samwise), shares_1);
+
+            let new_pool_1_balance = storage::get_pool_balance(&e, &pool_1_id);
+            assert_eq!(new_pool_1_balance.shares, 70_0000000);
+            assert_eq!(new_pool_1_balance.tokens, 70_0000000);
+            assert_eq!(new_pool_1_balance.q4w, 0);
+
+            let new_user_balance_1 = storage::get_user_balance(&e, &pool_1_id, &samwise);
+            assert_eq!(new_user_balance_1.shares, shares_1);
             assert_eq!(shares_1, 70_0000000);
-            assert_eq!(storage::get_pool_shares(&e, &pool_1_id), 70_0000000);
-            assert_eq!(storage::get_pool_tokens(&e, &pool_1_id), 70_0000000);
 
             assert_eq!(
                 backstop_token_client.balance(&backstop_address),
@@ -102,7 +105,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "HostError\nValue: Status(ContractError(11))")]
+    #[should_panic(expected = "ContractError(11)")]
     fn test_execute_deposit_negative_tokens() {
         let e = Env::default();
         e.mock_all_auths();

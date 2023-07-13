@@ -13,15 +13,15 @@ pub fn execute_update_pool_status(e: &Env) -> u32 {
     let backstop_id = storage::get_backstop(e);
     let backstop_client = BackstopClient::new(e, &backstop_id);
 
-    let (pool_tokens, pool_shares, shares_q4w) =
-        backstop_client.pool_balance(&e.current_contract_address());
-    let q4w_pct = shares_q4w
-        .fixed_div_floor(pool_shares, SCALAR_7)
+    let pool_balance = backstop_client.pool_balance(&e.current_contract_address());
+    let q4w_pct = pool_balance
+        .q4w
+        .fixed_div_floor(pool_balance.shares, SCALAR_7)
         .unwrap_optimized();
 
     if q4w_pct >= 0_5000000 {
         pool_config.status = 2;
-    } else if q4w_pct >= 0_2500000 || pool_tokens < 1_000_000_0000000 {
+    } else if q4w_pct >= 0_2500000 || pool_balance.tokens < 1_000_000_0000000 {
         pool_config.status = 1;
     } else {
         pool_config.status = 0;
@@ -42,8 +42,8 @@ pub fn set_pool_status(e: &Env, admin: &Address, pool_status: u32) {
         let backstop_id = storage::get_backstop(e);
         let backstop_client = BackstopClient::new(e, &backstop_id);
 
-        let (pool_tokens, _, _) = backstop_client.pool_balance(&e.current_contract_address());
-        if pool_tokens < 1_000_000_0000000 {
+        let pool_balance = backstop_client.pool_balance(&e.current_contract_address());
+        if pool_balance.tokens < 1_000_000_0000000 {
             panic_with_error!(e, PoolError::InvalidPoolStatus);
         }
     }

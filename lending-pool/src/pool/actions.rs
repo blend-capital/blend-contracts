@@ -1,6 +1,4 @@
-use soroban_sdk::{
-    contracttype, panic_with_error, unwrap::UnwrapOptimized, vec, Address, Env, Vec,
-};
+use soroban_sdk::{contracttype, panic_with_error, vec, Address, Env, Vec};
 
 use crate::{
     emissions, errors::PoolError, pool::Positions, storage, validator::require_nonnegative,
@@ -56,13 +54,12 @@ pub fn build_actions_from_request(
     let mut new_positions = old_positions.clone();
     let mut check_health = false;
     let reserve_list = storage::get_res_list(e);
-    for request in requests.iter_unchecked() {
+    for request in requests.iter() {
         // verify reserve is supported in the pool and the action is allowed
         require_nonnegative(e, &request.amount);
         let asset = reserve_list
             .get(request.reserve_index)
-            .unwrap_or_else(|| panic_with_error!(e, PoolError::BadRequest))
-            .unwrap_optimized();
+            .unwrap_or_else(|| panic_with_error!(e, PoolError::BadRequest));
         pool.require_action_allowed(e, request.request_type);
         let mut reserve = pool.load_reserve(e, &asset);
 
@@ -254,6 +251,9 @@ mod tests {
             sequence_number: 1234,
             network_id: Default::default(),
             base_reserve: 10,
+            min_temp_entry_expiration: 10,
+            min_persistent_entry_expiration: 10,
+            max_entry_expiration: 2000000,
         });
         let pool_config = PoolConfig {
             oracle: Address::random(&e),
@@ -279,7 +279,7 @@ mod tests {
             assert_eq!(health_check, false);
 
             assert_eq!(actions.len(), 1);
-            let action = actions.get_unchecked(0).unwrap_optimized();
+            let action = actions.get_unchecked(0);
             assert_eq!(action.asset, underlying);
             assert_eq!(action.tokens_out, 0);
             assert_eq!(action.tokens_in, 10_1234567);
@@ -318,6 +318,9 @@ mod tests {
             sequence_number: 1234,
             network_id: Default::default(),
             base_reserve: 10,
+            min_temp_entry_expiration: 10,
+            min_persistent_entry_expiration: 10,
+            max_entry_expiration: 2000000,
         });
         let pool_config = PoolConfig {
             oracle: Address::random(&e),
@@ -346,7 +349,7 @@ mod tests {
             assert_eq!(health_check, false);
 
             assert_eq!(actions.len(), 1);
-            let action = actions.get_unchecked(0).unwrap_optimized();
+            let action = actions.get_unchecked(0);
             assert_eq!(action.asset, underlying_1);
             assert_eq!(action.tokens_out, 10_1234567);
             assert_eq!(action.tokens_in, 0);
@@ -383,6 +386,9 @@ mod tests {
             sequence_number: 1234,
             network_id: Default::default(),
             base_reserve: 10,
+            min_temp_entry_expiration: 10,
+            min_persistent_entry_expiration: 10,
+            max_entry_expiration: 2000000,
         });
         let pool_config = PoolConfig {
             oracle: Address::random(&e),
@@ -411,7 +417,7 @@ mod tests {
             assert_eq!(health_check, false);
 
             assert_eq!(actions.len(), 1);
-            let action = actions.get_unchecked(0).unwrap_optimized();
+            let action = actions.get_unchecked(0);
             assert_eq!(action.asset, underlying_1);
             assert_eq!(action.tokens_out, 20_0000137);
             assert_eq!(action.tokens_in, 0);
@@ -446,6 +452,9 @@ mod tests {
             sequence_number: 1234,
             network_id: Default::default(),
             base_reserve: 10,
+            min_temp_entry_expiration: 10,
+            min_persistent_entry_expiration: 10,
+            max_entry_expiration: 2000000,
         });
         let pool_config = PoolConfig {
             oracle: Address::random(&e),
@@ -471,7 +480,7 @@ mod tests {
             assert_eq!(health_check, false);
 
             assert_eq!(actions.len(), 1);
-            let action = actions.get_unchecked(0).unwrap_optimized();
+            let action = actions.get_unchecked(0);
             assert_eq!(action.asset, underlying);
             assert_eq!(action.tokens_out, 0);
             assert_eq!(action.tokens_in, 10_1234567);
@@ -510,6 +519,9 @@ mod tests {
             sequence_number: 1234,
             network_id: Default::default(),
             base_reserve: 10,
+            min_temp_entry_expiration: 10,
+            min_persistent_entry_expiration: 10,
+            max_entry_expiration: 2000000,
         });
         let pool_config = PoolConfig {
             oracle: Address::random(&e),
@@ -538,7 +550,7 @@ mod tests {
             assert_eq!(health_check, true);
 
             assert_eq!(actions.len(), 1);
-            let action = actions.get_unchecked(0).unwrap_optimized();
+            let action = actions.get_unchecked(0);
             assert_eq!(action.asset, underlying_1);
             assert_eq!(action.tokens_out, 10_1234567);
             assert_eq!(action.tokens_in, 0);
@@ -575,6 +587,9 @@ mod tests {
             sequence_number: 1234,
             network_id: Default::default(),
             base_reserve: 10,
+            min_temp_entry_expiration: 10,
+            min_persistent_entry_expiration: 10,
+            max_entry_expiration: 2000000,
         });
         let pool_config = PoolConfig {
             oracle: Address::random(&e),
@@ -603,7 +618,7 @@ mod tests {
             assert_eq!(health_check, true);
 
             assert_eq!(actions.len(), 1);
-            let action = actions.get_unchecked(0).unwrap_optimized();
+            let action = actions.get_unchecked(0);
             assert_eq!(action.asset, underlying_1);
             assert_eq!(action.tokens_out, 20_0000137);
             assert_eq!(action.tokens_in, 0);
@@ -638,6 +653,9 @@ mod tests {
             sequence_number: 1234,
             network_id: Default::default(),
             base_reserve: 10,
+            min_temp_entry_expiration: 10,
+            min_persistent_entry_expiration: 10,
+            max_entry_expiration: 2000000,
         });
         let pool_config = PoolConfig {
             oracle: Address::random(&e),
@@ -663,7 +681,7 @@ mod tests {
             assert_eq!(health_check, true);
 
             assert_eq!(actions.len(), 1);
-            let action = actions.get_unchecked(0).unwrap_optimized();
+            let action = actions.get_unchecked(0);
             assert_eq!(action.asset, underlying_1);
             assert_eq!(action.tokens_out, 10_1234567);
             assert_eq!(action.tokens_in, 0);
@@ -699,6 +717,9 @@ mod tests {
             sequence_number: 1234,
             network_id: Default::default(),
             base_reserve: 10,
+            min_temp_entry_expiration: 10,
+            min_persistent_entry_expiration: 10,
+            max_entry_expiration: 2000000,
         });
         let pool_config = PoolConfig {
             oracle: Address::random(&e),
@@ -727,7 +748,7 @@ mod tests {
             assert_eq!(health_check, false);
 
             assert_eq!(actions.len(), 1);
-            let action = actions.get_unchecked(0).unwrap_optimized();
+            let action = actions.get_unchecked(0);
             assert_eq!(action.asset, underlying_1);
             assert_eq!(action.tokens_out, 0);
             assert_eq!(action.tokens_in, 10_1234567);
@@ -762,6 +783,9 @@ mod tests {
             sequence_number: 1234,
             network_id: Default::default(),
             base_reserve: 10,
+            min_temp_entry_expiration: 10,
+            min_persistent_entry_expiration: 10,
+            max_entry_expiration: 2000000,
         });
         let pool_config = PoolConfig {
             oracle: Address::random(&e),
@@ -790,7 +814,7 @@ mod tests {
             assert_eq!(health_check, false);
 
             assert_eq!(actions.len(), 1);
-            let action = actions.get_unchecked(0).unwrap_optimized();
+            let action = actions.get_unchecked(0);
             assert_eq!(action.asset, underlying_1);
             assert_eq!(action.tokens_out, 0_9999771);
             assert_eq!(action.tokens_in, 21_0000000);

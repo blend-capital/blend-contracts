@@ -1,6 +1,7 @@
 use crate::storage;
-use soroban_sdk::{contractimpl, Address, Env};
+use soroban_sdk::{contract, contractimpl, Address, Env};
 
+#[contract]
 pub struct MockPoolFactory;
 
 pub trait MockPoolFactoryTrait {

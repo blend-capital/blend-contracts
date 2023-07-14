@@ -3,9 +3,10 @@ use crate::{
     storage::{self, PoolInitMeta},
 };
 use soroban_sdk::{
-    contractimpl, panic_with_error, vec, Address, BytesN, Env, IntoVal, RawVal, Symbol, Vec,
+    contract, contractimpl, panic_with_error, vec, Address, BytesN, Env, IntoVal, Symbol, Val, Vec,
 };
 
+#[contract]
 pub struct PoolFactory;
 
 pub trait PoolFactoryTrait {
@@ -64,19 +65,19 @@ impl PoolFactoryTrait for PoolFactory {
             panic_with_error!(&e, PoolFactoryError::InvalidPoolInitArgs);
         }
 
-        let mut init_args: Vec<RawVal> = vec![&e];
-        init_args.push_back(admin.to_raw());
-        init_args.push_back(name.to_raw());
-        init_args.push_back(oracle.to_raw());
+        let mut init_args: Vec<Val> = vec![&e];
+        init_args.push_back(admin.to_val());
+        init_args.push_back(name.to_val());
+        init_args.push_back(oracle.to_val());
         init_args.push_back(backstop_take_rate.into_val(&e));
-        init_args.push_back(pool_init_meta.backstop.to_raw());
-        init_args.push_back(pool_init_meta.blnd_id.to_raw());
-        init_args.push_back(pool_init_meta.usdc_id.to_raw());
+        init_args.push_back(pool_init_meta.backstop.to_val());
+        init_args.push_back(pool_init_meta.blnd_id.to_val());
+        init_args.push_back(pool_init_meta.usdc_id.to_val());
         let pool_address = e
             .deployer()
-            .with_current_contract(&salt)
-            .deploy(&pool_init_meta.pool_hash);
-        e.invoke_contract::<RawVal>(&pool_address, &Symbol::new(&e, "initialize"), init_args);
+            .with_current_contract(salt)
+            .deploy(pool_init_meta.pool_hash);
+        e.invoke_contract::<Val>(&pool_address, &Symbol::new(&e, "initialize"), init_args);
 
         storage::set_deployed(&e, &pool_address);
 

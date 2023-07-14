@@ -138,6 +138,9 @@ mod tests {
             sequence_number: 0,
             network_id: Default::default(),
             base_reserve: 10,
+            min_temp_entry_expiration: 10,
+            min_persistent_entry_expiration: 10,
+            max_entry_expiration: 2000000,
         });
 
         let backstop_addr = Address::random(&e);
@@ -196,6 +199,9 @@ mod tests {
             sequence_number: 0,
             network_id: Default::default(),
             base_reserve: 10,
+            min_temp_entry_expiration: 10,
+            min_persistent_entry_expiration: 10,
+            max_entry_expiration: 2000000,
         });
 
         let backstop_addr = Address::random(&e);
@@ -236,6 +242,9 @@ mod tests {
             sequence_number: 0,
             network_id: Default::default(),
             base_reserve: 10,
+            min_temp_entry_expiration: 10,
+            min_persistent_entry_expiration: 10,
+            max_entry_expiration: 2000000,
         });
 
         let backstop_addr = Address::random(&e);
@@ -294,6 +303,9 @@ mod tests {
             sequence_number: 0,
             network_id: Default::default(),
             base_reserve: 10,
+            min_temp_entry_expiration: 10,
+            min_persistent_entry_expiration: 10,
+            max_entry_expiration: 2000000,
         });
 
         let backstop_addr = Address::random(&e);
@@ -347,6 +359,9 @@ mod tests {
             sequence_number: 0,
             network_id: Default::default(),
             base_reserve: 10,
+            min_temp_entry_expiration: 10,
+            min_persistent_entry_expiration: 10,
+            max_entry_expiration: 2000000,
         });
 
         let backstop_addr = Address::random(&e);

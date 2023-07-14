@@ -6,11 +6,14 @@ use crate::{
         self, PoolConfig, ReserveConfig, ReserveData, ReserveEmissionsConfig, ReserveEmissionsData,
     },
 };
-use soroban_sdk::{contractimpl, unwrap::UnwrapOptimized, Address, Env, Map, Symbol, Vec};
+use soroban_sdk::{
+    contract, contractimpl, unwrap::UnwrapOptimized, Address, Env, Map, Symbol, Vec,
+};
 
 /// ### Pool
 ///
 /// An isolated money market pool.
+#[contract]
 pub struct PoolContract;
 
 pub trait PoolContractTrait {
@@ -334,12 +337,7 @@ impl PoolContractTrait for PoolContract {
         let new_status = pool::execute_update_pool_status(&e);
 
         // msg.sender
-        let caller = e
-            .call_stack()
-            .get(0)
-            .unwrap_optimized()
-            .unwrap_optimized()
-            .0;
+        let caller = e.call_stack().get(0).unwrap_optimized().0;
         e.events()
             .publish((Symbol::new(&e, "set_status"), caller), new_status);
         new_status

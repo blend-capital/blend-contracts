@@ -7,18 +7,19 @@ use soroban_sdk::{
 
 mod common;
 use crate::common::{
-    b_token, create_wasm_pool_factory, d_token,
-    lending_pool::{self, PoolConfig, PoolDataKey},
+    create_wasm_pool_factory,
+    lending_pool::{self, PoolConfig},
     PoolInitMeta,
 };
 
 #[test]
 fn test_deploy() {
     let e = Env::default();
+    e.budget().reset_unlimited();
     e.mock_all_auths();
     let (_pool_factory_address, pool_factory_client) = create_wasm_pool_factory(&e);
 
-    let wasm_hash = e.install_contract_wasm(lending_pool::WASM);
+    let wasm_hash = e.deployer().upload_contract_wasm(lending_pool::WASM);
 
     let bombadil = Address::random(&e);
 
@@ -48,25 +49,24 @@ fn test_deploy() {
 
     let zero_address = Address::from_contract_id(&BytesN::from_array(&e, &[0; 32]));
     e.as_contract(&deployed_pool_address_1, || {
-        let storage = e.storage();
         assert_eq!(
-            storage
+            e.storage()
+                .persistent()
                 .get::<_, Address>(&Symbol::new(&e, "Admin"))
-                .unwrap()
                 .unwrap(),
             bombadil.clone()
         );
         assert_eq!(
-            storage
+            e.storage()
+                .persistent()
                 .get::<_, Address>(&Symbol::new(&e, "Backstop"))
-                .unwrap()
                 .unwrap(),
             backstop_id.clone()
         );
         assert_eq!(
-            storage
+            e.storage()
+                .persistent()
                 .get::<_, PoolConfig>(&Symbol::new(&e, "PoolConfig"))
-                .unwrap()
                 .unwrap(),
             PoolConfig {
                 oracle: oracle,
@@ -76,16 +76,16 @@ fn test_deploy() {
         );
 
         assert_eq!(
-            storage
+            e.storage()
+                .persistent()
                 .get::<_, Address>(&Symbol::new(&e, "BLNDTkn"))
-                .unwrap()
                 .unwrap(),
             blnd_id.clone()
         );
         assert_eq!(
-            storage
+            e.storage()
+                .persistent()
                 .get::<_, Address>(&Symbol::new(&e, "USDCTkn"))
-                .unwrap()
                 .unwrap(),
             usdc_id.clone()
         );

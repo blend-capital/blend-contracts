@@ -5,8 +5,6 @@ test: build
 
 build:
 	cargo build --target wasm32-unknown-unknown --release -p mock-lending-pool
-	cargo build --target wasm32-unknown-unknown --release -p d-token
-	cargo build --target wasm32-unknown-unknown --release -p b-token
 	cargo build --target wasm32-unknown-unknown --release -p oracle
 	cargo build --target wasm32-unknown-unknown --release -p mock-blend-oracle
 	cargo build --target wasm32-unknown-unknown --release -p pool-factory
@@ -21,12 +19,6 @@ build:
 
 generate-wasm: build
 	mkdir -p target/wasm32-unknown-unknown/optimized
-	soroban contract optimize \
-		--wasm target/wasm32-unknown-unknown/release/d_token.wasm \
-		--wasm-out target/wasm32-unknown-unknown/optimized/d_token.wasm
-	soroban contract optimize \
-		--wasm target/wasm32-unknown-unknown/release/b_token.wasm \
-		--wasm-out target/wasm32-unknown-unknown/optimized/b_token.wasm
 	soroban contract optimize \
 		--wasm target/wasm32-unknown-unknown/release/oracle.wasm \
 		--wasm-out target/wasm32-unknown-unknown/optimized/oracle.wasm

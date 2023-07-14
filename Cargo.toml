@@ -2,9 +2,7 @@
 resolver = "2"
 
 members = [
-    "b-token",
     "backstop-module",
-    "d-token",
     "emitter",
     "lending-pool",
     "mocks/mock-blend-oracle",
@@ -12,7 +10,6 @@ members = [
     "mocks/mock-pool-factory",
     "oracle",
     "pool-factory",
-    "test-suites"
 ]
 
 [profile.release-with-logs]

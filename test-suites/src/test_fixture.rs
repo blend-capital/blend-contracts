@@ -68,6 +68,9 @@ impl TestFixture<'_> {
             sequence_number: 100,
             network_id: Default::default(),
             base_reserve: 10,
+            min_temp_entry_expiration: 10,
+            min_persistent_entry_expiration: 10,
+            max_entry_expiration: 2000000,
         });
 
         // deploy tokens
@@ -120,6 +123,9 @@ impl TestFixture<'_> {
             sequence_number: 150,
             network_id: Default::default(),
             base_reserve: 10,
+            min_temp_entry_expiration: 10,
+            min_persistent_entry_expiration: 10,
+            max_entry_expiration: 2000000,
         });
 
         return TestFixture {
@@ -185,6 +191,9 @@ impl TestFixture<'_> {
             sequence_number: self.env.ledger().sequence() + (blocks as u32),
             network_id: Default::default(),
             base_reserve: 10,
+            min_temp_entry_expiration: 10,
+            min_persistent_entry_expiration: 10,
+            max_entry_expiration: 2000000,
         });
     }
 }

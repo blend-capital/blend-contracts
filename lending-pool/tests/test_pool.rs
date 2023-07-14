@@ -65,7 +65,7 @@ fn test_pool_wasm_smoke() {
 
     let supply_amount: i128 = 2_0000000;
     asset1_client.mint(&samwise, &supply_amount);
-    asset1_client.increase_allowance(&samwise, &pool_address, &i128(u64::MAX));
+    asset1_client.approve(&samwise, &pool_address, &i128(u64::MAX));
     assert_eq!(asset1_client.balance(&samwise), supply_amount);
 
     // setup emissions

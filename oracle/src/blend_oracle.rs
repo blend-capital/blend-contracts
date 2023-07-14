@@ -1,4 +1,4 @@
-use soroban_sdk::{contracterror, contractimpl, contracttype, Address, Env};
+use soroban_sdk::{contract, contracterror, contractimpl, contracttype, Address, Env};
 
 #[derive(Clone)]
 #[contracttype]
@@ -24,6 +24,7 @@ pub enum OracleError {
 ///
 /// ### Dev
 /// Left private to avoid misuse in tests. Use the MockBlendOracle for testing purposes.
+#[contract]
 struct BlendOracle;
 
 pub trait BlendOracleTrait {

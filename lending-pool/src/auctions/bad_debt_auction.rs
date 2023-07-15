@@ -110,7 +110,7 @@ pub fn fill_bad_debt_auction(
     auction_quote
         .lot
         .push_back((backstop_token_id, lot_amount_modified));
-
+    storage::set_user_positions(e, &backstop_address, &new_positions);
     auction_quote
 }
 
@@ -541,7 +541,7 @@ mod tests {
     }
 
     #[test]
-    fn test_fill_interest_auction() {
+    fn test_fill_bad_debt_auction() {
         let e = Env::default();
         e.mock_all_auths();
         e.budget().reset_unlimited(); // setup exhausts budget
@@ -650,9 +650,7 @@ mod tests {
                 &backstop_address,
                 &(u64::MAX as i128),
             );
-            println!("fill_interest_auction");
             let result = fill_bad_debt_auction(&e, &auction_data, &samwise);
-            println!("fill_interest_auction done");
             assert_eq!(
                 result.lot.get_unchecked(0).unwrap_optimized(),
                 (backstop_token_id, 95_2000000)
@@ -673,19 +671,20 @@ mod tests {
             assert_eq!(
                 backstop_positions
                     .liabilities
-                    .get(reserve_config_0.index)
-                    .unwrap_optimized()
-                    .unwrap_optimized(),
-                2_5000000
-            );
-            assert_eq!(
-                backstop_positions
-                    .liabilities
                     .get(reserve_config_1.index)
                     .unwrap_optimized()
                     .unwrap_optimized(),
                 6250000
             );
+            assert_eq!(
+                backstop_positions
+                    .liabilities
+                    .get(reserve_config_0.index)
+                    .unwrap_optimized()
+                    .unwrap_optimized(),
+                2_5000000
+            );
+
             assert_eq!(token_0.balance(&samwise), 3_7500000);
             assert_eq!(token_1.balance(&samwise), 1_2500000);
         });

@@ -469,17 +469,17 @@ mod tests {
 
             let pool = Pool::load(&e);
             let mut reserve_0 = pool.load_reserve(&e, &underlying_0);
-            reserve_0.backstop_credit += 10_0000000;
+            reserve_0.backstop_credit += 100_0000000;
             reserve_0.store(&e);
             let mut reserve_1 = pool.load_reserve(&e, &underlying_1);
-            reserve_1.backstop_credit += 2_5000000;
+            reserve_1.backstop_credit += 25_0000000;
             reserve_1.store(&e);
 
             let result = create_interest_auction_data(&e, &backstop_address);
             assert_eq!(result.block, 151);
             assert_eq!(
                 result.bid.get_unchecked(u32::MAX).unwrap_optimized(),
-                42_0009794
+                420_0009794
             );
             assert_eq!(result.bid.len(), 1);
             assert_eq!(
@@ -487,14 +487,14 @@ mod tests {
                     .lot
                     .get_unchecked(reserve_config_0.index)
                     .unwrap_optimized(),
-                10_0000066
+                100_0000066
             );
             assert_eq!(
                 result
                     .lot
                     .get_unchecked(reserve_config_1.index)
                     .unwrap_optimized(),
-                2_5000066
+                25_0000066
             );
             assert_eq!(
                 result

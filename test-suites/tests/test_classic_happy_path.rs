@@ -2,6 +2,7 @@
 use soroban_sdk::{testutils::Address as AddressTestTrait, vec, Address};
 use test_suites::{
     create_fixture_with_data,
+    pool::Request,
     test_fixture::{TokenIndex, SCALAR_7},
 };
 
@@ -21,11 +22,22 @@ fn test_classic_asset_pool_happy_path() {
     xlm.mint(&samwise, &(2_500_000 * SCALAR_7));
 
     // Supply tokens
-    let merry_b_tokens =
-        pool_fixture
-            .pool
-            .supply(&merry, &usdc.address, &(190_000 * 10i128.pow(6)));
+    let merry_usdc_supply: Request = Request {
+        request_type: 0,
+        reserve_index: 0,
+        amount: 190_000 * 10i128.pow(6),
+    };
+    pool_fixture.pool.submit(
+        &merry,
+        &merry,
+        &merry,
+        &vec![&fixture.env, merry_usdc_supply],
+    );
     assert_eq!(usdc.balance(&merry), 60_000 * 10i128.pow(6));
+    fixture.env.as_contract(&pool_fixture.pool.address, || {
+                pool.submit(&merry, &merry, &merry, &vec![&env, merry_usdc_supply]);
+    });
+    let merry_positions = pool_fixture.pool
     assert!(
         (merry_b_tokens < (190_000 * 10i128.pow(6))) & (merry_b_tokens > (189_999 * 10i128.pow(6)))
     );

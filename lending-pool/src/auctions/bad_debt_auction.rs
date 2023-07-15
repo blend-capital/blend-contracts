@@ -540,7 +540,7 @@ mod tests {
     }
 
     #[test]
-    fn test_fill_interest_auction() {
+    fn test_fill_bad_debt_auction() {
         let e = Env::default();
         e.mock_all_auths();
         e.budget().reset_unlimited(); // setup exhausts budget
@@ -670,19 +670,20 @@ mod tests {
             assert_eq!(
                 backstop_positions
                     .liabilities
-                    .get(reserve_config_0.index)
-                    .unwrap_optimized()
-                    .unwrap_optimized(),
-                2_5000000
-            );
-            assert_eq!(
-                backstop_positions
-                    .liabilities
                     .get(reserve_config_1.index)
                     .unwrap_optimized()
                     .unwrap_optimized(),
                 6250000
             );
+            assert_eq!(
+                backstop_positions
+                    .liabilities
+                    .get(reserve_config_0.index)
+                    .unwrap_optimized()
+                    .unwrap_optimized(),
+                2_5000000
+            );
+
             assert_eq!(token_0.balance(&samwise), 3_7500000);
             assert_eq!(token_1.balance(&samwise), 1_2500000);
         });

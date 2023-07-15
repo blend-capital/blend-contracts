@@ -1,7 +1,7 @@
-use soroban_sdk::{testutils::Address as _, Address, Symbol};
+use soroban_sdk::{testutils::Address as _, vec, Address, Symbol, Vec};
 
 use crate::{
-    pool::{default_reserve_metadata, ReserveEmissionMetadata},
+    pool::{default_reserve_metadata, Request, ReserveEmissionMetadata},
     test_fixture::{TestFixture, TokenIndex, SCALAR_7},
 };
 
@@ -12,25 +12,25 @@ pub fn create_fixture_with_data<'a>() -> (TestFixture<'a>, Address) {
     // create pool
     fixture.create_pool(Symbol::new(&fixture.env, "Teapot"), 0_100_000_000);
 
-    let mut usdc_meta = default_reserve_metadata();
-    usdc_meta.decimals = 6;
-    usdc_meta.c_factor = 0_900_0000;
-    usdc_meta.l_factor = 0_950_0000;
-    usdc_meta.util = 0_850_0000;
-    fixture.create_pool_reserve(0, TokenIndex::USDC as usize, &usdc_meta);
+    let (mut usdc_config, mut usdc_meta) = default_reserve_metadata();
+    usdc_config.decimals = 6;
+    usdc_config.c_factor = 0_900_0000;
+    usdc_config.l_factor = 0_950_0000;
+    usdc_config.util = 0_850_0000;
+    fixture.create_pool_reserve(0, TokenIndex::USDC as usize, usdc_config);
 
-    let mut xlm_meta = default_reserve_metadata();
-    xlm_meta.c_factor = 0_750_0000;
-    xlm_meta.l_factor = 0_750_0000;
-    xlm_meta.util = 0_500_0000;
-    fixture.create_pool_reserve(0, TokenIndex::XLM as usize, &xlm_meta);
+    let (mut xlm_config, mut xlm_meta) = default_reserve_metadata();
+    xlm_config.c_factor = 0_750_0000;
+    xlm_config.l_factor = 0_750_0000;
+    xlm_config.util = 0_500_0000;
+    fixture.create_pool_reserve(0, TokenIndex::XLM as usize, xlm_config);
 
-    let mut weth_meta = default_reserve_metadata();
-    weth_meta.decimals = 9;
-    weth_meta.c_factor = 0_800_0000;
-    weth_meta.l_factor = 0_800_0000;
-    weth_meta.util = 0_700_0000;
-    fixture.create_pool_reserve(0, TokenIndex::WETH as usize, &weth_meta);
+    let (mut weth_config, mut weth_meta) = default_reserve_metadata();
+    weth_config.decimals = 9;
+    weth_config.c_factor = 0_800_0000;
+    weth_config.l_factor = 0_800_0000;
+    weth_config.util = 0_700_0000;
+    fixture.create_pool_reserve(0, TokenIndex::WETH as usize, weth_config);
 
     // enable emissions for pool
     let pool_fixture = &fixture.pools[0];
@@ -76,41 +76,40 @@ pub fn create_fixture_with_data<'a>() -> (TestFixture<'a>, Address) {
     fixture.jump(60);
 
     // supply and borrow all assets from whale
-    pool_fixture.pool.supply(
-        &frodo,
-        &fixture.tokens[TokenIndex::USDC as usize].address,
-        &(10_000 * 10i128.pow(6)),
-    );
-    pool_fixture.pool.supply(
-        &frodo,
-        &fixture.tokens[TokenIndex::XLM as usize].address,
-        &(100_000 * SCALAR_7),
-    );
-
-    pool_fixture.pool.supply(
-        &frodo,
-        &fixture.tokens[TokenIndex::WETH as usize].address,
-        &(10 * 10i128.pow(9)),
-    );
-
-    pool_fixture.pool.borrow(
-        &frodo,
-        &fixture.tokens[TokenIndex::USDC as usize].address,
-        &(8_000 * 10i128.pow(6)),
-        &frodo,
-    );
-    pool_fixture.pool.borrow(
-        &frodo,
-        &fixture.tokens[TokenIndex::XLM as usize].address,
-        &(65_000 * SCALAR_7),
-        &frodo,
-    );
-    pool_fixture.pool.borrow(
-        &frodo,
-        &fixture.tokens[TokenIndex::WETH as usize].address,
-        &(5 * 10i128.pow(9)),
-        &frodo,
-    );
+    let requests: Vec<Request> = vec![
+        &fixture.env,
+        Request {
+            request_type: 0,
+            reserve_index: 0,
+            amount: 10_000 * 10i128.pow(6),
+        },
+        Request {
+            request_type: 0,
+            reserve_index: 1,
+            amount: (100_000 * SCALAR_7),
+        },
+        Request {
+            request_type: 0,
+            reserve_index: 2,
+            amount: (10 * 10i128.pow(9)),
+        },
+        Request {
+            request_type: 4,
+            reserve_index: 0,
+            amount: (8_000 * 10i128.pow(6)),
+        },
+        Request {
+            request_type: 4,
+            reserve_index: 1,
+            amount: (65_000 * SCALAR_7),
+        },
+        Request {
+            request_type: 4,
+            reserve_index: 2,
+            amount: (5 * 10i128.pow(9)),
+        },
+    ];
+    pool_fixture.pool.submit(&frodo, &frodo, &frodo, &requests);
 
     fixture.jump(60 * 60); // 1 hr
 

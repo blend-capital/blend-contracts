@@ -433,10 +433,10 @@ mod tests {
             storage::set_pool_config(&e, &pool_config);
             let pool = Pool::load(&e);
             let mut reserve_0 = pool.load_reserve(&e, &underlying_0);
-            reserve_0.backstop_credit += 10_0000000;
+            reserve_0.backstop_credit += 100_0000000;
             reserve_0.store(&e);
             let mut reserve_1 = pool.load_reserve(&e, &underlying_1);
-            reserve_1.backstop_credit += 2_5000000;
+            reserve_1.backstop_credit += 25_0000000;
             reserve_1.store(&e);
             create(&e, 2);
             assert!(storage::has_auction(&e, &2, &backstop_address));

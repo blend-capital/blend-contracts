@@ -510,7 +510,7 @@ mod tests {
     }
 
     #[test]
-    fn test_fill_interest_auction() {
+    fn test_fill_bad_debt_auction() {
         let e = Env::default();
         e.mock_all_auths();
         e.budget().reset_unlimited(); // setup exhausts budget
@@ -653,6 +653,7 @@ mod tests {
                     .unwrap_optimized(),
                 6250000
             );
+
             assert_eq!(token_0.balance(&samwise), 3_7500000);
             assert_eq!(token_1.balance(&samwise), 1_2500000);
         });

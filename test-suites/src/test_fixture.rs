@@ -3,7 +3,7 @@ use crate::backstop::{create_backstop, BackstopClient};
 use crate::d_token::D_TOKEN_WASM;
 use crate::emitter::{create_emitter, EmitterClient};
 use crate::mock_oracle::{create_mock_oracle, MockOracleClient};
-use crate::pool::{PoolClient, ReserveMetadata, POOL_WASM};
+use crate::pool::{PoolClient, ReserveConfig, ReserveData, POOL_WASM};
 use crate::pool_factory::{create_pool_factory, PoolFactoryClient, PoolInitMeta};
 use crate::token::{create_stellar_token, create_token, TokenClient};
 use soroban_sdk::testutils::{Address as _, BytesN as _, Ledger, LedgerInfo};
@@ -21,20 +21,18 @@ pub enum TokenIndex {
     BSTOP = 4,
 }
 
-pub struct ReserveFixture<'a> {
+pub struct ReserveFixture {
     pub index: usize,
     pub fixture_index: usize, // the underlying token id in the fixture::tokens vec
-    pub b_token: BlendTokenClient<'a>,
-    pub d_token: BlendTokenClient<'a>,
 }
 
 pub struct PoolFixture<'a> {
     pub pool: PoolClient<'a>,
-    pub reserves: Vec<ReserveFixture<'a>>,
+    pub reserves: Vec<ReserveFixture>,
 }
 
 impl<'a> PoolFixture<'a> {
-    fn add_reserve(&mut self, reserve: ReserveFixture<'a>) {
+    fn add_reserve(&mut self, reserve: ReserveFixture) {
         self.reserves.push(reserve);
     }
 }
@@ -164,19 +162,17 @@ impl TestFixture<'_> {
         &mut self,
         pool_index: usize,
         asset_index: usize,
-        reserve_metadata: &ReserveMetadata,
+        reserve_config: ReserveConfig,
     ) {
         let mut pool_fixture = self.pools.remove(pool_index);
         let token = self.tokens.get(asset_index).unwrap();
         pool_fixture
             .pool
-            .init_reserve(&self.bombadil, &token.address, reserve_metadata);
+            .init_reserve(&self.bombadil, &token.address, &reserve_config);
         let config = pool_fixture.pool.get_reserve_config(&token.address);
         pool_fixture.add_reserve(ReserveFixture {
             index: config.index as usize,
             fixture_index: asset_index,
-            b_token: BlendTokenClient::new(&self.env, &config.b_token),
-            d_token: BlendTokenClient::new(&self.env, &config.d_token),
         });
         self.pools.insert(pool_index, pool_fixture);
     }

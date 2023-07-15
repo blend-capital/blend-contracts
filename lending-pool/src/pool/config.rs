@@ -87,7 +87,7 @@ pub fn initialize_reserve(e: &Env, from: &Address, asset: &Address, config: &Res
     };
     storage::set_res_config(e, asset, &reserve_config);
     let init_data = ReserveData {
-        b_rate: 10i128.pow(config.decimals),
+        b_rate: 1_000_000_000,
         d_rate: 1_000_000_000,
         ir_mod: 1_000_000_000,
         d_supply: 0,
@@ -126,7 +126,7 @@ pub fn execute_update_reserve(e: &Env, from: &Address, asset: &Address, config: 
 pub fn update_pool_emissions(e: &Env) -> u64 {
     let backstop_address = storage::get_backstop(e);
     let backstop_client = BackstopClient::new(e, &backstop_address);
-    let next_exp = backstop_client.next_distribution();
+    let next_exp = backstop_client.next_emission_cycle();
     let pool_eps = backstop_client.pool_eps(&e.current_contract_address()) as u64;
     emissions::update_emissions_cycle(e, next_exp, pool_eps)
 }
@@ -573,65 +573,6 @@ mod tests {
         require_valid_reserve_metadata(&e, &metadata);
         // no panic
         assert!(true);
-
-        // // c_factor
-        // metadata.c_factor = 1_0000001;
-        // assert_eq!(
-        //     require_valid_reserve_metadata(&e, &metadata),
-        //     Err(PoolError::InvalidReserveMetadata)
-        // );
-        // metadata.c_factor = 0_7500000;
-
-        // // l_factor
-        // metadata.l_factor = 1_0000001;
-        // assert_eq!(
-        //     require_valid_reserve_metadata(&e, &metadata),
-        //     Err(PoolError::InvalidReserveMetadata)
-        // );
-        // metadata.l_factor = 0_7500000;
-
-        // // util
-        // metadata.util = 0_9500001;
-        // assert_eq!(
-        //     require_valid_reserve_metadata(&e, &metadata),
-        //     Err(PoolError::InvalidReserveMetadata)
-        // );
-        // metadata.util = 0_5000000;
-
-        // // max_util
-        // metadata.max_util = 1_0000001;
-        // assert_eq!(
-        //     require_valid_reserve_metadata(&e, &metadata),
-        //     Err(PoolError::InvalidReserveMetadata)
-        // );
-        // metadata.max_util = 0_9500000;
-
-        // // r
-        // metadata.r_one = 0_0500001;
-        // metadata.r_two = 0_0500000;
-        // metadata.r_three = 1_5000000;
-        // assert_eq!(
-        //     require_valid_reserve_metadata(&e, &metadata),
-        //     Err(PoolError::InvalidReserveMetadata)
-        // );
-        // metadata.r_one = 0_0500000;
-        // metadata.r_two = 0_5000001;
-        // metadata.r_three = 0_5000000;
-        // assert_eq!(
-        //     require_valid_reserve_metadata(&e, &metadata),
-        //     Err(PoolError::InvalidReserveMetadata)
-        // );
-        // metadata.r_one = 0_0500000;
-        // metadata.r_two = 0_5000000;
-        // metadata.r_three = 1_5000000;
-
-        // // reactivity
-        // metadata.reactivity = 5001;
-        // assert_eq!(
-        //     require_valid_reserve_metadata(&e, &metadata),
-        //     Err(PoolError::InvalidReserveMetadata)
-        // );
-        // metadata.reactivity = 100;
     }
 
     #[test]

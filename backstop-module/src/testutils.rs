@@ -1,10 +1,11 @@
 #![cfg(any(test, feature = "testutils"))]
 
 use crate::{
+    backstop::Q4W,
     dependencies::{TokenClient, TOKEN_WASM},
-    storage::{self, Q4W},
+    storage::{self},
 };
-use soroban_sdk::{testutils::Address as _, Address, Env, IntoVal, Vec};
+use soroban_sdk::{testutils::Address as _, unwrap::UnwrapOptimized, Address, Env, IntoVal, Vec};
 
 mod mock_pool_factory {
     soroban_sdk::contractimport!(
@@ -68,8 +69,8 @@ pub(crate) fn create_mock_pool_factory<'a>(
 pub(crate) fn assert_eq_vec_q4w(actual: &Vec<Q4W>, expected: &Vec<Q4W>) {
     assert_eq!(actual.len(), expected.len());
     for index in 0..actual.len() {
-        let actual_q4w = actual.get(index).unwrap().unwrap();
-        let expected_q4w = expected.get(index).unwrap().unwrap();
+        let actual_q4w = actual.get(index).unwrap_optimized().unwrap_optimized();
+        let expected_q4w = expected.get(index).unwrap_optimized().unwrap_optimized();
         assert_eq!(actual_q4w.amount, expected_q4w.amount);
         assert_eq!(actual_q4w.exp, expected_q4w.exp);
     }

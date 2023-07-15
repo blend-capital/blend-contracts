@@ -53,8 +53,8 @@ pub fn create_bad_debt_auction_data(e: &Env, backstop: &Address) -> AuctionData 
         .unwrap_optimized()
         .fixed_div_floor(i128(backstop_token_to_base), SCALAR_7)
         .unwrap_optimized();
-    let (pool_backstop_balance, _, _) = backstop_client.pool_balance(&e.current_contract_address());
-    lot_amount = pool_backstop_balance.min(lot_amount);
+    let pool_balance = backstop_client.pool_balance(&e.current_contract_address());
+    lot_amount = pool_balance.tokens.min(lot_amount);
     // u32::MAX is the key for the backstop token
     auction_data.lot.set(u32::MAX, lot_amount);
 
@@ -110,15 +110,14 @@ pub fn fill_bad_debt_auction(
     auction_quote
         .lot
         .push_back((backstop_token_id, lot_amount_modified));
+
     storage::set_user_positions(e, &backstop_address, &new_positions);
+
     auction_quote
 }
 
 #[cfg(test)]
 mod tests {
-
-    use std::println;
-
     use crate::{auctions::auction::AuctionType, pool::Positions, storage::PoolConfig, testutils};
 
     use super::*;

@@ -37,7 +37,7 @@ pub trait BlendOracleTrait {
     ///
     /// ### Panics
     /// If the oracle is stale
-    fn get_price(e: Env, asset: Address) -> Result<u64, OracleError>;
+    fn get_price(e: Env, asset: Address) -> u64;
 
     /// Fetch the price source of an asset or the 0 address if none is listed
     ///
@@ -80,7 +80,7 @@ impl BlendOracleTrait for BlendOracle {
         7 as u32
     }
 
-    fn get_price(_e: Env, _asset: Address) -> Result<u64, OracleError> {
+    fn get_price(_e: Env, _asset: Address) -> u64 {
         panic!("not implemented")
     }
 

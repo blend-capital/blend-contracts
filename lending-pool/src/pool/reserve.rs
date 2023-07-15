@@ -65,6 +65,11 @@ impl Reserve {
             return reserve;
         }
 
+        if reserve.b_supply == 0 {
+            reserve.last_time = e.ledger().timestamp();
+            return reserve;
+        }
+
         let cur_util = reserve.utilization();
         let (loan_accrual, new_ir_mod) = calc_accrual(
             e,
@@ -79,27 +84,23 @@ impl Reserve {
             .fixed_mul_ceil(reserve.d_rate, SCALAR_9)
             .unwrap_optimized();
 
-        if reserve.b_supply != 0 {
-            // TODO: Is it safe to calculate b_rate from accrual? If any unexpected token loss occurs
-            //       the transfer rate will become unrecoverable.
-            let pre_update_supply = reserve.total_supply();
-            let token_bal = TokenClient::new(e, &asset).balance(&e.current_contract_address());
+        // TODO: Is it safe to calculate b_rate from accrual? If any unexpected token loss occurs
+        //       the transfer rate will become unrecoverable.
+        let pre_update_supply = reserve.total_supply();
+        let token_bal = TokenClient::new(e, &asset).balance(&e.current_contract_address());
 
-            // credit the backstop underlying from the accrued interest based on the backstop rate
-            let accrued_supply = reserve.total_liabilities() + token_bal
-                - reserve.backstop_credit
-                - pre_update_supply;
-            if pool_config.bstop_rate > 0 && accrued_supply > 0 {
-                let new_backstop_credit = accrued_supply
-                    .fixed_mul_floor(i128(pool_config.bstop_rate), SCALAR_9)
-                    .unwrap_optimized();
-                reserve.backstop_credit += new_backstop_credit;
-                // update b_rate with new backstop_credit
-                reserve.b_rate = (reserve.total_liabilities() + token_bal
-                    - reserve.backstop_credit)
-                    .fixed_div_floor(reserve.b_supply, SCALAR_9)
-                    .unwrap_optimized();
-            }
+        // credit the backstop underlying from the accrued interest based on the backstop rate
+        let accrued_supply =
+            reserve.total_liabilities() + token_bal - reserve.backstop_credit - pre_update_supply;
+        if pool_config.bstop_rate > 0 && accrued_supply > 0 {
+            let new_backstop_credit = accrued_supply
+                .fixed_mul_floor(i128(pool_config.bstop_rate), SCALAR_9)
+                .unwrap_optimized();
+            reserve.backstop_credit += new_backstop_credit;
+            // update b_rate with new backstop_credit
+            reserve.b_rate = (reserve.total_liabilities() + token_bal - reserve.backstop_credit)
+                .fixed_div_floor(reserve.b_supply, SCALAR_9)
+                .unwrap_optimized();
         }
 
         reserve.last_time = e.ledger().timestamp();
@@ -277,6 +278,50 @@ mod tests {
             assert_eq!(reserve.d_supply, 65_0000000);
             assert_eq!(reserve.b_supply, 99_0000000);
             assert_eq!(reserve.backstop_credit, 0_0517357);
+            assert_eq!(reserve.last_time, 617280);
+        });
+    }
+
+    #[test]
+    fn test_load_reserve_zero_supply() {
+        let e = Env::default();
+        e.mock_all_auths();
+
+        let bombadil = Address::random(&e);
+        let pool = Address::random(&e);
+        let oracle = Address::random(&e);
+
+        let (underlying, _) = testutils::create_token_contract(&e, &bombadil);
+        let (reserve_config, mut reserve_data) = testutils::default_reserve_meta(&e);
+        reserve_data.d_rate = 0;
+        reserve_data.b_rate = 0;
+        reserve_data.d_supply = 0;
+        reserve_data.b_supply = 0;
+        testutils::create_reserve(&e, &pool, &underlying, &reserve_config, &reserve_data);
+
+        e.ledger().set(LedgerInfo {
+            timestamp: 123456 * 5,
+            protocol_version: 1,
+            sequence_number: 123456,
+            network_id: Default::default(),
+            base_reserve: 10,
+        });
+        let pool_config = PoolConfig {
+            oracle,
+            bstop_rate: 0_200_000_000,
+            status: 0,
+        };
+        e.as_contract(&pool, || {
+            storage::set_pool_config(&e, &pool_config);
+            let reserve = Reserve::load(&e, &pool_config, &underlying);
+
+            // (accrual: 1_002_957_369, util: .7864352)q
+            assert_eq!(reserve.d_rate, 0);
+            assert_eq!(reserve.b_rate, 0);
+            assert_eq!(reserve.ir_mod, 1_000_000_000);
+            assert_eq!(reserve.d_supply, 0);
+            assert_eq!(reserve.b_supply, 0);
+            assert_eq!(reserve.backstop_credit, 0);
             assert_eq!(reserve.last_time, 617280);
         });
     }

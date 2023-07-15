@@ -44,7 +44,7 @@ pub trait PoolFactoryTrait {
 impl PoolFactoryTrait for PoolFactory {
     fn initialize(e: Env, pool_init_meta: PoolInitMeta) {
         if storage::has_pool_init_meta(&e) {
-            panic!("already initialized");
+            panic_with_error!(&e, PoolFactoryError::AlreadyInitialized);
         }
         storage::set_pool_init_meta(&e, &pool_init_meta);
     }
@@ -70,8 +70,6 @@ impl PoolFactoryTrait for PoolFactory {
         init_args.push_back(oracle.to_raw());
         init_args.push_back(backstop_take_rate.into_val(&e));
         init_args.push_back(pool_init_meta.backstop.to_raw());
-        init_args.push_back(pool_init_meta.b_token_hash.to_raw());
-        init_args.push_back(pool_init_meta.d_token_hash.to_raw());
         init_args.push_back(pool_init_meta.blnd_id.to_raw());
         init_args.push_back(pool_init_meta.usdc_id.to_raw());
         let pool_address = e

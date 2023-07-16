@@ -70,6 +70,10 @@ impl PositionData {
 
     /// Check if the position data meets the minimum health factor, panic if not
     pub fn require_healthy(&self, e: &Env) {
+        if self.liability_base == 0 {
+            return;
+        }
+
         // force user to have slightly more collateral than liabilities to prevent rounding errors
         let min_health_factor = self
             .scalar
@@ -167,6 +171,21 @@ mod tests {
         let position_data = PositionData {
             collateral_base: 9_1234567,
             liability_base: 9_1233333,
+            scalar: 1_0000000,
+        };
+
+        position_data.require_healthy(&e);
+        // no panic
+        assert!(true);
+    }
+
+    #[test]
+    fn test_require_healthy_no_liabilites() {
+        let e = Env::default();
+
+        let position_data = PositionData {
+            collateral_base: 9_1234567,
+            liability_base: 0,
             scalar: 1_0000000,
         };
 

@@ -1,9 +1,10 @@
-use crate::b_token::{BlendTokenClient, B_TOKEN_WASM};
+use std::collections::HashMap;
+use std::ops::Index;
+
 use crate::backstop::{create_backstop, BackstopClient};
-use crate::d_token::D_TOKEN_WASM;
 use crate::emitter::{create_emitter, EmitterClient};
 use crate::mock_oracle::{create_mock_oracle, MockOracleClient};
-use crate::pool::{PoolClient, ReserveConfig, ReserveData, POOL_WASM};
+use crate::pool::{PoolClient, ReserveConfig, POOL_WASM};
 use crate::pool_factory::{create_pool_factory, PoolFactoryClient, PoolInitMeta};
 use crate::token::{create_stellar_token, create_token, TokenClient};
 use soroban_sdk::testutils::{Address as _, BytesN as _, Ledger, LedgerInfo};
@@ -12,7 +13,7 @@ use soroban_sdk::{Address, BytesN, Env, Symbol};
 pub const SCALAR_7: i128 = 1_000_0000;
 pub const SCALAR_9: i128 = 1_000_000_000;
 
-#[repr(usize)]
+#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
 pub enum TokenIndex {
     BLND = 0,
     WETH = 1,
@@ -21,19 +22,16 @@ pub enum TokenIndex {
     BSTOP = 4,
 }
 
-pub struct ReserveFixture {
-    pub index: usize,
-    pub fixture_index: usize, // the underlying token id in the fixture::tokens vec
-}
-
 pub struct PoolFixture<'a> {
     pub pool: PoolClient<'a>,
-    pub reserves: Vec<ReserveFixture>,
+    pub reserves: HashMap<TokenIndex, u32>,
 }
 
-impl<'a> PoolFixture<'a> {
-    fn add_reserve(&mut self, reserve: ReserveFixture) {
-        self.reserves.push(reserve);
+impl<'a> Index<TokenIndex> for Vec<TokenClient<'a>> {
+    type Output = TokenClient<'a>;
+
+    fn index(&self, index: TokenIndex) -> &Self::Output {
+        &self[index as usize]
     }
 }
 
@@ -93,12 +91,8 @@ impl TestFixture<'_> {
         backstop_client.initialize(&backstop_token_id, &blnd_id, &pool_factory_id);
 
         // initialize pool factory
-        let pool_hash = e.install_contract_wasm(POOL_WASM);
-        let b_token_hash = e.install_contract_wasm(B_TOKEN_WASM);
-        let d_token_hash = e.install_contract_wasm(D_TOKEN_WASM);
+        let pool_hash = e.deployer().upload_contract_wasm(POOL_WASM);
         let pool_init_meta = PoolInitMeta {
-            b_token_hash: b_token_hash.clone(),
-            d_token_hash: d_token_hash.clone(),
             backstop: backstop_id.clone(),
             pool_hash: pool_hash.clone(),
             blnd_id: blnd_id.clone(),
@@ -154,26 +148,23 @@ impl TestFixture<'_> {
         );
         self.pools.push(PoolFixture {
             pool: PoolClient::new(&self.env, &pool_id),
-            reserves: vec![],
+            reserves: HashMap::new(),
         });
     }
 
     pub fn create_pool_reserve(
         &mut self,
         pool_index: usize,
-        asset_index: usize,
+        asset_index: TokenIndex,
         reserve_config: ReserveConfig,
     ) {
         let mut pool_fixture = self.pools.remove(pool_index);
-        let token = self.tokens.get(asset_index).unwrap();
+        let token = &self.tokens[asset_index];
         pool_fixture
             .pool
             .init_reserve(&self.bombadil, &token.address, &reserve_config);
         let config = pool_fixture.pool.get_reserve_config(&token.address);
-        pool_fixture.add_reserve(ReserveFixture {
-            index: config.index as usize,
-            fixture_index: asset_index,
-        });
+        pool_fixture.reserves.insert(asset_index, config.index);
         self.pools.insert(pool_index, pool_fixture);
     }
 

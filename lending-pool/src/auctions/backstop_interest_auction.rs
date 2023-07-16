@@ -362,23 +362,13 @@ mod tests {
             let result = create_interest_auction_data(&e, &backstop_address);
 
             assert_eq!(result.block, 51);
-            assert_eq!(
-                result.bid.get_unchecked(u32::MAX),
-                420_0000000
-            );
+            assert_eq!(result.bid.get_unchecked(u32::MAX), 420_0000000);
             assert_eq!(result.bid.len(), 1);
             assert_eq!(
-                result
-                    .lot
-                    .get_unchecked(reserve_config_0.index),
+                result.lot.get_unchecked(reserve_config_0.index),
                 100_0000000
             );
-            assert_eq!(
-                result
-                    .lot
-                    .get_unchecked(reserve_config_1.index),
-                25_0000000
-            );
+            assert_eq!(result.lot.get_unchecked(reserve_config_1.index), 25_0000000);
             assert_eq!(result.lot.len(), 2);
         });
     }
@@ -478,7 +468,10 @@ mod tests {
             assert_eq!(result.block, 151);
             assert_eq!(result.bid.get_unchecked(u32::MAX), 420_0009794);
             assert_eq!(result.bid.len(), 1);
-            assert_eq!(result.lot.get_unchecked(reserve_config_0.index), 100_0000066);
+            assert_eq!(
+                result.lot.get_unchecked(reserve_config_0.index),
+                100_0000066
+            );
             assert_eq!(result.lot.get_unchecked(reserve_config_1.index), 25_0000066);
             assert_eq!(result.lot.get_unchecked(reserve_config_2.index), 66);
             assert_eq!(result.lot.len(), 3);

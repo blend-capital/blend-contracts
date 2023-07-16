@@ -79,7 +79,7 @@ pub trait PoolContractTrait {
     /// * `asset` - The underlying asset to add as a reserve
     fn get_reserve_config(e: Env, asset: Address) -> ReserveConfig;
 
-    /// Fetch the reserve configuration for a reserve
+    /// Fetch the reserve data for a reserve
     ///
     /// ### Arguments
     /// * `asset` - The underlying asset to add as a reserve

@@ -21,8 +21,7 @@ pub fn create_interest_auction_data(e: &Env, backstop: &Address) -> AuctionData 
     let oracle_client = OracleClient::new(e, &pool.config.oracle);
 
     let mut auction_data = AuctionData {
-        bid: map![e],
-        lot: map![e],
+        assets: map![e],
         block: e.ledger().sequence() + 1,
     };
 
@@ -37,7 +36,7 @@ pub fn create_interest_auction_data(e: &Env, backstop: &Address) -> AuctionData 
             interest_value += i128(asset_to_base)
                 .fixed_mul_floor(reserve.backstop_credit, reserve.scalar)
                 .unwrap_optimized();
-            auction_data.lot.set(i, reserve.backstop_credit);
+            auction_data.assets.set(i, reserve.backstop_credit);
         }
     }
 
@@ -46,7 +45,7 @@ pub fn create_interest_auction_data(e: &Env, backstop: &Address) -> AuctionData 
         panic_with_error!(e, PoolError::InterestTooSmall);
     }
 
-    if auction_data.lot.len() == 0 || interest_value == 0 {
+    if auction_data.assets.len() == 0 || interest_value == 0 {
         panic_with_error!(e, PoolError::BadRequest);
     }
 
@@ -58,7 +57,7 @@ pub fn create_interest_auction_data(e: &Env, backstop: &Address) -> AuctionData 
         .fixed_div_floor(i128(usdc_to_base), SCALAR_7)
         .unwrap_optimized();
     // u32::MAX is the key for the USDC lot
-    auction_data.bid.set(u32::MAX, bid_amount);
+    auction_data.assets.set(u32::MAX, bid_amount);
 
     auction_data
 }
@@ -77,7 +76,10 @@ pub fn fill_interest_auction(
 
     // bid only contains the USDC token
     let usdc_token = storage::get_usdc_token(e);
-    let bid_amount = auction_data.bid.get_unchecked(u32::MAX).unwrap_optimized();
+    let bid_amount = auction_data
+        .assets
+        .get_unchecked(u32::MAX)
+        .unwrap_optimized();
     let bid_amount_modified = bid_amount
         .fixed_mul_floor(bid_modifier, SCALAR_7)
         .unwrap_optimized();
@@ -92,7 +94,10 @@ pub fn fill_interest_auction(
     // lot contains underlying tokens, but the backstop credit must be updated on the reserve
     let pool = Pool::load(e);
     let reserve_list = storage::get_res_list(e);
-    for (res_id, lot_amount) in auction_data.lot.iter_unchecked() {
+    for (res_id, lot_amount) in auction_data.assets.iter_unchecked() {
+        if res_id == u32::MAX {
+            continue;
+        }
         let res_asset_address = reserve_list.get_unchecked(res_id).unwrap_optimized();
         let mut reserve = pool.load_reserve(e, &res_asset_address);
         let lot_amount_modified = lot_amount

@@ -2,7 +2,7 @@ use crate::{
     dependencies::TokenClient,
     emissions,
     errors::PoolError,
-    pool::{Pool, PositionData, Positions},
+    pool::{Pool, PositionData, Positions, Reserve},
     storage,
 };
 use cast::i128;
@@ -14,7 +14,7 @@ use soroban_sdk::{
 use super::{
     backstop_interest_auction::{create_interest_auction_data, fill_interest_auction},
     bad_debt_auction::{create_bad_debt_auction_data, fill_bad_debt_auction},
-    user_liquidation_auction::{create_user_liq_auction_data, fill_user_liq_auction},
+    user_liquidation_auction::create_user_liq_auction_data,
 };
 
 #[derive(Clone, PartialEq)]
@@ -39,8 +39,7 @@ impl AuctionType {
 #[derive(Clone)]
 #[contracttype]
 pub struct LiquidationMetadata {
-    pub collateral: Map<Address, i128>,
-    pub liability: Map<Address, i128>,
+    pub liabilities: Map<Address, i128>,
 }
 
 #[derive(Clone)]
@@ -54,8 +53,7 @@ pub struct AuctionQuote {
 #[derive(Clone)]
 #[contracttype]
 pub struct AuctionData {
-    pub bid: Map<u32, i128>,
-    pub lot: Map<u32, i128>,
+    pub assets: Map<u32, i128>,
     pub block: u32,
 }
 
@@ -141,7 +139,9 @@ pub fn delete_liquidation(e: &Env, user: &Address) {
 pub fn fill(e: &Env, auction_type: u32, user: &Address, filler: &Address) -> AuctionQuote {
     let auction_data = storage::get_auction(e, &auction_type, user);
     let quote = match AuctionType::from_u32(auction_type) {
-        AuctionType::UserLiquidation => fill_user_liq_auction(e, &auction_data, user, filler),
+        AuctionType::UserLiquidation => {
+            panic_with_error!(e, PoolError::BadRequest);
+        }
         AuctionType::BadDebtAuction => fill_bad_debt_auction(e, &auction_data, filler),
         AuctionType::InterestAuction => fill_interest_auction(e, &auction_data, filler),
     };
@@ -204,7 +204,7 @@ pub(crate) fn fill_debt_token(
 ///
 /// Returns a tuple of i128's => (bid modifier, lot modifier) scaled
 /// to 7 decimal places
-pub(super) fn get_fill_modifiers(e: &Env, auction_data: &AuctionData) -> (i128, i128) {
+pub(crate) fn get_fill_modifiers(e: &Env, auction_data: &AuctionData) -> (i128, i128) {
     let block_dif = i128(e.ledger().sequence() - auction_data.block) * 1_0000000;
     let bid_mod: i128;
     let lot_mod: i128;

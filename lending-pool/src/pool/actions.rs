@@ -1,9 +1,17 @@
+use fixed_point_math::FixedPoint;
 use soroban_sdk::{
-    contracttype, panic_with_error, unwrap::UnwrapOptimized, vec, Address, Env, Vec,
+    contracttype, panic_with_error, unwrap::UnwrapOptimized, vec, Address, Env, Map, Vec,
 };
 
 use crate::{
-    emissions, errors::PoolError, pool::Positions, storage, validator::require_nonnegative,
+    auctions::{self, AuctionData},
+    constants::SCALAR_7,
+    dependencies::BackstopClient,
+    emissions,
+    errors::PoolError,
+    pool::Positions,
+    storage,
+    validator::require_nonnegative,
 };
 
 use super::pool::Pool;
@@ -15,13 +23,13 @@ pub struct Request {
     pub request_type: u32,
     pub reserve_index: u32,
     pub amount: i128,
+    pub target: Address,
 }
 
 /// A token action to be taken by the pool
 #[derive(Clone)]
 #[contracttype]
 pub struct Action {
-    pub asset: Address,
     pub tokens_out: i128,
     pub tokens_in: i128,
 }
@@ -50,8 +58,8 @@ pub fn build_actions_from_request(
     pool: &mut Pool,
     from: &Address,
     requests: Vec<Request>,
-) -> (Vec<Action>, Positions, bool) {
-    let mut actions = vec![&e];
+    actions: &mut Map<Address, Action>,
+) -> (Positions, bool) {
     let old_positions = storage::get_user_positions(e, from);
     let mut new_positions = old_positions.clone();
     let mut check_health = false;
@@ -74,18 +82,28 @@ pub fn build_actions_from_request(
                     request.reserve_index * 2,
                     reserve.b_supply,
                     reserve.scalar,
-                    from,
+                    &request.target,
                     old_positions.get_total_supply(request.reserve_index),
                     false,
                 );
                 let b_tokens_minted = reserve.to_b_token_down(request.amount);
                 reserve.b_supply += b_tokens_minted;
                 new_positions.add_supply(request.reserve_index, b_tokens_minted);
-                actions.push_back(Action {
-                    asset: asset.clone(),
-                    tokens_out: 0,
-                    tokens_in: request.amount,
-                });
+                let mut new_action: Action;
+                if actions.contains_key(asset.clone()) {
+                    new_action = actions
+                        .get(asset.clone())
+                        .unwrap_optimized()
+                        .unwrap_optimized();
+                    new_action.tokens_out += 0;
+                    new_action.tokens_in += request.amount;
+                } else {
+                    new_action = Action {
+                        tokens_out: 0,
+                        tokens_in: request.amount,
+                    };
+                }
+                actions.set(asset.clone(), new_action);
             }
             1 => {
                 // withdraw
@@ -104,19 +122,39 @@ pub fn build_actions_from_request(
                     let amount = reserve.to_asset_from_b_token(cur_b_tokens);
                     reserve.b_supply -= cur_b_tokens;
                     new_positions.remove_supply(e, request.reserve_index, cur_b_tokens);
-                    actions.push_back(Action {
-                        asset: asset.clone(),
-                        tokens_out: amount,
-                        tokens_in: 0,
-                    });
+                    let mut new_action: Action;
+                    if actions.contains_key(asset.clone()) {
+                        new_action = actions
+                            .get(asset.clone())
+                            .unwrap_optimized()
+                            .unwrap_optimized();
+                        new_action.tokens_out += amount;
+                        new_action.tokens_in += 0;
+                    } else {
+                        new_action = Action {
+                            tokens_out: amount,
+                            tokens_in: 0,
+                        };
+                    }
+                    actions.set(asset.clone(), new_action);
                 } else {
                     reserve.b_supply -= b_tokens_burnt;
                     new_positions.remove_supply(e, request.reserve_index, b_tokens_burnt);
-                    actions.push_back(Action {
-                        asset: asset.clone(),
-                        tokens_out: request.amount,
-                        tokens_in: 0,
-                    });
+                    let mut new_action: Action;
+                    if actions.contains_key(asset.clone()) {
+                        new_action = actions
+                            .get(asset.clone())
+                            .unwrap_optimized()
+                            .unwrap_optimized();
+                        new_action.tokens_out += request.amount;
+                        new_action.tokens_in += 0;
+                    } else {
+                        new_action = Action {
+                            tokens_out: request.amount,
+                            tokens_in: 0,
+                        };
+                    }
+                    actions.set(asset.clone(), new_action);
                 }
             }
             2 => {
@@ -133,11 +171,21 @@ pub fn build_actions_from_request(
                 let b_tokens_minted = reserve.to_b_token_down(request.amount);
                 reserve.b_supply += b_tokens_minted;
                 new_positions.add_collateral(request.reserve_index, b_tokens_minted);
-                actions.push_back(Action {
-                    asset: asset.clone(),
-                    tokens_out: 0,
-                    tokens_in: request.amount,
-                });
+                let mut new_action: Action;
+                if actions.contains_key(asset.clone()) {
+                    new_action = actions
+                        .get(asset.clone())
+                        .unwrap_optimized()
+                        .unwrap_optimized();
+                    new_action.tokens_out += 0;
+                    new_action.tokens_in += request.amount;
+                } else {
+                    new_action = Action {
+                        tokens_out: 0,
+                        tokens_in: request.amount,
+                    };
+                }
+                actions.set(asset.clone(), new_action);
             }
             3 => {
                 // withdraw collateral
@@ -156,19 +204,41 @@ pub fn build_actions_from_request(
                     let amount = reserve.to_asset_from_b_token(cur_b_tokens);
                     reserve.b_supply -= cur_b_tokens;
                     new_positions.remove_collateral(e, request.reserve_index, cur_b_tokens);
-                    actions.push_back(Action {
-                        asset: asset.clone(),
-                        tokens_out: amount,
-                        tokens_in: 0,
-                    });
+                    let mut new_action: Action;
+                    if actions.contains_key(asset.clone()) {
+                        new_action = actions
+                            .get(asset.clone())
+                            .unwrap_optimized()
+                            .unwrap_optimized();
+                        new_action.tokens_out += amount;
+                        new_action.tokens_in += 0;
+                    } else {
+                        new_action = Action {
+                            tokens_out: amount,
+                            tokens_in: 0,
+                        };
+                    }
+                    actions.set(asset.clone(), new_action);
                 } else {
                     reserve.b_supply -= b_tokens_burnt;
                     new_positions.remove_collateral(e, request.reserve_index, b_tokens_burnt);
-                    actions.push_back(Action {
-                        asset: asset.clone(),
-                        tokens_out: request.amount,
-                        tokens_in: 0,
-                    });
+                    let mut new_action: Action;
+                    if actions.contains_key(asset.clone()) {
+                        new_action = actions
+                            .get(asset.clone())
+                            .unwrap_optimized()
+                            .unwrap_optimized();
+                        new_action.tokens_out += request.amount;
+                        new_action.tokens_in += 0;
+                    } else {
+                        new_action = Action {
+                            tokens_out: request.amount,
+                            tokens_in: 0,
+                        };
+                    }
+                    new_action.tokens_out += request.amount;
+                    new_action.tokens_in += 0;
+                    actions.set(asset.clone(), new_action);
                 }
                 check_health = true;
             }
@@ -187,11 +257,21 @@ pub fn build_actions_from_request(
                 reserve.d_supply += d_tokens_minted;
                 reserve.require_utilization_below_max(e);
                 new_positions.add_liabilities(request.reserve_index, d_tokens_minted);
-                actions.push_back(Action {
-                    asset: asset.clone(),
-                    tokens_out: request.amount,
-                    tokens_in: 0,
-                });
+                let mut new_action: Action;
+                if actions.contains_key(asset.clone()) {
+                    new_action = actions
+                        .get(asset.clone())
+                        .unwrap_optimized()
+                        .unwrap_optimized();
+                    new_action.tokens_out += request.amount;
+                    new_action.tokens_in += 0;
+                } else {
+                    new_action = Action {
+                        tokens_out: request.amount,
+                        tokens_in: 0,
+                    };
+                }
+                actions.set(asset.clone(), new_action);
                 check_health = true;
             }
             5 => {
@@ -213,28 +293,213 @@ pub fn build_actions_from_request(
                     require_nonnegative(e, &amount_to_refund);
                     reserve.d_supply -= cur_d_tokens;
                     new_positions.remove_liabilities(e, request.reserve_index, cur_d_tokens);
-                    actions.push_back(Action {
-                        asset: asset.clone(),
-                        tokens_out: amount_to_refund,
-                        tokens_in: request.amount,
-                    });
+                    let mut new_action: Action;
+                    if actions.contains_key(asset.clone()) {
+                        new_action = actions
+                            .get(asset.clone())
+                            .unwrap_optimized()
+                            .unwrap_optimized();
+                        new_action.tokens_out += amount_to_refund;
+                        new_action.tokens_in += request.amount;
+                    } else {
+                        new_action = Action {
+                            tokens_out: amount_to_refund,
+                            tokens_in: request.amount,
+                        };
+                    }
+                    actions.set(asset.clone(), new_action);
                 } else {
                     reserve.d_supply -= d_tokens_burnt;
                     new_positions.remove_liabilities(e, request.reserve_index, d_tokens_burnt);
-                    actions.push_back(Action {
-                        asset: asset.clone(),
-                        tokens_out: 0,
-                        tokens_in: request.amount,
-                    });
+                    let mut new_action: Action;
+                    if actions.contains_key(asset.clone()) {
+                        new_action = actions
+                            .get(asset.clone())
+                            .unwrap_optimized()
+                            .unwrap_optimized();
+                        new_action.tokens_out += 0;
+                        new_action.tokens_in += request.amount;
+                    } else {
+                        new_action = Action {
+                            tokens_out: 0,
+                            tokens_in: request.amount,
+                        };
+                    }
+                    actions.set(asset.clone(), new_action);
                 }
             }
             _ => panic_with_error!(e, PoolError::BadRequest),
         }
         pool.cache_reserve(reserve);
     }
-    (actions, new_positions, check_health)
+    (new_positions, check_health)
 }
 
+pub fn build_liq_actions_from_request(
+    e: &Env,
+    pool: &mut Pool,
+    from: &Address,
+    requests: Vec<Request>,
+    actions: &mut Map<Address, Action>,
+) -> Positions {
+    let old_positions = storage::get_user_positions(e, from);
+    let mut new_positions = old_positions.clone();
+
+    let auction_data: AuctionData;
+    let backstop = storage::get_backstop(&e);
+    if from.clone() == backstop {
+        panic_with_error!(e, PoolError::BadRequest)
+    } else {
+        auction_data = storage::get_auction(&e, &0, &from)
+    }
+    let (bid_modifier, lot_modifier) = auctions::get_fill_modifiers(e, &auction_data);
+    let reserve_list = storage::get_res_list(e);
+    for request in requests.iter_unchecked() {
+        // verify reserve is supported in the pool and the action is allowed
+        require_nonnegative(e, &request.amount);
+        let asset = reserve_list
+            .get(request.reserve_index)
+            .unwrap_or_else(|| panic_with_error!(e, PoolError::BadRequest))
+            .unwrap_optimized();
+        let mut reserve = pool.load_reserve(e, &asset);
+
+        match request.request_type {
+            3 => {
+                // withdraw collateral
+                emissions::update_emissions(
+                    e,
+                    request.reserve_index * 2,
+                    reserve.b_supply,
+                    reserve.scalar,
+                    from,
+                    old_positions.get_total_supply(request.reserve_index),
+                    false,
+                );
+                let cur_b_tokens = new_positions.get_collateral(request.reserve_index);
+                let b_tokens_burnt = reserve.to_b_token_up(request.amount);
+                if cur_b_tokens
+                    < b_tokens_burnt
+                        .fixed_mul_ceil(lot_modifier, SCALAR_7)
+                        .unwrap_optimized()
+                {
+                    panic_with_error!(&e, PoolError::InvalidLiquidation)
+                }
+                if b_tokens_burnt > cur_b_tokens {
+                    let amount = reserve.to_asset_from_b_token(cur_b_tokens);
+                    reserve.b_supply -= cur_b_tokens;
+                    new_positions.remove_collateral(e, request.reserve_index, cur_b_tokens);
+                    let mut new_action: Action;
+                    if actions.contains_key(asset.clone()) {
+                        new_action = actions
+                            .get(asset.clone())
+                            .unwrap_optimized()
+                            .unwrap_optimized();
+                        new_action.tokens_out += amount;
+                        new_action.tokens_in += 0;
+                    } else {
+                        new_action = Action {
+                            tokens_out: amount,
+                            tokens_in: 0,
+                        };
+                    }
+                    actions.set(asset.clone(), new_action);
+                } else {
+                    reserve.b_supply -= b_tokens_burnt;
+                    new_positions.remove_collateral(e, request.reserve_index, b_tokens_burnt);
+                    let mut new_action: Action;
+                    if actions.contains_key(asset.clone()) {
+                        new_action = actions
+                            .get(asset.clone())
+                            .unwrap_optimized()
+                            .unwrap_optimized();
+                        new_action.tokens_out += request.amount;
+                        new_action.tokens_in += 0;
+                    } else {
+                        new_action = Action {
+                            tokens_out: request.amount,
+                            tokens_in: 0,
+                        };
+                    }
+                    actions.set(asset.clone(), new_action);
+                }
+            }
+            5 => {
+                // repay
+                emissions::update_emissions(
+                    e,
+                    request.reserve_index * 2,
+                    reserve.d_supply,
+                    reserve.scalar,
+                    from,
+                    old_positions.get_liabilities(request.reserve_index),
+                    false,
+                );
+                let cur_d_tokens = new_positions.get_liabilities(request.reserve_index);
+                let d_tokens_burnt = reserve.to_d_token_down(request.amount);
+                let bid_amt: i128;
+                if from.clone() == backstop {
+                    bid_amt = cur_d_tokens;
+                } else {
+                    bid_amt = auction_data
+                        .assets
+                        .get(request.reserve_index)
+                        .unwrap_or_else(|| panic_with_error!(e, PoolError::BadRequest))
+                        .unwrap_optimized();
+                }
+                if d_tokens_burnt
+                    > bid_modifier
+                        .fixed_mul_floor(bid_amt, SCALAR_7)
+                        .unwrap_optimized()
+                {
+                    panic_with_error!(&e, PoolError::InvalidLiquidation)
+                }
+                if d_tokens_burnt > cur_d_tokens {
+                    let amount_to_refund =
+                        request.amount - reserve.to_asset_from_d_token(cur_d_tokens);
+                    require_nonnegative(e, &amount_to_refund);
+                    reserve.d_supply -= cur_d_tokens;
+                    new_positions.remove_liabilities(e, request.reserve_index, cur_d_tokens);
+                    let mut new_action: Action;
+                    if actions.contains_key(asset.clone()) {
+                        new_action = actions
+                            .get(asset.clone())
+                            .unwrap_optimized()
+                            .unwrap_optimized();
+                        new_action.tokens_out += amount_to_refund;
+                        new_action.tokens_in += request.amount;
+                    } else {
+                        new_action = Action {
+                            tokens_out: amount_to_refund,
+                            tokens_in: request.amount,
+                        };
+                    }
+                    actions.set(asset.clone(), new_action);
+                } else {
+                    reserve.d_supply -= d_tokens_burnt;
+                    new_positions.remove_liabilities(e, request.reserve_index, d_tokens_burnt);
+                    let mut new_action: Action;
+                    if actions.contains_key(asset.clone()) {
+                        new_action = actions
+                            .get(asset.clone())
+                            .unwrap_optimized()
+                            .unwrap_optimized();
+                        new_action.tokens_out += 0;
+                        new_action.tokens_in += request.amount;
+                    } else {
+                        new_action = Action {
+                            tokens_out: 0,
+                            tokens_in: request.amount,
+                        };
+                    }
+                    actions.set(asset.clone(), new_action);
+                }
+            }
+            _ => panic_with_error!(e, PoolError::BadRequest),
+        }
+        pool.cache_reserve(reserve);
+    }
+    new_positions
+}
 #[cfg(test)]
 mod tests {
     use crate::{storage::PoolConfig, testutils};

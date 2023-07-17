@@ -100,7 +100,7 @@ pub trait PoolContractTrait {
         from: Address,
         spender: Address,
         to: Address,
-        requests: Vec<Request>,
+        requests: Map<Address, Vec<Request>>,
     ) -> Positions;
 
     /// Manage bad debt. Debt is considered "bad" if there is no longer has any collateral posted.
@@ -316,7 +316,7 @@ impl PoolContractTrait for PoolContract {
         from: Address,
         spender: Address,
         to: Address,
-        requests: Vec<Request>,
+        requests: Map<Address, Vec<Request>>,
     ) -> Positions {
         from.require_auth();
         if from != spender {

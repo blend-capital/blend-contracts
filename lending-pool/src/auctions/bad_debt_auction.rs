@@ -17,8 +17,7 @@ pub fn create_bad_debt_auction_data(e: &Env, backstop: &Address) -> AuctionData 
     }
 
     let mut auction_data = AuctionData {
-        bid: map![e],
-        lot: map![e],
+        assets: map![e],
         block: e.ledger().sequence() + 1,
     };
 
@@ -37,10 +36,10 @@ pub fn create_bad_debt_auction_data(e: &Env, backstop: &Address) -> AuctionData 
             debt_value += asset_balance
                 .fixed_mul_floor(i128(asset_to_base), 10i128.pow(oracle_decimals))
                 .unwrap_optimized();
-            auction_data.bid.set(reserve_index, liability_balance);
+            auction_data.assets.set(reserve_index, liability_balance);
         }
     }
-    if auction_data.bid.len() == 0 || debt_value == 0 {
+    if auction_data.assets.len() == 0 || debt_value == 0 {
         panic_with_error!(e, PoolError::AuctionInProgress);
     }
 
@@ -56,7 +55,7 @@ pub fn create_bad_debt_auction_data(e: &Env, backstop: &Address) -> AuctionData 
     let (pool_backstop_balance, _, _) = backstop_client.pool_balance(&e.current_contract_address());
     lot_amount = pool_backstop_balance.min(lot_amount);
     // u32::MAX is the key for the backstop token
-    auction_data.lot.set(u32::MAX, lot_amount);
+    auction_data.assets.set(u32::MAX, lot_amount);
 
     auction_data
 }
@@ -76,14 +75,17 @@ pub fn fill_bad_debt_auction(
 
     let mut pool = Pool::load(e);
     let mut new_positions = storage::get_user_positions(e, &backstop_address);
-
     // bid only contains d_token asset amounts
     let reserve_list = storage::get_res_list(e);
-    for (res_id, amount) in auction_data.bid.iter_unchecked() {
+    for (res_id, amount) in auction_data.assets.iter_unchecked() {
+        if res_id == u32::MAX {
+            continue;
+        }
         let res_asset_address = reserve_list.get_unchecked(res_id).unwrap_optimized();
         let amount_modified = amount
             .fixed_mul_floor(bid_modifier, SCALAR_7)
             .unwrap_optimized();
+        let reserve = pool.load_reserve(e, &res_asset_address);
         let underlying_amount = fill_debt_token(
             e,
             &mut pool,
@@ -95,13 +97,16 @@ pub fn fill_bad_debt_auction(
         );
         auction_quote
             .bid
-            .push_back((res_asset_address, underlying_amount));
+            .push_back((res_asset_address, amount_modified));
     }
 
     // lot only contains the backstop token
     let backstop_client = BackstopClient::new(&e, &backstop_address);
     let backstop_token_id = backstop_client.backstop_token();
-    let lot_amount = auction_data.lot.get_unchecked(u32::MAX).unwrap_optimized();
+    let lot_amount = auction_data
+        .assets
+        .get_unchecked(u32::MAX)
+        .unwrap_optimized();
     let lot_amount_modified = lot_amount
         .fixed_mul_floor(lot_modifier, SCALAR_7)
         .unwrap_optimized();

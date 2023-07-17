@@ -1,8 +1,8 @@
 use crate::{dependencies::TokenClient, storage};
-use soroban_sdk::{Address, Env, Vec};
+use soroban_sdk::{unwrap::UnwrapOptimized, Address, Env, Map, Vec};
 
 use super::{
-    actions::{build_actions_from_request, Request},
+    actions::{build_actions_from_request, Action, Request},
     health_factor::PositionData,
     pool::Pool,
     Positions,
@@ -23,13 +23,29 @@ pub fn execute_submit(
     from: &Address,
     spender: &Address,
     to: &Address,
-    requests: Vec<Request>,
+    position_requests: Map<Address, Vec<Request>>,
 ) -> Positions {
     let mut pool = Pool::load(e);
-
-    let (pool_actions, new_positions, check_health) =
-        build_actions_from_request(e, &mut pool, &from, requests);
-
+    let mut pool_actions: Map<Address, Action> = Map::new(&e);
+    let (new_positions, check_health) = build_actions_from_request(
+        e,
+        &mut pool,
+        &from,
+        position_requests
+            .get(from.clone())
+            .unwrap_optimized()
+            .unwrap_optimized(),
+        &mut pool_actions,
+    );
+    if position_requests.len() > 0 {
+        for (user, requests) in position_requests.iter_unchecked() {
+            if user != from.clone() {
+                let positions =
+                    build_actions_from_request(e, &mut pool, &user, requests, &mut pool_actions);
+                storage::set_user_positions(e, &from, &new_positions);
+            }
+        }
+    }
     if check_health {
         // panics if the new positions set does not meet the health factor requirement
         PositionData::calculate_from_positions(e, &mut pool, &new_positions).require_healthy(e);
@@ -37,9 +53,9 @@ pub fn execute_submit(
 
     // TODO: Is this reentrancy guard necessary?
     // transfer tokens into the pool
-    for action in pool_actions.iter_unchecked() {
+    for (asset, action) in pool_actions.iter_unchecked() {
         if action.tokens_in > 0 {
-            TokenClient::new(e, &action.asset).transfer(
+            TokenClient::new(e, &asset).transfer(
                 &spender,
                 &e.current_contract_address(),
                 &action.tokens_in,
@@ -52,9 +68,9 @@ pub fn execute_submit(
     storage::set_user_positions(e, &from, &new_positions);
 
     // transfer tokens out of the pool
-    for action in pool_actions.iter_unchecked() {
+    for (asset, action) in pool_actions.iter_unchecked() {
         if action.tokens_out > 0 {
-            TokenClient::new(e, &action.asset).transfer(
+            TokenClient::new(e, &asset).transfer(
                 &e.current_contract_address(),
                 &to,
                 &action.tokens_out,

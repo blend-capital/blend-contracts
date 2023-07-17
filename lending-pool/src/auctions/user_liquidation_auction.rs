@@ -1,16 +1,15 @@
 use cast::i128;
 use fixed_point_math::FixedPoint;
 use soroban_sdk::unwrap::UnwrapOptimized;
-use soroban_sdk::{map, panic_with_error, vec, Address, Env};
+use soroban_sdk::{map, panic_with_error, Address, Env};
 
 use crate::auctions::auction::AuctionData;
 use crate::constants::{SCALAR_7, SCALAR_9};
-use crate::emissions;
 use crate::pool::Pool;
 use crate::validator::require_nonnegative;
 use crate::{dependencies::OracleClient, errors::PoolError, storage};
 
-use super::{fill_debt_token, get_fill_modifiers, AuctionQuote, AuctionType, LiquidationMetadata};
+use super::{AuctionType, LiquidationMetadata};
 
 // TODO: Revalidate math with alternative decimal reserve
 pub fn create_user_liq_auction_data(
@@ -23,8 +22,7 @@ pub fn create_user_liq_auction_data(
     }
 
     let mut liquidation_quote = AuctionData {
-        bid: map![e],
-        lot: map![e],
+        assets: map![e],
         block: e.ledger().sequence() + 1,
     };
 
@@ -38,6 +36,7 @@ pub fn create_user_liq_auction_data(
     let mut all_collateral = true;
     let mut all_liabilities = true;
     let mut collateral_base = 0;
+    let mut collateral_raw = 0;
     let mut sell_collat_base = 0;
     let mut scaled_cf = 0;
     let mut liability_base = 0;
@@ -57,40 +56,13 @@ pub fn create_user_liq_auction_data(
         if b_token_balance > 0 {
             // append users effective collateral to collateral_base
             let asset_collateral = reserve.to_effective_asset_from_b_token(b_token_balance);
+            let asset_raw = reserve.to_asset_from_b_token(b_token_balance);
             collateral_base += asset_to_base
                 .fixed_mul_floor(asset_collateral, reserve_scalar)
                 .unwrap_optimized();
-            if let Some(to_sell_entry) = liq_data.collateral.get(res_asset_address.clone()) {
-                // liquidator included some amount of collateral in the liquidation
-                let to_sell_amt_b_token = to_sell_entry.unwrap_optimized();
-                require_nonnegative(e, &to_sell_amt_b_token);
-                liq_data
-                    .collateral
-                    .remove_unchecked(res_asset_address.clone());
-
-                // track the amount of collateral being purchased by the liquidator and the scaled collateral factor for validation later
-                let to_sell_amt_base = asset_to_base
-                    .fixed_mul_floor(
-                        reserve.to_asset_from_b_token(to_sell_amt_b_token),
-                        reserve_scalar,
-                    )
-                    .unwrap_optimized();
-                sell_collat_base += to_sell_amt_base;
-
-                scaled_cf += to_sell_amt_base
-                    .fixed_mul_floor(i128(reserve.c_factor) * 100, SCALAR_7)
-                    .unwrap_optimized();
-                if to_sell_amt_b_token > b_token_balance {
-                    panic_with_error!(e, PoolError::InvalidLot);
-                } else if to_sell_amt_b_token < b_token_balance {
-                    all_collateral = false;
-                }
-                liquidation_quote
-                    .lot
-                    .set(reserve.index, to_sell_amt_b_token);
-            } else {
-                all_collateral = false;
-            }
+            collateral_raw += asset_to_base
+                .fixed_mul_floor(asset_raw, reserve_scalar)
+                .unwrap_optimized();
         }
 
         if d_token_balance > 0 {
@@ -100,12 +72,12 @@ pub fn create_user_liq_auction_data(
                 .fixed_mul_floor(asset_liability, reserve_scalar)
                 .unwrap_optimized();
 
-            if let Some(to_buy_entry) = liq_data.liability.get(res_asset_address.clone()) {
+            if let Some(to_buy_entry) = liq_data.liabilities.get(res_asset_address.clone()) {
                 // liquidator included some amount of liabilities in the liquidation
                 let to_buy_amt_d_token = to_buy_entry.unwrap_optimized();
                 require_nonnegative(e, &to_buy_amt_d_token);
                 liq_data
-                    .liability
+                    .liabilities
                     .remove_unchecked(res_asset_address.clone());
 
                 // track the amount of liabilities being sold by the liquidator and the scaled liability factor for validation later
@@ -124,7 +96,9 @@ pub fn create_user_liq_auction_data(
                 } else if to_buy_amt_d_token < d_token_balance {
                     all_liabilities = false;
                 }
-                liquidation_quote.bid.set(reserve.index, to_buy_amt_d_token);
+                liquidation_quote
+                    .assets
+                    .set(reserve.index, to_buy_amt_d_token);
             } else {
                 all_liabilities = false;
             }
@@ -137,13 +111,13 @@ pub fn create_user_liq_auction_data(
     }
 
     // any remaining entries in liquidation data represent tokens that the user does not have
-    if liq_data.collateral.len() > 0 || liq_data.liability.len() > 0 {
+    if liq_data.liabilities.len() > 0 {
         panic_with_error!(e, PoolError::InvalidLiquidation);
     }
 
     // ensure liquidation size is fair and the collateral is large enough to allow for the auction to price the liquidation
-    let weighted_cf = scaled_cf
-        .fixed_div_floor(sell_collat_base * 100, oracle_scalar)
+    let weighted_cf = collateral_base
+        .fixed_div_floor(collateral_raw * 100, oracle_scalar)
         .unwrap_optimized();
     // weighted_lf factor is the inverse of the liability factor
     let weighted_lf = SCALAR_9
@@ -179,119 +153,13 @@ pub fn create_user_liq_auction_data(
         .fixed_div_ceil(1_1000000, SCALAR_7)
         .unwrap_optimized(); //TODO: Assess whether 10% is an appropriate range here
 
-    let max_collateral_lot = buy_liab_base
-        .fixed_mul_floor(2_5000000, SCALAR_7)
-        .unwrap_optimized();
-    let min_collateral_lot = buy_liab_base
-        .fixed_mul_floor(1_2500000, SCALAR_7)
-        .unwrap_optimized();
-
     if max_target_liabilities < buy_liab_base {
         panic_with_error!(e, PoolError::InvalidBidTooLarge);
     }
     if min_target_liabilities > buy_liab_base && all_liabilities == false {
         panic_with_error!(e, PoolError::InvalidBidTooSmall);
     }
-    if sell_collat_base > max_collateral_lot {
-        panic_with_error!(e, PoolError::InvalidLotTooLarge);
-    }
-    if sell_collat_base < min_collateral_lot && all_collateral == false {
-        panic_with_error!(e, PoolError::InvalidLotTooSmall);
-    }
-
     liquidation_quote
-}
-
-pub fn fill_user_liq_auction(
-    e: &Env,
-    auction_data: &AuctionData,
-    user: &Address,
-    filler: &Address,
-) -> AuctionQuote {
-    let mut auction_quote = AuctionQuote {
-        bid: vec![e],
-        lot: vec![e],
-        block: e.ledger().sequence(),
-    };
-    let (bid_modifier, lot_modifier) = get_fill_modifiers(e, auction_data);
-
-    let mut pool = Pool::load(e);
-    let mut user_positions = storage::get_user_positions(e, user);
-    let mut filler_positions = storage::get_user_positions(e, filler);
-
-    let reserve_list = storage::get_res_list(e);
-    for i in 0..reserve_list.len() {
-        let bid_amount = auction_data.bid.get(i).unwrap_or(Ok(0)).unwrap_optimized();
-        let lot_amount = auction_data.lot.get(i).unwrap_or(Ok(0)).unwrap_optimized();
-        if bid_amount == 0 && lot_amount == 0 {
-            continue;
-        }
-
-        let res_asset_address = reserve_list.get_unchecked(i).unwrap_optimized();
-        let reserve = pool.load_reserve(e, &res_asset_address);
-
-        // bids are liabilities stored as debtTokens
-        if bid_amount > 0 {
-            let mod_bid_amount = bid_amount
-                .fixed_mul_floor(bid_modifier, SCALAR_7)
-                .unwrap_optimized();
-            let underlying_amount = fill_debt_token(
-                e,
-                &mut pool,
-                &user,
-                &filler,
-                &res_asset_address,
-                mod_bid_amount,
-                &mut user_positions,
-            );
-            auction_quote
-                .bid
-                .push_back((res_asset_address, underlying_amount));
-        }
-
-        // lot contains collateral stored as blendTokens
-        if lot_amount > 0 {
-            // pay out lot in blendTokens by transferring them from
-            // the liquidated user to the auction filler
-            let mod_lot_amount = lot_amount
-                .fixed_mul_floor(lot_modifier, SCALAR_7)
-                .unwrap_optimized();
-            // update both the filler and liquidated user's emissions
-            // @dev: TODO: The reserve emissions update will short circuit on the second go,
-            //       but this can be optimized to avoid a second read
-            emissions::update_emissions(
-                e,
-                reserve.index * 2 + 1,
-                reserve.b_supply,
-                reserve.scalar,
-                user,
-                user_positions.get_total_supply(reserve.index),
-                false,
-            );
-            emissions::update_emissions(
-                e,
-                reserve.index * 2 + 1,
-                reserve.b_supply,
-                reserve.scalar,
-                filler,
-                filler_positions.get_total_supply(reserve.index),
-                false,
-            );
-            user_positions.remove_collateral(e, reserve.index, mod_lot_amount);
-            // TODO: Consider returning supply to avoid any required health check on withdrawal
-            filler_positions.add_collateral(reserve.index, mod_lot_amount);
-            // TODO: Is this confusing to quote in blendTokens?
-            auction_quote
-                .lot
-                .push_back((reserve.asset.clone(), mod_lot_amount));
-        }
-
-        reserve.store(e);
-    }
-    storage::set_user_positions(e, user, &user_positions);
-    storage::set_user_positions(e, filler, &filler_positions);
-
-    auction_quote
 }
 
 #[cfg(test)]

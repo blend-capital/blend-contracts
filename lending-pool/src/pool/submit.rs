@@ -23,32 +23,16 @@ pub fn execute_submit(
     from: &Address,
     spender: &Address,
     to: &Address,
-    position_requests: Map<Address, Vec<Request>>,
+    requests: Vec<Request>,
 ) -> Positions {
     let mut pool = Pool::load(e);
     let mut pool_actions: Map<Address, Action> = Map::new(&e);
-    let (new_positions, check_health) = build_actions_from_request(
-        e,
-        &mut pool,
-        &from,
-        position_requests
-            .get(from.clone())
-            .unwrap_optimized()
-            .unwrap_optimized(),
-        &mut pool_actions,
-    );
-    if position_requests.len() > 0 {
-        for (user, requests) in position_requests.iter_unchecked() {
-            if user != from.clone() {
-                let positions =
-                    build_actions_from_request(e, &mut pool, &user, requests, &mut pool_actions);
-                storage::set_user_positions(e, &from, &new_positions);
-            }
-        }
-    }
+    let (check_health, pool_actions) = build_actions_from_request(e, &mut pool, &from, requests);
+    let from_positions = storage::get_user_positions(e, &from);
+
     if check_health {
         // panics if the new positions set does not meet the health factor requirement
-        PositionData::calculate_from_positions(e, &mut pool, &new_positions).require_healthy(e);
+        PositionData::calculate_from_positions(e, &mut pool, &from_positions).require_healthy(e);
     }
 
     // TODO: Is this reentrancy guard necessary?
@@ -65,7 +49,6 @@ pub fn execute_submit(
 
     // store updated info to ledger
     pool.store_cached_reserves(e);
-    storage::set_user_positions(e, &from, &new_positions);
 
     // transfer tokens out of the pool
     for (asset, action) in pool_actions.iter_unchecked() {
@@ -78,7 +61,7 @@ pub fn execute_submit(
         }
     }
 
-    new_positions
+    from_positions
 }
 
 #[cfg(test)]

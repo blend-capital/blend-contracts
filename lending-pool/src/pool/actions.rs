@@ -58,12 +58,14 @@ pub fn build_actions_from_request(
     pool: &mut Pool,
     from: &Address,
     requests: Vec<Request>,
-    actions: &mut Map<Address, Action>,
-) -> (Positions, bool) {
-    let old_positions = storage::get_user_positions(e, from);
-    let mut new_positions = old_positions.clone();
+) -> (bool, Map<Address, Action>) {
+    let mut actions: Map<Address, Action> = Map::new(&e);
+    let mut new_positions = storage::get_user_positions(e, &from);
+    let mut old_positions = new_positions.clone();
     let mut check_health = false;
     let reserve_list = storage::get_res_list(e);
+    let mut auction_data: AuctionData;
+    let (mut lot_modifier, mut bid_modifier): (i128, i128);
     for request in requests.iter_unchecked() {
         // verify reserve is supported in the pool and the action is allowed
         require_nonnegative(e, &request.amount);
@@ -73,6 +75,20 @@ pub fn build_actions_from_request(
             .unwrap_optimized();
         pool.require_action_allowed(e, request.request_type);
         let mut reserve = pool.load_reserve(e, &asset);
+
+        if request.target != from.clone() {
+            // gets auction data - will panic if there is no auction
+            auction_data = storage::get_auction(e, &0, &request.target);
+            //store old positions
+            storage::set_user_positions(e, &from, &new_positions);
+            // re-assign user
+            let from = request.target;
+            // re-assign positions
+            new_positions = storage::get_user_positions(e, &from);
+            old_positions = new_positions.clone();
+            //get modifiers
+            (lot_modifier, bid_modifier) = auctions::get_fill_modifiers(e, &auction_data)
+        }
 
         match request.request_type {
             0 => {
@@ -328,44 +344,12 @@ pub fn build_actions_from_request(
                     actions.set(asset.clone(), new_action);
                 }
             }
-            _ => panic_with_error!(e, PoolError::BadRequest),
-        }
-        pool.cache_reserve(reserve);
-    }
-    (new_positions, check_health)
-}
-
-pub fn build_liq_actions_from_request(
-    e: &Env,
-    pool: &mut Pool,
-    from: &Address,
-    requests: Vec<Request>,
-    actions: &mut Map<Address, Action>,
-) -> Positions {
-    let old_positions = storage::get_user_positions(e, from);
-    let mut new_positions = old_positions.clone();
-
-    let auction_data: AuctionData;
-    let backstop = storage::get_backstop(&e);
-    if from.clone() == backstop {
-        panic_with_error!(e, PoolError::BadRequest)
-    } else {
-        auction_data = storage::get_auction(&e, &0, &from)
-    }
-    let (bid_modifier, lot_modifier) = auctions::get_fill_modifiers(e, &auction_data);
-    let reserve_list = storage::get_res_list(e);
-    for request in requests.iter_unchecked() {
-        // verify reserve is supported in the pool and the action is allowed
-        require_nonnegative(e, &request.amount);
-        let asset = reserve_list
-            .get(request.reserve_index)
-            .unwrap_or_else(|| panic_with_error!(e, PoolError::BadRequest))
-            .unwrap_optimized();
-        let mut reserve = pool.load_reserve(e, &asset);
-
-        match request.request_type {
-            3 => {
-                // withdraw collateral
+            6 => {
+                // check auction - will error if auction data has not been assigned yet
+                if auction_data.assets.len() < 1 {
+                    panic_with_error!(&e, PoolError::BadRequest)
+                }
+                // withdraw collateral liquidation
                 emissions::update_emissions(
                     e,
                     request.reserve_index * 2,
@@ -423,7 +407,11 @@ pub fn build_liq_actions_from_request(
                     actions.set(asset.clone(), new_action);
                 }
             }
-            5 => {
+            7 => {
+                // check auction - will error if auction data has not been assigned yet
+                if auction_data.assets.len() < 1 {
+                    panic_with_error!(&e, PoolError::BadRequest)
+                }
                 // repay
                 emissions::update_emissions(
                     e,
@@ -436,16 +424,13 @@ pub fn build_liq_actions_from_request(
                 );
                 let cur_d_tokens = new_positions.get_liabilities(request.reserve_index);
                 let d_tokens_burnt = reserve.to_d_token_down(request.amount);
-                let bid_amt: i128;
-                if from.clone() == backstop {
-                    bid_amt = cur_d_tokens;
-                } else {
-                    bid_amt = auction_data
-                        .assets
-                        .get(request.reserve_index)
-                        .unwrap_or_else(|| panic_with_error!(e, PoolError::BadRequest))
-                        .unwrap_optimized();
-                }
+
+                let bid_amt = auction_data
+                    .assets
+                    .get(request.reserve_index)
+                    .unwrap_or_else(|| panic_with_error!(e, PoolError::BadRequest))
+                    .unwrap_optimized();
+
                 if d_tokens_burnt
                     > bid_modifier
                         .fixed_mul_floor(bid_amt, SCALAR_7)
@@ -498,7 +483,9 @@ pub fn build_liq_actions_from_request(
         }
         pool.cache_reserve(reserve);
     }
-    new_positions
+    storage::set_user_positions(e, from, &new_positions);
+
+    (check_health, actions)
 }
 #[cfg(test)]
 mod tests {

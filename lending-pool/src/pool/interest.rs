@@ -141,6 +141,9 @@ mod tests {
             sequence_number: 100,
             network_id: Default::default(),
             base_reserve: 10,
+            min_temp_entry_expiration: 10,
+            min_persistent_entry_expiration: 10,
+            max_entry_expiration: 2000000,
         });
 
         let (accrual, ir_mod) = calc_accrual(&e, &reserve_config, 0_6565656, ir_mod, 0);
@@ -173,6 +176,9 @@ mod tests {
             sequence_number: 100,
             network_id: Default::default(),
             base_reserve: 10,
+            min_temp_entry_expiration: 10,
+            min_persistent_entry_expiration: 10,
+            max_entry_expiration: 2000000,
         });
 
         let (accrual, ir_mod) = calc_accrual(&e, &reserve_config, 0_7979797, ir_mod, 0);
@@ -205,6 +211,9 @@ mod tests {
             sequence_number: 100,
             network_id: Default::default(),
             base_reserve: 10,
+            min_temp_entry_expiration: 10,
+            min_persistent_entry_expiration: 10,
+            max_entry_expiration: 2000000,
         });
 
         let (accrual, ir_mod) = calc_accrual(&e, &reserve_config, 0_9696969, ir_mod, 0);
@@ -237,6 +246,9 @@ mod tests {
             sequence_number: 10000,
             network_id: Default::default(),
             base_reserve: 10,
+            min_temp_entry_expiration: 10,
+            min_persistent_entry_expiration: 10,
+            max_entry_expiration: 2000000,
         });
 
         let (_accrual, ir_mod) = calc_accrual(&e, &reserve_config, 0_9696969, ir_mod, 0);
@@ -268,6 +280,9 @@ mod tests {
             sequence_number: 10000,
             network_id: Default::default(),
             base_reserve: 10,
+            min_temp_entry_expiration: 10,
+            min_persistent_entry_expiration: 10,
+            max_entry_expiration: 2000000,
         });
 
         let (_accrual, ir_mod) = calc_accrual(&e, &reserve_config, 0_2020202, ir_mod, 0);
@@ -299,6 +314,9 @@ mod tests {
             sequence_number: 100,
             network_id: Default::default(),
             base_reserve: 10,
+            min_temp_entry_expiration: 10,
+            min_persistent_entry_expiration: 10,
+            max_entry_expiration: 2000000,
         });
 
         let (accrual, ir_mod) = calc_accrual(&e, &reserve_config, 0_0500000, ir_mod, 500);

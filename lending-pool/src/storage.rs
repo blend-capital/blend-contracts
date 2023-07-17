@@ -123,14 +123,16 @@ pub enum PoolDataKey {
 pub fn get_user_positions(e: &Env, user: &Address) -> Positions {
     let key = PoolDataKey::Positions(user.clone());
     e.storage()
+        .persistent()
         .get::<PoolDataKey, Positions>(&key)
-        .unwrap_or(Ok(Positions::env_default(e)))
-        .unwrap_optimized()
+        .unwrap_or(Positions::env_default(e))
 }
 
 pub fn set_user_positions(e: &Env, user: &Address, positions: &Positions) {
     let key = PoolDataKey::Positions(user.clone());
-    e.storage().set::<PoolDataKey, Positions>(&key, positions);
+    e.storage()
+        .persistent()
+        .set::<PoolDataKey, Positions>(&key, positions);
 }
 
 /********** Admin **********/
@@ -141,7 +143,8 @@ pub fn set_user_positions(e: &Env, user: &Address, positions: &Positions) {
 /// If the admin does not exist
 pub fn get_admin(e: &Env) -> Address {
     e.storage()
-        .get_unchecked(&Symbol::new(e, "Admin"))
+        .persistent()
+        .get(&Symbol::new(e, "Admin"))
         .unwrap_optimized()
 }
 
@@ -151,12 +154,13 @@ pub fn get_admin(e: &Env) -> Address {
 /// * `new_admin` - The Address for the admin
 pub fn set_admin(e: &Env, new_admin: &Address) {
     e.storage()
+        .persistent()
         .set::<Symbol, Address>(&Symbol::new(e, "Admin"), new_admin);
 }
 
 /// Checks if an admin is set
 pub fn has_admin(e: &Env) -> bool {
-    e.storage().has(&Symbol::new(e, "Admin"))
+    e.storage().persistent().has(&Symbol::new(e, "Admin"))
 }
 
 /********** Metadata **********/
@@ -167,6 +171,7 @@ pub fn has_admin(e: &Env) -> bool {
 /// * `name` - The Name of the pool
 pub fn set_name(e: &Env, name: &Symbol) {
     e.storage()
+        .persistent()
         .set::<Symbol, Symbol>(&Symbol::new(e, "Name"), name);
 }
 
@@ -178,7 +183,8 @@ pub fn set_name(e: &Env, name: &Symbol) {
 /// If no backstop is set
 pub fn get_backstop(e: &Env) -> Address {
     e.storage()
-        .get_unchecked(&Symbol::new(e, "Backstop"))
+        .persistent()
+        .get(&Symbol::new(e, "Backstop"))
         .unwrap_optimized()
 }
 
@@ -188,6 +194,7 @@ pub fn get_backstop(e: &Env) -> Address {
 /// * `backstop` - The address of the backstop
 pub fn set_backstop(e: &Env, backstop: &Address) {
     e.storage()
+        .persistent()
         .set::<Symbol, Address>(&Symbol::new(e, "Backstop"), backstop);
 }
 
@@ -196,7 +203,8 @@ pub fn set_backstop(e: &Env, backstop: &Address) {
 /// Fetch the BLND token ID
 pub fn get_blnd_token(e: &Env) -> Address {
     e.storage()
-        .get_unchecked(&Symbol::new(e, "BLNDTkn"))
+        .persistent()
+        .get(&Symbol::new(e, "BLNDTkn"))
         .unwrap_optimized()
 }
 
@@ -206,13 +214,15 @@ pub fn get_blnd_token(e: &Env) -> Address {
 /// * `blnd_token_id` - The ID of the BLND token
 pub fn set_blnd_token(e: &Env, blnd_token_id: &Address) {
     e.storage()
+        .persistent()
         .set::<Symbol, Address>(&Symbol::new(e, "BLNDTkn"), blnd_token_id);
 }
 
 /// Fetch the USDC token ID
 pub fn get_usdc_token(e: &Env) -> Address {
     e.storage()
-        .get_unchecked(&Symbol::new(e, "USDCTkn"))
+        .persistent()
+        .get(&Symbol::new(e, "USDCTkn"))
         .unwrap_optimized()
 }
 
@@ -222,6 +232,7 @@ pub fn get_usdc_token(e: &Env) -> Address {
 /// * `usdc_token_id` - The ID of the USDC token
 pub fn set_usdc_token(e: &Env, usdc_token_id: &Address) {
     e.storage()
+        .persistent()
         .set::<Symbol, Address>(&Symbol::new(e, "USDCTkn"), usdc_token_id);
 }
 
@@ -233,7 +244,8 @@ pub fn set_usdc_token(e: &Env, usdc_token_id: &Address) {
 /// If the pool's config is not set
 pub fn get_pool_config(e: &Env) -> PoolConfig {
     e.storage()
-        .get_unchecked(&Symbol::new(e, "PoolConfig"))
+        .persistent()
+        .get(&Symbol::new(e, "PoolConfig"))
         .unwrap_optimized()
 }
 
@@ -243,6 +255,7 @@ pub fn get_pool_config(e: &Env) -> PoolConfig {
 /// * `config` - The contract address of the oracle
 pub fn set_pool_config(e: &Env, config: &PoolConfig) {
     e.storage()
+        .persistent()
         .set::<Symbol, PoolConfig>(&Symbol::new(e, "PoolConfig"), config);
 }
 
@@ -258,8 +271,8 @@ pub fn set_pool_config(e: &Env, config: &PoolConfig) {
 pub fn get_res_config(e: &Env, asset: &Address) -> ReserveConfig {
     let key = PoolDataKey::ResConfig(asset.clone());
     e.storage()
+        .persistent()
         .get::<PoolDataKey, ReserveConfig>(&key)
-        .unwrap_optimized()
         .unwrap_optimized()
 }
 
@@ -271,7 +284,9 @@ pub fn get_res_config(e: &Env, asset: &Address) -> ReserveConfig {
 pub fn set_res_config(e: &Env, asset: &Address, config: &ReserveConfig) {
     let key = PoolDataKey::ResConfig(asset.clone());
 
-    e.storage().set::<PoolDataKey, ReserveConfig>(&key, &config);
+    e.storage()
+        .persistent()
+        .set::<PoolDataKey, ReserveConfig>(&key, &config);
 }
 
 /// Checks if a reserve exists for an asset
@@ -280,7 +295,7 @@ pub fn set_res_config(e: &Env, asset: &Address, config: &ReserveConfig) {
 /// * `asset` - The contract address of the asset
 pub fn has_res(e: &Env, asset: &Address) -> bool {
     let key = PoolDataKey::ResConfig(asset.clone());
-    e.storage().has(&key)
+    e.storage().persistent().has(&key)
 }
 
 /********** Reserve Data (ResData) **********/
@@ -295,8 +310,8 @@ pub fn has_res(e: &Env, asset: &Address) -> bool {
 pub fn get_res_data(e: &Env, asset: &Address) -> ReserveData {
     let key = PoolDataKey::ResData(asset.clone());
     e.storage()
+        .persistent()
         .get::<PoolDataKey, ReserveData>(&key)
-        .unwrap_optimized()
         .unwrap_optimized()
 }
 
@@ -307,7 +322,9 @@ pub fn get_res_data(e: &Env, asset: &Address) -> ReserveData {
 /// * `data` - The reserve data for the asset
 pub fn set_res_data(e: &Env, asset: &Address, data: &ReserveData) {
     let key = PoolDataKey::ResData(asset.clone());
-    e.storage().set::<PoolDataKey, ReserveData>(&key, data);
+    e.storage()
+        .persistent()
+        .set::<PoolDataKey, ReserveData>(&key, data);
 }
 
 /********** Reserve List (ResList) **********/
@@ -315,9 +332,9 @@ pub fn set_res_data(e: &Env, asset: &Address, data: &ReserveData) {
 /// Fetch the list of reserves
 pub fn get_res_list(e: &Env) -> Vec<Address> {
     e.storage()
+        .persistent()
         .get::<Symbol, Vec<Address>>(&Symbol::new(e, "ResList"))
-        .unwrap_or(Ok(vec![e])) // empty vec if nothing exists
-        .unwrap_optimized()
+        .unwrap_or(vec![e]) // empty vec if nothing exists
 }
 
 /// Add a reserve to the back of the list and returns the index
@@ -337,6 +354,7 @@ pub fn push_res_list(e: &Env, asset: &Address) -> u32 {
     res_list.push_back(asset.clone());
     let new_index = res_list.len() - 1;
     e.storage()
+        .persistent()
         .set::<Symbol, Vec<Address>>(&Symbol::new(e, "ResList"), &res_list);
     new_index
 }
@@ -349,11 +367,9 @@ pub fn push_res_list(e: &Env, asset: &Address) -> u32 {
 /// * `res_token_index` - The d/bToken index for the reserve
 pub fn get_res_emis_config(e: &Env, res_token_index: &u32) -> Option<ReserveEmissionsConfig> {
     let key = PoolDataKey::EmisConfig(res_token_index.clone());
-    let result = e.storage().get::<PoolDataKey, ReserveEmissionsConfig>(&key);
-    match result {
-        Some(data) => Some(data.unwrap_optimized()),
-        None => None,
-    }
+    e.storage()
+        .persistent()
+        .get::<PoolDataKey, ReserveEmissionsConfig>(&key)
 }
 
 /// Set the emission config for the reserve b or d token
@@ -368,6 +384,7 @@ pub fn set_res_emis_config(
 ) {
     let key = PoolDataKey::EmisConfig(res_token_index.clone());
     e.storage()
+        .persistent()
         .set::<PoolDataKey, ReserveEmissionsConfig>(&key, res_emis_config);
 }
 
@@ -377,11 +394,9 @@ pub fn set_res_emis_config(
 /// * `res_token_index` - The d/bToken index for the reserve
 pub fn get_res_emis_data(e: &Env, res_token_index: &u32) -> Option<ReserveEmissionsData> {
     let key = PoolDataKey::EmisData(res_token_index.clone());
-    let result = e.storage().get::<PoolDataKey, ReserveEmissionsData>(&key);
-    match result {
-        Some(data) => Some(data.unwrap_optimized()),
-        None => None,
-    }
+    e.storage()
+        .persistent()
+        .get::<PoolDataKey, ReserveEmissionsData>(&key)
 }
 
 /// Checks if the reserve token has emissions data
@@ -390,7 +405,7 @@ pub fn get_res_emis_data(e: &Env, res_token_index: &u32) -> Option<ReserveEmissi
 /// * `res_token_index` - The d/bToken index for the reserve
 pub fn has_res_emis_data(e: &Env, res_token_index: &u32) -> bool {
     let key = PoolDataKey::EmisData(res_token_index.clone());
-    e.storage().has(&key)
+    e.storage().persistent().has(&key)
 }
 
 /// Set the emission data for the reserve b or d token
@@ -401,6 +416,7 @@ pub fn has_res_emis_data(e: &Env, res_token_index: &u32) -> bool {
 pub fn set_res_emis_data(e: &Env, res_token_index: &u32, res_emis_data: &ReserveEmissionsData) {
     let key = PoolDataKey::EmisData(res_token_index.clone());
     e.storage()
+        .persistent()
         .set::<PoolDataKey, ReserveEmissionsData>(&key, res_emis_data);
 }
 
@@ -420,11 +436,9 @@ pub fn get_user_emissions(
         user: user.clone(),
         reserve_id: res_token_index.clone(),
     });
-    let result = e.storage().get::<PoolDataKey, UserEmissionData>(&key);
-    match result {
-        Some(data) => Some(data.unwrap_optimized()),
-        None => None,
-    }
+    e.storage()
+        .persistent()
+        .get::<PoolDataKey, UserEmissionData>(&key)
 }
 
 /// Set the users emission data for a reserve's d or d token
@@ -438,7 +452,9 @@ pub fn set_user_emissions(e: &Env, user: &Address, res_token_index: &u32, data: 
         user: user.clone(),
         reserve_id: res_token_index.clone(),
     });
-    e.storage().set::<PoolDataKey, UserEmissionData>(&key, data);
+    e.storage()
+        .persistent()
+        .set::<PoolDataKey, UserEmissionData>(&key, data)
 }
 
 /********** Pool Emissions **********/
@@ -446,9 +462,9 @@ pub fn set_user_emissions(e: &Env, user: &Address, res_token_index: &u32, data: 
 /// Fetch the pool reserve emissions
 pub fn get_pool_emissions(e: &Env) -> Map<u32, u64> {
     e.storage()
+        .persistent()
         .get::<Symbol, Map<u32, u64>>(&Symbol::new(e, "PoolEmis"))
-        .unwrap_or(Ok(map![e]))
-        .unwrap_optimized()
+        .unwrap_or(map![e])
 }
 
 /// Set the pool reserve emissions
@@ -457,15 +473,16 @@ pub fn get_pool_emissions(e: &Env) -> Map<u32, u64> {
 /// * `emissions` - The map of emissions by reserve token id to EPS
 pub fn set_pool_emissions(e: &Env, emissions: &Map<u32, u64>) {
     e.storage()
+        .persistent()
         .set::<Symbol, Map<u32, u64>>(&Symbol::new(e, "PoolEmis"), emissions);
 }
 
 /// Fetch the pool emission expiration timestamps
 pub fn get_pool_emissions_expiration(e: &Env) -> u64 {
     e.storage()
+        .temporary()
         .get::<Symbol, u64>(&Symbol::new(e, "EmisExp"))
-        .unwrap_or(Ok(0))
-        .unwrap_optimized()
+        .unwrap_or(0)
 }
 
 /// Set the pool emission configuration
@@ -474,6 +491,7 @@ pub fn get_pool_emissions_expiration(e: &Env) -> u64 {
 /// * `expiration` - The pool's emission configuration
 pub fn set_pool_emissions_expiration(e: &Env, expiration: &u64) {
     e.storage()
+        .temporary()
         .set::<Symbol, u64>(&Symbol::new(e, "EmisExp"), expiration);
 }
 
@@ -493,8 +511,8 @@ pub fn get_auction(e: &Env, auction_type: &u32, user: &Address) -> AuctionData {
         auct_type: auction_type.clone(),
     });
     e.storage()
+        .temporary()
         .get::<PoolDataKey, AuctionData>(&key)
-        .unwrap_optimized()
         .unwrap_optimized()
 }
 
@@ -508,7 +526,7 @@ pub fn has_auction(e: &Env, auction_type: &u32, user: &Address) -> bool {
         user: user.clone(),
         auct_type: auction_type.clone(),
     });
-    e.storage().has(&key)
+    e.storage().temporary().has(&key)
 }
 
 /// Set the the starting block for an auction
@@ -523,6 +541,7 @@ pub fn set_auction(e: &Env, auction_type: &u32, user: &Address, auction_data: &A
         auct_type: auction_type.clone(),
     });
     e.storage()
+        .temporary()
         .set::<PoolDataKey, AuctionData>(&key, auction_data)
 }
 
@@ -536,5 +555,5 @@ pub fn del_auction(e: &Env, auction_type: &u32, user: &Address) {
         user: user.clone(),
         auct_type: auction_type.clone(),
     });
-    e.storage().remove(&key)
+    e.storage().temporary().remove(&key)
 }

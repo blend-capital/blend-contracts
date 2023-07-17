@@ -1,4 +1,4 @@
-use soroban_sdk::{contracterror, contractimpl, contracttype, Address, Env};
+use soroban_sdk::{contract, contracterror, contractimpl, contracttype, Address, Env};
 
 #[derive(Clone)]
 #[contracttype]
@@ -28,6 +28,7 @@ pub enum OracleError {
 ///
 /// ### Dev
 /// For testing purposes only!
+#[contract]
 pub struct MockBlendOracle;
 
 trait MockOracle {
@@ -62,18 +63,18 @@ impl MockOracle for MockBlendOracle {
     fn get_price(e: Env, asset: Address) -> Result<u64, OracleError> {
         let to_error = e
             .storage()
+            .temporary()
             .get::<MockBlendOracleDataKey, bool>(&MockBlendOracleDataKey::ToError)
-            .unwrap_or_else(|| Ok(false))
-            .unwrap();
+            .unwrap_or(false);
         if to_error {
             return Err(OracleError::StaleOracle);
         }
 
         let key = MockBlendOracleDataKey::Prices(asset);
         Ok(e.storage()
+            .temporary()
             .get::<MockBlendOracleDataKey, u64>(&key)
-            .unwrap_or_else(|| Ok(0))
-            .unwrap())
+            .unwrap_or(0))
     }
 
     // NOTE: Management functions omitted - not necessary for mock
@@ -99,12 +100,15 @@ impl MockOracle for MockBlendOracle {
 
     fn set_price(e: Env, asset: Address, price: u64) {
         let key = MockBlendOracleDataKey::Prices(asset);
-        e.storage().set::<MockBlendOracleDataKey, u64>(&key, &price);
+        e.storage()
+            .temporary()
+            .set::<MockBlendOracleDataKey, u64>(&key, &price);
     }
 
     fn set_error(e: Env, to_error: bool) {
         let key = MockBlendOracleDataKey::ToError;
         e.storage()
+            .temporary()
             .set::<MockBlendOracleDataKey, bool>(&key, &to_error);
     }
 }

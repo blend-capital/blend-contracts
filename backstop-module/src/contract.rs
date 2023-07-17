@@ -4,11 +4,12 @@ use crate::{
     errors::BackstopError,
     storage,
 };
-use soroban_sdk::{contractimpl, panic_with_error, Address, Env, Symbol, Vec};
+use soroban_sdk::{contract, contractimpl, panic_with_error, Address, Env, Symbol, Vec};
 
 /// ### Backstop Module
 ///
 /// A backstop module for the Blend protocol's Isolated Lending Pools
+#[contract]
 pub struct BackstopModuleContract;
 
 pub trait BackstopModuleContractTrait {

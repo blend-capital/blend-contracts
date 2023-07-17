@@ -53,7 +53,7 @@ fn test_backstop_wasm_smoke() {
     // mint tokens to user and approve backstop
     let deposit_amount: i128 = 10_0000000;
     backstop_token_client.mint(&samwise, &deposit_amount);
-    backstop_token_client.increase_allowance(&samwise, &backstop_address, &i128::MAX);
+    backstop_token_client.approve(&samwise, &backstop_address, &i128::MAX);
 
     // deposit into backstop module
     let shares_minted = backstop_client.deposit(&samwise, &pool_address, &deposit_amount);

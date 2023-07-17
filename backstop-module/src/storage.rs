@@ -62,8 +62,8 @@ pub enum BackstopDataKey {
 /// Fetch the pool factory id
 pub fn get_pool_factory(e: &Env) -> Address {
     e.storage()
+        .persistent()
         .get::<BackstopDataKey, Address>(&BackstopDataKey::PoolFact)
-        .unwrap_optimized()
         .unwrap_optimized()
 }
 
@@ -73,14 +73,15 @@ pub fn get_pool_factory(e: &Env) -> Address {
 /// * `pool_factory_id` - The ID of the pool factory
 pub fn set_pool_factory(e: &Env, pool_factory_id: &Address) {
     e.storage()
+        .persistent()
         .set::<BackstopDataKey, Address>(&BackstopDataKey::PoolFact, pool_factory_id);
 }
 
 /// Fetch the BLND token id
 pub fn get_blnd_token(e: &Env) -> Address {
     e.storage()
+        .persistent()
         .get::<BackstopDataKey, Address>(&BackstopDataKey::BLNDTkn)
-        .unwrap_optimized()
         .unwrap_optimized()
 }
 
@@ -90,20 +91,21 @@ pub fn get_blnd_token(e: &Env) -> Address {
 /// * `blnd_token_id` - The ID of the new BLND token
 pub fn set_blnd_token(e: &Env, blnd_token_id: &Address) {
     e.storage()
+        .persistent()
         .set::<BackstopDataKey, Address>(&BackstopDataKey::BLNDTkn, blnd_token_id);
 }
 
 /// Fetch the backstop token id
 pub fn get_backstop_token(e: &Env) -> Address {
     e.storage()
+        .persistent()
         .get::<BackstopDataKey, Address>(&BackstopDataKey::BckstpTkn)
-        .unwrap_optimized()
         .unwrap_optimized()
 }
 
 /// Checks if a backstop token is set for the backstop
 pub fn has_backstop_token(e: &Env) -> bool {
-    e.storage().has(&BackstopDataKey::BckstpTkn)
+    e.storage().persistent().has(&BackstopDataKey::BckstpTkn)
 }
 
 /// Set the backstop token id
@@ -112,6 +114,7 @@ pub fn has_backstop_token(e: &Env) -> bool {
 /// * `backstop_token_id` - The ID of the new backstop token
 pub fn set_backstop_token(e: &Env, backstop_token_id: &Address) {
     e.storage()
+        .persistent()
         .set::<BackstopDataKey, Address>(&BackstopDataKey::BckstpTkn, backstop_token_id);
 }
 
@@ -128,12 +131,12 @@ pub fn get_user_balance(e: &Env, pool: &Address, user: &Address) -> UserBalance 
         user: user.clone(),
     });
     e.storage()
+        .persistent()
         .get::<BackstopDataKey, UserBalance>(&key)
-        .unwrap_or(Ok(UserBalance {
+        .unwrap_or(UserBalance {
             shares: 0,
             q4w: vec![e],
-        }))
-        .unwrap_optimized()
+        })
 }
 
 /// Set share balance for a user deposit in a pool
@@ -148,6 +151,7 @@ pub fn set_user_balance(e: &Env, pool: &Address, user: &Address, balance: &UserB
         user: user.clone(),
     });
     e.storage()
+        .persistent()
         .set::<BackstopDataKey, UserBalance>(&key, balance);
 }
 
@@ -160,13 +164,13 @@ pub fn set_user_balance(e: &Env, pool: &Address, user: &Address, balance: &UserB
 pub fn get_pool_balance(e: &Env, pool: &Address) -> PoolBalance {
     let key = BackstopDataKey::PoolBalance(pool.clone());
     e.storage()
+        .persistent()
         .get::<BackstopDataKey, PoolBalance>(&key)
-        .unwrap_or(Ok(PoolBalance {
+        .unwrap_or(PoolBalance {
             shares: 0,
             tokens: 0,
             q4w: 0,
-        }))
-        .unwrap_optimized()
+        })
 }
 
 /// Set the balances for a pool
@@ -177,6 +181,7 @@ pub fn get_pool_balance(e: &Env, pool: &Address) -> PoolBalance {
 pub fn set_pool_balance(e: &Env, pool: &Address, balance: &PoolBalance) {
     let key = BackstopDataKey::PoolBalance(pool.clone());
     e.storage()
+        .persistent()
         .set::<BackstopDataKey, PoolBalance>(&key, &balance);
 }
 
@@ -185,9 +190,9 @@ pub fn set_pool_balance(e: &Env, pool: &Address, balance: &PoolBalance) {
 /// Get the timestamp of when the next emission cycle begins
 pub fn get_next_emission_cycle(e: &Env) -> u64 {
     e.storage()
+        .persistent()
         .get::<BackstopDataKey, u64>(&BackstopDataKey::NextEmis)
-        .unwrap_or(Ok(0))
-        .unwrap_optimized()
+        .unwrap_or(0)
 }
 
 /// Set the timestamp of when the next emission cycle begins
@@ -196,6 +201,7 @@ pub fn get_next_emission_cycle(e: &Env) -> u64 {
 /// * `timestamp` - The timestamp the distribution window will open
 pub fn set_next_emission_cycle(e: &Env, timestamp: &u64) {
     e.storage()
+        .persistent()
         .set::<BackstopDataKey, u64>(&BackstopDataKey::NextEmis, timestamp);
 }
 
@@ -204,9 +210,9 @@ pub fn set_next_emission_cycle(e: &Env, timestamp: &u64) {
 // @dev - TODO: Once data access costs are available, find the breakeven point for splitting this up
 pub fn get_reward_zone(e: &Env) -> Vec<Address> {
     e.storage()
+        .persistent()
         .get::<BackstopDataKey, Vec<Address>>(&BackstopDataKey::RewardZone)
-        .unwrap_or(Ok(vec![&e]))
-        .unwrap_optimized()
+        .unwrap_or(vec![&e])
 }
 
 /// Set the reward zone
@@ -215,6 +221,7 @@ pub fn get_reward_zone(e: &Env) -> Vec<Address> {
 /// * `reward_zone` - The vector of pool addresses that comprise the reward zone
 pub fn set_reward_zone(e: &Env, reward_zone: &Vec<Address>) {
     e.storage()
+        .persistent()
         .set::<BackstopDataKey, Vec<Address>>(&BackstopDataKey::RewardZone, reward_zone);
 }
 
@@ -225,9 +232,9 @@ pub fn set_reward_zone(e: &Env, reward_zone: &Vec<Address>) {
 pub fn get_pool_eps(e: &Env, pool: &Address) -> i128 {
     let key = BackstopDataKey::PoolEPS(pool.clone());
     e.storage()
+        .persistent()
         .get::<BackstopDataKey, i128>(&key)
-        .unwrap_or(Ok(0))
-        .unwrap_optimized()
+        .unwrap_or(0)
 }
 
 /// Set the current emissions EPS the backstop is distributing to the pool
@@ -237,7 +244,9 @@ pub fn get_pool_eps(e: &Env, pool: &Address) -> i128 {
 /// * `eps` - The eps being distributed to the pool
 pub fn set_pool_eps(e: &Env, pool: &Address, eps: &i128) {
     let key = BackstopDataKey::PoolEPS(pool.clone());
-    e.storage().set::<BackstopDataKey, i128>(&key, eps);
+    e.storage()
+        .persistent()
+        .set::<BackstopDataKey, i128>(&key, eps);
 }
 
 /********** Backstop Depositor Emissions **********/
@@ -248,13 +257,9 @@ pub fn set_pool_eps(e: &Env, pool: &Address, eps: &i128) {
 /// * `pool` - The pool
 pub fn get_backstop_emis_config(e: &Env, pool: &Address) -> Option<BackstopEmissionConfig> {
     let key = BackstopDataKey::BEmisCfg(pool.clone());
-    let result = e
-        .storage()
-        .get::<BackstopDataKey, BackstopEmissionConfig>(&key);
-    match result {
-        Some(data) => Some(data.unwrap_optimized()),
-        None => None,
-    }
+    e.storage()
+        .persistent()
+        .get::<BackstopDataKey, BackstopEmissionConfig>(&key)
 }
 
 /// Check if the pool's backstop emissions config is set
@@ -263,7 +268,7 @@ pub fn get_backstop_emis_config(e: &Env, pool: &Address) -> Option<BackstopEmiss
 /// * `pool` - The pool
 pub fn has_backstop_emis_config(e: &Env, pool: &Address) -> bool {
     let key = BackstopDataKey::BEmisCfg(pool.clone());
-    e.storage().has::<BackstopDataKey>(&key)
+    e.storage().persistent().has::<BackstopDataKey>(&key)
 }
 
 /// Set the pool's backstop emissions config
@@ -278,6 +283,7 @@ pub fn set_backstop_emis_config(
 ) {
     let key = BackstopDataKey::BEmisCfg(pool.clone());
     e.storage()
+        .persistent()
         .set::<BackstopDataKey, BackstopEmissionConfig>(&key, backstop_emis_config);
 }
 
@@ -287,13 +293,9 @@ pub fn set_backstop_emis_config(
 /// * `pool` - The pool
 pub fn get_backstop_emis_data(e: &Env, pool: &Address) -> Option<BackstopEmissionsData> {
     let key = BackstopDataKey::BEmisData(pool.clone());
-    let result = e
-        .storage()
-        .get::<BackstopDataKey, BackstopEmissionsData>(&key);
-    match result {
-        Some(data) => Some(data.unwrap_optimized()),
-        None => None,
-    }
+    e.storage()
+        .persistent()
+        .get::<BackstopDataKey, BackstopEmissionsData>(&key)
 }
 
 /// Set the pool's backstop emissions data
@@ -304,6 +306,7 @@ pub fn get_backstop_emis_data(e: &Env, pool: &Address) -> Option<BackstopEmissio
 pub fn set_backstop_emis_data(e: &Env, pool: &Address, backstop_emis_data: &BackstopEmissionsData) {
     let key = BackstopDataKey::BEmisData(pool.clone());
     e.storage()
+        .persistent()
         .set::<BackstopDataKey, BackstopEmissionsData>(&key, backstop_emis_data);
 }
 
@@ -317,11 +320,9 @@ pub fn get_user_emis_data(e: &Env, pool: &Address, user: &Address) -> Option<Use
         pool: pool.clone(),
         user: user.clone(),
     });
-    let result = e.storage().get::<BackstopDataKey, UserEmissionData>(&key);
-    match result {
-        Some(data) => Some(data.unwrap_optimized()),
-        None => None,
-    }
+    e.storage()
+        .persistent()
+        .get::<BackstopDataKey, UserEmissionData>(&key)
 }
 
 /// Set the user's backstop emissions data
@@ -341,5 +342,6 @@ pub fn set_user_emis_data(
         user: user.clone(),
     });
     e.storage()
+        .persistent()
         .set::<BackstopDataKey, UserEmissionData>(&key, user_emis_data);
 }

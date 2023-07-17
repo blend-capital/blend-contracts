@@ -12,7 +12,7 @@ pub fn execute_claim(e: &Env, from: &Address, pool_addresses: &Vec<Address>, to:
     }
 
     let mut claimed: i128 = 0;
-    for pool_id in pool_addresses.iter_unchecked() {
+    for pool_id in pool_addresses.iter() {
         let pool_balance = storage::get_pool_balance(e, &pool_id);
         let user_balance = storage::get_user_balance(e, &pool_id, &from);
         claimed += update_emissions(e, &pool_id, &pool_balance, from, &user_balance, true);
@@ -54,6 +54,9 @@ mod tests {
             sequence_number: 0,
             network_id: Default::default(),
             base_reserve: 10,
+            min_temp_entry_expiration: 10,
+            min_persistent_entry_expiration: 10,
+            max_entry_expiration: 2000000,
         });
 
         let backstop_address = Address::random(&e);
@@ -172,7 +175,9 @@ mod tests {
     #[test]
     fn test_claim_twice() {
         let e = Env::default();
+        e.budget().reset_unlimited();
         e.mock_all_auths();
+
         let block_timestamp = 1500000000 + 12345;
         e.ledger().set(LedgerInfo {
             timestamp: block_timestamp,
@@ -180,6 +185,9 @@ mod tests {
             sequence_number: 0,
             network_id: Default::default(),
             base_reserve: 10,
+            min_temp_entry_expiration: 10,
+            min_persistent_entry_expiration: 10,
+            max_entry_expiration: 2000000,
         });
 
         let backstop_address = Address::random(&e);
@@ -300,6 +308,9 @@ mod tests {
                 sequence_number: 0,
                 network_id: Default::default(),
                 base_reserve: 10,
+                min_temp_entry_expiration: 10,
+                min_persistent_entry_expiration: 10,
+                max_entry_expiration: 2000000,
             });
             let result_1 = execute_claim(
                 &e,
@@ -348,6 +359,9 @@ mod tests {
             sequence_number: 0,
             network_id: Default::default(),
             base_reserve: 10,
+            min_temp_entry_expiration: 10,
+            min_persistent_entry_expiration: 10,
+            max_entry_expiration: 2000000,
         });
 
         let backstop_address = Address::random(&e);

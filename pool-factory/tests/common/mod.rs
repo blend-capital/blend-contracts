@@ -1,5 +1,4 @@
-use rand::{thread_rng, RngCore};
-use soroban_sdk::{testutils::Address as _, Address, BytesN, Env};
+use soroban_sdk::{testutils::Address as _, Address, Env};
 
 mod pool_factory {
     soroban_sdk::contractimport!(
@@ -11,14 +10,6 @@ pub mod lending_pool {
     soroban_sdk::contractimport!(
         file = "../target/wasm32-unknown-unknown/release/lending_pool.wasm"
     );
-}
-
-pub mod b_token {
-    soroban_sdk::contractimport!(file = "../target/wasm32-unknown-unknown/release/b_token.wasm");
-}
-
-pub mod d_token {
-    soroban_sdk::contractimport!(file = "../target/wasm32-unknown-unknown/release/d_token.wasm");
 }
 
 pub use pool_factory::{Client as PoolFactoryClient, PoolInitMeta};

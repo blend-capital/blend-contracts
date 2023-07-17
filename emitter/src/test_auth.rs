@@ -1,11 +1,13 @@
 #![cfg(test)]
 extern crate std;
+use std::{println, vec as std_vec};
+
 use crate::{contract::EmitterContractClient, dependencies::TokenClient};
 
 use super::*;
 
 use soroban_sdk::{
-    testutils::{Address as _, Ledger, LedgerInfo},
+    testutils::{Address as _, AuthorizedFunction, AuthorizedInvocation, Ledger, LedgerInfo},
     vec, Address, Env, Symbol,
 };
 
@@ -19,6 +21,9 @@ fn test_distribute_requires_auth() {
         sequence_number: 10,
         network_id: Default::default(),
         base_reserve: 10,
+        min_temp_entry_expiration: 10,
+        min_persistent_entry_expiration: 10,
+        max_entry_expiration: 2000000,
     });
 
     let emitter_address = e.register_contract(None, EmitterContract);
@@ -38,10 +43,14 @@ fn test_distribute_requires_auth() {
         sequence_number: 10,
         network_id: Default::default(),
         base_reserve: 10,
+        min_temp_entry_expiration: 10,
+        min_persistent_entry_expiration: 10,
+        max_entry_expiration: 2000000,
     });
 
     let result = emitter_client.distribute();
     let authorizations = e.auths();
+    println!("{:?}", authorizations);
 
     let expected_emissions: i128 = ((seconds_passed + 7 * 24 * 60 * 60) * 1_0000000) as i128;
     assert_eq!(result, expected_emissions);
@@ -53,11 +62,14 @@ fn test_distribute_requires_auth() {
         (
             // Address for which auth is performed
             backstop_address.clone(),
-            // Identifier of the called contract
-            emitter_address.clone(),
-            // Name of the called function
-            Symbol::new(&e, "distribute"),
-            vec![&e]
+            AuthorizedInvocation {
+                function: AuthorizedFunction::Contract((
+                    emitter_address.clone(),
+                    Symbol::new(&e, "distribute"),
+                    vec![&e]
+                )),
+                sub_invocations: std_vec![],
+            }
         )
     );
 }

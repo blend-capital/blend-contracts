@@ -69,8 +69,8 @@ pub(crate) fn create_mock_pool_factory<'a>(
 pub(crate) fn assert_eq_vec_q4w(actual: &Vec<Q4W>, expected: &Vec<Q4W>) {
     assert_eq!(actual.len(), expected.len());
     for index in 0..actual.len() {
-        let actual_q4w = actual.get(index).unwrap_optimized().unwrap_optimized();
-        let expected_q4w = expected.get(index).unwrap_optimized().unwrap_optimized();
+        let actual_q4w = actual.get(index).unwrap_optimized();
+        let expected_q4w = expected.get(index).unwrap_optimized();
         assert_eq!(actual_q4w.amount, expected_q4w.amount);
         assert_eq!(actual_q4w.exp, expected_q4w.exp);
     }

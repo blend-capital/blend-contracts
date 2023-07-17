@@ -9,12 +9,14 @@ pub enum MockPoolDataKey {
 pub fn read_config(e: &Env, user: &Address) -> i128 {
     let key = MockPoolDataKey::Config(user.clone());
     e.storage()
+        .persistent()
         .get::<MockPoolDataKey, i128>(&key)
-        .unwrap_or(Ok(0))
-        .unwrap()
+        .unwrap_or(0)
 }
 
 pub fn write_config(e: &Env, user: &Address, config: &i128) {
     let key = MockPoolDataKey::Config(user.clone());
-    e.storage().set::<MockPoolDataKey, i128>(&key, &config);
+    e.storage()
+        .persistent()
+        .set::<MockPoolDataKey, i128>(&key, &config);
 }

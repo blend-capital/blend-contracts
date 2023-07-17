@@ -54,9 +54,9 @@ fn test_pool_borrow_one_stroop_insufficient_collateral_for_two() {
 
     mock_oracle_client.set_price(&asset1_address, &1_0000000);
     asset1_client.mint(&samwise, &10_0000000);
-    asset1_client.increase_allowance(&samwise, &pool_address, &i128(u64::MAX));
+    asset1_client.approve(&samwise, &pool_address, &i128(u64::MAX));
     asset1_client.mint(&frodo, &10_0000000);
-    asset1_client.increase_allowance(&frodo, &pool_address, &i128(u64::MAX));
+    asset1_client.approve(&frodo, &pool_address, &i128(u64::MAX));
 
     let (asset2_id, b_token2_id, _d_token2_id) = pool_helper::setup_reserve(
         &e,
@@ -70,7 +70,7 @@ fn test_pool_borrow_one_stroop_insufficient_collateral_for_two() {
     let asset2_client = TokenClient::new(&e, &asset2_id);
     let b_token2_client = TokenClient::new(&e, &b_token2_id);
     asset2_client.mint(&frodo, &10_0000000);
-    asset2_client.increase_allowance(&frodo, &pool_address, &i128(u64::MAX));
+    asset2_client.approve(&frodo, &pool_address, &i128(u64::MAX));
     e.budget().reset_unlimited();
 
     // supply

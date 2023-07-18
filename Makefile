@@ -4,20 +4,14 @@ test: build
 	cargo test --all --tests
 
 build:
-	cargo build --target wasm32-unknown-unknown --release -p mock-lending-pool
-	cargo build --target wasm32-unknown-unknown --release -p oracle
-	cargo build --target wasm32-unknown-unknown --release -p mock-blend-oracle
-	cargo build --target wasm32-unknown-unknown --release -p pool-factory
-	cargo build --target wasm32-unknown-unknown --release -p mock-pool-factory
-	cargo build --target wasm32-unknown-unknown --release -p backstop-module
-	cargo build --target wasm32-unknown-unknown --release -p emitter
-	cargo build --target wasm32-unknown-unknown --release -p lending-pool
-	cd target/wasm32-unknown-unknown/release/ && \
-		for i in *.wasm ; do \
-			ls -l "$$i"; \
-		done
-
-generate-wasm: build
+	cargo rustc --manifest-path=mocks/mock-lending-pool/Cargo.toml --crate-type=cdylib --target=wasm32-unknown-unknown --release
+	cargo rustc --manifest-path=oracle/Cargo.toml --crate-type=cdylib --target=wasm32-unknown-unknown --release
+	cargo rustc --manifest-path=mocks/mock-blend-oracle/Cargo.toml --crate-type=cdylib --target=wasm32-unknown-unknown --release
+	cargo rustc --manifest-path=pool-factory/Cargo.toml --crate-type=cdylib --target=wasm32-unknown-unknown --release
+	cargo rustc --manifest-path=mocks/mock-pool-factory/Cargo.toml --crate-type=cdylib --target=wasm32-unknown-unknown --release
+	cargo rustc --manifest-path=backstop-module/Cargo.toml --crate-type=cdylib --target=wasm32-unknown-unknown --release
+	cargo rustc --manifest-path=emitter/Cargo.toml --crate-type=cdylib --target=wasm32-unknown-unknown --release
+	cargo rustc --manifest-path=lending-pool/Cargo.toml --crate-type=cdylib --target=wasm32-unknown-unknown --release
 	mkdir -p target/wasm32-unknown-unknown/optimized
 	soroban contract optimize \
 		--wasm target/wasm32-unknown-unknown/release/oracle.wasm \

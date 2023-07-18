@@ -7,17 +7,17 @@ edition = "2021"
 publish = false
 
 [lib]
-crate-type = ["cdylib"]
+crate-type = ["cdylib", "rlib"]
 doctest = false
 
 [features]
 testutils = ["soroban-sdk/testutils"]
 
 [dependencies]
-soroban-sdk = "0.9.2"
-fixed-point-math = "0.0.2"
-cast = { version = "0.3.0", default-features = false }
+soroban-sdk = { workspace = true }
+fixed-point-math = { workspace = true }
+cast = { workspace = true }
 
 [dev_dependencies]
-soroban-sdk = { version = "0.9.2", features = ["testutils"] }
+soroban-sdk = { workspace = true, features = ["testutils"] }
 rand = { version = "0.7.3" }

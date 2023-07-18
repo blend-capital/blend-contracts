@@ -58,6 +58,7 @@ impl PoolFactoryTrait for PoolFactory {
         oracle: Address,
         backstop_take_rate: u64,
     ) -> Address {
+        storage::bump_instance(&e);
         let pool_init_meta = storage::get_pool_init_meta(&e);
 
         // verify backstop take rate is within [0,1) with 9 decimals
@@ -87,6 +88,7 @@ impl PoolFactoryTrait for PoolFactory {
     }
 
     fn is_pool(e: Env, pool_address: Address) -> bool {
+        storage::bump_instance(&e);
         storage::is_deployed(&e, &pool_address)
     }
 }

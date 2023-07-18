@@ -52,6 +52,7 @@ impl EmitterContractTrait for EmitterContract {
     }
 
     fn distribute(e: Env) -> Result<i128, EmitterError> {
+        storage::bump_instance(&e);
         let backstop_address = storage::get_backstop(&e);
         backstop_address.require_auth();
 
@@ -69,6 +70,7 @@ impl EmitterContractTrait for EmitterContract {
     }
 
     fn swap_backstop(e: Env, new_backstop_id: Address) {
+        storage::bump_instance(&e);
         emitter::execute_swap_backstop(&e, new_backstop_id.clone());
 
         e.events()

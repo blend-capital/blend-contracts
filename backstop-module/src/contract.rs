@@ -165,6 +165,7 @@ impl BackstopModuleContractTrait for BackstopModuleContract {
     /********** Core **********/
 
     fn deposit(e: Env, from: Address, pool_address: Address, amount: i128) -> i128 {
+        storage::bump_instance(&e);
         from.require_auth();
 
         let to_mint = backstop::execute_deposit(&e, &from, &pool_address, amount);
@@ -177,6 +178,7 @@ impl BackstopModuleContractTrait for BackstopModuleContract {
     }
 
     fn queue_withdrawal(e: Env, from: Address, pool_address: Address, amount: i128) -> Q4W {
+        storage::bump_instance(&e);
         from.require_auth();
 
         let to_queue = backstop::execute_queue_withdrawal(&e, &from, &pool_address, amount);
@@ -189,6 +191,7 @@ impl BackstopModuleContractTrait for BackstopModuleContract {
     }
 
     fn dequeue_withdrawal(e: Env, from: Address, pool_address: Address, amount: i128) {
+        storage::bump_instance(&e);
         from.require_auth();
 
         backstop::execute_dequeue_withdrawal(&e, &from, &pool_address, amount);
@@ -200,6 +203,7 @@ impl BackstopModuleContractTrait for BackstopModuleContract {
     }
 
     fn withdraw(e: Env, from: Address, pool_address: Address, amount: i128) -> i128 {
+        storage::bump_instance(&e);
         from.require_auth();
 
         let to_withdraw = backstop::execute_withdraw(&e, &from, &pool_address, amount);
@@ -226,6 +230,7 @@ impl BackstopModuleContractTrait for BackstopModuleContract {
     /********** Emissions **********/
 
     fn update_emission_cycle(e: Env) {
+        storage::bump_instance(&e);
         emissions::update_emission_cycle(&e);
     }
 
@@ -234,6 +239,7 @@ impl BackstopModuleContractTrait for BackstopModuleContract {
     }
 
     fn add_reward(e: Env, to_add: Address, to_remove: Address) {
+        storage::bump_instance(&e);
         emissions::add_to_reward_zone(&e, to_add.clone(), to_remove.clone());
 
         e.events()
@@ -249,6 +255,7 @@ impl BackstopModuleContractTrait for BackstopModuleContract {
     }
 
     fn claim(e: Env, from: Address, pool_addresses: Vec<Address>, to: Address) {
+        storage::bump_instance(&e);
         from.require_auth();
 
         let amount = emissions::execute_claim(&e, &from, &pool_addresses, &to);
@@ -262,6 +269,7 @@ impl BackstopModuleContractTrait for BackstopModuleContract {
     fn draw(e: Env, pool_address: Address, amount: i128, to: Address) {
         // TODO: Unit test this once `env.recorded_top_authorizations()`
         //       can be executed from WASM, or add `test_auth` file
+        storage::bump_instance(&e);
         pool_address.require_auth();
 
         backstop::execute_draw(&e, &pool_address, amount, &to);
@@ -271,6 +279,7 @@ impl BackstopModuleContractTrait for BackstopModuleContract {
     }
 
     fn donate(e: Env, from: Address, pool_address: Address, amount: i128) {
+        storage::bump_instance(&e);
         from.require_auth();
 
         backstop::execute_donate(&e, &from, &pool_address, amount);

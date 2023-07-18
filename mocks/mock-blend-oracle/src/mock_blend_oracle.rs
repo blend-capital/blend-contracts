@@ -1,5 +1,7 @@
 use soroban_sdk::{contract, contracterror, contractimpl, contracttype, Address, Env};
 
+pub(crate) const INSTANCE_BUMP_AMOUNT: u32 = 34560; // 2 days
+
 #[derive(Clone)]
 #[contracttype]
 pub enum MockBlendOracleDataKey {
@@ -61,6 +63,7 @@ impl MockOracle for MockBlendOracle {
     }
 
     fn get_price(e: Env, asset: Address) -> Result<u64, OracleError> {
+        e.storage().instance().bump(INSTANCE_BUMP_AMOUNT);
         let to_error = e
             .storage()
             .temporary()
@@ -71,10 +74,13 @@ impl MockOracle for MockBlendOracle {
         }
 
         let key = MockBlendOracleDataKey::Prices(asset);
-        Ok(e.storage()
+        let price = e
+            .storage()
             .temporary()
             .get::<MockBlendOracleDataKey, u64>(&key)
-            .unwrap_or(0))
+            .unwrap_or(0);
+        e.storage().temporary().bump(&key, INSTANCE_BUMP_AMOUNT);
+        Ok(price)
     }
 
     // NOTE: Management functions omitted - not necessary for mock
@@ -110,5 +116,6 @@ impl MockOracle for MockBlendOracle {
         e.storage()
             .temporary()
             .set::<MockBlendOracleDataKey, bool>(&key, &to_error);
+        e.storage().temporary().bump(&key, INSTANCE_BUMP_AMOUNT);
     }
 }

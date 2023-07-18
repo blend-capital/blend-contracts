@@ -37,12 +37,12 @@ pub fn execute_submit(
 
     // TODO: Is this reentrancy guard necessary?
     // transfer tokens into the pool
-    for action in pool_actions.iter() {
-        if action.tokens_in > 0 {
-            TokenClient::new(e, &action.asset).transfer(
+    for (address, amount) in pool_actions.iter() {
+        if amount > 0 {
+            TokenClient::new(e, &address).transfer(
                 &spender,
                 &e.current_contract_address(),
-                &action.tokens_in,
+                &amount,
             );
         }
     }
@@ -52,12 +52,12 @@ pub fn execute_submit(
     storage::set_user_positions(e, &from, &new_positions);
 
     // transfer tokens out of the pool
-    for action in pool_actions.iter() {
-        if action.tokens_out > 0 {
-            TokenClient::new(e, &action.asset).transfer(
+    for (address, amount) in pool_actions.iter() {
+        if amount < 0 {
+            TokenClient::new(e, &address).transfer(
                 &e.current_contract_address(),
                 &to,
-                &action.tokens_out,
+                &(amount * -1),
             );
         }
     }

@@ -1,27 +1,21 @@
-use soroban_sdk::{contracttype, panic_with_error, vec, Address, Env, Vec};
-
-use crate::{
-    emissions, errors::PoolError, pool::Positions, storage, validator::require_nonnegative,
+use soroban_sdk::{
+    contracttype, panic_with_error, unwrap::UnwrapOptimized, vec, Address, Env, Map, Vec,
 };
 
-use super::pool::Pool;
+use crate::{
+    auctions, emissions, errors::PoolError, pool::Positions, storage,
+    validator::require_nonnegative,
+};
+
+use super::{pool::Pool, Reserve};
 
 /// An request a user makes against the pool
 #[derive(Clone)]
 #[contracttype]
 pub struct Request {
     pub request_type: u32,
-    pub reserve_index: u32,
+    pub address: Address, // asset address or liquidatee
     pub amount: i128,
-}
-
-/// A token action to be taken by the pool
-#[derive(Clone)]
-#[contracttype]
-pub struct Action {
-    pub asset: Address,
-    pub tokens_out: i128,
-    pub tokens_in: i128,
 }
 
 /// Build a set of pool actions and the new positions from the supplied requests. Validates that the requests
@@ -48,54 +42,54 @@ pub fn build_actions_from_request(
     pool: &mut Pool,
     from: &Address,
     requests: Vec<Request>,
-) -> (Vec<Action>, Positions, bool) {
-    let mut actions = vec![&e];
+) -> (Map<Address, i128>, Positions, bool) {
+    let mut actions: Map<Address, i128> = Map::new(&e); //tokens in is positive, tokens out is negative
     let old_positions = storage::get_user_positions(e, from);
     let mut new_positions = old_positions.clone();
     let mut check_health = false;
-    let reserve_list = storage::get_res_list(e);
     for request in requests.iter() {
         // verify reserve is supported in the pool and the action is allowed
         require_nonnegative(e, &request.amount);
-        let asset = reserve_list
-            .get(request.reserve_index)
-            .unwrap_or_else(|| panic_with_error!(e, PoolError::BadRequest));
         pool.require_action_allowed(e, request.request_type);
-        let mut reserve = pool.load_reserve(e, &asset);
+        let mut reserve: Reserve;
 
         match request.request_type {
             0 => {
+                // TODO: do we need to add error logic here for invalid reserve address?
+                reserve = pool.load_reserve(e, &request.address);
                 // supply
                 emissions::update_emissions(
                     e,
-                    request.reserve_index * 2 + 1,
+                    reserve.index * 2 + 1,
                     reserve.b_supply,
                     reserve.scalar,
                     from,
-                    old_positions.get_total_supply(request.reserve_index),
+                    old_positions.get_total_supply(reserve.index),
                     false,
                 );
                 let b_tokens_minted = reserve.to_b_token_down(request.amount);
                 reserve.b_supply += b_tokens_minted;
-                new_positions.add_supply(request.reserve_index, b_tokens_minted);
-                actions.push_back(Action {
-                    asset: asset.clone(),
-                    tokens_out: 0,
-                    tokens_in: request.amount,
-                });
+                new_positions.add_supply(reserve.index, b_tokens_minted);
+                actions.set(
+                    reserve.asset.clone(),
+                    actions.get(request.address).or(Some(0)).unwrap_optimized() + request.amount,
+                );
+                pool.cache_reserve(reserve);
             }
             1 => {
+                // TODO: do we need to add error logic here for invalid reserve address?
+                reserve = pool.load_reserve(e, &request.address);
                 // withdraw
                 emissions::update_emissions(
                     e,
-                    request.reserve_index * 2 + 1,
+                    reserve.index * 2 + 1,
                     reserve.b_supply,
                     reserve.scalar,
                     from,
-                    old_positions.get_total_supply(request.reserve_index),
+                    old_positions.get_total_supply(reserve.index),
                     false,
                 );
-                let cur_b_tokens = new_positions.get_supply(request.reserve_index);
+                let cur_b_tokens = new_positions.get_supply(reserve.index);
                 let mut to_burn = reserve.to_b_token_up(request.amount);
                 let mut tokens_out = request.amount;
                 if to_burn > cur_b_tokens {
@@ -103,45 +97,49 @@ pub fn build_actions_from_request(
                     tokens_out = reserve.to_asset_from_b_token(cur_b_tokens);
                 }
                 reserve.b_supply -= to_burn;
-                new_positions.remove_supply(e, request.reserve_index, to_burn);
-                actions.push_back(Action {
-                    asset: asset.clone(),
-                    tokens_out,
-                    tokens_in: 0,
-                });
+                new_positions.remove_supply(e, reserve.index, to_burn);
+                actions.set(
+                    reserve.asset.clone(),
+                    actions.get(request.address).or(Some(0)).unwrap_optimized() - tokens_out,
+                );
+                pool.cache_reserve(reserve);
             }
             2 => {
+                // TODO: do we need to add error logic here for invalid reserve address?
+                reserve = pool.load_reserve(e, &request.address);
                 // supply collateral
                 emissions::update_emissions(
                     e,
-                    request.reserve_index * 2 + 1,
+                    reserve.index * 2 + 1,
                     reserve.b_supply,
                     reserve.scalar,
                     from,
-                    old_positions.get_total_supply(request.reserve_index),
+                    old_positions.get_total_supply(reserve.index),
                     false,
                 );
                 let b_tokens_minted = reserve.to_b_token_down(request.amount);
                 reserve.b_supply += b_tokens_minted;
-                new_positions.add_collateral(request.reserve_index, b_tokens_minted);
-                actions.push_back(Action {
-                    asset: asset.clone(),
-                    tokens_out: 0,
-                    tokens_in: request.amount,
-                });
+                new_positions.add_collateral(reserve.index, b_tokens_minted);
+                actions.set(
+                    reserve.asset.clone(),
+                    actions.get(request.address).or(Some(0)).unwrap_optimized() + request.amount,
+                );
+                pool.cache_reserve(reserve);
             }
             3 => {
+                // TODO: do we need to add error logic here for invalid reserve address?
+                reserve = pool.load_reserve(e, &request.address);
                 // withdraw collateral
                 emissions::update_emissions(
                     e,
-                    request.reserve_index * 2 + 1,
+                    reserve.index * 2 + 1,
                     reserve.b_supply,
                     reserve.scalar,
                     from,
-                    old_positions.get_total_supply(request.reserve_index),
+                    old_positions.get_total_supply(reserve.index),
                     false,
                 );
-                let cur_b_tokens = new_positions.get_collateral(request.reserve_index);
+                let cur_b_tokens = new_positions.get_collateral(reserve.index);
                 let mut to_burn = reserve.to_b_token_up(request.amount);
                 let mut tokens_out = request.amount;
                 if to_burn > cur_b_tokens {
@@ -149,73 +147,87 @@ pub fn build_actions_from_request(
                     tokens_out = reserve.to_asset_from_b_token(cur_b_tokens);
                 }
                 reserve.b_supply -= to_burn;
-                new_positions.remove_collateral(e, request.reserve_index, to_burn);
-                actions.push_back(Action {
-                    asset: asset.clone(),
-                    tokens_out,
-                    tokens_in: 0,
-                });
+                new_positions.remove_collateral(e, reserve.index, to_burn);
+                actions.set(
+                    reserve.asset.clone(),
+                    actions.get(request.address).or(Some(0)).unwrap_optimized() - tokens_out,
+                );
                 check_health = true;
+                pool.cache_reserve(reserve);
             }
             4 => {
+                // TODO: do we need to add error logic here for invalid reserve address?
+                reserve = pool.load_reserve(e, &request.address);
                 // borrow
                 emissions::update_emissions(
                     e,
-                    request.reserve_index * 2,
+                    reserve.index * 2,
                     reserve.d_supply,
                     reserve.scalar,
                     from,
-                    old_positions.get_liabilities(request.reserve_index),
+                    old_positions.get_liabilities(reserve.index),
                     false,
                 );
                 let d_tokens_minted = reserve.to_d_token_up(request.amount);
                 reserve.d_supply += d_tokens_minted;
                 reserve.require_utilization_below_max(e);
-                new_positions.add_liabilities(request.reserve_index, d_tokens_minted);
-                actions.push_back(Action {
-                    asset: asset.clone(),
-                    tokens_out: request.amount,
-                    tokens_in: 0,
-                });
+                new_positions.add_liabilities(reserve.index, d_tokens_minted);
+                actions.set(
+                    reserve.asset.clone(),
+                    actions.get(request.address).or(Some(0)).unwrap_optimized() - request.amount,
+                );
                 check_health = true;
+                pool.cache_reserve(reserve);
             }
             5 => {
+                // TODO: do we need to add error logic here for invalid reserve address?
+                reserve = pool.load_reserve(e, &request.address);
                 // repay
                 emissions::update_emissions(
                     e,
-                    request.reserve_index * 2,
+                    reserve.index * 2,
                     reserve.d_supply,
                     reserve.scalar,
                     from,
-                    old_positions.get_liabilities(request.reserve_index),
+                    old_positions.get_liabilities(reserve.index),
                     false,
                 );
-                let cur_d_tokens = new_positions.get_liabilities(request.reserve_index);
+                let cur_d_tokens = new_positions.get_liabilities(reserve.index);
                 let d_tokens_burnt = reserve.to_d_token_down(request.amount);
                 if d_tokens_burnt > cur_d_tokens {
                     let amount_to_refund =
                         request.amount - reserve.to_asset_from_d_token(cur_d_tokens);
                     require_nonnegative(e, &amount_to_refund);
                     reserve.d_supply -= cur_d_tokens;
-                    new_positions.remove_liabilities(e, request.reserve_index, cur_d_tokens);
-                    actions.push_back(Action {
-                        asset: asset.clone(),
-                        tokens_out: amount_to_refund,
-                        tokens_in: request.amount,
-                    });
+                    new_positions.remove_liabilities(e, reserve.index, cur_d_tokens);
+                    actions.set(
+                        reserve.asset.clone(),
+                        actions.get(request.address).or(Some(0)).unwrap_optimized()
+                            - amount_to_refund
+                            + request.amount,
+                    );
                 } else {
                     reserve.d_supply -= d_tokens_burnt;
-                    new_positions.remove_liabilities(e, request.reserve_index, d_tokens_burnt);
-                    actions.push_back(Action {
-                        asset: asset.clone(),
-                        tokens_out: 0,
-                        tokens_in: request.amount,
-                    });
+                    new_positions.remove_liabilities(e, reserve.index, d_tokens_burnt);
+                    actions.set(
+                        reserve.asset.clone(),
+                        actions.get(request.address).or(Some(0)).unwrap_optimized()
+                            + request.amount,
+                    );
+                }
+                pool.cache_reserve(reserve);
+            }
+            6 => {
+                if request.address == storage::get_backstop(&e) {
+                    auctions::fill(e, 1, &request.address, &from);
+                    storage::del_auction(e, &1, &request.address);
+                } else {
+                    auctions::fill(e, 0, &request.address, &from);
+                    storage::del_auction(e, &0, &request.address);
                 }
             }
             _ => panic_with_error!(e, PoolError::BadRequest),
         }
-        pool.cache_reserve(reserve);
     }
     (actions, new_positions, check_health)
 }

@@ -8,9 +8,9 @@ use crate::{
 };
 use cast::i128;
 use fixed_point_math::FixedPoint;
-use soroban_sdk::{map, panic_with_error, unwrap::UnwrapOptimized, vec, Address, Env};
+use soroban_sdk::{map, panic_with_error, unwrap::UnwrapOptimized, Address, Env};
 
-use super::{get_fill_modifiers, AuctionData, AuctionQuote, AuctionType, Quote};
+use super::{get_fill_modifiers, AuctionData, AuctionType};
 
 pub fn create_interest_auction_data(e: &Env, backstop: &Address) -> AuctionData {
     if storage::has_auction(e, &(AuctionType::InterestAuction as u32), backstop) {
@@ -21,8 +21,7 @@ pub fn create_interest_auction_data(e: &Env, backstop: &Address) -> AuctionData 
     let oracle_client = OracleClient::new(e, &pool.config.oracle);
 
     let mut auction_data = AuctionData {
-        bid: map![e],
-        lot: map![e],
+        assets: map![e],
         block: e.ledger().sequence() + 1,
     };
 
@@ -37,7 +36,7 @@ pub fn create_interest_auction_data(e: &Env, backstop: &Address) -> AuctionData 
             interest_value += i128(asset_to_base)
                 .fixed_mul_floor(reserve.backstop_credit, reserve.scalar)
                 .unwrap_optimized();
-            auction_data.lot.set(i, reserve.backstop_credit);
+            auction_data.assets.set(i, reserve.backstop_credit);
         }
     }
 
@@ -46,7 +45,7 @@ pub fn create_interest_auction_data(e: &Env, backstop: &Address) -> AuctionData 
         panic_with_error!(e, PoolError::InterestTooSmall);
     }
 
-    if auction_data.lot.len() == 0 || interest_value == 0 {
+    if auction_data.assets.len() == 0 || interest_value == 0 {
         panic_with_error!(e, PoolError::BadRequest);
     }
 
@@ -58,33 +57,20 @@ pub fn create_interest_auction_data(e: &Env, backstop: &Address) -> AuctionData 
         .fixed_div_floor(i128(usdc_to_base), SCALAR_7)
         .unwrap_optimized();
     // u32::MAX is the key for the USDC lot
-    auction_data.bid.set(u32::MAX, bid_amount);
+    auction_data.assets.set(u32::MAX, bid_amount);
 
     auction_data
 }
 
-pub fn fill_interest_auction(
-    e: &Env,
-    auction_data: &AuctionData,
-    filler: &Address,
-) -> AuctionQuote {
-    let mut auction_quote = AuctionQuote {
-        bid: vec![e],
-        lot: vec![e],
-        block: e.ledger().sequence(),
-    };
+pub fn fill_interest_auction(e: &Env, auction_data: &AuctionData, filler: &Address) {
     let (bid_modifier, lot_modifier) = get_fill_modifiers(e, auction_data);
 
     // bid only contains the USDC token
     let usdc_token = storage::get_usdc_token(e);
-    let bid_amount = auction_data.bid.get_unchecked(u32::MAX);
+    let bid_amount = auction_data.assets.get_unchecked(u32::MAX);
     let bid_amount_modified = bid_amount
         .fixed_mul_floor(bid_modifier, SCALAR_7)
         .unwrap_optimized();
-    auction_quote.bid.push_back(Quote {
-        asset: usdc_token.clone(),
-        amount: bid_amount_modified,
-    });
 
     // TODO: add donate_usdc function to backstop
     // let backstop_client = BackstopClient::new(&e, &backstop_address);
@@ -93,16 +79,15 @@ pub fn fill_interest_auction(
     // lot contains underlying tokens, but the backstop credit must be updated on the reserve
     let pool = Pool::load(e);
     let reserve_list = storage::get_res_list(e);
-    for (res_id, lot_amount) in auction_data.lot.iter() {
+    for (res_id, lot_amount) in auction_data.assets.iter() {
+        if res_id == u32::MAX {
+            continue;
+        }
         let res_asset_address = reserve_list.get_unchecked(res_id);
         let mut reserve = pool.load_reserve(e, &res_asset_address);
         let lot_amount_modified = lot_amount
             .fixed_mul_floor(lot_modifier, SCALAR_7)
             .unwrap_optimized();
-        auction_quote.lot.push_back(Quote {
-            asset: res_asset_address.clone(),
-            amount: lot_amount_modified,
-        });
         reserve.backstop_credit -= lot_amount_modified;
         // TODO: Is this necessary? Might be impossible for backstop credit to become negative
         require_nonnegative(e, &reserve.backstop_credit);
@@ -113,7 +98,6 @@ pub fn fill_interest_auction(
             &lot_amount_modified,
         );
     }
-    auction_quote
 }
 
 #[cfg(test)]

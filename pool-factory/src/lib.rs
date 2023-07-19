@@ -7,4 +7,4 @@ mod errors;
 mod pool_factory;
 mod storage;
 
-pub use crate::pool_factory::{PoolFactory, PoolFactoryClient};
+pub use pool_factory::*;

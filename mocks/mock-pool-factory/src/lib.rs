@@ -4,7 +4,6 @@
 extern crate std;
 
 mod pool_factory;
-
 mod storage;
 
-pub use crate::pool_factory::MockPoolFactory;
+pub use pool_factory::*;

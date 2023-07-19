@@ -5,4 +5,4 @@ extern crate std;
 
 mod blend_oracle;
 
-pub use crate::blend_oracle::{BlendOracleClient, BlendOracleTrait, OracleError};
+pub use blend_oracle::*;

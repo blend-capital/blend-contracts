@@ -10,9 +10,9 @@ use soroban_sdk::{contract, contractimpl, panic_with_error, Address, Env, Symbol
 ///
 /// A backstop module for the Blend protocol's Isolated Lending Pools
 #[contract]
-pub struct BackstopModuleContract;
+pub struct BackstopModule;
 
-pub trait BackstopModuleContractTrait {
+pub trait BackstopModuleTrait {
     /// Initialize the backstop module
     ///
     /// ### Arguments
@@ -151,7 +151,7 @@ pub trait BackstopModuleContractTrait {
 /// The contract implementation only manages the authorization / authentication required from the caller(s), and
 /// utilizes other modules to carry out contract functionality.
 #[contractimpl]
-impl BackstopModuleContractTrait for BackstopModuleContract {
+impl BackstopModuleTrait for BackstopModule {
     fn initialize(e: Env, backstop_token: Address, blnd_token: Address, pool_factory: Address) {
         if storage::has_backstop_token(&e) {
             panic_with_error!(e, BackstopError::AlreadyInitialized);

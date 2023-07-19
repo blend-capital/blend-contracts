@@ -5,4 +5,4 @@ extern crate std;
 
 mod mock_blend_oracle;
 
-pub use crate::mock_blend_oracle::{MockBlendOracle, MockBlendOracleClient};
+pub use mock_blend_oracle::*;

@@ -12,4 +12,4 @@ mod test_auth;
 
 mod dependencies;
 
-pub use crate::contract::EmitterContract;
+pub use contract::*;

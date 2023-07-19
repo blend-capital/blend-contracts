@@ -1,18 +1,14 @@
-#![cfg(any(test, feature = "testutils"))]
+#![cfg(test)]
 
 use crate::{
     backstop::Q4W,
     dependencies::{TokenClient, TOKEN_WASM},
     storage::{self},
 };
+
 use soroban_sdk::{testutils::Address as _, unwrap::UnwrapOptimized, Address, Env, IntoVal, Vec};
 
-mod mock_pool_factory {
-    soroban_sdk::contractimport!(
-        file = "../target/wasm32-unknown-unknown/release/mock_pool_factory.wasm"
-    );
-}
-pub use mock_pool_factory::Client as MockPoolFactoryClient;
+use mock_pool_factory::{MockPoolFactory, MockPoolFactoryClient};
 
 pub(crate) fn create_token<'a>(e: &Env, admin: &Address) -> (Address, TokenClient<'a>) {
     let contract_address = Address::random(e);
@@ -52,9 +48,7 @@ pub(crate) fn create_mock_pool_factory<'a>(
     e: &Env,
     backstop: &Address,
 ) -> (Address, MockPoolFactoryClient<'a>) {
-    let contract_address = Address::random(e);
-    e.register_contract_wasm(&contract_address, mock_pool_factory::WASM);
-
+    let contract_address = e.register_contract(None, MockPoolFactory {});
     e.as_contract(backstop, || {
         storage::set_pool_factory(e, &contract_address);
     });

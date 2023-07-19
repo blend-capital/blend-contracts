@@ -47,7 +47,7 @@ version = "0.0.0"
 dependencies = [
  "cast",
  "fixed-point-math",
- "rand",
+ "mock-pool-factory",
  "soroban-sdk",
 ]
 
@@ -661,9 +661,11 @@ dependencies = [
 name = "lending-pool"
 version = "0.0.0"
 dependencies = [
+ "backstop-module",
  "cast",
  "fixed-point-math",
- "rand",
+ "mock-blend-oracle",
+ "mock-pool-factory",
  "soroban-sdk",
 ]
 

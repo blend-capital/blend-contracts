@@ -34,19 +34,19 @@ mod backstop {
 }
 pub use backstop::Client as BackstopClient;
 
-mod mock_blend_oracle {
+mod mock_blend_oracle_wasm {
     soroban_sdk::contractimport!(
         file = "../target/wasm32-unknown-unknown/release/mock_blend_oracle.wasm"
     );
 }
-pub use mock_blend_oracle::{Client as MockOracleClient, OracleError};
+pub use mock_blend_oracle_wasm::{Client as MockOracleClient, OracleError};
 
-mod mock_pool_factory {
+mod mock_pool_factory_wasm {
     soroban_sdk::contractimport!(
         file = "../target/wasm32-unknown-unknown/release/mock_pool_factory.wasm"
     );
 }
-pub use mock_pool_factory::Client as MockPoolFactoryClient;
+pub use mock_pool_factory_wasm::Client as MockPoolFactoryClient;
 
 pub fn create_token<'a>(e: &Env, admin: &Address) -> (Address, TokenClient<'a>) {
     let contract_id = Address::random(e);

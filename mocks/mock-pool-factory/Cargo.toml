@@ -15,9 +15,8 @@ testutils = ["soroban-sdk/testutils"]
 
 [dependencies]
 soroban-sdk = { workspace = true }
-lending-pool = { path = "../../lending-pool" }
+lending-pool = { path = "../../lending-pool", features = ["testutils"] }
 
 [dev_dependencies]
 soroban-sdk = { workspace = true, features = ["testutils"] }
 rand = {version = "0.7.3"}
-lending-pool = { path = "../../lending-pool", features = ["testutils"] }

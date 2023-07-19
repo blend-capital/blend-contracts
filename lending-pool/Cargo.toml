@@ -13,18 +13,12 @@ doctest = false
 [features]
 testutils = [
     "soroban-sdk/testutils",
-    "dep:backstop-module",
-    "dep:mock-pool-factory",
-    "dep:mock-blend-oracle"
 ]
 
 [dependencies]
 soroban-sdk = { workspace = true }
 fixed-point-math = { workspace = true }
 cast = { workspace = true }
-backstop-module = { path = "../backstop-module", optional = true }
-mock-pool-factory = { path = "../mocks/mock-pool-factory", optional = true }
-mock-blend-oracle = { path = "../mocks/mock-blend-oracle", optional = true }
 
 [dev_dependencies]
 soroban-sdk = { workspace = true, features = ["testutils"] }

@@ -14,9 +14,9 @@ use soroban_sdk::{
 ///
 /// An isolated money market pool.
 #[contract]
-pub struct PoolContract;
+pub struct Pool;
 
-pub trait PoolContractTrait {
+pub trait PoolTrait {
     /// Initialize the pool
     ///
     /// ### Arguments
@@ -252,7 +252,7 @@ pub trait PoolContractTrait {
 }
 
 #[contractimpl]
-impl PoolContractTrait for PoolContract {
+impl PoolTrait for Pool {
     fn initialize(
         e: Env,
         admin: Address,

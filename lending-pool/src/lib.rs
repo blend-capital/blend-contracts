@@ -11,7 +11,13 @@ mod emissions;
 mod errors;
 mod pool;
 mod storage;
-pub mod testutils;
+mod testutils;
 mod validator;
 
 pub use contract::*;
+pub use errors::PoolError;
+pub use pool::{Positions, Request};
+pub use storage::{
+    AuctionKey, PoolConfig, PoolDataKey, PoolEmissionConfig, ReserveConfig, ReserveData,
+    ReserveEmissionsConfig, ReserveEmissionsData, UserEmissionData, UserReserveKey,
+};

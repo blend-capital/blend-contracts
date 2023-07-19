@@ -10,14 +10,12 @@ publish = false
 crate-type = ["rlib"]
 doctest = false
 
-[features]
-testutils = ["soroban-sdk/testutils"]
-
 [dependencies]
-soroban-sdk = { workspace = true }
-rand = {version = "0.7.3"}
-fixed-point-math = { workspace = true }
-
-
-[dev_dependencies]
 soroban-sdk = { workspace = true, features = ["testutils"] }
+rand = { version = "0.7.3" }
+fixed-point-math = { workspace = true }
+lending-pool = { path = "../lending-pool", optional = true }
+backstop-module = { path = "../backstop-module", features = ["testutils"] }
+pool-factory = { path = "../pool-factory", features = ["testutils"] }
+emitter = { path = "../emitter", features = ["testutils"] }
+mock-blend-oracle = { path = "../mocks/mock-blend-oracle", features = ["testutils"] }

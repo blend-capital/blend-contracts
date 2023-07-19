@@ -13,3 +13,5 @@ mod test_auth;
 mod dependencies;
 
 pub use contract::*;
+pub use errors::EmitterError;
+pub use storage::EmitterDataKey;

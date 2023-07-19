@@ -5,9 +5,9 @@ use soroban_sdk::{contract, contractimpl, panic_with_error, Address, Env, Symbol
 ///
 /// Emits Blend tokens to the backstop module
 #[contract]
-pub struct EmitterContract;
+pub struct Emitter;
 
-pub trait EmitterContractTrait {
+pub trait EmitterTrait {
     /// Initialize the Emitter
     ///
     /// ### Arguments
@@ -39,7 +39,7 @@ pub trait EmitterContractTrait {
 }
 
 #[contractimpl]
-impl EmitterContractTrait for EmitterContract {
+impl EmitterTrait for Emitter {
     fn initialize(e: Env, backstop: Address, blnd_token_id: Address) {
         if storage::has_backstop(&e) {
             panic_with_error!(&e, EmitterError::AlreadyInitialized)

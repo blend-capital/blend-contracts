@@ -1355,7 +1355,12 @@ dependencies = [
 name = "test-suites"
 version = "0.0.0"
 dependencies = [
+ "backstop-module",
+ "emitter",
  "fixed-point-math",
+ "lending-pool",
+ "mock-blend-oracle",
+ "pool-factory",
  "rand",
  "soroban-sdk",
 ]

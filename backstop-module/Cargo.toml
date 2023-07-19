@@ -13,14 +13,12 @@ doctest = false
 [features]
 testutils = [
     "soroban-sdk/testutils",
-    "dep:mock-pool-factory"
 ]
 
 [dependencies]
 soroban-sdk = { workspace = true }
 fixed-point-math = { workspace = true }
 cast = { workspace = true }
-mock-pool-factory = { path = "../mocks/mock-pool-factory", optional = true }
 
 [dev_dependencies]
 soroban-sdk = { workspace = true, features = ["testutils"] }

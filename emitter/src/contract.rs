@@ -56,7 +56,7 @@ impl EmitterTrait for Emitter {
         let backstop_address = storage::get_backstop(&e);
         backstop_address.require_auth();
 
-        let distribution_amount = emitter::execute_distribute(&e, &backstop_address)?;
+        let distribution_amount = emitter::execute_distribute(&e, &backstop_address);
 
         e.events().publish(
             (Symbol::new(&e, "distribute"),),

@@ -2,7 +2,7 @@
 
 use fixed_point_math::FixedPoint;
 use soroban_sdk::{
-    testutils::{Address as AddressTestTrait, AuthorizedFunction, AuthorizedInvocation},
+    testutils::{Address as _, AuthorizedFunction, AuthorizedInvocation},
     vec, Address, IntoVal, Symbol,
 };
 use test_suites::{
@@ -19,6 +19,18 @@ fn test_backstop() {
     let pool = &fixture.pools[0].pool;
     let bstop_token = &fixture.tokens[TokenIndex::BSTOP];
     let sam = Address::random(&fixture.env);
+
+    // Verify initialization can't be re-run
+    let result = fixture.backstop.try_initialize(
+        &Address::random(&fixture.env),
+        &Address::random(&fixture.env),
+        &Address::random(&fixture.env),
+    );
+    assert!(result.is_err());
+    assert_eq!(
+        fixture.backstop.backstop_token(),
+        bstop_token.address.clone()
+    );
 
     // Mint Sam some backstop tokens
     // assumes Sam makes up 20% of the backstop after depositing

@@ -187,7 +187,7 @@ pub(crate) fn create_reserve(
     token_address: &Address,
     reserve_config: &ReserveConfig,
     reserve_data: &ReserveData,
-) {
+) -> Reserve {
     let mut new_reserve_config = reserve_config.clone();
     e.as_contract(pool_address, || {
         let index = storage::push_res_list(e, &token_address);
@@ -210,4 +210,19 @@ pub(crate) fn create_reserve(
     underlying_client
         .mock_all_auths()
         .mint(&pool_address, &to_mint_pool);
+    Reserve {
+        asset: token_address.clone(),
+        index: reserve_config.index,
+        l_factor: reserve_config.l_factor,
+        c_factor: reserve_config.c_factor,
+        max_util: reserve_config.max_util,
+        last_time: reserve_data.last_time,
+        scalar: 1_0000000,
+        d_rate: reserve_data.d_rate,
+        b_rate: reserve_data.b_rate,
+        ir_mod: reserve_data.ir_mod,
+        b_supply: reserve_data.b_supply,
+        d_supply: reserve_data.d_supply,
+        backstop_credit: reserve_data.backstop_credit,
+    }
 }

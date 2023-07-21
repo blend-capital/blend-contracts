@@ -9,8 +9,12 @@ use super::{pool::Pool, Positions};
 pub struct PositionData {
     /// The effective collateral balance denominated in the base asset
     pub collateral_base: i128,
+    // The raw collateral balance demoninated in the base asset
+    pub collateral_raw: i128,
     /// The effective liability balance denominated in the base asset
     pub liability_base: i128,
+    // The raw liability balance demoninated in the base asset
+    pub liability_raw: i128,
     /// The scalar for the base asset
     pub scalar: i128,
 }
@@ -28,6 +32,8 @@ impl PositionData {
         let reserve_list = storage::get_res_list(e);
         let mut collateral_base = 0;
         let mut liability_base = 0;
+        let mut collateral_raw = 0;
+        let mut liability_raw = 0;
         for i in 0..reserve_list.len() {
             let b_token_balance = positions.get_collateral(i);
             let d_token_balance = positions.get_liabilities(i);
@@ -43,6 +49,12 @@ impl PositionData {
                 collateral_base += asset_to_base
                     .fixed_mul_floor(asset_collateral, reserve.scalar)
                     .unwrap_optimized();
+                collateral_raw += asset_to_base
+                    .fixed_div_floor(
+                        reserve.to_asset_from_b_token(b_token_balance),
+                        reserve.scalar,
+                    )
+                    .unwrap_optimized();
             }
 
             if d_token_balance > 0 {
@@ -51,12 +63,20 @@ impl PositionData {
                 liability_base += asset_to_base
                     .fixed_mul_floor(asset_liability, reserve.scalar)
                     .unwrap_optimized();
+                liability_raw += asset_to_base
+                    .fixed_div_floor(
+                        reserve.to_asset_from_d_token(d_token_balance),
+                        reserve.scalar,
+                    )
+                    .unwrap_optimized();
             }
         }
 
         PositionData {
             collateral_base,
+            collateral_raw,
             liability_base,
+            liability_raw,
             scalar: oracle_scalar,
         }
     }
@@ -101,14 +121,16 @@ mod tests {
         e.mock_all_auths();
 
         let bombadil = Address::random(&e);
+        let samwise = Address::random(&e);
         let pool = Address::random(&e);
         let (oracle, oracle_client) = testutils::create_mock_oracle(&e);
 
-        let (underlying_1, _) = testutils::create_token_contract(&e, &bombadil);
+        let (underlying_0, _) = testutils::create_token_contract(&e, &bombadil);
         let (reserve_config, reserve_data) = testutils::default_reserve_meta(&e);
-        testutils::create_reserve(&e, &pool, &underlying_1, &reserve_config, &reserve_data);
+        let reserve_0 =
+            testutils::create_reserve(&e, &pool, &underlying_0, &reserve_config, &reserve_data);
 
-        let (underlying_2, _) = testutils::create_token_contract(&e, &bombadil);
+        let (underlying_1, _) = testutils::create_token_contract(&e, &bombadil);
         let (mut reserve_config, mut reserve_data) = testutils::default_reserve_meta(&e);
         reserve_config.decimals = 9;
         reserve_config.c_factor = 0_8500000;
@@ -117,20 +139,22 @@ mod tests {
         reserve_data.d_supply = 70_000_000_000;
         reserve_data.b_rate = 1_100_000_000;
         reserve_data.d_rate = 1_150_000_000;
-        testutils::create_reserve(&e, &pool, &underlying_2, &reserve_config, &reserve_data);
+        let reserve_1 =
+            testutils::create_reserve(&e, &pool, &underlying_1, &reserve_config, &reserve_data);
 
-        let (underlying_3, _) = testutils::create_token_contract(&e, &bombadil);
+        let (underlying_2, _) = testutils::create_token_contract(&e, &bombadil);
         let (mut reserve_config, mut reserve_data) = testutils::default_reserve_meta(&e);
         reserve_config.decimals = 6;
         reserve_data.b_supply = 10_000_000;
         reserve_data.d_supply = 5_000_000;
         reserve_data.b_rate = 1_001_100_000;
         reserve_data.d_rate = 1_001_200_000;
-        testutils::create_reserve(&e, &pool, &underlying_3, &reserve_config, &reserve_data);
+        let reserve_2 =
+            testutils::create_reserve(&e, &pool, &underlying_2, &reserve_config, &reserve_data);
 
-        oracle_client.set_price(&underlying_1, &1_0000000);
-        oracle_client.set_price(&underlying_2, &2_5000000);
-        oracle_client.set_price(&underlying_3, &1000_0000000);
+        oracle_client.set_price(&underlying_0, &1_0000000);
+        oracle_client.set_price(&underlying_1, &2_5000000);
+        oracle_client.set_price(&underlying_2, &1000_0000000);
 
         e.ledger().set(LedgerInfo {
             timestamp: 0,
@@ -148,12 +172,12 @@ mod tests {
             status: 0,
         };
 
-        let mut positions = Positions::env_default(&e);
-        positions.add_collateral(0, 100_1234567);
-        positions.add_liabilities(0, 1_5000000);
-        positions.add_liabilities(1, 50_987_654_321);
-        positions.add_supply(1, 120_987_654_321);
-        positions.add_collateral(2, 0_250_000);
+        let mut positions = Positions::env_default(&e, &samwise);
+        positions.add_collateral(&e, &reserve_0, 100_1234567);
+        positions.add_liabilities(&e, &reserve_0, 1_5000000);
+        positions.add_liabilities(&e, &reserve_1, 50_987_654_321);
+        positions.add_supply(&e, &reserve_1, 120_987_654_321);
+        positions.add_collateral(&e, &reserve_2, 0_250_000);
         e.as_contract(&pool, || {
             storage::set_pool_config(&e, &pool_config);
             let mut pool = Pool::load(&e);
@@ -170,7 +194,9 @@ mod tests {
 
         let position_data = PositionData {
             collateral_base: 9_1234567,
+            collateral_raw: 12_0000000,
             liability_base: 9_1233333,
+            liability_raw: 10_0000000,
             scalar: 1_0000000,
         };
 
@@ -185,7 +211,9 @@ mod tests {
 
         let position_data = PositionData {
             collateral_base: 9_1234567,
+            collateral_raw: 12_0000000,
             liability_base: 0,
+            liability_raw: 0,
             scalar: 1_0000000,
         };
 
@@ -202,7 +230,9 @@ mod tests {
 
         let position_data = PositionData {
             collateral_base: 9_1234567,
+            collateral_raw: 12_0000000,
             liability_base: 9_1234567,
+            liability_raw: 10_0000000,
             scalar: 1_0000000,
         };
 

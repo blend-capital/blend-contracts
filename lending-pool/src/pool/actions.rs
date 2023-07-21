@@ -1,5 +1,5 @@
 use soroban_sdk::{
-    contracttype, panic_with_error, unwrap::UnwrapOptimized, vec, Address, Env, Map, Vec,
+    contracttype, panic_with_error, unwrap::UnwrapOptimized, Address, Env, Map, Vec,
 };
 
 use crate::{
@@ -69,7 +69,7 @@ pub fn build_actions_from_request(
                 );
                 let b_tokens_minted = reserve.to_b_token_down(request.amount);
                 reserve.b_supply += b_tokens_minted;
-                new_positions.add_supply(reserve.index, b_tokens_minted);
+                new_positions.add_supply(e, &reserve, b_tokens_minted);
                 actions.set(
                     reserve.asset.clone(),
                     actions.get(request.address).or(Some(0)).unwrap_optimized() + request.amount,
@@ -97,7 +97,7 @@ pub fn build_actions_from_request(
                     tokens_out = reserve.to_asset_from_b_token(cur_b_tokens);
                 }
                 reserve.b_supply -= to_burn;
-                new_positions.remove_supply(e, reserve.index, to_burn);
+                new_positions.remove_supply(e, &reserve, to_burn);
                 actions.set(
                     reserve.asset.clone(),
                     actions.get(request.address).or(Some(0)).unwrap_optimized() - tokens_out,
@@ -119,7 +119,7 @@ pub fn build_actions_from_request(
                 );
                 let b_tokens_minted = reserve.to_b_token_down(request.amount);
                 reserve.b_supply += b_tokens_minted;
-                new_positions.add_collateral(reserve.index, b_tokens_minted);
+                new_positions.add_collateral(e, &reserve, b_tokens_minted);
                 actions.set(
                     reserve.asset.clone(),
                     actions.get(request.address).or(Some(0)).unwrap_optimized() + request.amount,
@@ -147,7 +147,7 @@ pub fn build_actions_from_request(
                     tokens_out = reserve.to_asset_from_b_token(cur_b_tokens);
                 }
                 reserve.b_supply -= to_burn;
-                new_positions.remove_collateral(e, reserve.index, to_burn);
+                new_positions.remove_collateral(e, &reserve, to_burn);
                 actions.set(
                     reserve.asset.clone(),
                     actions.get(request.address).or(Some(0)).unwrap_optimized() - tokens_out,
@@ -171,7 +171,7 @@ pub fn build_actions_from_request(
                 let d_tokens_minted = reserve.to_d_token_up(request.amount);
                 reserve.d_supply += d_tokens_minted;
                 reserve.require_utilization_below_max(e);
-                new_positions.add_liabilities(reserve.index, d_tokens_minted);
+                new_positions.add_liabilities(e, &reserve, d_tokens_minted);
                 actions.set(
                     reserve.asset.clone(),
                     actions.get(request.address).or(Some(0)).unwrap_optimized() - request.amount,
@@ -199,7 +199,7 @@ pub fn build_actions_from_request(
                         request.amount - reserve.to_asset_from_d_token(cur_d_tokens);
                     require_nonnegative(e, &amount_to_refund);
                     reserve.d_supply -= cur_d_tokens;
-                    new_positions.remove_liabilities(e, reserve.index, cur_d_tokens);
+                    new_positions.remove_liabilities(e, &reserve, cur_d_tokens);
                     actions.set(
                         reserve.asset.clone(),
                         actions.get(request.address).or(Some(0)).unwrap_optimized()
@@ -208,7 +208,7 @@ pub fn build_actions_from_request(
                     );
                 } else {
                     reserve.d_supply -= d_tokens_burnt;
-                    new_positions.remove_liabilities(e, reserve.index, d_tokens_burnt);
+                    new_positions.remove_liabilities(e, &reserve, d_tokens_burnt);
                     actions.set(
                         reserve.asset.clone(),
                         actions.get(request.address).or(Some(0)).unwrap_optimized()
@@ -234,10 +234,15 @@ pub fn build_actions_from_request(
 
 #[cfg(test)]
 mod tests {
+    use std::println;
+
     use crate::{storage::PoolConfig, testutils};
 
     use super::*;
-    use soroban_sdk::testutils::{Address as _, Ledger, LedgerInfo};
+    use soroban_sdk::{
+        testutils::{Address as _, Ledger, LedgerInfo},
+        vec,
+    };
 
     // d_rate -> 1_000_001_142
     // b_rate -> 1_000_000_686
@@ -281,7 +286,7 @@ mod tests {
                 &e,
                 Request {
                     request_type: 0,
-                    reserve_index: 0,
+                    address: underlying.clone(),
                     amount: 10_1234567,
                 },
             ];
@@ -291,17 +296,15 @@ mod tests {
             assert_eq!(health_check, false);
 
             assert_eq!(actions.len(), 1);
-            let action = actions.get_unchecked(0);
-            assert_eq!(action.asset, underlying);
-            assert_eq!(action.tokens_out, 0);
-            assert_eq!(action.tokens_in, 10_1234567);
+            let action_amount = actions.get_unchecked(underlying.clone());
+            assert_eq!(action_amount, 10_1234567);
 
             assert_eq!(positions.liabilities.len(), 0);
             assert_eq!(positions.collateral.len(), 0);
             assert_eq!(positions.supply.len(), 1);
             assert_eq!(positions.get_supply(0), 10_1234488);
 
-            let reserve = pool.load_reserve(&e, &underlying);
+            let reserve = pool.load_reserve(&e, &underlying.clone());
             assert_eq!(
                 reserve.b_supply,
                 reserve_data.b_supply + positions.get_supply(0)
@@ -322,7 +325,13 @@ mod tests {
 
         let (underlying_1, _) = testutils::create_token_contract(&e, &bombadil);
         let (reserve_config, reserve_data) = testutils::default_reserve_meta(&e);
-        testutils::create_reserve(&e, &pool, &underlying_1, &reserve_config, &reserve_data);
+        let reserve = testutils::create_reserve(
+            &e,
+            &pool,
+            &underlying_1.clone(),
+            &reserve_config,
+            &reserve_data,
+        );
 
         e.ledger().set(LedgerInfo {
             timestamp: 600,
@@ -339,8 +348,8 @@ mod tests {
             bstop_rate: 0_200_000_000,
             status: 0,
         };
-        let mut user_positions = Positions::env_default(&e);
-        user_positions.add_supply(0, 20_0000000);
+        let mut user_positions = Positions::env_default(&e, &samwise);
+        user_positions.add_supply(&e, &reserve, 20_0000000);
         e.as_contract(&pool, || {
             storage::set_pool_config(&e, &pool_config);
             storage::set_user_positions(&e, &samwise, &user_positions);
@@ -351,7 +360,7 @@ mod tests {
                 &e,
                 Request {
                     request_type: 1,
-                    reserve_index: 0,
+                    address: underlying_1.clone(),
                     amount: 10_1234567,
                 },
             ];
@@ -361,17 +370,15 @@ mod tests {
             assert_eq!(health_check, false);
 
             assert_eq!(actions.len(), 1);
-            let action = actions.get_unchecked(0);
-            assert_eq!(action.asset, underlying_1);
-            assert_eq!(action.tokens_out, 10_1234567);
-            assert_eq!(action.tokens_in, 0);
+            let action_amount = actions.get_unchecked(underlying_1.clone());
+            assert_eq!(action_amount, 10_1234567);
 
             assert_eq!(positions.liabilities.len(), 0);
             assert_eq!(positions.collateral.len(), 0);
             assert_eq!(positions.supply.len(), 1);
             assert_eq!(positions.get_supply(0), 9_8765502);
 
-            let reserve = pool.load_reserve(&e, &underlying_1);
+            let reserve = pool.load_reserve(&e, &underlying_1.clone());
             assert_eq!(
                 reserve.b_supply,
                 reserve_data.b_supply - (20_0000000 - 9_8765502)
@@ -390,7 +397,13 @@ mod tests {
 
         let (underlying_1, _) = testutils::create_token_contract(&e, &bombadil);
         let (reserve_config, reserve_data) = testutils::default_reserve_meta(&e);
-        testutils::create_reserve(&e, &pool, &underlying_1, &reserve_config, &reserve_data);
+        let reserve = testutils::create_reserve(
+            &e,
+            &pool,
+            &underlying_1.clone(),
+            &reserve_config,
+            &reserve_data,
+        );
 
         e.ledger().set(LedgerInfo {
             timestamp: 600,
@@ -407,8 +420,8 @@ mod tests {
             bstop_rate: 0_200_000_000,
             status: 0,
         };
-        let mut user_positions = Positions::env_default(&e);
-        user_positions.add_supply(0, 20_0000000);
+        let mut user_positions = Positions::env_default(&e, &samwise);
+        user_positions.add_supply(&e, &reserve, 20_0000000);
         e.as_contract(&pool, || {
             storage::set_pool_config(&e, &pool_config);
             storage::set_user_positions(&e, &samwise, &user_positions);
@@ -419,7 +432,7 @@ mod tests {
                 &e,
                 Request {
                     request_type: 1,
-                    reserve_index: 0,
+                    address: underlying_1.clone(),
                     amount: 21_0000000,
                 },
             ];
@@ -429,16 +442,14 @@ mod tests {
             assert_eq!(health_check, false);
 
             assert_eq!(actions.len(), 1);
-            let action = actions.get_unchecked(0);
-            assert_eq!(action.asset, underlying_1);
-            assert_eq!(action.tokens_out, 20_0000137);
-            assert_eq!(action.tokens_in, 0);
+            let action_amount = actions.get_unchecked(underlying_1.clone());
+            assert_eq!(action_amount, -20_0000137);
 
             assert_eq!(positions.liabilities.len(), 0);
             assert_eq!(positions.collateral.len(), 0);
             assert_eq!(positions.supply.len(), 0);
 
-            let reserve = pool.load_reserve(&e, &underlying_1);
+            let reserve = pool.load_reserve(&e, &underlying_1.clone());
             assert_eq!(reserve.b_supply, reserve_data.b_supply - 20_0000000);
         });
     }
@@ -482,7 +493,7 @@ mod tests {
                 &e,
                 Request {
                     request_type: 2,
-                    reserve_index: 0,
+                    address: underlying.clone(),
                     amount: 10_1234567,
                 },
             ];
@@ -492,17 +503,15 @@ mod tests {
             assert_eq!(health_check, false);
 
             assert_eq!(actions.len(), 1);
-            let action = actions.get_unchecked(0);
-            assert_eq!(action.asset, underlying);
-            assert_eq!(action.tokens_out, 0);
-            assert_eq!(action.tokens_in, 10_1234567);
+            let action_amount = actions.get_unchecked(underlying.clone());
+            assert_eq!(action_amount, 10_1234567);
 
             assert_eq!(positions.liabilities.len(), 0);
             assert_eq!(positions.collateral.len(), 1);
             assert_eq!(positions.supply.len(), 0);
             assert_eq!(positions.get_collateral(0), 10_1234488);
 
-            let reserve = pool.load_reserve(&e, &underlying);
+            let reserve = pool.load_reserve(&e, &underlying.clone());
             assert_eq!(
                 reserve.b_supply,
                 reserve_data.b_supply + positions.get_collateral(0)
@@ -523,7 +532,8 @@ mod tests {
 
         let (underlying_1, _) = testutils::create_token_contract(&e, &bombadil);
         let (reserve_config, reserve_data) = testutils::default_reserve_meta(&e);
-        testutils::create_reserve(&e, &pool, &underlying_1, &reserve_config, &reserve_data);
+        let reserve =
+            testutils::create_reserve(&e, &pool, &underlying_1, &reserve_config, &reserve_data);
 
         e.ledger().set(LedgerInfo {
             timestamp: 600,
@@ -540,8 +550,8 @@ mod tests {
             bstop_rate: 0_200_000_000,
             status: 0,
         };
-        let mut user_positions = Positions::env_default(&e);
-        user_positions.add_collateral(0, 20_0000000);
+        let mut user_positions = Positions::env_default(&e, &samwise);
+        user_positions.add_collateral(&e, &reserve, 20_0000000);
         e.as_contract(&pool, || {
             storage::set_pool_config(&e, &pool_config);
             storage::set_user_positions(&e, &samwise, &user_positions);
@@ -552,7 +562,7 @@ mod tests {
                 &e,
                 Request {
                     request_type: 3,
-                    reserve_index: 0,
+                    address: underlying_1.clone(),
                     amount: 10_1234567,
                 },
             ];
@@ -562,10 +572,8 @@ mod tests {
             assert_eq!(health_check, true);
 
             assert_eq!(actions.len(), 1);
-            let action = actions.get_unchecked(0);
-            assert_eq!(action.asset, underlying_1);
-            assert_eq!(action.tokens_out, 10_1234567);
-            assert_eq!(action.tokens_in, 0);
+            let action_amount = actions.get_unchecked(underlying_1.clone());
+            assert_eq!(action_amount, -10_1234567);
 
             assert_eq!(positions.liabilities.len(), 0);
             assert_eq!(positions.collateral.len(), 1);
@@ -591,7 +599,13 @@ mod tests {
 
         let (underlying_1, _) = testutils::create_token_contract(&e, &bombadil);
         let (reserve_config, reserve_data) = testutils::default_reserve_meta(&e);
-        testutils::create_reserve(&e, &pool, &underlying_1, &reserve_config, &reserve_data);
+        let reserve = testutils::create_reserve(
+            &e,
+            &pool,
+            &underlying_1.clone(),
+            &reserve_config,
+            &reserve_data,
+        );
 
         e.ledger().set(LedgerInfo {
             timestamp: 600,
@@ -608,8 +622,8 @@ mod tests {
             bstop_rate: 0_200_000_000,
             status: 0,
         };
-        let mut user_positions = Positions::env_default(&e);
-        user_positions.add_collateral(0, 20_0000000);
+        let mut user_positions = Positions::env_default(&e, &samwise);
+        user_positions.add_collateral(&e, &reserve, 20_0000000);
         e.as_contract(&pool, || {
             storage::set_pool_config(&e, &pool_config);
             storage::set_user_positions(&e, &samwise, &user_positions);
@@ -620,7 +634,7 @@ mod tests {
                 &e,
                 Request {
                     request_type: 3,
-                    reserve_index: 0,
+                    address: underlying_1.clone(),
                     amount: 21_0000000,
                 },
             ];
@@ -630,16 +644,14 @@ mod tests {
             assert_eq!(health_check, true);
 
             assert_eq!(actions.len(), 1);
-            let action = actions.get_unchecked(0);
-            assert_eq!(action.asset, underlying_1);
-            assert_eq!(action.tokens_out, 20_0000137);
-            assert_eq!(action.tokens_in, 0);
+            let action_amount = actions.get_unchecked(underlying_1.clone());
+            assert_eq!(action_amount, -20_0000137);
 
             assert_eq!(positions.liabilities.len(), 0);
             assert_eq!(positions.collateral.len(), 0);
             assert_eq!(positions.supply.len(), 0);
 
-            let reserve = pool.load_reserve(&e, &underlying_1);
+            let reserve = pool.load_reserve(&e, &underlying_1.clone());
             assert_eq!(reserve.b_supply, reserve_data.b_supply - 20_0000000);
         });
     }
@@ -656,8 +668,7 @@ mod tests {
         let pool = Address::random(&e);
 
         let (underlying_1, _) = testutils::create_token_contract(&e, &bombadil);
-        let (reserve_config, reserve_data) = testutils::default_reserve_meta(&e);
-        testutils::create_reserve(&e, &pool, &underlying_1, &reserve_config, &reserve_data);
+        let (_reserve_config, reserve_data) = testutils::default_reserve_meta(&e);
 
         e.ledger().set(LedgerInfo {
             timestamp: 600,
@@ -683,7 +694,7 @@ mod tests {
                 &e,
                 Request {
                     request_type: 4,
-                    reserve_index: 0,
+                    address: underlying_1.clone(),
                     amount: 10_1234567,
                 },
             ];
@@ -693,10 +704,9 @@ mod tests {
             assert_eq!(health_check, true);
 
             assert_eq!(actions.len(), 1);
-            let action = actions.get_unchecked(0);
-            assert_eq!(action.asset, underlying_1);
-            assert_eq!(action.tokens_out, 10_1234567);
-            assert_eq!(action.tokens_in, 0);
+            let action_amount = actions.get_unchecked(underlying_1.clone());
+            println!("action_amount: {}", action_amount);
+            assert_eq!(action_amount, -10_1234567);
 
             assert_eq!(positions.liabilities.len(), 1);
             assert_eq!(positions.collateral.len(), 0);
@@ -721,7 +731,8 @@ mod tests {
 
         let (underlying_1, _) = testutils::create_token_contract(&e, &bombadil);
         let (reserve_config, reserve_data) = testutils::default_reserve_meta(&e);
-        testutils::create_reserve(&e, &pool, &underlying_1, &reserve_config, &reserve_data);
+        let reserve =
+            testutils::create_reserve(&e, &pool, &underlying_1, &reserve_config, &reserve_data);
 
         e.ledger().set(LedgerInfo {
             timestamp: 600,
@@ -738,8 +749,8 @@ mod tests {
             bstop_rate: 0_200_000_000,
             status: 0,
         };
-        let mut user_positions = Positions::env_default(&e);
-        user_positions.add_liabilities(0, 20_0000000);
+        let mut user_positions = Positions::env_default(&e, &samwise);
+        user_positions.add_liabilities(&e, &reserve, 20_0000000);
         e.as_contract(&pool, || {
             storage::set_pool_config(&e, &pool_config);
             storage::set_user_positions(&e, &samwise, &user_positions);
@@ -750,7 +761,7 @@ mod tests {
                 &e,
                 Request {
                     request_type: 5,
-                    reserve_index: 0,
+                    address: underlying_1.clone(),
                     amount: 10_1234567,
                 },
             ];
@@ -760,10 +771,8 @@ mod tests {
             assert_eq!(health_check, false);
 
             assert_eq!(actions.len(), 1);
-            let action = actions.get_unchecked(0);
-            assert_eq!(action.asset, underlying_1);
-            assert_eq!(action.tokens_out, 0);
-            assert_eq!(action.tokens_in, 10_1234567);
+            let action_amount = actions.get_unchecked(underlying_1.clone());
+            assert_eq!(action_amount, 10_1234567);
 
             assert_eq!(positions.liabilities.len(), 1);
             assert_eq!(positions.collateral.len(), 0);
@@ -787,7 +796,13 @@ mod tests {
 
         let (underlying_1, _) = testutils::create_token_contract(&e, &bombadil);
         let (reserve_config, reserve_data) = testutils::default_reserve_meta(&e);
-        testutils::create_reserve(&e, &pool, &underlying_1, &reserve_config, &reserve_data);
+        let reserve = testutils::create_reserve(
+            &e,
+            &pool,
+            &underlying_1.clone(),
+            &reserve_config,
+            &reserve_data,
+        );
 
         e.ledger().set(LedgerInfo {
             timestamp: 600,
@@ -804,8 +819,8 @@ mod tests {
             bstop_rate: 0_200_000_000,
             status: 0,
         };
-        let mut user_positions = Positions::env_default(&e);
-        user_positions.add_liabilities(0, 20_0000000);
+        let mut user_positions = Positions::env_default(&e, &samwise);
+        user_positions.add_liabilities(&e, &reserve, 20_0000000);
         e.as_contract(&pool, || {
             storage::set_pool_config(&e, &pool_config);
             storage::set_user_positions(&e, &samwise, &user_positions);
@@ -816,7 +831,7 @@ mod tests {
                 &e,
                 Request {
                     request_type: 5,
-                    reserve_index: 0,
+                    address: underlying_1.clone(),
                     amount: 21_0000000,
                 },
             ];
@@ -826,10 +841,8 @@ mod tests {
             assert_eq!(health_check, false);
 
             assert_eq!(actions.len(), 1);
-            let action = actions.get_unchecked(0);
-            assert_eq!(action.asset, underlying_1);
-            assert_eq!(action.tokens_out, 0_9999771);
-            assert_eq!(action.tokens_in, 21_0000000);
+            let action_amount = actions.get_unchecked(underlying_1.clone());
+            assert_eq!(action_amount, 21_0000000 - 0_9999771);
 
             assert_eq!(positions.liabilities.len(), 0);
             assert_eq!(positions.collateral.len(), 0);

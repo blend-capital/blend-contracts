@@ -24,9 +24,7 @@ pub enum PoolError {
     InvalidBids = 102,
     AuctionInProgress = 103,
     InvalidAuctionType = 104,
-    InvalidLotTooLarge = 105,
-    InvalidLotTooSmall = 106,
-    InvalidBidTooLarge = 107,
-    InvalidBidTooSmall = 108,
-    InterestTooSmall = 109,
+    InvalidLiqTooLarge = 105,
+    InvalidLiqTooSmall = 106,
+    InterestTooSmall = 107,
 }

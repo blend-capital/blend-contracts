@@ -21,7 +21,8 @@ pub fn create_interest_auction_data(e: &Env, backstop: &Address) -> AuctionData 
     let oracle_client = OracleClient::new(e, &pool.config.oracle);
 
     let mut auction_data = AuctionData {
-        assets: map![e],
+        lot: map![e],
+        bid: map![e],
         block: e.ledger().sequence() + 1,
     };
 
@@ -36,7 +37,9 @@ pub fn create_interest_auction_data(e: &Env, backstop: &Address) -> AuctionData 
             interest_value += i128(asset_to_base)
                 .fixed_mul_floor(reserve.backstop_credit, reserve.scalar)
                 .unwrap_optimized();
-            auction_data.assets.set(i, reserve.backstop_credit);
+            auction_data
+                .lot
+                .set(res_asset_address, reserve.backstop_credit);
         }
     }
 
@@ -45,7 +48,7 @@ pub fn create_interest_auction_data(e: &Env, backstop: &Address) -> AuctionData 
         panic_with_error!(e, PoolError::InterestTooSmall);
     }
 
-    if auction_data.assets.len() == 0 || interest_value == 0 {
+    if auction_data.lot.len() == 0 || interest_value == 0 {
         panic_with_error!(e, PoolError::BadRequest);
     }
 
@@ -57,7 +60,7 @@ pub fn create_interest_auction_data(e: &Env, backstop: &Address) -> AuctionData 
         .fixed_div_floor(i128(usdc_to_base), SCALAR_7)
         .unwrap_optimized();
     // u32::MAX is the key for the USDC lot
-    auction_data.assets.set(u32::MAX, bid_amount);
+    auction_data.bid.set(storage::get_usdc_token(e), bid_amount);
 
     auction_data
 }
@@ -67,7 +70,7 @@ pub fn fill_interest_auction(e: &Env, auction_data: &AuctionData, filler: &Addre
 
     // bid only contains the USDC token
     let usdc_token = storage::get_usdc_token(e);
-    let bid_amount = auction_data.assets.get_unchecked(u32::MAX);
+    let bid_amount = auction_data.lot.get_unchecked(usdc_token);
     let bid_amount_modified = bid_amount
         .fixed_mul_floor(bid_modifier, SCALAR_7)
         .unwrap_optimized();
@@ -78,12 +81,7 @@ pub fn fill_interest_auction(e: &Env, auction_data: &AuctionData, filler: &Addre
 
     // lot contains underlying tokens, but the backstop credit must be updated on the reserve
     let pool = Pool::load(e);
-    let reserve_list = storage::get_res_list(e);
-    for (res_id, lot_amount) in auction_data.assets.iter() {
-        if res_id == u32::MAX {
-            continue;
-        }
-        let res_asset_address = reserve_list.get_unchecked(res_id);
+    for (res_asset_address, lot_amount) in auction_data.lot.iter() {
         let mut reserve = pool.load_reserve(e, &res_asset_address);
         let lot_amount_modified = lot_amount
             .fixed_mul_floor(lot_modifier, SCALAR_7)
@@ -246,10 +244,10 @@ mod tests {
             let result = create_interest_auction_data(&e, &backstop_address);
 
             assert_eq!(result.block, 51);
-            assert_eq!(result.bid.get_unchecked(u32::MAX), 42_0000000);
+            assert_eq!(result.bid.get_unchecked(usdc_id), 42_0000000);
             assert_eq!(result.bid.len(), 1);
-            assert_eq!(result.lot.get_unchecked(reserve_config_0.index), 10_0000000);
-            assert_eq!(result.lot.get_unchecked(reserve_config_1.index), 2_5000000);
+            assert_eq!(result.lot.get_unchecked(underlying_0), 10_0000000);
+            assert_eq!(result.lot.get_unchecked(underlying_1), 2_5000000);
             assert_eq!(result.lot.len(), 2);
         });
     }
@@ -346,13 +344,10 @@ mod tests {
             let result = create_interest_auction_data(&e, &backstop_address);
 
             assert_eq!(result.block, 51);
-            assert_eq!(result.bid.get_unchecked(u32::MAX), 420_0000000);
+            assert_eq!(result.bid.get_unchecked(usdc_id), 420_0000000);
             assert_eq!(result.bid.len(), 1);
-            assert_eq!(
-                result.lot.get_unchecked(reserve_config_0.index),
-                100_0000000
-            );
-            assert_eq!(result.lot.get_unchecked(reserve_config_1.index), 25_0000000);
+            assert_eq!(result.lot.get_unchecked(underlying_0), 100_0000000);
+            assert_eq!(result.lot.get_unchecked(underlying_1), 25_0000000);
             assert_eq!(result.lot.len(), 2);
         });
     }
@@ -450,14 +445,11 @@ mod tests {
 
             let result = create_interest_auction_data(&e, &backstop_address);
             assert_eq!(result.block, 151);
-            assert_eq!(result.bid.get_unchecked(u32::MAX), 420_0009794);
+            assert_eq!(result.bid.get_unchecked(usdc_id), 420_0009794);
             assert_eq!(result.bid.len(), 1);
-            assert_eq!(
-                result.lot.get_unchecked(reserve_config_0.index),
-                100_0000066
-            );
-            assert_eq!(result.lot.get_unchecked(reserve_config_1.index), 25_0000066);
-            assert_eq!(result.lot.get_unchecked(reserve_config_2.index), 66);
+            assert_eq!(result.lot.get_unchecked(underlying_0), 100_0000066);
+            assert_eq!(result.lot.get_unchecked(underlying_1), 25_0000066);
+            assert_eq!(result.lot.get_unchecked(underlying_2), 66);
             assert_eq!(result.lot.len(), 3);
         });
     }
@@ -538,8 +530,12 @@ mod tests {
             status: 0,
         };
         let auction_data = AuctionData {
-            bid: map![&e, (u32::MAX, 95_2000000)],
-            lot: map![&e, (0, 10_0000000), (1, 2_5000000)],
+            bid: map![&e, (usdc_id, 95_2000000)],
+            lot: map![
+                &e,
+                (underlying_0.clone(), 10_0000000),
+                (underlying_1.clone(), 2_5000000)
+            ],
             block: 51,
         };
         usdc_client.mint(&samwise, &95_2000000);
@@ -571,21 +567,9 @@ mod tests {
             reserve_1.store(&e);
 
             e.budget().reset_unlimited();
-            let result = fill_interest_auction(&e, &auction_data, &samwise);
+            fill_interest_auction(&e, &auction_data, &samwise);
             // let result = calc_fill_interest_auction(&e, &auction);
-
-            let usdc_quote = result.bid.get_unchecked(0);
-            assert_eq!(usdc_quote.asset, usdc_id.clone());
-            assert_eq!(usdc_quote.amount, 71_4000000);
-            assert_eq!(result.bid.len(), 1);
-            let lot_quote_0 = result.lot.get_unchecked(0);
-            let lot_quote_1 = result.lot.get_unchecked(1);
-            assert_eq!(lot_quote_0.asset, underlying_0.clone());
-            assert_eq!(lot_quote_0.amount, 10_0000000);
-            assert_eq!(lot_quote_1.asset, underlying_1.clone());
-            assert_eq!(lot_quote_1.amount, 2_5000000);
-            assert_eq!(result.lot.len(), 2);
-            // TODO: add donate_usdc function to backstop
+            //TODO: test that usdc was transferred to backstop once the donate_usdc function is added to backstop
             // assert_eq!(usdc_client.balance(&samwise), 23_8000000);
             // assert_eq!(usdc_client.balance(&backstop), 71_4000000);
             let reserve_0 = pool.load_reserve(&e, &underlying_0);

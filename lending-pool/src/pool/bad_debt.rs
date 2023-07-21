@@ -7,7 +7,7 @@ use crate::{
     storage::{self, has_auction},
 };
 
-use super::Reserve;
+use super::{Pool, Reserve};
 
 /// Manage bad debt for a user. If the user is the backstop, burn the bad debt. Otherwise, transfer
 /// the bad debt to the backstop.
@@ -49,18 +49,11 @@ fn transfer_bad_debt_to_backstop(e: &Env, user: &Address, backstop: &Address) {
         // need to be updated. However, emissions need to be accrued for the user up to
         // this point.
         let asset = reserve_list.get_unchecked(reserve_index);
+        let pool = Pool::load(e);
+        let reserve = pool.load_reserve(e, &asset);
         let reserve_config = storage::get_res_config(e, &asset);
         let reserve_data = storage::get_res_data(e, &asset);
-        emissions::update_emissions(
-            e,
-            reserve_index,
-            reserve_data.d_supply,
-            10i128.pow(reserve_config.decimals),
-            user,
-            liability_balance,
-            false,
-        );
-        new_backstop_positions.add_liabilities(reserve_index, liability_balance);
+        new_backstop_positions.add_liabilities(e, &reserve, liability_balance);
 
         e.events().publish(
             (Symbol::new(&e, "bad_debt"), user),
@@ -147,22 +140,24 @@ mod tests {
         let samwise = Address::random(&e);
         let bombadil = Address::random(&e);
 
+        let (underlying_0, _) = testutils::create_token_contract(&e, &bombadil);
+        let (reserve_config, reserve_data) = testutils::default_reserve_meta(&e);
+        let reserve_0 =
+            testutils::create_reserve(&e, &pool, &underlying_0, &reserve_config, &reserve_data);
+
         let (underlying_1, _) = testutils::create_token_contract(&e, &bombadil);
         let (reserve_config, reserve_data) = testutils::default_reserve_meta(&e);
-        testutils::create_reserve(&e, &pool, &underlying_1, &reserve_config, &reserve_data);
-
-        let (underlying_2, _) = testutils::create_token_contract(&e, &bombadil);
-        let (reserve_config, reserve_data) = testutils::default_reserve_meta(&e);
-        testutils::create_reserve(&e, &pool, &underlying_2, &reserve_config, &reserve_data);
+        let reserve_1 =
+            testutils::create_reserve(&e, &pool, &underlying_1, &reserve_config, &reserve_data);
 
         let pool_config = PoolConfig {
             oracle: Address::random(&e),
             bstop_rate: 0_100_000_000,
             status: 0,
         };
-        let mut user_positions = Positions::env_default(&e);
-        user_positions.add_liabilities(0, 24_0000000);
-        user_positions.add_liabilities(1, 25_0000000);
+        let mut user_positions = Positions::env_default(&e, &samwise);
+        user_positions.add_liabilities(&e, &reserve_0, 24_0000000);
+        user_positions.add_liabilities(&e, &reserve_1, 25_0000000);
         e.as_contract(&pool, || {
             storage::set_pool_config(&e, &pool_config);
             storage::set_backstop(&e, &backstop);
@@ -205,23 +200,25 @@ mod tests {
         let samwise = Address::random(&e);
         let bombadil = Address::random(&e);
 
+        let (underlying_0, _) = testutils::create_token_contract(&e, &bombadil);
+        let (reserve_config, reserve_data) = testutils::default_reserve_meta(&e);
+        let reserve_0 =
+            testutils::create_reserve(&e, &pool, &underlying_0, &reserve_config, &reserve_data);
+
         let (underlying_1, _) = testutils::create_token_contract(&e, &bombadil);
         let (reserve_config, reserve_data) = testutils::default_reserve_meta(&e);
-        testutils::create_reserve(&e, &pool, &underlying_1, &reserve_config, &reserve_data);
-
-        let (underlying_2, _) = testutils::create_token_contract(&e, &bombadil);
-        let (reserve_config, reserve_data) = testutils::default_reserve_meta(&e);
-        testutils::create_reserve(&e, &pool, &underlying_2, &reserve_config, &reserve_data);
+        let reserve_1 =
+            testutils::create_reserve(&e, &pool, &underlying_1, &reserve_config, &reserve_data);
 
         let pool_config = PoolConfig {
             oracle: Address::random(&e),
             bstop_rate: 0_100_000_000,
             status: 0,
         };
-        let mut user_positions = Positions::env_default(&e);
-        user_positions.add_collateral(0, 1);
-        user_positions.add_liabilities(0, 24_0000000);
-        user_positions.add_liabilities(1, 25_0000000);
+        let mut user_positions = Positions::env_default(&e, &samwise);
+        user_positions.add_collateral(&e, &reserve_0, 1);
+        user_positions.add_liabilities(&e, &reserve_0, 24_0000000);
+        user_positions.add_liabilities(&e, &reserve_1, 25_0000000);
         e.as_contract(&pool, || {
             storage::set_pool_config(&e, &pool_config);
             storage::set_backstop(&e, &backstop);
@@ -269,7 +266,7 @@ mod tests {
             bstop_rate: 0_100_000_000,
             status: 0,
         };
-        let user_positions = Positions::env_default(&e);
+        let user_positions = Positions::env_default(&e, &samwise);
         e.as_contract(&pool, || {
             storage::set_pool_config(&e, &pool_config);
             storage::set_backstop(&e, &backstop);
@@ -305,17 +302,19 @@ mod tests {
 
         let (_, blnd_client) = testutils::create_blnd_token(&e, &pool, &bombadil);
 
+        let (underlying_0, _) = testutils::create_token_contract(&e, &bombadil);
+        let (reserve_config, mut reserve_data) = testutils::default_reserve_meta(&e);
+        reserve_data.last_time = 1499995000;
+        let initial_d_supply_0 = reserve_data.d_supply;
+        let reserve_0 =
+            testutils::create_reserve(&e, &pool, &underlying_0, &reserve_config, &reserve_data);
+
         let (underlying_1, _) = testutils::create_token_contract(&e, &bombadil);
         let (reserve_config, mut reserve_data) = testutils::default_reserve_meta(&e);
         reserve_data.last_time = 1499995000;
         let initial_d_supply_1 = reserve_data.d_supply;
-        testutils::create_reserve(&e, &pool, &underlying_1, &reserve_config, &reserve_data);
-
-        let (underlying_2, _) = testutils::create_token_contract(&e, &bombadil);
-        let (reserve_config, mut reserve_data) = testutils::default_reserve_meta(&e);
-        reserve_data.last_time = 1499995000;
-        let initial_d_supply_2 = reserve_data.d_supply;
-        testutils::create_reserve(&e, &pool, &underlying_2, &reserve_config, &reserve_data);
+        let reserve_1 =
+            testutils::create_reserve(&e, &pool, &underlying_1, &reserve_config, &reserve_data);
 
         blnd_client.mint(&backstop, &123);
 
@@ -325,9 +324,9 @@ mod tests {
             status: 0,
         };
 
-        let mut backstop_positions = Positions::env_default(&e);
-        backstop_positions.add_liabilities(0, 24_0000000);
-        backstop_positions.add_liabilities(1, 25_0000000);
+        let mut backstop_positions = Positions::env_default(&e, &backstop);
+        backstop_positions.add_liabilities(&e, &reserve_0, 24_0000000);
+        backstop_positions.add_liabilities(&e, &reserve_1, 25_0000000);
         e.as_contract(&pool, || {
             storage::set_pool_config(&e, &pool_config);
             storage::set_backstop(&e, &backstop);
@@ -340,12 +339,12 @@ mod tests {
             assert_eq!(new_backstop_positions.collateral.len(), 0);
             assert_eq!(new_backstop_positions.liabilities.len(), 0);
 
-            let reserve_1_data = storage::get_res_data(&e, &underlying_1);
-            let reserve_2_data = storage::get_res_data(&e, &underlying_2);
+            let reserve_1_data = storage::get_res_data(&e, &underlying_0);
+            let reserve_2_data = storage::get_res_data(&e, &underlying_1);
             assert_eq!(reserve_1_data.last_time, 1500000000);
-            assert_eq!(reserve_1_data.d_supply, initial_d_supply_1 - 24_0000000);
+            assert_eq!(reserve_1_data.d_supply, initial_d_supply_0 - 24_0000000);
             assert_eq!(reserve_2_data.last_time, 1500000000);
-            assert_eq!(reserve_2_data.d_supply, initial_d_supply_2 - 25_0000000);
+            assert_eq!(reserve_2_data.d_supply, initial_d_supply_1 - 25_0000000);
         });
     }
 
@@ -375,15 +374,17 @@ mod tests {
 
         let (_, blnd_client) = testutils::create_blnd_token(&e, &pool, &bombadil);
 
+        let (underlying_0, _) = testutils::create_token_contract(&e, &bombadil);
+        let (reserve_config, mut reserve_data) = testutils::default_reserve_meta(&e);
+        reserve_data.last_time = 1499995000;
+        let reserve_0 =
+            testutils::create_reserve(&e, &pool, &underlying_0, &reserve_config, &reserve_data);
+
         let (underlying_1, _) = testutils::create_token_contract(&e, &bombadil);
         let (reserve_config, mut reserve_data) = testutils::default_reserve_meta(&e);
         reserve_data.last_time = 1499995000;
-        testutils::create_reserve(&e, &pool, &underlying_1, &reserve_config, &reserve_data);
-
-        let (underlying_2, _) = testutils::create_token_contract(&e, &bombadil);
-        let (reserve_config, mut reserve_data) = testutils::default_reserve_meta(&e);
-        reserve_data.last_time = 1499995000;
-        testutils::create_reserve(&e, &pool, &underlying_2, &reserve_config, &reserve_data);
+        let reserve_1 =
+            testutils::create_reserve(&e, &pool, &underlying_1, &reserve_config, &reserve_data);
 
         blnd_client.mint(&backstop, &10_000_0000001);
 
@@ -393,9 +394,9 @@ mod tests {
             status: 0,
         };
 
-        let mut backstop_positions = Positions::env_default(&e);
-        backstop_positions.add_liabilities(0, 24_0000000);
-        backstop_positions.add_liabilities(1, 25_0000000);
+        let mut backstop_positions = Positions::env_default(&e, &backstop);
+        backstop_positions.add_liabilities(&e, &reserve_0, 24_0000000);
+        backstop_positions.add_liabilities(&e, &reserve_1, 25_0000000);
         e.as_contract(&pool, || {
             storage::set_pool_config(&e, &pool_config);
             storage::set_backstop(&e, &backstop);
@@ -431,15 +432,17 @@ mod tests {
 
         let (_, blnd_client) = testutils::create_blnd_token(&e, &pool, &bombadil);
 
+        let (underlying_0, _) = testutils::create_token_contract(&e, &bombadil);
+        let (reserve_config, mut reserve_data) = testutils::default_reserve_meta(&e);
+        reserve_data.last_time = 1499995000;
+        let reserve_0 =
+            testutils::create_reserve(&e, &pool, &underlying_0, &reserve_config, &reserve_data);
+
         let (underlying_1, _) = testutils::create_token_contract(&e, &bombadil);
         let (reserve_config, mut reserve_data) = testutils::default_reserve_meta(&e);
         reserve_data.last_time = 1499995000;
-        testutils::create_reserve(&e, &pool, &underlying_1, &reserve_config, &reserve_data);
-
-        let (underlying_2, _) = testutils::create_token_contract(&e, &bombadil);
-        let (reserve_config, mut reserve_data) = testutils::default_reserve_meta(&e);
-        reserve_data.last_time = 1499995000;
-        testutils::create_reserve(&e, &pool, &underlying_2, &reserve_config, &reserve_data);
+        let reserve_1 =
+            testutils::create_reserve(&e, &pool, &underlying_1, &reserve_config, &reserve_data);
 
         blnd_client.mint(&backstop, &10_0000001);
 
@@ -449,9 +452,9 @@ mod tests {
             status: 0,
         };
 
-        let mut backstop_positions = Positions::env_default(&e);
-        backstop_positions.add_liabilities(0, 24_0000000);
-        backstop_positions.add_liabilities(1, 25_0000000);
+        let mut backstop_positions = Positions::env_default(&e, &backstop);
+        backstop_positions.add_liabilities(&e, &reserve_0, 24_0000000);
+        backstop_positions.add_liabilities(&e, &reserve_1, 25_0000000);
         e.as_contract(&pool, || {
             storage::set_pool_config(&e, &pool_config);
             storage::set_backstop(&e, &backstop);

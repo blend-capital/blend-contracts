@@ -1064,19 +1064,21 @@ mod tests {
         reserve_config.decimals = 5;
         reserve_data.b_supply = 100_00000;
         reserve_data.d_supply = 50_00000;
-        testutils::create_reserve(&e, &pool, &underlying_0, &reserve_config, &reserve_data);
+        let reserve_0 =
+            testutils::create_reserve(&e, &pool, &underlying_0, &reserve_config, &reserve_data);
 
         let (underlying_1, _) = testutils::create_token_contract(&e, &bombadil);
         let (mut reserve_config, mut reserve_data) = testutils::default_reserve_meta(&e);
         reserve_config.decimals = 9;
         reserve_data.b_supply = 100_000_000_000;
         reserve_data.d_supply = 50_000_000_000;
-        testutils::create_reserve(&e, &pool, &underlying_1, &reserve_config, &reserve_data);
+        let reserve_1 =
+            testutils::create_reserve(&e, &pool, &underlying_1, &reserve_config, &reserve_data);
 
-        let mut user_positions = Positions::env_default(&e);
-        user_positions.add_liabilities(0, 2_00000);
-        user_positions.add_supply(1, 1_000_000_000);
-        user_positions.add_collateral(1, 1_000_000_000);
+        let mut user_positions = Positions::env_default(&e, &samwise);
+        user_positions.add_liabilities(&e, &reserve_0, 2_00000);
+        user_positions.add_supply(&e, &reserve_1, 1_000_000_000);
+        user_positions.add_collateral(&e, &reserve_1, 1_000_000_000);
         e.as_contract(&pool, || {
             storage::set_backstop(&e, &backstop);
             storage::set_user_positions(&e, &samwise, &user_positions);
@@ -1190,19 +1192,21 @@ mod tests {
         reserve_config.decimals = 5;
         reserve_data.b_supply = 100_00000;
         reserve_data.d_supply = 50_00000;
-        testutils::create_reserve(&e, &pool, &underlying_0, &reserve_config, &reserve_data);
+        let reserve_0 =
+            testutils::create_reserve(&e, &pool, &underlying_0, &reserve_config, &reserve_data);
 
         let (underlying_1, _) = testutils::create_token_contract(&e, &bombadil);
         let (mut reserve_config, mut reserve_data) = testutils::default_reserve_meta(&e);
         reserve_config.decimals = 9;
         reserve_data.b_supply = 100_000_000_000;
         reserve_data.d_supply = 50_000_000_000;
-        testutils::create_reserve(&e, &pool, &underlying_1, &reserve_config, &reserve_data);
+        let reserve_1 =
+            testutils::create_reserve(&e, &pool, &underlying_1, &reserve_config, &reserve_data);
 
-        let mut user_positions = Positions::env_default(&e);
-        user_positions.add_liabilities(0, 2_00000);
-        user_positions.add_supply(1, 1_000_000_000);
-        user_positions.add_collateral(1, 1_000_000_000);
+        let mut user_positions = Positions::env_default(&e, &samwise);
+        user_positions.add_liabilities(&e, &reserve_0, 2_00000);
+        user_positions.add_supply(&e, &reserve_1, 1_000_000_000);
+        user_positions.add_collateral(&e, &reserve_1, 1_000_000_000);
         e.as_contract(&pool, || {
             storage::set_backstop(&e, &backstop);
             storage::set_user_positions(&e, &samwise, &user_positions);

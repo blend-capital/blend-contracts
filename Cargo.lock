@@ -449,7 +449,7 @@ dependencies = [
 name = "emitter"
 version = "0.0.0"
 dependencies = [
- "rand",
+ "backstop-module",
  "soroban-sdk",
 ]
 

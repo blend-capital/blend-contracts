@@ -1,7 +1,8 @@
+use lending_pool::{Request, ReserveEmissionMetadata};
 use soroban_sdk::{testutils::Address as _, vec, Address, Symbol, Vec};
 
 use crate::{
-    pool::{default_reserve_metadata, Request, ReserveEmissionMetadata},
+    pool::default_reserve_metadata,
     test_fixture::{TestFixture, TokenIndex, SCALAR_7},
 };
 
@@ -49,9 +50,7 @@ pub fn create_fixture_with_data<'a>(wasm: bool) -> (TestFixture<'a>, Address) {
             share: 0_400_0000
         },
     ];
-    pool_fixture
-        .pool
-        .set_emissions_config(&fixture.bombadil, &reserve_emissions);
+    pool_fixture.pool.set_emissions_config(&reserve_emissions);
 
     // mint whale tokens
     let frodo = Address::random(&fixture.env);

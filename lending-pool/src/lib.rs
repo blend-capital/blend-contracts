@@ -14,7 +14,9 @@ mod storage;
 mod testutils;
 mod validator;
 
+pub use auctions::{AuctionData, AuctionType};
 pub use contract::*;
+pub use emissions::ReserveEmissionMetadata;
 pub use errors::PoolError;
 pub use pool::{Positions, Request};
 pub use storage::{

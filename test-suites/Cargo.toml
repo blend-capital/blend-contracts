@@ -14,7 +14,7 @@ doctest = false
 soroban-sdk = { workspace = true, features = ["testutils"] }
 rand = { version = "0.7.3" }
 fixed-point-math = { workspace = true }
-lending-pool = { path = "../lending-pool", optional = true }
+lending-pool = { path = "../lending-pool", features = ["testutils"] }
 backstop-module = { path = "../backstop-module", features = ["testutils"] }
 pool-factory = { path = "../pool-factory", features = ["testutils"] }
 emitter = { path = "../emitter", features = ["testutils"] }

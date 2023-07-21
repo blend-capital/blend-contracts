@@ -8,7 +8,7 @@ mod contract;
 mod emitter;
 mod errors;
 mod storage;
-mod test_auth;
+mod testutils;
 
 mod dependencies;
 

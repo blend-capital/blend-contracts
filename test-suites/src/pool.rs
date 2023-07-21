@@ -3,11 +3,9 @@ mod pool_contract {
         file = "../target/wasm32-unknown-unknown/release/lending_pool.wasm"
     );
 }
-pub use pool_contract::{
-    AuctionData, Client as PoolClient, LiquidationMetadata, PoolDataKey, PoolError, Request,
-    ReserveConfig, ReserveData, ReserveEmissionMetadata, ReserveEmissionsConfig, UserEmissionData,
-    UserReserveKey, WASM as POOL_WASM,
-};
+pub use pool_contract::WASM as POOL_WASM;
+
+use lending_pool::ReserveConfig;
 
 pub fn default_reserve_metadata() -> ReserveConfig {
     ReserveConfig {

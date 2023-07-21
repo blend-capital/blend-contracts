@@ -4,11 +4,12 @@ use std::ops::Index;
 use crate::backstop::create_backstop;
 use crate::emitter::create_emitter;
 use crate::mock_oracle::create_mock_oracle;
-use crate::pool::{PoolClient, ReserveConfig, POOL_WASM};
+use crate::pool::POOL_WASM;
 use crate::pool_factory::create_pool_factory;
 use crate::token::{create_stellar_token, create_token, TokenClient};
 use backstop_module::BackstopModuleClient;
 use emitter::EmitterClient;
+use lending_pool::{PoolClient, ReserveConfig};
 use mock_blend_oracle::MockBlendOracleClient;
 use pool_factory::{PoolFactoryClient, PoolInitMeta};
 use soroban_sdk::testutils::{Address as _, BytesN as _, Ledger, LedgerInfo};
@@ -166,7 +167,7 @@ impl TestFixture<'_> {
         let token = &self.tokens[asset_index];
         pool_fixture
             .pool
-            .init_reserve(&self.bombadil, &token.address, &reserve_config);
+            .init_reserve(&token.address, &reserve_config);
         let config = pool_fixture.pool.get_reserve_config(&token.address);
         pool_fixture.reserves.insert(asset_index, config.index);
         self.pools.insert(pool_index, pool_fixture);

@@ -1,6 +1,6 @@
 use crate::{constants::SCALAR_7, dependencies::BackstopClient, errors::PoolError, storage};
 use fixed_point_math::FixedPoint;
-use soroban_sdk::{panic_with_error, unwrap::UnwrapOptimized, Address, Env};
+use soroban_sdk::{panic_with_error, unwrap::UnwrapOptimized, Env};
 
 /// Update the pool status based on the backstop module
 pub fn execute_update_pool_status(e: &Env) -> u32 {
@@ -32,11 +32,7 @@ pub fn execute_update_pool_status(e: &Env) -> u32 {
 }
 
 /// Update the pool status
-pub fn set_pool_status(e: &Env, admin: &Address, pool_status: u32) {
-    if admin.clone() != storage::get_admin(e) {
-        panic_with_error!(e, PoolError::NotAuthorized);
-    }
-
+pub fn set_pool_status(e: &Env, pool_status: u32) {
     if pool_status == 0 {
         // check the pool has met minimum backstop deposits before being turned on
         let backstop_id = storage::get_backstop(e);
@@ -61,7 +57,7 @@ mod tests {
     };
 
     use super::*;
-    use soroban_sdk::testutils::Address as _;
+    use soroban_sdk::{testutils::Address as _, Address};
 
     #[test]
     fn test_set_pool_status() {
@@ -95,49 +91,10 @@ mod tests {
             storage::set_admin(&e, &bombadil);
             storage::set_pool_config(&e, &pool_config);
 
-            set_pool_status(&e, &bombadil, 0);
+            set_pool_status(&e, 0);
 
             let new_pool_config = storage::get_pool_config(&e);
             assert_eq!(new_pool_config.status, 0);
-        });
-    }
-
-    #[test]
-    #[should_panic]
-    //#[should_panic(expected = "Status(ContractError(1))")]
-    fn test_set_pool_status_requires_admin() {
-        let e = Env::default();
-        e.budget().reset_unlimited();
-        e.mock_all_auths();
-        let pool_id = Address::random(&e);
-        let oracle_id = Address::random(&e);
-
-        let bombadil = Address::random(&e);
-        let samwise = Address::random(&e);
-        let sauron = Address::random(&e);
-
-        let (backstop_token_id, backstop_token_client) = create_token_contract(&e, &bombadil);
-        let (backstop_id, backstop_client) = create_backstop(&e);
-        setup_backstop(
-            &e,
-            &pool_id,
-            &backstop_id,
-            &backstop_token_id,
-            &Address::random(&e),
-        );
-        backstop_token_client.mint(&samwise, &1_100_000_0000000);
-        backstop_client.deposit(&samwise, &pool_id, &1_100_000_0000000);
-
-        let pool_config = PoolConfig {
-            oracle: oracle_id,
-            bstop_rate: 0,
-            status: 1,
-        };
-        e.as_contract(&pool_id, || {
-            storage::set_admin(&e, &bombadil);
-            storage::set_pool_config(&e, &pool_config);
-
-            set_pool_status(&e, &sauron, 0);
         });
     }
 
@@ -175,7 +132,7 @@ mod tests {
             storage::set_admin(&e, &bombadil);
             storage::set_pool_config(&e, &pool_config);
 
-            set_pool_status(&e, &bombadil, 0);
+            set_pool_status(&e, 0);
         });
     }
 

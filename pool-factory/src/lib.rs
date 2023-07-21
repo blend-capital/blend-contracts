@@ -6,5 +6,8 @@ extern crate std;
 mod errors;
 mod pool_factory;
 mod storage;
+mod test;
 
-pub use crate::pool_factory::{PoolFactory, PoolFactoryClient};
+pub use errors::PoolFactoryError;
+pub use pool_factory::*;
+pub use storage::{PoolFactoryDataKey, PoolInitMeta};

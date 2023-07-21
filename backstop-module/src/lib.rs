@@ -12,4 +12,9 @@ mod errors;
 mod storage;
 mod testutils;
 
-pub use crate::contract::BackstopModuleContract;
+pub use backstop::{PoolBalance, UserBalance, Q4W};
+pub use contract::*;
+pub use errors::BackstopError;
+pub use storage::{
+    BackstopDataKey, BackstopEmissionConfig, BackstopEmissionsData, PoolUserKey, UserEmissionData,
+};

@@ -1,5 +1,8 @@
 use soroban_sdk::{contracttype, unwrap::UnwrapOptimized, Address, Env};
 
+pub(crate) const SHARED_BUMP_AMOUNT: u32 = 69120; // 4 days
+pub(crate) const CYCLE_BUMP_AMOUNT: u32 = 69120; // 10 days - use for shared data accessed on the 7-day cycle window
+
 /********** Storage **********/
 
 // Emitter Data Keys
@@ -18,12 +21,21 @@ pub enum EmitterDataKey {
     LastDistro,
 }
 
+/// Bump the instance rent for the contract. Bumps for 10 days due to the 7-day cycle window of this contract
+pub fn bump_instance(e: &Env) {
+    e.storage().instance().bump(CYCLE_BUMP_AMOUNT);
+}
+
 /********** Backstop **********/
 
 /// Fetch the current backstop id
 ///
 /// Returns current backstop module contract address
 pub fn get_backstop(e: &Env) -> Address {
+    // TODO: Change to instance - https://github.com/stellar/rs-soroban-sdk/issues/1040
+    e.storage()
+        .persistent()
+        .bump(&EmitterDataKey::Backstop, SHARED_BUMP_AMOUNT);
     e.storage()
         .persistent()
         .get(&EmitterDataKey::Backstop)
@@ -53,6 +65,10 @@ pub fn has_backstop(e: &Env) -> bool {
 ///
 /// Returns blend token address
 pub fn get_blend_id(e: &Env) -> Address {
+    // TODO: Change to instance - https://github.com/stellar/rs-soroban-sdk/issues/1040
+    e.storage()
+        .persistent()
+        .bump(&EmitterDataKey::BlendId, SHARED_BUMP_AMOUNT);
     e.storage()
         .persistent()
         .get(&EmitterDataKey::BlendId)
@@ -75,6 +91,10 @@ pub fn set_blend_id(e: &Env, blend_id: &Address) {
 ///
 /// Returns the last timestamp distribution was ran on
 pub fn get_last_distro_time(e: &Env) -> u64 {
+    // TODO: Change to instance - https://github.com/stellar/rs-soroban-sdk/issues/1040
+    e.storage()
+        .persistent()
+        .bump(&EmitterDataKey::LastDistro, CYCLE_BUMP_AMOUNT);
     e.storage()
         .persistent()
         .get(&EmitterDataKey::LastDistro)

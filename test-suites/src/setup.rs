@@ -1,13 +1,14 @@
+use lending_pool::{Request, ReserveEmissionMetadata};
 use soroban_sdk::{testutils::Address as _, vec, Address, Symbol, Vec};
 
 use crate::{
-    pool::{default_reserve_metadata, Request, ReserveEmissionMetadata},
+    pool::default_reserve_metadata,
     test_fixture::{TestFixture, TokenIndex, SCALAR_7},
 };
 
 /// Create a test fixture with a pool and a whale depositing and borrowing all assets
-pub fn create_fixture_with_data<'a>() -> (TestFixture<'a>, Address) {
-    let mut fixture = TestFixture::create();
+pub fn create_fixture_with_data<'a>(wasm: bool) -> (TestFixture<'a>, Address) {
+    let mut fixture = TestFixture::create(wasm);
     fixture.env.mock_all_auths();
     fixture.env.budget().reset_unlimited();
     // create pool
@@ -49,9 +50,7 @@ pub fn create_fixture_with_data<'a>() -> (TestFixture<'a>, Address) {
             share: 0_400_0000
         },
     ];
-    pool_fixture
-        .pool
-        .set_emissions_config(&fixture.bombadil, &reserve_emissions);
+    pool_fixture.pool.set_emissions_config(&reserve_emissions);
 
     // mint whale tokens
     let frodo = Address::random(&fixture.env);
@@ -135,8 +134,58 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_create_fixture_with_data() {
-        let (fixture, frodo) = create_fixture_with_data();
+    fn test_create_fixture_with_data_wasm() {
+        let (fixture, frodo) = create_fixture_with_data(true);
+        let pool_fixture = &fixture.pools[0];
+
+        // validate backstop deposit
+        assert_eq!(
+            2_000_000 * SCALAR_7,
+            fixture.tokens[TokenIndex::BSTOP].balance(&fixture.backstop.address)
+        );
+
+        // validate pool actions
+        assert_eq!(
+            2_000 * 10i128.pow(6),
+            fixture.tokens[TokenIndex::USDC].balance(&pool_fixture.pool.address)
+        );
+        assert_eq!(
+            35_000 * SCALAR_7,
+            fixture.tokens[TokenIndex::XLM].balance(&pool_fixture.pool.address)
+        );
+        assert_eq!(
+            5 * 10i128.pow(9),
+            fixture.tokens[TokenIndex::WETH].balance(&pool_fixture.pool.address)
+        );
+
+        assert_eq!(
+            98_000 * 10i128.pow(6),
+            fixture.tokens[TokenIndex::USDC].balance(&frodo)
+        );
+        assert_eq!(
+            965_000 * SCALAR_7,
+            fixture.tokens[TokenIndex::XLM].balance(&frodo)
+        );
+        assert_eq!(
+            95 * 10i128.pow(9),
+            fixture.tokens[TokenIndex::WETH].balance(&frodo)
+        );
+
+        // validate emissions are turned on
+        assert_eq!(
+            0_300_0000,
+            fixture.backstop.pool_eps(&pool_fixture.pool.address)
+        );
+        let (emis_config, _) = pool_fixture
+            .pool
+            .get_reserve_emissions(&fixture.tokens[TokenIndex::USDC].address, &0)
+            .unwrap();
+        assert_eq!(0_180_0000, emis_config.eps);
+    }
+
+    #[test]
+    fn test_create_fixture_with_data_rlib() {
+        let (fixture, frodo) = create_fixture_with_data(false);
         let pool_fixture = &fixture.pools[0];
 
         // validate backstop deposit

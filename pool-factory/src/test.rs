@@ -1,23 +1,29 @@
 #![cfg(test)]
 
 use soroban_sdk::{
-    testutils::{Address as AddressTestTrait, BytesN as _},
+    testutils::{Address as _, BytesN as _},
     Address, BytesN, Env, Symbol,
 };
 
-mod common;
-use crate::common::{
-    create_wasm_pool_factory,
-    lending_pool::{self, PoolConfig},
-    PoolInitMeta,
-};
+use crate::{PoolFactory, PoolFactoryClient, PoolInitMeta};
+
+mod lending_pool {
+    soroban_sdk::contractimport!(
+        file = "../target/wasm32-unknown-unknown/release/lending_pool.wasm"
+    );
+}
+
+fn create_pool_factory(e: &Env) -> (Address, PoolFactoryClient) {
+    let contract_id = e.register_contract(None, PoolFactory {});
+    (contract_id.clone(), PoolFactoryClient::new(e, &contract_id))
+}
 
 #[test]
-fn test_deploy() {
+fn test_pool_factory() {
     let e = Env::default();
     e.budget().reset_unlimited();
     e.mock_all_auths();
-    let (_pool_factory_address, pool_factory_client) = create_wasm_pool_factory(&e);
+    let (_pool_factory_address, pool_factory_client) = create_pool_factory(&e);
 
     let wasm_hash = e.deployer().upload_contract_wasm(lending_pool::WASM);
 
@@ -36,9 +42,13 @@ fn test_deploy() {
         usdc_id: usdc_id.clone(),
     };
     pool_factory_client.initialize(&pool_init_meta);
+
+    // verify initialize can't be run twice
+    let result = pool_factory_client.try_initialize(&pool_init_meta);
+    assert!(result.is_err());
+
     let name1 = Symbol::new(&e, "pool1");
     let name2 = Symbol::new(&e, "pool2");
-
     let salt = BytesN::<32>::random(&e);
     let deployed_pool_address_1 =
         pool_factory_client.deploy(&bombadil, &name1, &salt, &oracle, &backstop_rate);
@@ -66,15 +76,14 @@ fn test_deploy() {
         assert_eq!(
             e.storage()
                 .persistent()
-                .get::<_, PoolConfig>(&Symbol::new(&e, "PoolConfig"))
+                .get::<_, lending_pool::PoolConfig>(&Symbol::new(&e, "PoolConfig"))
                 .unwrap(),
-            PoolConfig {
+            lending_pool::PoolConfig {
                 oracle: oracle,
                 bstop_rate: backstop_rate,
                 status: 1
             }
         );
-
         assert_eq!(
             e.storage()
                 .persistent()

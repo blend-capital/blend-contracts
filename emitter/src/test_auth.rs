@@ -2,7 +2,7 @@
 extern crate std;
 use std::{println, vec as std_vec};
 
-use crate::{contract::EmitterContractClient, dependencies::TokenClient};
+use crate::{contract::EmitterClient, dependencies::TokenClient};
 
 use super::*;
 
@@ -26,8 +26,8 @@ fn test_distribute_requires_auth() {
         max_entry_expiration: 2000000,
     });
 
-    let emitter_address = e.register_contract(None, EmitterContract);
-    let emitter_client = EmitterContractClient::new(&e, &emitter_address);
+    let emitter_address = e.register_contract(None, Emitter {});
+    let emitter_client = EmitterClient::new(&e, &emitter_address);
 
     let blnd_id = e.register_stellar_asset_contract(emitter_address.clone());
     let blnd_client = TokenClient::new(&e, &blnd_id);

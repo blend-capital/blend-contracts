@@ -12,4 +12,6 @@ mod test_auth;
 
 mod dependencies;
 
-pub use crate::contract::EmitterContract;
+pub use contract::*;
+pub use errors::EmitterError;
+pub use storage::EmitterDataKey;

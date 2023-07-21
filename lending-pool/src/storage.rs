@@ -4,6 +4,11 @@ use soroban_sdk::{
 
 use crate::{auctions::AuctionData, pool::Positions};
 
+pub(crate) const INSTANCE_BUMP_AMOUNT: u32 = 34560; // 2 days
+pub(crate) const SHARED_BUMP_AMOUNT: u32 = 69120; // 4 days
+pub(crate) const CYCLE_BUMP_AMOUNT: u32 = 69120; // 10 days - use for shared data accessed on the 7-day cycle window
+pub(crate) const USER_BUMP_AMOUNT: u32 = 518400; // 30 days
+
 /********** Storage Types **********/
 
 /// The pool's config
@@ -118,16 +123,31 @@ pub enum PoolDataKey {
 
 /********** Storage **********/
 
+/// Bump the instance rent for the contract
+pub fn bump_instance(e: &Env) {
+    e.storage().instance().bump(INSTANCE_BUMP_AMOUNT);
+}
+
 /********** User **********/
 
+/// Fetch the user's positions or return an empty Positions struct
+///
+/// ### Arguments
+/// * `user` - The address of the user
 pub fn get_user_positions(e: &Env, user: &Address) -> Positions {
     let key = PoolDataKey::Positions(user.clone());
+    e.storage().persistent().bump(&key, USER_BUMP_AMOUNT);
     e.storage()
         .persistent()
         .get::<PoolDataKey, Positions>(&key)
         .unwrap_or(Positions::env_default(e))
 }
 
+/// Set the user's positions
+///
+/// ### Arguments
+/// * `user` - The address of the user
+/// * `positions` - The new positions for the user
 pub fn set_user_positions(e: &Env, user: &Address, positions: &Positions) {
     let key = PoolDataKey::Positions(user.clone());
     e.storage()
@@ -142,6 +162,10 @@ pub fn set_user_positions(e: &Env, user: &Address, positions: &Positions) {
 /// ### Panics
 /// If the admin does not exist
 pub fn get_admin(e: &Env) -> Address {
+    // TODO: Change to instance - https://github.com/stellar/rs-soroban-sdk/issues/1040
+    e.storage()
+        .persistent()
+        .bump(&Symbol::new(e, "Admin"), SHARED_BUMP_AMOUNT);
     e.storage()
         .persistent()
         .get(&Symbol::new(e, "Admin"))
@@ -170,6 +194,10 @@ pub fn has_admin(e: &Env) -> bool {
 /// ### Arguments
 /// * `name` - The Name of the pool
 pub fn set_name(e: &Env, name: &Symbol) {
+    // TODO: Change to instance - https://github.com/stellar/rs-soroban-sdk/issues/1040
+    e.storage()
+        .persistent()
+        .bump(&Symbol::new(e, "Name"), USER_BUMP_AMOUNT * 10); // 300 days - this can't be updated again
     e.storage()
         .persistent()
         .set::<Symbol, Symbol>(&Symbol::new(e, "Name"), name);
@@ -182,6 +210,10 @@ pub fn set_name(e: &Env, name: &Symbol) {
 /// ### Panics
 /// If no backstop is set
 pub fn get_backstop(e: &Env) -> Address {
+    // TODO: Change to instance - https://github.com/stellar/rs-soroban-sdk/issues/1040
+    e.storage()
+        .persistent()
+        .bump(&Symbol::new(e, "Backstop"), SHARED_BUMP_AMOUNT);
     e.storage()
         .persistent()
         .get(&Symbol::new(e, "Backstop"))
@@ -202,6 +234,10 @@ pub fn set_backstop(e: &Env, backstop: &Address) {
 
 /// Fetch the BLND token ID
 pub fn get_blnd_token(e: &Env) -> Address {
+    // TODO: Change to instance - https://github.com/stellar/rs-soroban-sdk/issues/1040
+    e.storage()
+        .persistent()
+        .bump(&Symbol::new(e, "BLNDTkn"), SHARED_BUMP_AMOUNT);
     e.storage()
         .persistent()
         .get(&Symbol::new(e, "BLNDTkn"))
@@ -220,6 +256,10 @@ pub fn set_blnd_token(e: &Env, blnd_token_id: &Address) {
 
 /// Fetch the USDC token ID
 pub fn get_usdc_token(e: &Env) -> Address {
+    // TODO: Change to instance - https://github.com/stellar/rs-soroban-sdk/issues/1040
+    e.storage()
+        .persistent()
+        .bump(&Symbol::new(e, "USDCTkn"), SHARED_BUMP_AMOUNT);
     e.storage()
         .persistent()
         .get(&Symbol::new(e, "USDCTkn"))
@@ -243,6 +283,10 @@ pub fn set_usdc_token(e: &Env, usdc_token_id: &Address) {
 /// ### Panics
 /// If the pool's config is not set
 pub fn get_pool_config(e: &Env) -> PoolConfig {
+    // TODO: Change to instance - https://github.com/stellar/rs-soroban-sdk/issues/1040
+    e.storage()
+        .persistent()
+        .bump(&Symbol::new(e, "PoolConfig"), SHARED_BUMP_AMOUNT);
     e.storage()
         .persistent()
         .get(&Symbol::new(e, "PoolConfig"))
@@ -270,6 +314,7 @@ pub fn set_pool_config(e: &Env, config: &PoolConfig) {
 /// If the reserve does not exist
 pub fn get_res_config(e: &Env, asset: &Address) -> ReserveConfig {
     let key = PoolDataKey::ResConfig(asset.clone());
+    e.storage().persistent().bump(&key, SHARED_BUMP_AMOUNT);
     e.storage()
         .persistent()
         .get::<PoolDataKey, ReserveConfig>(&key)
@@ -309,6 +354,7 @@ pub fn has_res(e: &Env, asset: &Address) -> bool {
 /// If the reserve does not exist
 pub fn get_res_data(e: &Env, asset: &Address) -> ReserveData {
     let key = PoolDataKey::ResData(asset.clone());
+    e.storage().persistent().bump(&key, SHARED_BUMP_AMOUNT);
     e.storage()
         .persistent()
         .get::<PoolDataKey, ReserveData>(&key)
@@ -331,9 +377,11 @@ pub fn set_res_data(e: &Env, asset: &Address, data: &ReserveData) {
 
 /// Fetch the list of reserves
 pub fn get_res_list(e: &Env) -> Vec<Address> {
+    let key = Symbol::new(e, "ResList");
+    e.storage().persistent().bump(&key, SHARED_BUMP_AMOUNT);
     e.storage()
         .persistent()
-        .get::<Symbol, Vec<Address>>(&Symbol::new(e, "ResList"))
+        .get::<Symbol, Vec<Address>>(&key)
         .unwrap_or(vec![e]) // empty vec if nothing exists
 }
 
@@ -367,6 +415,7 @@ pub fn push_res_list(e: &Env, asset: &Address) -> u32 {
 /// * `res_token_index` - The d/bToken index for the reserve
 pub fn get_res_emis_config(e: &Env, res_token_index: &u32) -> Option<ReserveEmissionsConfig> {
     let key = PoolDataKey::EmisConfig(res_token_index.clone());
+    e.storage().persistent().bump(&key, SHARED_BUMP_AMOUNT);
     e.storage()
         .persistent()
         .get::<PoolDataKey, ReserveEmissionsConfig>(&key)
@@ -394,6 +443,7 @@ pub fn set_res_emis_config(
 /// * `res_token_index` - The d/bToken index for the reserve
 pub fn get_res_emis_data(e: &Env, res_token_index: &u32) -> Option<ReserveEmissionsData> {
     let key = PoolDataKey::EmisData(res_token_index.clone());
+    e.storage().persistent().bump(&key, SHARED_BUMP_AMOUNT);
     e.storage()
         .persistent()
         .get::<PoolDataKey, ReserveEmissionsData>(&key)
@@ -436,6 +486,7 @@ pub fn get_user_emissions(
         user: user.clone(),
         reserve_id: res_token_index.clone(),
     });
+    e.storage().persistent().bump(&key, USER_BUMP_AMOUNT);
     e.storage()
         .persistent()
         .get::<PoolDataKey, UserEmissionData>(&key)
@@ -461,9 +512,11 @@ pub fn set_user_emissions(e: &Env, user: &Address, res_token_index: &u32, data: 
 
 /// Fetch the pool reserve emissions
 pub fn get_pool_emissions(e: &Env) -> Map<u32, u64> {
+    let key = Symbol::new(e, "PoolEmis");
+    e.storage().persistent().bump(&key, CYCLE_BUMP_AMOUNT);
     e.storage()
         .persistent()
-        .get::<Symbol, Map<u32, u64>>(&Symbol::new(e, "PoolEmis"))
+        .get::<Symbol, Map<u32, u64>>(&key)
         .unwrap_or(map![e])
 }
 
@@ -479,9 +532,11 @@ pub fn set_pool_emissions(e: &Env, emissions: &Map<u32, u64>) {
 
 /// Fetch the pool emission expiration timestamps
 pub fn get_pool_emissions_expiration(e: &Env) -> u64 {
+    let key = Symbol::new(e, "EmisExp");
+    e.storage().persistent().bump(&key, CYCLE_BUMP_AMOUNT);
     e.storage()
         .temporary()
-        .get::<Symbol, u64>(&Symbol::new(e, "EmisExp"))
+        .get::<Symbol, u64>(&key)
         .unwrap_or(0)
 }
 
@@ -542,7 +597,8 @@ pub fn set_auction(e: &Env, auction_type: &u32, user: &Address, auction_data: &A
     });
     e.storage()
         .temporary()
-        .set::<PoolDataKey, AuctionData>(&key, auction_data)
+        .set::<PoolDataKey, AuctionData>(&key, auction_data);
+    e.storage().temporary().bump(&key, INSTANCE_BUMP_AMOUNT);
 }
 
 /// Remove an auction
@@ -555,5 +611,5 @@ pub fn del_auction(e: &Env, auction_type: &u32, user: &Address) {
         user: user.clone(),
         auct_type: auction_type.clone(),
     });
-    e.storage().temporary().remove(&key)
+    e.storage().temporary().remove(&key);
 }

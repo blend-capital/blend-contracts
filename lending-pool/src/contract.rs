@@ -14,9 +14,9 @@ use soroban_sdk::{
 ///
 /// An isolated money market pool.
 #[contract]
-pub struct PoolContract;
+pub struct Pool;
 
-pub trait PoolContractTrait {
+pub trait PoolTrait {
     /// Initialize the pool
     ///
     /// ### Arguments
@@ -252,7 +252,7 @@ pub trait PoolContractTrait {
 }
 
 #[contractimpl]
-impl PoolContractTrait for PoolContract {
+impl PoolTrait for Pool {
     fn initialize(
         e: Env,
         admin: Address,
@@ -278,6 +278,7 @@ impl PoolContractTrait for PoolContract {
     }
 
     fn update_pool(e: Env, admin: Address, backstop_take_rate: u64) {
+        storage::bump_instance(&e);
         admin.require_auth();
 
         pool::execute_update_pool(&e, &admin, backstop_take_rate);
@@ -289,6 +290,7 @@ impl PoolContractTrait for PoolContract {
     }
 
     fn init_reserve(e: Env, admin: Address, asset: Address, config: ReserveConfig) {
+        storage::bump_instance(&e);
         admin.require_auth();
 
         pool::initialize_reserve(&e, &admin, &asset, &config);
@@ -298,6 +300,7 @@ impl PoolContractTrait for PoolContract {
     }
 
     fn update_reserve(e: Env, admin: Address, asset: Address, config: ReserveConfig) {
+        storage::bump_instance(&e);
         admin.require_auth();
 
         pool::execute_update_reserve(&e, &admin, &asset, &config);
@@ -321,6 +324,7 @@ impl PoolContractTrait for PoolContract {
         to: Address,
         requests: Vec<Request>,
     ) -> Positions {
+        storage::bump_instance(&e);
         from.require_auth();
         if from != spender {
             spender.require_auth();
@@ -334,6 +338,7 @@ impl PoolContractTrait for PoolContract {
     }
 
     fn update_status(e: Env) -> u32 {
+        storage::bump_instance(&e);
         let new_status = pool::execute_update_pool_status(&e);
 
         // msg.sender
@@ -344,6 +349,7 @@ impl PoolContractTrait for PoolContract {
     }
 
     fn set_status(e: Env, admin: Address, pool_status: u32) {
+        storage::bump_instance(&e);
         admin.require_auth();
 
         pool::set_pool_status(&e, &admin, pool_status);
@@ -364,6 +370,7 @@ impl PoolContractTrait for PoolContract {
     }
 
     fn update_emissions(e: Env) -> u64 {
+        storage::bump_instance(&e);
         let next_expiration = pool::update_pool_emissions(&e);
 
         e.events()
@@ -382,6 +389,7 @@ impl PoolContractTrait for PoolContract {
     }
 
     fn claim(e: Env, from: Address, reserve_token_ids: Vec<u32>, to: Address) -> i128 {
+        storage::bump_instance(&e);
         from.require_auth();
 
         let amount_claimed = emissions::execute_claim(&e, &from, &reserve_token_ids, &to);
@@ -429,6 +437,7 @@ impl PoolContractTrait for PoolContract {
     }
 
     fn new_auction(e: Env, auction_type: u32) -> AuctionData {
+        storage::bump_instance(&e);
         let auction_data = auctions::create(&e, auction_type);
 
         e.events().publish(

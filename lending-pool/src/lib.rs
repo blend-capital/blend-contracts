@@ -3,16 +3,21 @@
 #[cfg(any(test, feature = "testutils"))]
 extern crate std;
 
+mod auctions;
 mod constants;
 mod contract;
+mod dependencies;
 mod emissions;
 mod errors;
 mod pool;
 mod storage;
+mod testutils;
 mod validator;
 
-mod auctions;
-mod dependencies;
-
-pub mod testutils;
-pub use crate::contract::{PoolContract, PoolContractClient};
+pub use contract::*;
+pub use errors::PoolError;
+pub use pool::{Positions, Request};
+pub use storage::{
+    AuctionKey, PoolConfig, PoolDataKey, PoolEmissionConfig, ReserveConfig, ReserveData,
+    ReserveEmissionsConfig, ReserveEmissionsData, UserEmissionData, UserReserveKey,
+};

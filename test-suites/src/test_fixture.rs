@@ -1,12 +1,16 @@
 use std::collections::HashMap;
 use std::ops::Index;
 
-use crate::backstop::{create_backstop, BackstopClient};
-use crate::emitter::{create_emitter, EmitterClient};
-use crate::mock_oracle::{create_mock_oracle, MockOracleClient};
+use crate::backstop::create_backstop;
+use crate::emitter::create_emitter;
+use crate::mock_oracle::create_mock_oracle;
 use crate::pool::{PoolClient, ReserveConfig, POOL_WASM};
-use crate::pool_factory::{create_pool_factory, PoolFactoryClient, PoolInitMeta};
+use crate::pool_factory::create_pool_factory;
 use crate::token::{create_stellar_token, create_token, TokenClient};
+use backstop_module::BackstopModuleClient;
+use emitter::EmitterClient;
+use mock_blend_oracle::MockBlendOracleClient;
+use pool_factory::{PoolFactoryClient, PoolInitMeta};
 use soroban_sdk::testutils::{Address as _, BytesN as _, Ledger, LedgerInfo};
 use soroban_sdk::{Address, BytesN, Env, Symbol};
 
@@ -39,9 +43,9 @@ pub struct TestFixture<'a> {
     pub env: Env,
     pub bombadil: Address,
     pub emitter: EmitterClient<'a>,
-    pub backstop: BackstopClient<'a>,
+    pub backstop: BackstopModuleClient<'a>,
     pub pool_factory: PoolFactoryClient<'a>,
-    pub oracle: MockOracleClient<'a>,
+    pub oracle: MockBlendOracleClient<'a>,
     pub pools: Vec<PoolFixture<'a>>,
     pub tokens: Vec<TokenClient<'a>>,
 }
@@ -51,7 +55,7 @@ impl TestFixture<'_> {
     ///
     /// Deploys BLND (0), wETH (1), USDC (2), and XLM (3) test tokens, alongside all required
     /// Blend Protocol contracts, including the backstop token (4).
-    pub fn create<'a>() -> TestFixture<'a> {
+    pub fn create<'a>(wasm: bool) -> TestFixture<'a> {
         let e = Env::default();
         e.mock_all_auths();
         e.budget().reset_unlimited();
@@ -76,10 +80,10 @@ impl TestFixture<'_> {
         let (xlm_id, xlm_client) = create_stellar_token(&e, &bombadil); // TODO: make native
 
         // deploy Blend Protocol contracts
-        let (backstop_id, backstop_client) = create_backstop(&e);
-        let (emitter_id, emitter_client) = create_emitter(&e);
-        let (pool_factory_id, _) = create_pool_factory(&e);
-        let (_, mock_oracle_client) = create_mock_oracle(&e);
+        let (backstop_id, backstop_client) = create_backstop(&e, wasm);
+        let (emitter_id, emitter_client) = create_emitter(&e, wasm);
+        let (pool_factory_id, _) = create_pool_factory(&e, wasm);
+        let (_, mock_oracle_client) = create_mock_oracle(&e, wasm);
 
         // initialize emitter
         blnd_client.mint(&bombadil, &(10_000_000 * SCALAR_7));

@@ -1,13 +1,17 @@
-#![cfg(any(test, feature = "testutils"))]
+#![cfg(test)]
 
 use crate::{
     constants::SCALAR_9,
-    dependencies::{BackstopClient, TokenClient, BACKSTOP_WASM, TOKEN_WASM},
+    dependencies::{TokenClient, TOKEN_WASM},
     pool::Reserve,
     storage::{self, ReserveConfig, ReserveData},
 };
 use fixed_point_math::FixedPoint;
 use soroban_sdk::{testutils::Address as _, unwrap::UnwrapOptimized, Address, Env, IntoVal};
+
+use backstop_module::{BackstopModule, BackstopModuleClient};
+use mock_blend_oracle::{MockBlendOracle, MockBlendOracleClient};
+use mock_pool_factory::{MockPoolFactory, MockPoolFactoryClient};
 
 //************************************************
 //           External Contract Helpers
@@ -21,17 +25,6 @@ pub(crate) fn create_token_contract<'a>(e: &Env, admin: &Address) -> (Address, T
     let client = TokenClient::new(e, &contract_address);
     client.initialize(admin, &7, &"unit".into_val(e), &"test".into_val(e));
     (contract_address, client)
-}
-
-pub(crate) fn create_token_from_id<'a>(
-    e: &Env,
-    contract_address: &Address,
-    admin: &Address,
-) -> TokenClient<'a> {
-    e.register_contract_wasm(contract_address, TOKEN_WASM);
-    let client = TokenClient::new(e, contract_address);
-    client.initialize(admin, &7, &"unit".into_val(e), &"test".into_val(e));
-    client
 }
 
 pub(crate) fn create_blnd_token<'a>(
@@ -61,38 +54,19 @@ pub(crate) fn create_usdc_token<'a>(
 }
 
 //***** Oracle ******
-// TODO: Avoid WASM-ing unit tests by adding conditional `rlib` for test builds
-//       -> https://rust-lang.github.io/rfcs/3180-cargo-cli-crate-type.html
-// use mock_blend_oracle::testutils::register_test_mock_oracle;
 
-mod mock_oracle {
-    soroban_sdk::contractimport!(
-        file = "../target/wasm32-unknown-unknown/release/mock_blend_oracle.wasm"
-    );
-}
-pub(crate) use mock_oracle::Client as MockOracleClient;
-
-pub(crate) fn create_mock_oracle(e: &Env) -> (Address, MockOracleClient) {
-    let contract_address = Address::random(e);
-    e.register_contract_wasm(&contract_address, mock_oracle::WASM);
+pub(crate) fn create_mock_oracle(e: &Env) -> (Address, MockBlendOracleClient) {
+    let contract_address = e.register_contract(None, MockBlendOracle {});
     (
         contract_address.clone(),
-        MockOracleClient::new(e, &contract_address),
+        MockBlendOracleClient::new(e, &contract_address),
     )
 }
 
 //***** Pool Factory ******
 
-mod mock_pool_factory {
-    soroban_sdk::contractimport!(
-        file = "../target/wasm32-unknown-unknown/release/mock_pool_factory.wasm"
-    );
-}
-pub use mock_pool_factory::Client as MockPoolFactoryClient;
-
 pub(crate) fn create_mock_pool_factory(e: &Env) -> (Address, MockPoolFactoryClient) {
-    let contract_address = Address::random(e);
-    e.register_contract_wasm(&contract_address, mock_pool_factory::WASM);
+    let contract_address = e.register_contract(None, MockPoolFactory {});
     (
         contract_address.clone(),
         MockPoolFactoryClient::new(e, &contract_address),
@@ -101,12 +75,11 @@ pub(crate) fn create_mock_pool_factory(e: &Env) -> (Address, MockPoolFactoryClie
 
 //***** Backstop ******
 
-pub(crate) fn create_backstop(e: &Env) -> (Address, BackstopClient) {
-    let contract_address = Address::random(e);
-    e.register_contract_wasm(&contract_address, BACKSTOP_WASM);
+pub(crate) fn create_backstop(e: &Env) -> (Address, BackstopModuleClient) {
+    let contract_address = e.register_contract(None, BackstopModule {});
     (
         contract_address.clone(),
-        BackstopClient::new(e, &contract_address),
+        BackstopModuleClient::new(e, &contract_address),
     )
 }
 
@@ -119,7 +92,7 @@ pub(crate) fn setup_backstop(
 ) {
     let (pool_factory, mock_pool_factory_client) = create_mock_pool_factory(e);
     mock_pool_factory_client.set_pool(pool_address);
-    BackstopClient::new(e, backstop_id).initialize(backstop_token, blnd_token, &pool_factory);
+    BackstopModuleClient::new(e, backstop_id).initialize(backstop_token, blnd_token, &pool_factory);
     e.as_contract(pool_address, || {
         storage::set_backstop(e, backstop_id);
     });

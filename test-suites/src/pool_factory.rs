@@ -5,12 +5,16 @@ mod pool_factory_contract {
         file = "../target/wasm32-unknown-unknown/release/pool_factory.wasm"
     );
 }
-pub use pool_factory_contract::{
-    Client as PoolFactoryClient, PoolInitMeta, WASM as POOL_FACTORY_WASM,
-};
+use pool_factory::PoolFactoryClient;
 
-pub fn create_pool_factory<'a>(e: &Env) -> (Address, PoolFactoryClient<'a>) {
+use mock_pool_factory::MockPoolFactory;
+
+pub fn create_pool_factory<'a>(e: &Env, wasm: bool) -> (Address, PoolFactoryClient<'a>) {
     let contract_id = Address::random(e);
-    e.register_contract_wasm(&contract_id, pool_factory_contract::WASM);
+    if wasm {
+        e.register_contract_wasm(&contract_id, pool_factory_contract::WASM);
+    } else {
+        e.register_contract(&contract_id, MockPoolFactory {});
+    }
     (contract_id.clone(), PoolFactoryClient::new(e, &contract_id))
 }

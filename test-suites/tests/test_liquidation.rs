@@ -8,6 +8,7 @@
 //     test_fixture::{TokenIndex, SCALAR_7},
 // };
 
+// TODO: Fix test once new liquidation mechanism is implemented
 // // #[test]
 // fn test_liquidations() {
 //     let (fixture, frodo) = create_fixture_with_data();

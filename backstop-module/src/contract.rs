@@ -260,8 +260,7 @@ impl BackstopModuleTrait for BackstopModule {
 
         let amount = emissions::execute_claim(&e, &from, &pool_addresses, &to);
 
-        e.events()
-            .publish((Symbol::new(&e, "claim"), from), (to, amount));
+        e.events().publish((Symbol::new(&e, "claim"), from), amount);
     }
 
     /********** Fund Management *********/

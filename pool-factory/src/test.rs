@@ -1,8 +1,8 @@
 #![cfg(test)]
 
 use soroban_sdk::{
-    testutils::{Address as _, BytesN as _},
-    Address, BytesN, Env, Symbol,
+    testutils::{Address as _, BytesN as _, Events},
+    vec, Address, BytesN, Env, IntoVal, Symbol,
 };
 
 use crate::{PoolFactory, PoolFactoryClient, PoolInitMeta};
@@ -23,7 +23,7 @@ fn test_pool_factory() {
     let e = Env::default();
     e.budget().reset_unlimited();
     e.mock_all_auths();
-    let (_pool_factory_address, pool_factory_client) = create_pool_factory(&e);
+    let (pool_factory_address, pool_factory_client) = create_pool_factory(&e);
 
     let wasm_hash = e.deployer().upload_contract_wasm(lending_pool::WASM);
 
@@ -52,6 +52,19 @@ fn test_pool_factory() {
     let salt = BytesN::<32>::random(&e);
     let deployed_pool_address_1 =
         pool_factory_client.deploy(&bombadil, &name1, &salt, &oracle, &backstop_rate);
+
+    let event = vec![&e, e.events().all().last_unchecked()];
+    assert_eq!(
+        event,
+        vec![
+            &e,
+            (
+                pool_factory_address.clone(),
+                (Symbol::new(&e, "deploy"),).into_val(&e),
+                deployed_pool_address_1.to_val()
+            )
+        ]
+    );
 
     let salt = BytesN::<32>::random(&e);
     let deployed_pool_address_2 =

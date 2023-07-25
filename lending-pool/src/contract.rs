@@ -6,9 +6,7 @@ use crate::{
         self, PoolConfig, ReserveConfig, ReserveData, ReserveEmissionsConfig, ReserveEmissionsData,
     },
 };
-use soroban_sdk::{
-    contract, contractimpl, unwrap::UnwrapOptimized, Address, Env, Map, Symbol, Vec,
-};
+use soroban_sdk::{contract, contractimpl, Address, Env, Map, Symbol, Vec};
 
 /// ### Pool
 ///
@@ -277,10 +275,8 @@ impl PoolTrait for Pool {
 
         pool::execute_update_pool(&e, backstop_take_rate);
 
-        e.events().publish(
-            (Symbol::new(&e, "update_pool"), admin),
-            (backstop_take_rate,),
-        );
+        e.events()
+            .publish((Symbol::new(&e, "update_pool"), admin), backstop_take_rate);
     }
 
     fn init_reserve(e: Env, asset: Address, config: ReserveConfig) {
@@ -291,7 +287,7 @@ impl PoolTrait for Pool {
         pool::initialize_reserve(&e, &asset, &config);
 
         e.events()
-            .publish((Symbol::new(&e, "init_reserve"), admin), (asset,));
+            .publish((Symbol::new(&e, "init_reserve"), admin), asset);
     }
 
     fn update_reserve(e: Env, asset: Address, config: ReserveConfig) {
@@ -302,7 +298,7 @@ impl PoolTrait for Pool {
         pool::execute_update_reserve(&e, &asset, &config);
 
         e.events()
-            .publish((Symbol::new(&e, "update_reserve"), admin), (asset,));
+            .publish((Symbol::new(&e, "update_reserve"), admin), asset);
     }
 
     fn get_reserve_config(e: Env, asset: Address) -> ReserveConfig {
@@ -337,10 +333,8 @@ impl PoolTrait for Pool {
         storage::bump_instance(&e);
         let new_status = pool::execute_update_pool_status(&e);
 
-        // msg.sender
-        let caller = e.call_stack().get(0).unwrap_optimized().0;
         e.events()
-            .publish((Symbol::new(&e, "set_status"), caller), new_status);
+            .publish((Symbol::new(&e, "set_status"),), new_status);
         new_status
     }
 

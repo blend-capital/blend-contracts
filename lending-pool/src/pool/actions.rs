@@ -1,10 +1,8 @@
-use soroban_sdk::{
-    contracttype, panic_with_error, unwrap::UnwrapOptimized, Address, Env, Map, Vec,
-};
+use soroban_sdk::Map;
+use soroban_sdk::{contracttype, panic_with_error, vec, unwrap::UnwrapOptimized, Address, Env, Symbol, Vec};
 
 use crate::{
-    auctions, emissions, errors::PoolError, pool::Positions, storage,
-    validator::require_nonnegative,
+    auctions, emissions, errors::PoolError, pool::Positions, storage, validator::require_nonnegative,
 };
 
 use super::{pool::Pool, Reserve};
@@ -52,7 +50,6 @@ pub fn build_actions_from_request(
         require_nonnegative(e, &request.amount);
         pool.require_action_allowed(e, request.request_type);
         let mut reserve: Reserve;
-
         match request.request_type {
             0 => {
                 // TODO: do we need to add error logic here for invalid reserve address?
@@ -72,9 +69,13 @@ pub fn build_actions_from_request(
                 new_positions.add_supply(e, &reserve, b_tokens_minted);
                 actions.set(
                     reserve.asset.clone(),
-                    actions.get(request.address).or(Some(0)).unwrap_optimized() + request.amount,
+                    actions.get(request.address.clone()).or(Some(0)).unwrap_optimized() + request.amount,
                 );
                 pool.cache_reserve(reserve);
+                e.events().publish(
+                    (Symbol::new(e, "supply"), request.address.clone(), from.clone()),
+                    (request.amount, b_tokens_minted),
+                );
             }
             1 => {
                 // TODO: do we need to add error logic here for invalid reserve address?
@@ -100,9 +101,13 @@ pub fn build_actions_from_request(
                 new_positions.remove_supply(e, &reserve, to_burn);
                 actions.set(
                     reserve.asset.clone(),
-                    actions.get(request.address).or(Some(0)).unwrap_optimized() - tokens_out,
+                    actions.get(request.address.clone()).or(Some(0)).unwrap_optimized() - tokens_out,
                 );
                 pool.cache_reserve(reserve);
+                e.events().publish(
+                    (Symbol::new(e, "withdraw"), request.address.clone(), from.clone()),
+                    (tokens_out, to_burn),
+                );
             }
             2 => {
                 // TODO: do we need to add error logic here for invalid reserve address?
@@ -122,9 +127,17 @@ pub fn build_actions_from_request(
                 new_positions.add_collateral(e, &reserve, b_tokens_minted);
                 actions.set(
                     reserve.asset.clone(),
-                    actions.get(request.address).or(Some(0)).unwrap_optimized() + request.amount,
+                    actions.get(request.address.clone()).or(Some(0)).unwrap_optimized() + request.amount,
                 );
                 pool.cache_reserve(reserve);
+                e.events().publish(
+                    (
+                        Symbol::new(e, "supply_collateral"),
+                        request.address.clone(),
+                        from.clone(),
+                    ),
+                    (request.amount, b_tokens_minted),
+                );
             }
             3 => {
                 // TODO: do we need to add error logic here for invalid reserve address?
@@ -150,10 +163,18 @@ pub fn build_actions_from_request(
                 new_positions.remove_collateral(e, &reserve, to_burn);
                 actions.set(
                     reserve.asset.clone(),
-                    actions.get(request.address).or(Some(0)).unwrap_optimized() - tokens_out,
+                    actions.get(request.address.clone()).or(Some(0)).unwrap_optimized() - tokens_out,
                 );
                 check_health = true;
                 pool.cache_reserve(reserve);
+                e.events().publish(
+                    (
+                        Symbol::new(e, "withdraw_collateral"),
+                        request.address.clone(),
+                        from.clone(),
+                    ),
+                    (tokens_out, to_burn),
+                );
             }
             4 => {
                 // TODO: do we need to add error logic here for invalid reserve address?
@@ -174,10 +195,14 @@ pub fn build_actions_from_request(
                 new_positions.add_liabilities(e, &reserve, d_tokens_minted);
                 actions.set(
                     reserve.asset.clone(),
-                    actions.get(request.address).or(Some(0)).unwrap_optimized() - request.amount,
+                    actions.get(request.address.clone()).or(Some(0)).unwrap_optimized() - request.amount,
                 );
                 check_health = true;
                 pool.cache_reserve(reserve);
+                e.events().publish(
+                    (Symbol::new(e, "borrow"), request.address.clone(), from.clone()),
+                    (request.amount, d_tokens_minted),
+                );
             }
             5 => {
                 // TODO: do we need to add error logic here for invalid reserve address?
@@ -202,17 +227,25 @@ pub fn build_actions_from_request(
                     new_positions.remove_liabilities(e, &reserve, cur_d_tokens);
                     actions.set(
                         reserve.asset.clone(),
-                        actions.get(request.address).or(Some(0)).unwrap_optimized()
+                        actions.get(request.address.clone()).or(Some(0)).unwrap_optimized()
                             - amount_to_refund
                             + request.amount,
+                    );
+                    e.events().publish(
+                        (Symbol::new(e, "repay"), request.address.clone().clone(), from.clone()),
+                        (request.amount - amount_to_refund, cur_d_tokens),
                     );
                 } else {
                     reserve.d_supply -= d_tokens_burnt;
                     new_positions.remove_liabilities(e, &reserve, d_tokens_burnt);
                     actions.set(
                         reserve.asset.clone(),
-                        actions.get(request.address).or(Some(0)).unwrap_optimized()
+                        actions.get(request.address.clone()).or(Some(0)).unwrap_optimized()
                             + request.amount,
+                    );
+                    e.events().publish(
+                        (Symbol::new(e, "repay"), request.address.clone().clone(), from.clone()),
+                        (request.amount, d_tokens_burnt),
                     );
                 }
                 pool.cache_reserve(reserve);

@@ -41,7 +41,7 @@ impl Positions {
     pub fn remove_liabilities(&mut self, e: &Env, reserve: &Reserve, amount: i128) {
         let old_amount = self.liabilities.get(reserve.index).unwrap_or(0);
         self.update_d_emissions(e, reserve, old_amount);
-        let new_amount = self.liabilities.get(reserve.index).unwrap_or(0) - amount;
+        let new_amount = old_amount - amount;
         require_nonnegative(e, &new_amount);
         if new_amount == 0 {
             self.liabilities.remove(reserve.index);
@@ -166,44 +166,54 @@ impl Positions {
 
 #[cfg(test)]
 mod tests {
+
     use super::*;
     use crate::testutils;
-    use soroban_sdk::{testutils::Address as _, Address};
+    use soroban_sdk::testutils::{Address as _, Ledger, LedgerInfo};
 
     #[test]
     fn test_liabilities() {
         let e = Env::default();
+        e.ledger().set(LedgerInfo {
+            timestamp: 12345,
+            protocol_version: 1,
+            sequence_number: 50,
+            network_id: Default::default(),
+            base_reserve: 10,
+            min_temp_entry_expiration: 10,
+            min_persistent_entry_expiration: 10,
+            max_entry_expiration: 2000000,
+        });
         let bombadil = Address::random(&e);
         let samwise = Address::random(&e);
         let pool = Address::random(&e);
 
         let mut positions = Positions::env_default(&e, &samwise);
         let (underlying_0, _) = testutils::create_token_contract(&e, &bombadil);
-        let (reserve_config, reserve_data) = testutils::default_reserve_meta(&e);
+        let (reserve_config, mut reserve_data) = testutils::default_reserve_meta(&e);
+        reserve_data.last_time = 12345;
         let reserve_0 =
             testutils::create_reserve(&e, &pool, &underlying_0, &reserve_config, &reserve_data);
 
         let (underlying_1, _) = testutils::create_token_contract(&e, &bombadil);
         let (mut reserve_config, mut reserve_data) = testutils::default_reserve_meta(&e);
         reserve_config.index = 2;
+        reserve_data.last_time = 12345;
         let reserve_1 =
             testutils::create_reserve(&e, &pool, &underlying_1, &reserve_config, &reserve_data);
-
-        assert_eq!(positions.get_liabilities(0), 0);
-
-        positions.add_liabilities(&e, &reserve_0, 123);
-        assert_eq!(positions.get_liabilities(0), 123);
-
-        positions.add_liabilities(&e, &reserve_1, 456);
-        assert_eq!(positions.get_liabilities(0), 123);
-        assert_eq!(positions.get_liabilities(2), 456);
-
-        positions.remove_liabilities(&e, &reserve_1, 100);
-        assert_eq!(positions.get_liabilities(2), 356);
-
-        positions.remove_liabilities(&e, &reserve_1, 356);
-        assert_eq!(positions.get_liabilities(2), 0);
-        assert_eq!(positions.liabilities.len(), 1);
+        e.as_contract(&pool, || {
+            assert_eq!(positions.get_liabilities(0), 0);
+            positions.add_liabilities(&e, &reserve_0, 123);
+            assert_eq!(positions.get_liabilities(0), 123);
+            positions.add_liabilities(&e, &reserve_1, 456);
+            assert_eq!(positions.get_liabilities(0), 123);
+            assert_eq!(positions.get_liabilities(2), 456);
+            positions.remove_liabilities(&e, &reserve_1, 100);
+            assert_eq!(positions.get_liabilities(2), 356);
+            positions.remove_liabilities(&e, &reserve_1, 356);
+            assert_eq!(positions.get_liabilities(2), 0);
+            assert_eq!(positions.liabilities.len(), 1);
+        });
     }
 
     #[test]
@@ -215,18 +225,18 @@ mod tests {
         let samwise = Address::random(&e);
         let pool = Address::random(&e);
 
-        let mut positions = Positions::env_default(&e, &samwise);
         let (underlying_0, _) = testutils::create_token_contract(&e, &bombadil);
         let (reserve_config, reserve_data) = testutils::default_reserve_meta(&e);
         let reserve_0 =
             testutils::create_reserve(&e, &pool, &underlying_0, &reserve_config, &reserve_data);
 
         let mut positions = Positions::env_default(&e, &samwise);
+        e.as_contract(&pool, || {
+            positions.add_liabilities(&e, &reserve_0, 123);
+            assert_eq!(positions.get_liabilities(0), 123);
 
-        positions.add_liabilities(&e, &reserve_0, 123);
-        assert_eq!(positions.get_liabilities(0), 123);
-
-        positions.remove_liabilities(&e, &reserve_0, 124);
+            positions.remove_liabilities(&e, &reserve_0, 124);
+        });
     }
 
     #[test]
@@ -236,35 +246,35 @@ mod tests {
         let samwise = Address::random(&e);
         let pool = Address::random(&e);
 
-        let mut positions = Positions::env_default(&e, &samwise);
         let (underlying_0, _) = testutils::create_token_contract(&e, &bombadil);
         let (reserve_config, reserve_data) = testutils::default_reserve_meta(&e);
         let reserve_0 =
             testutils::create_reserve(&e, &pool, &underlying_0, &reserve_config, &reserve_data);
 
         let (underlying_1, _) = testutils::create_token_contract(&e, &bombadil);
-        let (mut reserve_config, mut reserve_data) = testutils::default_reserve_meta(&e);
+        let (mut reserve_config, reserve_data) = testutils::default_reserve_meta(&e);
         reserve_config.index = 2;
         let reserve_1 =
             testutils::create_reserve(&e, &pool, &underlying_1, &reserve_config, &reserve_data);
 
         let mut positions = Positions::env_default(&e, &samwise);
+        e.as_contract(&pool, || {
+            assert_eq!(positions.get_collateral(0), 0);
 
-        assert_eq!(positions.get_collateral(0), 0);
+            positions.add_collateral(&e, &reserve_0, 123);
+            assert_eq!(positions.get_collateral(0), 123);
 
-        positions.add_collateral(&e, &reserve_0, 123);
-        assert_eq!(positions.get_collateral(0), 123);
+            positions.add_collateral(&e, &reserve_1, 456);
+            assert_eq!(positions.get_collateral(0), 123);
+            assert_eq!(positions.get_collateral(2), 456);
 
-        positions.add_collateral(&e, &reserve_1, 456);
-        assert_eq!(positions.get_collateral(0), 123);
-        assert_eq!(positions.get_collateral(2), 456);
+            positions.remove_collateral(&e, &reserve_1, 100);
+            assert_eq!(positions.get_collateral(2), 356);
 
-        positions.remove_collateral(&e, &reserve_1, 100);
-        assert_eq!(positions.get_collateral(2), 356);
-
-        positions.remove_collateral(&e, &reserve_1, 356);
-        assert_eq!(positions.get_collateral(2), 0);
-        assert_eq!(positions.collateral.len(), 1);
+            positions.remove_collateral(&e, &reserve_1, 356);
+            assert_eq!(positions.get_collateral(2), 0);
+            assert_eq!(positions.collateral.len(), 1);
+        });
     }
 
     #[test]
@@ -276,18 +286,18 @@ mod tests {
         let samwise = Address::random(&e);
         let pool = Address::random(&e);
 
-        let mut positions = Positions::env_default(&e, &samwise);
         let (underlying_0, _) = testutils::create_token_contract(&e, &bombadil);
         let (reserve_config, reserve_data) = testutils::default_reserve_meta(&e);
         let reserve_0 =
             testutils::create_reserve(&e, &pool, &underlying_0, &reserve_config, &reserve_data);
 
         let mut positions = Positions::env_default(&e, &samwise);
+        e.as_contract(&pool, || {
+            positions.add_collateral(&e, &reserve_0, 123);
+            assert_eq!(positions.get_collateral(0), 123);
 
-        positions.add_collateral(&e, &reserve_0, 123);
-        assert_eq!(positions.get_collateral(1), 123);
-
-        positions.remove_collateral(&e, &reserve_0, 124);
+            positions.remove_collateral(&e, &reserve_0, 124);
+        });
     }
 
     #[test]
@@ -297,35 +307,35 @@ mod tests {
         let samwise = Address::random(&e);
         let pool = Address::random(&e);
 
-        let mut positions = Positions::env_default(&e, &samwise);
         let (underlying_0, _) = testutils::create_token_contract(&e, &bombadil);
         let (reserve_config, reserve_data) = testutils::default_reserve_meta(&e);
         let reserve_0 =
             testutils::create_reserve(&e, &pool, &underlying_0, &reserve_config, &reserve_data);
 
         let (underlying_1, _) = testutils::create_token_contract(&e, &bombadil);
-        let (mut reserve_config, mut reserve_data) = testutils::default_reserve_meta(&e);
+        let (mut reserve_config, reserve_data) = testutils::default_reserve_meta(&e);
         reserve_config.index = 2;
         let reserve_1 =
             testutils::create_reserve(&e, &pool, &underlying_1, &reserve_config, &reserve_data);
 
         let mut positions = Positions::env_default(&e, &samwise);
+        e.as_contract(&pool, || {
+            assert_eq!(positions.get_supply(0), 0);
 
-        assert_eq!(positions.get_supply(0), 0);
+            positions.add_supply(&e, &reserve_0, 123);
+            assert_eq!(positions.get_supply(0), 123);
 
-        positions.add_supply(&e, &reserve_0, 123);
-        assert_eq!(positions.get_supply(0), 123);
+            positions.add_supply(&e, &reserve_1, 456);
+            assert_eq!(positions.get_supply(0), 123);
+            assert_eq!(positions.get_supply(2), 456);
 
-        positions.add_supply(&e, &reserve_1, 456);
-        assert_eq!(positions.get_supply(0), 123);
-        assert_eq!(positions.get_supply(2), 456);
+            positions.remove_supply(&e, &reserve_1, 100);
+            assert_eq!(positions.get_supply(2), 356);
 
-        positions.remove_supply(&e, &reserve_1, 100);
-        assert_eq!(positions.get_supply(2), 356);
-
-        positions.remove_supply(&e, &reserve_1, 356);
-        assert_eq!(positions.get_supply(2), 0);
-        assert_eq!(positions.supply.len(), 1);
+            positions.remove_supply(&e, &reserve_1, 356);
+            assert_eq!(positions.get_supply(2), 0);
+            assert_eq!(positions.supply.len(), 1);
+        });
     }
 
     #[test]
@@ -337,18 +347,18 @@ mod tests {
         let samwise = Address::random(&e);
         let pool = Address::random(&e);
 
-        let mut positions = Positions::env_default(&e, &samwise);
         let (underlying_0, _) = testutils::create_token_contract(&e, &bombadil);
         let (reserve_config, reserve_data) = testutils::default_reserve_meta(&e);
         let reserve_0 =
             testutils::create_reserve(&e, &pool, &underlying_0, &reserve_config, &reserve_data);
 
         let mut positions = Positions::env_default(&e, &samwise);
+        e.as_contract(&pool, || {
+            positions.add_supply(&e, &reserve_0, 123);
+            assert_eq!(positions.get_supply(0), 123);
 
-        positions.add_supply(&e, &reserve_0, 123);
-        assert_eq!(positions.get_supply(0), 123);
-
-        positions.remove_supply(&e, &reserve_0, 124);
+            positions.remove_supply(&e, &reserve_0, 124);
+        });
     }
 
     #[test]
@@ -358,24 +368,24 @@ mod tests {
         let samwise = Address::random(&e);
         let pool = Address::random(&e);
 
-        let mut positions = Positions::env_default(&e, &samwise);
         let (underlying_0, _) = testutils::create_token_contract(&e, &bombadil);
         let (reserve_config, reserve_data) = testutils::default_reserve_meta(&e);
         let reserve_0 =
             testutils::create_reserve(&e, &pool, &underlying_0, &reserve_config, &reserve_data);
 
         let (underlying_1, _) = testutils::create_token_contract(&e, &bombadil);
-        let (mut reserve_config, mut reserve_data) = testutils::default_reserve_meta(&e);
+        let (mut reserve_config, reserve_data) = testutils::default_reserve_meta(&e);
         reserve_config.index = 1;
         let reserve_1 =
             testutils::create_reserve(&e, &pool, &underlying_1, &reserve_config, &reserve_data);
 
         let mut positions = Positions::env_default(&e, &samwise);
-
-        positions.add_supply(&e, &reserve_0, 123);
-        positions.add_supply(&e, &reserve_1, 456);
-        positions.add_collateral(&e, &reserve_1, 789);
-        assert_eq!(positions.get_total_supply(0), 123);
-        assert_eq!(positions.get_total_supply(1), 456 + 789);
+        e.as_contract(&pool, || {
+            positions.add_supply(&e, &reserve_0, 123);
+            positions.add_supply(&e, &reserve_1, 456);
+            positions.add_collateral(&e, &reserve_1, 789);
+            assert_eq!(positions.get_total_supply(0), 123);
+            assert_eq!(positions.get_total_supply(1), 456 + 789);
+        });
     }
 }

@@ -137,19 +137,20 @@ mod tests {
         reserve_data.d_supply = 70_000_000_000;
         reserve_data.b_rate = 1_100_000_000;
         reserve_data.d_rate = 1_150_000_000;
+        reserve_config.index = 1;
         let reserve_1 =
             testutils::create_reserve(&e, &pool, &underlying_1, &reserve_config, &reserve_data);
 
         let (underlying_2, _) = testutils::create_token_contract(&e, &bombadil);
         let (mut reserve_config, mut reserve_data) = testutils::default_reserve_meta(&e);
         reserve_config.decimals = 6;
+        reserve_config.index = 2;
         reserve_data.b_supply = 10_000_000;
         reserve_data.d_supply = 5_000_000;
         reserve_data.b_rate = 1_001_100_000;
         reserve_data.d_rate = 1_001_200_000;
         let reserve_2 =
             testutils::create_reserve(&e, &pool, &underlying_2, &reserve_config, &reserve_data);
-
         oracle_client.set_price(&underlying_0, &1_0000000);
         oracle_client.set_price(&underlying_1, &2_5000000);
         oracle_client.set_price(&underlying_2, &1000_0000000);
@@ -171,17 +172,19 @@ mod tests {
         };
 
         let mut positions = Positions::env_default(&e, &samwise);
-        positions.add_collateral(&e, &reserve_0, 100_1234567);
-        positions.add_liabilities(&e, &reserve_0, 1_5000000);
-        positions.add_liabilities(&e, &reserve_1, 50_987_654_321);
-        positions.add_supply(&e, &reserve_1, 120_987_654_321);
-        positions.add_collateral(&e, &reserve_2, 0_250_000);
         e.as_contract(&pool, || {
+            positions.add_collateral(&e, &reserve_0, 100_1234567);
+            positions.add_liabilities(&e, &reserve_0, 1_5000000);
+            positions.add_liabilities(&e, &reserve_1, 50_987_654_321);
+            positions.add_supply(&e, &reserve_1, 120_987_654_321);
+            positions.add_collateral(&e, &reserve_2, 0_250_000);
             storage::set_pool_config(&e, &pool_config);
             let mut pool = Pool::load(&e);
             let position_data = PositionData::calculate_from_positions(&e, &mut pool, &positions);
             assert_eq!(position_data.collateral_base, 262_7985925);
             assert_eq!(position_data.liability_base, 185_2368827);
+            assert_eq!(position_data.collateral_raw, 350_3984567);
+            assert_eq!(position_data.liability_raw, 148_0895061);
             assert_eq!(position_data.scalar, 1_0000000);
         });
     }

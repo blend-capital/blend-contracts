@@ -1,3 +1,4 @@
+use cast::u32;
 use soroban_sdk::Map;
 use soroban_sdk::{
     contracttype, panic_with_error, unwrap::UnwrapOptimized, Address, Env, Symbol, Vec,
@@ -17,6 +18,13 @@ pub struct Request {
     pub request_type: u32,
     pub address: Address, // asset address or liquidatee
     pub amount: i128,
+}
+/// An action the pool takes as result of requests
+#[derive(Clone)]
+#[contracttype]
+pub struct Action {
+    pub tokens_in: i128,
+    pub tokens_out: i128,
 }
 
 /// Build a set of pool actions and the new positions from the supplied requests. Validates that the requests
@@ -43,45 +51,45 @@ pub fn build_actions_from_request(
     pool: &mut Pool,
     from: &Address,
     requests: Vec<Request>,
-) -> (Map<Address, i128>, Positions, bool) {
-    let mut actions: Map<Address, i128> = Map::new(&e); //tokens in is positive, tokens out is negative
+) -> (Map<Address, Action>, Positions, bool) {
+    let mut actions: Map<Address, Action> = Map::new(&e); //tokens in is positive, tokens out is negative
     let old_positions = storage::get_user_positions(e, from);
     let mut new_positions = old_positions.clone();
     let mut check_health = false;
     for request in requests.iter() {
         // verify reserve is supported in the pool and the action is allowed
         require_nonnegative(e, &request.amount);
-        pool.require_action_allowed(e, request.request_type);
+        pool.require_action_allowed(e, request.request_type.clone());
         let mut reserve: Reserve;
+
         match request.request_type {
             0 => {
-                // TODO: do we need to add error logic here for invalid reserve address?
                 reserve = pool.load_reserve(e, &request.address);
                 // supply
-                emissions::update_emissions(
-                    e,
-                    reserve.index * 2 + 1,
-                    reserve.b_supply,
-                    reserve.scalar,
-                    from,
-                    old_positions.get_total_supply(reserve.index),
-                    false,
-                );
                 let b_tokens_minted = reserve.to_b_token_down(request.amount);
                 reserve.b_supply += b_tokens_minted;
                 new_positions.add_supply(e, &reserve, b_tokens_minted);
-                actions.set(
-                    reserve.asset.clone(),
-                    actions
-                        .get(request.address.clone())
-                        .or(Some(0))
-                        .unwrap_optimized()
-                        + request.amount,
-                );
+                if let Some(action) = actions.get(reserve.asset.clone()) {
+                    actions.set(
+                        reserve.asset.clone(),
+                        Action {
+                            tokens_in: action.tokens_in + request.amount,
+                            tokens_out: action.tokens_out,
+                        },
+                    );
+                } else {
+                    actions.set(
+                        reserve.asset.clone(),
+                        Action {
+                            tokens_in: request.amount,
+                            tokens_out: 0,
+                        },
+                    );
+                }
                 pool.cache_reserve(reserve);
                 e.events().publish(
                     (
-                        Symbol::new(e, "supply"),
+                        Symbol::new(&e, "supply"),
                         request.address.clone(),
                         from.clone(),
                     ),
@@ -89,18 +97,8 @@ pub fn build_actions_from_request(
                 );
             }
             1 => {
-                // TODO: do we need to add error logic here for invalid reserve address?
                 reserve = pool.load_reserve(e, &request.address);
                 // withdraw
-                emissions::update_emissions(
-                    e,
-                    reserve.index * 2 + 1,
-                    reserve.b_supply,
-                    reserve.scalar,
-                    from,
-                    old_positions.get_total_supply(reserve.index),
-                    false,
-                );
                 let cur_b_tokens = new_positions.get_supply(reserve.index);
                 let mut to_burn = reserve.to_b_token_up(request.amount);
                 let mut tokens_out = request.amount;
@@ -110,18 +108,28 @@ pub fn build_actions_from_request(
                 }
                 reserve.b_supply -= to_burn;
                 new_positions.remove_supply(e, &reserve, to_burn);
-                actions.set(
-                    reserve.asset.clone(),
-                    actions
-                        .get(request.address.clone())
-                        .or(Some(0))
-                        .unwrap_optimized()
-                        - tokens_out,
-                );
+                if let Some(action) = actions.get(reserve.asset.clone()) {
+                    actions.set(
+                        reserve.asset.clone(),
+                        Action {
+                            tokens_in: action.tokens_in,
+                            tokens_out: action.tokens_out + tokens_out,
+                        },
+                    );
+                } else {
+                    actions.set(
+                        reserve.asset.clone(),
+                        Action {
+                            tokens_in: 0,
+                            tokens_out: tokens_out,
+                        },
+                    );
+                }
+
                 pool.cache_reserve(reserve);
                 e.events().publish(
                     (
-                        Symbol::new(e, "withdraw"),
+                        Symbol::new(&e, "withdraw"),
                         request.address.clone(),
                         from.clone(),
                     ),
@@ -129,33 +137,32 @@ pub fn build_actions_from_request(
                 );
             }
             2 => {
-                // TODO: do we need to add error logic here for invalid reserve address?
                 reserve = pool.load_reserve(e, &request.address);
                 // supply collateral
-                emissions::update_emissions(
-                    e,
-                    reserve.index * 2 + 1,
-                    reserve.b_supply,
-                    reserve.scalar,
-                    from,
-                    old_positions.get_total_supply(reserve.index),
-                    false,
-                );
                 let b_tokens_minted = reserve.to_b_token_down(request.amount);
                 reserve.b_supply += b_tokens_minted;
                 new_positions.add_collateral(e, &reserve, b_tokens_minted);
-                actions.set(
-                    reserve.asset.clone(),
-                    actions
-                        .get(request.address.clone())
-                        .or(Some(0))
-                        .unwrap_optimized()
-                        + request.amount,
-                );
+                if let Some(action) = actions.get(reserve.asset.clone()) {
+                    actions.set(
+                        reserve.asset.clone(),
+                        Action {
+                            tokens_in: action.tokens_in + request.amount,
+                            tokens_out: action.tokens_out,
+                        },
+                    );
+                } else {
+                    actions.set(
+                        reserve.asset.clone(),
+                        Action {
+                            tokens_in: request.amount,
+                            tokens_out: 0,
+                        },
+                    );
+                }
                 pool.cache_reserve(reserve);
                 e.events().publish(
                     (
-                        Symbol::new(e, "supply_collateral"),
+                        Symbol::new(&e, "supply_collateral"),
                         request.address.clone(),
                         from.clone(),
                     ),
@@ -163,18 +170,8 @@ pub fn build_actions_from_request(
                 );
             }
             3 => {
-                // TODO: do we need to add error logic here for invalid reserve address?
                 reserve = pool.load_reserve(e, &request.address);
                 // withdraw collateral
-                emissions::update_emissions(
-                    e,
-                    reserve.index * 2 + 1,
-                    reserve.b_supply,
-                    reserve.scalar,
-                    from,
-                    old_positions.get_total_supply(reserve.index),
-                    false,
-                );
                 let cur_b_tokens = new_positions.get_collateral(reserve.index);
                 let mut to_burn = reserve.to_b_token_up(request.amount);
                 let mut tokens_out = request.amount;
@@ -184,19 +181,29 @@ pub fn build_actions_from_request(
                 }
                 reserve.b_supply -= to_burn;
                 new_positions.remove_collateral(e, &reserve, to_burn);
-                actions.set(
-                    reserve.asset.clone(),
-                    actions
-                        .get(request.address.clone())
-                        .or(Some(0))
-                        .unwrap_optimized()
-                        - tokens_out,
-                );
+
+                if let Some(action) = actions.get(reserve.asset.clone()) {
+                    actions.set(
+                        reserve.asset.clone(),
+                        Action {
+                            tokens_in: action.tokens_in,
+                            tokens_out: action.tokens_out + tokens_out,
+                        },
+                    );
+                } else {
+                    actions.set(
+                        reserve.asset.clone(),
+                        Action {
+                            tokens_in: 0,
+                            tokens_out: tokens_out,
+                        },
+                    );
+                }
                 check_health = true;
                 pool.cache_reserve(reserve);
                 e.events().publish(
                     (
-                        Symbol::new(e, "withdraw_collateral"),
+                        Symbol::new(&e, "withdraw_collateral"),
                         request.address.clone(),
                         from.clone(),
                     ),
@@ -204,35 +211,34 @@ pub fn build_actions_from_request(
                 );
             }
             4 => {
-                // TODO: do we need to add error logic here for invalid reserve address?
                 reserve = pool.load_reserve(e, &request.address);
                 // borrow
-                emissions::update_emissions(
-                    e,
-                    reserve.index * 2,
-                    reserve.d_supply,
-                    reserve.scalar,
-                    from,
-                    old_positions.get_liabilities(reserve.index),
-                    false,
-                );
                 let d_tokens_minted = reserve.to_d_token_up(request.amount);
                 reserve.d_supply += d_tokens_minted;
                 reserve.require_utilization_below_max(e);
                 new_positions.add_liabilities(e, &reserve, d_tokens_minted);
-                actions.set(
-                    reserve.asset.clone(),
-                    actions
-                        .get(request.address.clone())
-                        .or(Some(0))
-                        .unwrap_optimized()
-                        - request.amount,
-                );
+                if let Some(action) = actions.get(reserve.asset.clone()) {
+                    actions.set(
+                        reserve.asset.clone(),
+                        Action {
+                            tokens_in: action.tokens_in,
+                            tokens_out: action.tokens_out + request.amount,
+                        },
+                    );
+                } else {
+                    actions.set(
+                        reserve.asset.clone(),
+                        Action {
+                            tokens_in: 0,
+                            tokens_out: request.amount,
+                        },
+                    );
+                }
                 check_health = true;
                 pool.cache_reserve(reserve);
                 e.events().publish(
                     (
-                        Symbol::new(e, "borrow"),
+                        Symbol::new(&e, "borrow"),
                         request.address.clone(),
                         from.clone(),
                     ),
@@ -240,18 +246,8 @@ pub fn build_actions_from_request(
                 );
             }
             5 => {
-                // TODO: do we need to add error logic here for invalid reserve address?
                 reserve = pool.load_reserve(e, &request.address);
                 // repay
-                emissions::update_emissions(
-                    e,
-                    reserve.index * 2,
-                    reserve.d_supply,
-                    reserve.scalar,
-                    from,
-                    old_positions.get_liabilities(reserve.index),
-                    false,
-                );
                 let cur_d_tokens = new_positions.get_liabilities(reserve.index);
                 let d_tokens_burnt = reserve.to_d_token_down(request.amount);
                 if d_tokens_burnt > cur_d_tokens {
@@ -260,18 +256,27 @@ pub fn build_actions_from_request(
                     require_nonnegative(e, &amount_to_refund);
                     reserve.d_supply -= cur_d_tokens;
                     new_positions.remove_liabilities(e, &reserve, cur_d_tokens);
-                    actions.set(
-                        reserve.asset.clone(),
-                        actions
-                            .get(request.address.clone())
-                            .or(Some(0))
-                            .unwrap_optimized()
-                            - amount_to_refund
-                            + request.amount,
-                    );
+
+                    if let Some(action) = actions.get(reserve.asset.clone()) {
+                        actions.set(
+                            reserve.asset.clone(),
+                            Action {
+                                tokens_in: action.tokens_in + request.amount,
+                                tokens_out: action.tokens_out + amount_to_refund,
+                            },
+                        );
+                    } else {
+                        actions.set(
+                            reserve.asset.clone(),
+                            Action {
+                                tokens_in: request.amount,
+                                tokens_out: amount_to_refund,
+                            },
+                        );
+                    }
                     e.events().publish(
                         (
-                            Symbol::new(e, "repay"),
+                            Symbol::new(&e, "repay"),
                             request.address.clone().clone(),
                             from.clone(),
                         ),
@@ -280,17 +285,27 @@ pub fn build_actions_from_request(
                 } else {
                     reserve.d_supply -= d_tokens_burnt;
                     new_positions.remove_liabilities(e, &reserve, d_tokens_burnt);
-                    actions.set(
-                        reserve.asset.clone(),
-                        actions
-                            .get(request.address.clone())
-                            .or(Some(0))
-                            .unwrap_optimized()
-                            + request.amount,
-                    );
+
+                    if let Some(action) = actions.get(reserve.asset.clone()) {
+                        actions.set(
+                            reserve.asset.clone(),
+                            Action {
+                                tokens_in: action.tokens_in + request.amount,
+                                tokens_out: action.tokens_out,
+                            },
+                        );
+                    } else {
+                        actions.set(
+                            reserve.asset.clone(),
+                            Action {
+                                tokens_in: request.amount,
+                                tokens_out: 0,
+                            },
+                        );
+                    }
                     e.events().publish(
                         (
-                            Symbol::new(e, "repay"),
+                            Symbol::new(&e, "repay"),
                             request.address.clone().clone(),
                             from.clone(),
                         ),
@@ -300,13 +315,23 @@ pub fn build_actions_from_request(
                 pool.cache_reserve(reserve);
             }
             6 => {
-                if request.address == storage::get_backstop(&e) {
-                    auctions::fill(e, 1, &request.address, &from);
-                    storage::del_auction(e, &1, &request.address);
-                } else {
-                    auctions::fill(e, 0, &request.address, &from);
-                    storage::del_auction(e, &0, &request.address);
+                auctions::fill(
+                    e,
+                    u32(request.amount).unwrap_optimized(),
+                    &request.address,
+                    &from,
+                );
+                if request.amount < 2 {
+                    check_health = true;
                 }
+                e.events().publish(
+                    (
+                        Symbol::new(&e, "fill_auction"),
+                        request.address.clone().clone(),
+                        request.amount,
+                    ),
+                    from.clone(),
+                );
             }
             _ => panic_with_error!(e, PoolError::BadRequest),
         }
@@ -318,10 +343,11 @@ pub fn build_actions_from_request(
 mod tests {
     use std::println;
 
-    use crate::{storage::PoolConfig, testutils};
+    use crate::{storage::PoolConfig, testutils, AuctionData, AuctionType};
 
     use super::*;
     use soroban_sdk::{
+        map,
         testutils::{Address as _, Ledger, LedgerInfo},
         vec,
     };
@@ -378,8 +404,9 @@ mod tests {
             assert_eq!(health_check, false);
 
             assert_eq!(actions.len(), 1);
-            let action_amount = actions.get_unchecked(underlying.clone());
-            assert_eq!(action_amount, 10_1234567);
+            let action = actions.get_unchecked(underlying.clone());
+            assert_eq!(action.tokens_in, 10_1234567);
+            assert_eq!(action.tokens_out, 0);
 
             assert_eq!(positions.liabilities.len(), 0);
             assert_eq!(positions.collateral.len(), 0);
@@ -430,9 +457,10 @@ mod tests {
             bstop_rate: 0_200_000_000,
             status: 0,
         };
-        let mut user_positions = Positions::env_default(&e, &samwise);
-        user_positions.add_supply(&e, &reserve, 20_0000000);
+
         e.as_contract(&pool, || {
+            let mut user_positions = Positions::env_default(&e, &samwise);
+            user_positions.add_supply(&e, &reserve, 20_0000000);
             storage::set_pool_config(&e, &pool_config);
             storage::set_user_positions(&e, &samwise, &user_positions);
 
@@ -446,14 +474,16 @@ mod tests {
                     amount: 10_1234567,
                 },
             ];
+            println!("about to build actions");
             let (actions, positions, health_check) =
                 build_actions_from_request(&e, &mut pool, &samwise, requests);
 
             assert_eq!(health_check, false);
 
             assert_eq!(actions.len(), 1);
-            let action_amount = actions.get_unchecked(underlying_1.clone());
-            assert_eq!(action_amount, 10_1234567);
+            let action = actions.get_unchecked(underlying_1.clone());
+            assert_eq!(action.tokens_out, 10_1234567);
+            assert_eq!(action.tokens_in, 0);
 
             assert_eq!(positions.liabilities.len(), 0);
             assert_eq!(positions.collateral.len(), 0);
@@ -503,8 +533,8 @@ mod tests {
             status: 0,
         };
         let mut user_positions = Positions::env_default(&e, &samwise);
-        user_positions.add_supply(&e, &reserve, 20_0000000);
         e.as_contract(&pool, || {
+            user_positions.add_supply(&e, &reserve, 20_0000000);
             storage::set_pool_config(&e, &pool_config);
             storage::set_user_positions(&e, &samwise, &user_positions);
 
@@ -524,9 +554,9 @@ mod tests {
             assert_eq!(health_check, false);
 
             assert_eq!(actions.len(), 1);
-            let action_amount = actions.get_unchecked(underlying_1.clone());
-            assert_eq!(action_amount, -20_0000137);
-
+            let action = actions.get_unchecked(underlying_1.clone());
+            assert_eq!(action.tokens_out, 20_0000137);
+            assert_eq!(action.tokens_in, 0);
             assert_eq!(positions.liabilities.len(), 0);
             assert_eq!(positions.collateral.len(), 0);
             assert_eq!(positions.supply.len(), 0);
@@ -585,8 +615,9 @@ mod tests {
             assert_eq!(health_check, false);
 
             assert_eq!(actions.len(), 1);
-            let action_amount = actions.get_unchecked(underlying.clone());
-            assert_eq!(action_amount, 10_1234567);
+            let action = actions.get_unchecked(underlying.clone());
+            assert_eq!(action.tokens_in, 10_1234567);
+            assert_eq!(action.tokens_out, 0);
 
             assert_eq!(positions.liabilities.len(), 0);
             assert_eq!(positions.collateral.len(), 1);
@@ -633,8 +664,8 @@ mod tests {
             status: 0,
         };
         let mut user_positions = Positions::env_default(&e, &samwise);
-        user_positions.add_collateral(&e, &reserve, 20_0000000);
         e.as_contract(&pool, || {
+            user_positions.add_collateral(&e, &reserve, 20_0000000);
             storage::set_pool_config(&e, &pool_config);
             storage::set_user_positions(&e, &samwise, &user_positions);
 
@@ -654,8 +685,9 @@ mod tests {
             assert_eq!(health_check, true);
 
             assert_eq!(actions.len(), 1);
-            let action_amount = actions.get_unchecked(underlying_1.clone());
-            assert_eq!(action_amount, -10_1234567);
+            let action = actions.get_unchecked(underlying_1.clone());
+            assert_eq!(action.tokens_out, 10_1234567);
+            assert_eq!(action.tokens_in, 0);
 
             assert_eq!(positions.liabilities.len(), 0);
             assert_eq!(positions.collateral.len(), 1);
@@ -705,8 +737,8 @@ mod tests {
             status: 0,
         };
         let mut user_positions = Positions::env_default(&e, &samwise);
-        user_positions.add_collateral(&e, &reserve, 20_0000000);
         e.as_contract(&pool, || {
+            user_positions.add_collateral(&e, &reserve, 20_0000000);
             storage::set_pool_config(&e, &pool_config);
             storage::set_user_positions(&e, &samwise, &user_positions);
 
@@ -726,8 +758,9 @@ mod tests {
             assert_eq!(health_check, true);
 
             assert_eq!(actions.len(), 1);
-            let action_amount = actions.get_unchecked(underlying_1.clone());
-            assert_eq!(action_amount, -20_0000137);
+            let action = actions.get_unchecked(underlying_1.clone());
+            assert_eq!(action.tokens_out, 20_0000137);
+            assert_eq!(action.tokens_in, 0);
 
             assert_eq!(positions.liabilities.len(), 0);
             assert_eq!(positions.collateral.len(), 0);
@@ -750,8 +783,14 @@ mod tests {
         let pool = Address::random(&e);
 
         let (underlying_1, _) = testutils::create_token_contract(&e, &bombadil);
-        let (_reserve_config, reserve_data) = testutils::default_reserve_meta(&e);
-
+        let (reserve_config, reserve_data) = testutils::default_reserve_meta(&e);
+        testutils::create_reserve(
+            &e,
+            &pool,
+            &underlying_1.clone(),
+            &reserve_config,
+            &reserve_data,
+        );
         e.ledger().set(LedgerInfo {
             timestamp: 600,
             protocol_version: 1,
@@ -780,15 +819,16 @@ mod tests {
                     amount: 10_1234567,
                 },
             ];
+            println!("here");
             let (actions, positions, health_check) =
                 build_actions_from_request(&e, &mut pool, &samwise, requests);
-
+            println!("here");
             assert_eq!(health_check, true);
 
             assert_eq!(actions.len(), 1);
-            let action_amount = actions.get_unchecked(underlying_1.clone());
-            println!("action_amount: {}", action_amount);
-            assert_eq!(action_amount, -10_1234567);
+            let action = actions.get_unchecked(underlying_1.clone());
+            assert_eq!(action.tokens_out, 10_1234567);
+            assert_eq!(action.tokens_in, 0);
 
             assert_eq!(positions.liabilities.len(), 1);
             assert_eq!(positions.collateral.len(), 0);
@@ -832,8 +872,8 @@ mod tests {
             status: 0,
         };
         let mut user_positions = Positions::env_default(&e, &samwise);
-        user_positions.add_liabilities(&e, &reserve, 20_0000000);
         e.as_contract(&pool, || {
+            user_positions.add_liabilities(&e, &reserve, 20_0000000);
             storage::set_pool_config(&e, &pool_config);
             storage::set_user_positions(&e, &samwise, &user_positions);
 
@@ -853,8 +893,9 @@ mod tests {
             assert_eq!(health_check, false);
 
             assert_eq!(actions.len(), 1);
-            let action_amount = actions.get_unchecked(underlying_1.clone());
-            assert_eq!(action_amount, 10_1234567);
+            let action = actions.get_unchecked(underlying_1.clone());
+            assert_eq!(action.tokens_in, 10_1234567);
+            assert_eq!(action.tokens_out, 0);
 
             assert_eq!(positions.liabilities.len(), 1);
             assert_eq!(positions.collateral.len(), 0);
@@ -902,8 +943,8 @@ mod tests {
             status: 0,
         };
         let mut user_positions = Positions::env_default(&e, &samwise);
-        user_positions.add_liabilities(&e, &reserve, 20_0000000);
         e.as_contract(&pool, || {
+            user_positions.add_liabilities(&e, &reserve, 20_0000000);
             storage::set_pool_config(&e, &pool_config);
             storage::set_user_positions(&e, &samwise, &user_positions);
 
@@ -923,8 +964,9 @@ mod tests {
             assert_eq!(health_check, false);
 
             assert_eq!(actions.len(), 1);
-            let action_amount = actions.get_unchecked(underlying_1.clone());
-            assert_eq!(action_amount, 21_0000000 - 0_9999771);
+            let action = actions.get_unchecked(underlying_1.clone());
+            assert_eq!(action.tokens_in, 21_0000000);
+            assert_eq!(action.tokens_out, 0_9999771);
 
             assert_eq!(positions.liabilities.len(), 0);
             assert_eq!(positions.collateral.len(), 0);
@@ -932,6 +974,468 @@ mod tests {
 
             let reserve = pool.load_reserve(&e, &underlying_1);
             assert_eq!(reserve.d_supply, reserve_data.d_supply - 20_0000000);
+        });
+    }
+    #[test]
+    fn test_aggregating_actions() {
+        let e = Env::default();
+        e.mock_all_auths();
+
+        let bombadil = Address::random(&e);
+        let samwise = Address::random(&e);
+        let pool = Address::random(&e);
+
+        let (underlying_1, _) = testutils::create_token_contract(&e, &bombadil);
+        let (reserve_config, mut reserve_data) = testutils::default_reserve_meta(&e);
+        reserve_data.last_time = 600;
+        let reserve = testutils::create_reserve(
+            &e,
+            &pool,
+            &underlying_1.clone(),
+            &reserve_config,
+            &reserve_data,
+        );
+
+        e.ledger().set(LedgerInfo {
+            timestamp: 600,
+            protocol_version: 1,
+            sequence_number: 1234,
+            network_id: Default::default(),
+            base_reserve: 10,
+            min_temp_entry_expiration: 10,
+            min_persistent_entry_expiration: 10,
+            max_entry_expiration: 2000000,
+        });
+        let pool_config = PoolConfig {
+            oracle: Address::random(&e),
+            bstop_rate: 0_200_000_000,
+            status: 0,
+        };
+        let user_positions = Positions::env_default(&e, &samwise);
+        e.as_contract(&pool, || {
+            storage::set_pool_config(&e, &pool_config);
+            storage::set_user_positions(&e, &samwise, &user_positions);
+
+            let mut pool = Pool::load(&e);
+
+            let requests = vec![
+                &e,
+                Request {
+                    request_type: 0,
+                    address: underlying_1.clone(),
+                    amount: 10_0000000,
+                },
+                Request {
+                    request_type: 1,
+                    address: underlying_1.clone(),
+                    amount: 5_0000000,
+                },
+                Request {
+                    request_type: 2,
+                    address: underlying_1.clone(),
+                    amount: 10_0000000,
+                },
+                Request {
+                    request_type: 3,
+                    address: underlying_1.clone(),
+                    amount: 5_0000000,
+                },
+                Request {
+                    request_type: 4,
+                    address: underlying_1.clone(),
+                    amount: 20_0000000,
+                },
+                Request {
+                    request_type: 5,
+                    address: underlying_1.clone(),
+                    amount: 21_0000000,
+                },
+            ];
+            let (actions, positions, health_check) =
+                build_actions_from_request(&e, &mut pool, &samwise, requests);
+
+            assert_eq!(health_check, true);
+
+            assert_eq!(actions.len(), 1);
+            let action = actions.get_unchecked(underlying_1.clone());
+            assert_eq!(
+                action.tokens_out,
+                5_0000000 + 5_0000000 + 20_0000000 + 1_0000000
+            );
+            assert_eq!(action.tokens_in, 10_0000000 + 10_0000000 + 21_0000000);
+
+            assert_eq!(positions.liabilities.len(), 0);
+            assert_eq!(positions.collateral.len(), 1);
+            assert_eq!(positions.supply.len(), 1);
+            assert_eq!(positions.collateral.get_unchecked(reserve.index), 5_0000000);
+            assert_eq!(positions.supply.get_unchecked(reserve.index), 5_0000000);
+        });
+    }
+    #[test]
+    fn test_fill_user_liquidation() {
+        let e = Env::default();
+
+        e.mock_all_auths();
+        e.ledger().set(LedgerInfo {
+            timestamp: 12345,
+            protocol_version: 1,
+            sequence_number: 176 + 200,
+            network_id: Default::default(),
+            base_reserve: 10,
+            min_temp_entry_expiration: 10,
+            min_persistent_entry_expiration: 10,
+            max_entry_expiration: 2000000,
+        });
+
+        let bombadil = Address::random(&e);
+        let samwise = Address::random(&e);
+        let frodo = Address::random(&e);
+
+        let pool_address = Address::random(&e);
+
+        let (oracle_address, _) = testutils::create_mock_oracle(&e);
+
+        // creating reserves for a pool exhausts the budget
+        e.budget().reset_unlimited();
+        let (underlying_0, _) = testutils::create_token_contract(&e, &bombadil);
+        let (mut reserve_config_0, mut reserve_data_0) = testutils::default_reserve_meta(&e);
+        reserve_data_0.last_time = 12345;
+        reserve_data_0.b_rate = 1_100_000_000;
+        reserve_config_0.c_factor = 0_8500000;
+        reserve_config_0.l_factor = 0_9000000;
+        reserve_config_0.index = 0;
+        testutils::create_reserve(
+            &e,
+            &pool_address,
+            &underlying_0,
+            &reserve_config_0,
+            &reserve_data_0,
+        );
+
+        let (underlying_1, _) = testutils::create_token_contract(&e, &bombadil);
+        let (mut reserve_config_1, mut reserve_data_1) = testutils::default_reserve_meta(&e);
+        reserve_data_1.b_rate = 1_200_000_000;
+        reserve_config_1.c_factor = 0_7500000;
+        reserve_config_1.l_factor = 0_7500000;
+        reserve_data_1.last_time = 12345;
+        reserve_config_1.index = 1;
+        testutils::create_reserve(
+            &e,
+            &pool_address,
+            &underlying_1,
+            &reserve_config_1,
+            &reserve_data_1,
+        );
+
+        let (underlying_2, _) = testutils::create_token_contract(&e, &bombadil);
+        let (mut reserve_config_2, reserve_data_2) = testutils::default_reserve_meta(&e);
+        reserve_config_2.c_factor = 0_0000000;
+        reserve_config_2.l_factor = 0_7000000;
+        reserve_config_2.index = 2;
+        testutils::create_reserve(
+            &e,
+            &pool_address,
+            &underlying_2,
+            &reserve_config_2,
+            &reserve_data_2,
+        );
+
+        let auction_data = AuctionData {
+            bid: map![&e, (underlying_2.clone(), 1_2375000)],
+            lot: map![
+                &e,
+                (underlying_0.clone(), 30_5595329),
+                (underlying_1.clone(), 1_5395739)
+            ],
+            block: 176,
+        };
+        let pool_config = PoolConfig {
+            oracle: oracle_address,
+            bstop_rate: 0_100_000_000,
+            status: 0,
+        };
+        let positions: Positions = Positions {
+            user: samwise.clone(),
+            collateral: map![
+                &e,
+                (reserve_config_0.index, 90_9100000),
+                (reserve_config_1.index, 04_5800000),
+            ],
+            liabilities: map![&e, (reserve_config_2.index, 02_7500000),],
+            supply: map![&e],
+        };
+        e.as_contract(&pool_address, || {
+            storage::set_pool_config(&e, &pool_config);
+            storage::set_user_positions(&e, &samwise, &positions);
+            storage::set_auction(
+                &e,
+                &(AuctionType::UserLiquidation as u32),
+                &samwise,
+                &auction_data,
+            );
+
+            let mut pool = Pool::load(&e);
+
+            let requests = vec![
+                &e,
+                Request {
+                    request_type: 6,
+                    address: samwise.clone(),
+                    amount: 0,
+                },
+            ];
+            let (actions, _, health_check) =
+                build_actions_from_request(&e, &mut pool, &frodo, requests);
+
+            assert_eq!(health_check, true);
+            assert_eq!(
+                storage::has_auction(&e, &(AuctionType::UserLiquidation as u32), &samwise),
+                false
+            );
+            assert_eq!(actions.len(), 0);
+        });
+    }
+    #[test]
+    fn test_fill_bad_debt_auction() {
+        let e = Env::default();
+
+        e.mock_all_auths();
+        e.ledger().set(LedgerInfo {
+            timestamp: 12345,
+            protocol_version: 1,
+            sequence_number: 51 + 200,
+            network_id: Default::default(),
+            base_reserve: 10,
+            min_temp_entry_expiration: 10,
+            min_persistent_entry_expiration: 10,
+            max_entry_expiration: 2000000,
+        });
+
+        let bombadil = Address::random(&e);
+        let samwise = Address::random(&e);
+        let frodo = Address::random(&e);
+
+        let pool_address = Address::random(&e);
+
+        let (oracle_address, _) = testutils::create_mock_oracle(&e);
+
+        // creating reserves for a pool exhausts the budget
+        e.budget().reset_unlimited();
+        let (backstop_token_id, backstop_token_client) =
+            testutils::create_token_contract(&e, &bombadil);
+        let (backstop_address, backstop_client) = testutils::create_backstop(&e);
+        testutils::setup_backstop(
+            &e,
+            &pool_address,
+            &backstop_address,
+            &backstop_token_id,
+            &Address::random(&e),
+        );
+        let (underlying_0, _) = testutils::create_token_contract(&e, &bombadil);
+        let (mut reserve_config_0, mut reserve_data_0) = testutils::default_reserve_meta(&e);
+        reserve_data_0.last_time = 12345;
+        reserve_data_0.b_rate = 1_100_000_000;
+        reserve_config_0.c_factor = 0_8500000;
+        reserve_config_0.l_factor = 0_9000000;
+        reserve_config_0.index = 0;
+        testutils::create_reserve(
+            &e,
+            &pool_address,
+            &underlying_0,
+            &reserve_config_0,
+            &reserve_data_0,
+        );
+
+        let (underlying_1, _) = testutils::create_token_contract(&e, &bombadil);
+        let (mut reserve_config_1, mut reserve_data_1) = testutils::default_reserve_meta(&e);
+        reserve_data_1.b_rate = 1_200_000_000;
+        reserve_config_1.c_factor = 0_7500000;
+        reserve_config_1.l_factor = 0_7500000;
+        reserve_data_1.last_time = 12345;
+        reserve_config_1.index = 1;
+        testutils::create_reserve(
+            &e,
+            &pool_address,
+            &underlying_1,
+            &reserve_config_1,
+            &reserve_data_1,
+        );
+        let pool_config = PoolConfig {
+            oracle: oracle_address,
+            bstop_rate: 0_100_000_000,
+            status: 0,
+        };
+        let auction_data = AuctionData {
+            bid: map![&e, (underlying_0, 10_0000000), (underlying_1, 2_5000000)],
+            lot: map![&e, (backstop_token_id, 95_2000000)],
+            block: 51,
+        };
+        let positions: Positions = Positions {
+            user: backstop_address.clone(),
+            collateral: map![&e],
+            liabilities: map![
+                &e,
+                (reserve_config_0.index, 10_0000000),
+                (reserve_config_1.index, 2_5000000)
+            ],
+            supply: map![&e],
+        };
+        backstop_token_client.mint(&samwise, &95_2000000);
+        backstop_token_client.approve(&samwise, &backstop_address, &i128::MAX, &1000000);
+        backstop_client.deposit(&samwise, &pool_address, &95_2000000);
+        e.as_contract(&pool_address, || {
+            storage::set_pool_config(&e, &pool_config);
+            storage::set_user_positions(&e, &backstop_address, &positions);
+            storage::set_auction(
+                &e,
+                &(AuctionType::BadDebtAuction as u32),
+                &backstop_address,
+                &auction_data,
+            );
+
+            let mut pool = Pool::load(&e);
+
+            let requests = vec![
+                &e,
+                Request {
+                    request_type: 6,
+                    address: backstop_address.clone(),
+                    amount: 1,
+                },
+            ];
+            let (actions, _, health_check) =
+                build_actions_from_request(&e, &mut pool, &frodo, requests);
+
+            assert_eq!(health_check, true);
+            assert_eq!(
+                storage::has_auction(&e, &(AuctionType::BadDebtAuction as u32), &backstop_address),
+                false
+            );
+            assert_eq!(actions.len(), 0);
+        });
+    }
+    #[test]
+    fn test_fill_interest_auction() {
+        let e = Env::default();
+
+        e.mock_all_auths();
+        e.ledger().set(LedgerInfo {
+            timestamp: 12345,
+            protocol_version: 1,
+            sequence_number: 51 + 200,
+            network_id: Default::default(),
+            base_reserve: 10,
+            min_temp_entry_expiration: 10,
+            min_persistent_entry_expiration: 10,
+            max_entry_expiration: 2000000,
+        });
+
+        let bombadil = Address::random(&e);
+        let samwise = Address::random(&e);
+
+        let pool_address = Address::random(&e);
+        let (usdc_id, usdc_client) = testutils::create_usdc_token(&e, &pool_address, &bombadil);
+        let (backstop_address, _backstop_client) = testutils::create_backstop(&e);
+        testutils::setup_backstop(
+            &e,
+            &pool_address,
+            &backstop_address,
+            &Address::random(&e),
+            &Address::random(&e),
+        );
+
+        e.budget().reset_unlimited();
+        let (underlying_0, underlying_0_client) = testutils::create_token_contract(&e, &bombadil);
+        let (mut reserve_config_0, mut reserve_data_0) = testutils::default_reserve_meta(&e);
+        reserve_data_0.b_rate = 1_100_000_000;
+        reserve_data_0.last_time = 12345;
+        reserve_config_0.index = 0;
+        testutils::create_reserve(
+            &e,
+            &pool_address,
+            &underlying_0,
+            &reserve_config_0,
+            &reserve_data_0,
+        );
+        underlying_0_client.mint(&pool_address, &1_000_0000000);
+
+        let (underlying_1, underlying_1_client) = testutils::create_token_contract(&e, &bombadil);
+        let (mut reserve_config_1, mut reserve_data_1) = testutils::default_reserve_meta(&e);
+        reserve_data_1.b_rate = 1_100_000_000;
+        reserve_data_1.last_time = 12345;
+        reserve_config_1.index = 1;
+        testutils::create_reserve(
+            &e,
+            &pool_address,
+            &underlying_1,
+            &reserve_config_1,
+            &reserve_data_1,
+        );
+        underlying_1_client.mint(&pool_address, &1_000_0000000);
+
+        let (underlying_2, underlying_2_client) = testutils::create_token_contract(&e, &bombadil);
+        let (mut reserve_config_2, mut reserve_data_2) = testutils::default_reserve_meta(&e);
+        reserve_data_2.b_rate = 1_100_000_000;
+        reserve_data_2.last_time = 12345;
+        reserve_config_2.index = 1;
+        testutils::create_reserve(
+            &e,
+            &pool_address,
+            &underlying_2,
+            &reserve_config_2,
+            &reserve_data_2,
+        );
+        underlying_2_client.mint(&pool_address, &1_000_0000000);
+
+        let pool_config = PoolConfig {
+            oracle: Address::random(&e),
+            bstop_rate: 0_100_000_000,
+            status: 0,
+        };
+        let auction_data = AuctionData {
+            bid: map![&e, (usdc_id.clone(), 952_0000000)],
+            lot: map![
+                &e,
+                (underlying_0.clone(), 100_0000000),
+                (underlying_1.clone(), 25_0000000)
+            ],
+            block: 51,
+        };
+        usdc_client.mint(&samwise, &95_2000000);
+        //samwise increase allowance for pool
+        usdc_client.approve(&samwise, &pool_address, &i128::MAX, &1000000);
+        e.as_contract(&pool_address, || {
+            storage::set_pool_config(&e, &pool_config);
+            storage::set_auction(
+                &e,
+                &(AuctionType::InterestAuction as u32),
+                &backstop_address,
+                &auction_data,
+            );
+
+            let mut pool = Pool::load(&e);
+
+            let requests = vec![
+                &e,
+                Request {
+                    request_type: 6,
+                    address: backstop_address.clone(),
+                    amount: 2,
+                },
+            ];
+            let (actions, _, health_check) =
+                build_actions_from_request(&e, &mut pool, &samwise, requests);
+
+            assert_eq!(health_check, false);
+            assert_eq!(
+                storage::has_auction(
+                    &e,
+                    &(AuctionType::InterestAuction as u32),
+                    &backstop_address
+                ),
+                false
+            );
+            assert_eq!(actions.len(), 0);
         });
     }
 }

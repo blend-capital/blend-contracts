@@ -6,6 +6,7 @@ use crate::{
     pool::Reserve,
     storage::{self, ReserveConfig, ReserveData},
 };
+use cast::i128;
 use fixed_point_math::FixedPoint;
 use soroban_sdk::{testutils::Address as _, unwrap::UnwrapOptimized, Address, Env, IntoVal};
 
@@ -183,6 +184,8 @@ pub(crate) fn create_reserve(
     underlying_client
         .mock_all_auths()
         .mint(&pool_address, &to_mint_pool);
+    let ten: i128 = 10;
+    let scalar: i128 = ten.pow(reserve_config.decimals);
     Reserve {
         asset: token_address.clone(),
         index: reserve_config.index,
@@ -190,7 +193,7 @@ pub(crate) fn create_reserve(
         c_factor: reserve_config.c_factor,
         max_util: reserve_config.max_util,
         last_time: reserve_data.last_time,
-        scalar: 1_0000000,
+        scalar: scalar,
         d_rate: reserve_data.d_rate,
         b_rate: reserve_data.b_rate,
         ir_mod: reserve_data.ir_mod,

@@ -229,17 +229,6 @@ pub trait PoolTrait {
     /// ### Panics
     /// If the auction was unable to be created
     fn new_auction(e: Env, auction_type: u32) -> AuctionData;
-
-    /// Fill a backstop interest auction from `from`
-    ///
-    /// Returns the executed AuctionQuote
-    ///
-    /// ### Arguments
-    /// * `from` - The address filling the auction
-    ///
-    /// ### Panics
-    /// If the auction does not exist of if the fill action was not successful
-    fn fill_backstop_interest_auction(e: Env, from: Address);
 }
 
 #[contractimpl]
@@ -434,15 +423,5 @@ impl PoolTrait for Pool {
         );
 
         auction_data
-    }
-
-    fn fill_backstop_interest_auction(e: Env, from: Address) {
-        from.require_auth();
-        let backstop = storage::get_backstop(&e);
-        auctions::fill(&e, 2, &backstop, &from);
-
-        //TODO: add new events for other auctions
-        e.events()
-            .publish((Symbol::new(&e, "fill_auction"), from), (2, backstop));
     }
 }

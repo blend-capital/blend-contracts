@@ -2,7 +2,7 @@ use soroban_sdk::{testutils::Address as _, Address, Env};
 
 mod mock_blend_oracle_wasm {
     soroban_sdk::contractimport!(
-        file = "../target/wasm32-unknown-unknown/release/mock_blend_oracle.wasm"
+        file = "../target/wasm32-unknown-unknown/release/mock_oracle.wasm"
     );
 }
 

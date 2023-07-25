@@ -1,7 +1,6 @@
-use fixed_point_math::FixedPoint;
-use soroban_sdk::{contracttype, unwrap::UnwrapOptimized, Address, Env, Map, Vec};
+use soroban_sdk::{contracttype, Address, Env, Map};
 
-use crate::{constants::SCALAR_7, emissions, validator::require_nonnegative};
+use crate::{emissions, validator::require_nonnegative};
 
 use super::{Pool, Reserve};
 
@@ -113,28 +112,14 @@ impl Positions {
         pool: &Pool,
         collateral_amounts: Map<Address, i128>,
         liability_amounts: Map<Address, i128>,
-        collateral_pct: i128,
-        liability_pct: i128,
     ) {
         for (asset, amount) in collateral_amounts.iter() {
             let reserve = &pool.load_reserve(e, &asset);
-            self.remove_collateral(
-                e,
-                reserve,
-                amount
-                    .fixed_mul_ceil(collateral_pct, SCALAR_7)
-                    .unwrap_optimized(),
-            );
+            self.remove_collateral(e, reserve, amount);
         }
         for (asset, amount) in liability_amounts.iter() {
             let reserve = &pool.load_reserve(e, &asset);
-            self.remove_liabilities(
-                e,
-                reserve,
-                amount
-                    .fixed_mul_ceil(liability_pct, SCALAR_7)
-                    .unwrap_optimized(),
-            );
+            self.remove_liabilities(e, reserve, amount);
         }
     }
     // Adds positions to a user - does not consider supply
@@ -144,28 +129,14 @@ impl Positions {
         pool: &Pool,
         collateral_amounts: Map<Address, i128>,
         liability_amounts: Map<Address, i128>,
-        collateral_pct: i128,
-        liability_pct: i128,
     ) {
         for (asset, amount) in collateral_amounts.iter() {
             let reserve = &pool.load_reserve(e, &asset);
-            self.add_collateral(
-                e,
-                &reserve,
-                amount
-                    .fixed_mul_floor(collateral_pct, SCALAR_7)
-                    .unwrap_optimized(),
-            );
+            self.add_collateral(e, &reserve, amount);
         }
         for (asset, amount) in liability_amounts.iter() {
             let reserve = &pool.load_reserve(e, &asset);
-            self.add_liabilities(
-                e,
-                &reserve,
-                amount
-                    .fixed_mul_floor(liability_pct, SCALAR_7)
-                    .unwrap_optimized(),
-            );
+            self.add_liabilities(e, &reserve, amount);
         }
     }
 

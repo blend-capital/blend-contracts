@@ -50,7 +50,7 @@ impl PositionData {
                     .fixed_mul_floor(asset_collateral, reserve.scalar)
                     .unwrap_optimized();
                 collateral_raw += asset_to_base
-                    .fixed_div_floor(
+                    .fixed_mul_floor(
                         reserve.to_asset_from_b_token(b_token_balance),
                         reserve.scalar,
                     )
@@ -64,7 +64,7 @@ impl PositionData {
                     .fixed_mul_floor(asset_liability, reserve.scalar)
                     .unwrap_optimized();
                 liability_raw += asset_to_base
-                    .fixed_div_floor(
+                    .fixed_mul_floor(
                         reserve.to_asset_from_d_token(d_token_balance),
                         reserve.scalar,
                     )

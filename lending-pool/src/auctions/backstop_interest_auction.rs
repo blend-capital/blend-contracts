@@ -10,7 +10,7 @@ use cast::i128;
 use fixed_point_math::FixedPoint;
 use soroban_sdk::{map, panic_with_error, unwrap::UnwrapOptimized, Address, Env};
 
-use super::{get_fill_modifiers, AuctionData, AuctionType};
+use super::{apply_fill_modifiers, AuctionData, AuctionType};
 
 pub fn create_interest_auction_data(e: &Env, backstop: &Address) -> AuctionData {
     if storage::has_auction(e, &(AuctionType::InterestAuction as u32), backstop) {
@@ -65,15 +65,12 @@ pub fn create_interest_auction_data(e: &Env, backstop: &Address) -> AuctionData 
     auction_data
 }
 
-pub fn fill_interest_auction(e: &Env, auction_data: &AuctionData, filler: &Address) {
-    let (bid_modifier, lot_modifier) = get_fill_modifiers(e, auction_data);
+pub fn fill_interest_auction(e: &Env, auction_data: &mut AuctionData, filler: &Address) {
+    apply_fill_modifiers(e, auction_data);
 
     // bid only contains the USDC token
     let usdc_token = storage::get_usdc_token(e);
-    let bid_amount = auction_data.lot.get_unchecked(usdc_token);
-    let bid_amount_modified = bid_amount
-        .fixed_mul_floor(bid_modifier, SCALAR_7)
-        .unwrap_optimized();
+    let bid_amount = auction_data.bid.get_unchecked(usdc_token);
 
     // TODO: add donate_usdc function to backstop
     // let backstop_client = BackstopClient::new(&e, &backstop_address);
@@ -83,23 +80,20 @@ pub fn fill_interest_auction(e: &Env, auction_data: &AuctionData, filler: &Addre
     let pool = Pool::load(e);
     for (res_asset_address, lot_amount) in auction_data.lot.iter() {
         let mut reserve = pool.load_reserve(e, &res_asset_address);
-        let lot_amount_modified = lot_amount
-            .fixed_mul_floor(lot_modifier, SCALAR_7)
-            .unwrap_optimized();
-        reserve.backstop_credit -= lot_amount_modified;
-        // TODO: Is this necessary? Might be impossible for backstop credit to become negative
-        require_nonnegative(e, &reserve.backstop_credit);
+        reserve.backstop_credit -= lot_amount;
         reserve.store(e);
         TokenClient::new(e, &res_asset_address).transfer(
             &e.current_contract_address(),
             &filler,
-            &lot_amount_modified,
+            &lot_amount,
         );
     }
 }
 
 #[cfg(test)]
 mod tests {
+
+    use std::println;
 
     use crate::{
         auctions::auction::AuctionType,
@@ -461,7 +455,7 @@ mod tests {
         e.budget().reset_unlimited(); // setup exhausts budget
 
         e.ledger().set(LedgerInfo {
-            timestamp: 12350,
+            timestamp: 12345,
             protocol_version: 1,
             sequence_number: 301, // 75% bid, 100% lot
             network_id: Default::default(),
@@ -485,20 +479,22 @@ mod tests {
             &Address::random(&e),
         );
 
-        let (underlying_0, _) = testutils::create_token_contract(&e, &bombadil);
+        let (underlying_0, underlying_0_client) = testutils::create_token_contract(&e, &bombadil);
         let (mut reserve_config_0, mut reserve_data_0) = testutils::default_reserve_meta(&e);
         reserve_data_0.b_rate = 1_100_000_000;
         reserve_data_0.last_time = 12345;
         reserve_config_0.index = 0;
-        testutils::create_reserve(
+        let reserve_0 = testutils::create_reserve(
             &e,
             &pool_address,
             &underlying_0,
             &reserve_config_0,
             &reserve_data_0,
         );
+        println!("reserve_0.backstop_credit: {}", reserve_0.backstop_credit);
+        underlying_0_client.mint(&pool_address, &1_000_0000000);
 
-        let (underlying_1, _) = testutils::create_token_contract(&e, &bombadil);
+        let (underlying_1, underlying_1_client) = testutils::create_token_contract(&e, &bombadil);
         let (mut reserve_config_1, mut reserve_data_1) = testutils::default_reserve_meta(&e);
         reserve_data_1.b_rate = 1_100_000_000;
         reserve_data_1.last_time = 12345;
@@ -510,8 +506,9 @@ mod tests {
             &reserve_config_1,
             &reserve_data_1,
         );
+        underlying_1_client.mint(&pool_address, &1_000_0000000);
 
-        let (underlying_2, _) = testutils::create_token_contract(&e, &bombadil);
+        let (underlying_2, underlying_2_client) = testutils::create_token_contract(&e, &bombadil);
         let (mut reserve_config_2, mut reserve_data_2) = testutils::default_reserve_meta(&e);
         reserve_data_2.b_rate = 1_100_000_000;
         reserve_data_2.last_time = 12345;
@@ -523,18 +520,19 @@ mod tests {
             &reserve_config_2,
             &reserve_data_2,
         );
+        underlying_2_client.mint(&pool_address, &1_000_0000000);
 
         let pool_config = PoolConfig {
             oracle: Address::random(&e),
             bstop_rate: 0_100_000_000,
             status: 0,
         };
-        let auction_data = AuctionData {
-            bid: map![&e, (usdc_id, 95_2000000)],
+        let mut auction_data = AuctionData {
+            bid: map![&e, (usdc_id.clone(), 952_0000000)],
             lot: map![
                 &e,
-                (underlying_0.clone(), 10_0000000),
-                (underlying_1.clone(), 2_5000000)
+                (underlying_0.clone(), 100_0000000),
+                (underlying_1.clone(), 25_0000000)
             ],
             block: 51,
         };
@@ -550,6 +548,7 @@ mod tests {
             );
             storage::set_pool_config(&e, &pool_config);
             storage::set_backstop(&e, &backstop_address);
+            storage::set_usdc_token(&e, &usdc_id);
 
             usdc_client.approve(
                 &pool_address,
@@ -560,26 +559,30 @@ mod tests {
 
             let pool = Pool::load(&e);
             let mut reserve_0 = pool.load_reserve(&e, &underlying_0);
-            reserve_0.backstop_credit += 10_0000000;
+            println!("reserve_0.backstop_credit: {}", reserve_0.backstop_credit);
+            reserve_0.backstop_credit += 100_0000000;
             reserve_0.store(&e);
             let mut reserve_1 = pool.load_reserve(&e, &underlying_1);
-            reserve_1.backstop_credit += 2_5000000;
+            println!("reserve_1.backstop_credit: {}", reserve_1.backstop_credit);
+            reserve_1.backstop_credit += 25_0000000;
             reserve_1.store(&e);
 
             e.budget().reset_unlimited();
-            fill_interest_auction(&e, &auction_data, &samwise);
+            let reserve_1 = pool.load_reserve(&e, &underlying_1);
+            assert_eq!(reserve_1.backstop_credit, 25_0000000);
+            let reserve_0 = pool.load_reserve(&e, &underlying_0);
+            assert_eq!(reserve_0.backstop_credit, 100_0000000);
+            fill_interest_auction(&e, &mut auction_data, &samwise);
             // let result = calc_fill_interest_auction(&e, &auction);
             //TODO: test that usdc was transferred to backstop once the donate_usdc function is added to backstop
             // assert_eq!(usdc_client.balance(&samwise), 23_8000000);
             // assert_eq!(usdc_client.balance(&backstop), 71_4000000);
-            let reserve_0 = pool.load_reserve(&e, &underlying_0);
-            assert_eq!(reserve_0.backstop_credit, 0);
+            assert_eq!(underlying_0_client.balance(&samwise), 100_0000000);
+            assert_eq!(underlying_1_client.balance(&samwise), 25_0000000);
             let reserve_1 = pool.load_reserve(&e, &underlying_1);
             assert_eq!(reserve_1.backstop_credit, 0);
-            let underlying_0_client = TokenClient::new(&e, &underlying_0);
-            assert_eq!(underlying_0_client.balance(&samwise), 10_0000000);
-            let underlying_1_client = TokenClient::new(&e, &underlying_1);
-            assert_eq!(underlying_1_client.balance(&samwise), 2_5000000);
+            let reserve_0 = pool.load_reserve(&e, &underlying_0);
+            assert_eq!(reserve_0.backstop_credit, 0);
         });
     }
 }

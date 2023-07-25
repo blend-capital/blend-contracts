@@ -172,8 +172,6 @@ pub(super) fn apply_fill_modifiers(e: &Env, auction_data: &mut AuctionData) {
 #[cfg(test)]
 mod tests {
 
-    use std::println;
-
     use crate::{pool::Positions, storage::PoolConfig, testutils};
 
     use super::*;
@@ -453,7 +451,7 @@ mod tests {
         oracle_client.set_price(&underlying_1, &4_0000000);
         oracle_client.set_price(&underlying_2, &50_0000000);
 
-        let liq_pct = 1998601;
+        let liq_pct = 4500000;
         let positions: Positions = Positions {
             user: samwise.clone(),
             collateral: map![
@@ -470,7 +468,6 @@ mod tests {
             status: 0,
         };
         e.as_contract(&pool_address, || {
-            println!("in contract");
             storage::set_user_positions(&e, &samwise, &positions);
             storage::set_pool_config(&e, &pool_config);
 
@@ -646,101 +643,152 @@ mod tests {
         });
     }
 
-    // #[test]
-    // fn test_get_fill_modifiers() {
-    //     let e = Env::default();
+    #[test]
+    fn test_get_fill_modifiers() {
+        let e = Env::default();
+        let underlying_0 = Address::random(&e);
+        let underlying_1 = Address::random(&e);
 
-    //     let auction_data = AuctionData {
-    //         bid: map![&e],
-    //         lot: map![&e],
-    //         block: 1000,
-    //     };
+        let mut auction_data = AuctionData {
+            bid: map![&e, (underlying_0.clone(), 100_0000000)],
+            lot: map![&e, (underlying_1.clone(), 100_0000000)],
+            block: 1000,
+        };
 
-    //     let mut bid_modifier: i128;
-    //     let mut receive_from_modifier: i128;
+        e.ledger().set(LedgerInfo {
+            timestamp: 12345,
+            protocol_version: 1,
+            sequence_number: 1000,
+            network_id: Default::default(),
+            base_reserve: 10,
+            min_temp_entry_expiration: 10,
+            min_persistent_entry_expiration: 10,
+            max_entry_expiration: 2000000,
+        });
+        apply_fill_modifiers(&e, &mut auction_data);
+        assert_eq!(
+            auction_data.bid.get_unchecked(underlying_0.clone()),
+            100_0000000
+        );
+        assert_eq!(auction_data.lot.len(), 0);
+        auction_data = AuctionData {
+            bid: map![&e, (underlying_0.clone(), 100_0000000)],
+            lot: map![&e, (underlying_1.clone(), 100_0000000)],
+            block: 1000,
+        };
 
-    //     e.ledger().set(LedgerInfo {
-    //         timestamp: 12345,
-    //         protocol_version: 1,
-    //         sequence_number: 1000,
-    //         network_id: Default::default(),
-    //         base_reserve: 10,
-    //         min_temp_entry_expiration: 10,
-    //         min_persistent_entry_expiration: 10,
-    //         max_entry_expiration: 2000000,
-    //     });
-    //     (bid_modifier, receive_from_modifier) = get_fill_modifiers(&e, &auction_data);
-    //     assert_eq!(bid_modifier, 1_0000000);
-    //     assert_eq!(receive_from_modifier, 0);
+        e.ledger().set(LedgerInfo {
+            timestamp: 12345,
+            protocol_version: 1,
+            sequence_number: 1100,
+            network_id: Default::default(),
+            base_reserve: 10,
+            min_temp_entry_expiration: 10,
+            min_persistent_entry_expiration: 10,
+            max_entry_expiration: 2000000,
+        });
+        apply_fill_modifiers(&e, &mut auction_data);
+        assert_eq!(
+            auction_data.bid.get_unchecked(underlying_0.clone()),
+            100_0000000
+        );
+        assert_eq!(
+            auction_data.lot.get_unchecked(underlying_1.clone()),
+            50_0000000
+        );
+        auction_data = AuctionData {
+            bid: map![&e, (underlying_0.clone(), 100_0000000)],
+            lot: map![&e, (underlying_1.clone(), 100_0000000)],
+            block: 1000,
+        };
 
-    //     e.ledger().set(LedgerInfo {
-    //         timestamp: 12345,
-    //         protocol_version: 1,
-    //         sequence_number: 1100,
-    //         network_id: Default::default(),
-    //         base_reserve: 10,
-    //         min_temp_entry_expiration: 10,
-    //         min_persistent_entry_expiration: 10,
-    //         max_entry_expiration: 2000000,
-    //     });
-    //     (bid_modifier, receive_from_modifier) = get_fill_modifiers(&e, &auction_data);
-    //     assert_eq!(bid_modifier, 1_0000000);
-    //     assert_eq!(receive_from_modifier, 0_5000000);
+        e.ledger().set(LedgerInfo {
+            timestamp: 12345,
+            protocol_version: 1,
+            sequence_number: 1200,
+            network_id: Default::default(),
+            base_reserve: 10,
+            min_temp_entry_expiration: 10,
+            min_persistent_entry_expiration: 10,
+            max_entry_expiration: 2000000,
+        });
+        apply_fill_modifiers(&e, &mut auction_data);
+        assert_eq!(
+            auction_data.bid.get_unchecked(underlying_0.clone()),
+            100_0000000
+        );
+        assert_eq!(
+            auction_data.lot.get_unchecked(underlying_1.clone()),
+            100_0000000
+        );
+        auction_data = AuctionData {
+            bid: map![&e, (underlying_0.clone(), 100_0000000)],
+            lot: map![&e, (underlying_1.clone(), 100_0000000)],
+            block: 1000,
+        };
 
-    //     e.ledger().set(LedgerInfo {
-    //         timestamp: 12345,
-    //         protocol_version: 1,
-    //         sequence_number: 1200,
-    //         network_id: Default::default(),
-    //         base_reserve: 10,
-    //         min_temp_entry_expiration: 10,
-    //         min_persistent_entry_expiration: 10,
-    //         max_entry_expiration: 2000000,
-    //     });
-    //     (bid_modifier, receive_from_modifier) = get_fill_modifiers(&e, &auction_data);
-    //     assert_eq!(bid_modifier, 1_0000000);
-    //     assert_eq!(receive_from_modifier, 1_0000000);
+        e.ledger().set(LedgerInfo {
+            timestamp: 12345,
+            protocol_version: 1,
+            sequence_number: 1201,
+            network_id: Default::default(),
+            base_reserve: 10,
+            min_temp_entry_expiration: 10,
+            min_persistent_entry_expiration: 10,
+            max_entry_expiration: 2000000,
+        });
+        apply_fill_modifiers(&e, &mut auction_data);
+        assert_eq!(
+            auction_data.bid.get_unchecked(underlying_0.clone()),
+            99_5000000
+        );
+        assert_eq!(
+            auction_data.lot.get_unchecked(underlying_1.clone()),
+            100_0000000
+        );
+        auction_data = AuctionData {
+            bid: map![&e, (underlying_0.clone(), 100_0000000)],
+            lot: map![&e, (underlying_1.clone(), 100_0000000)],
+            block: 1000,
+        };
 
-    //     e.ledger().set(LedgerInfo {
-    //         timestamp: 12345,
-    //         protocol_version: 1,
-    //         sequence_number: 1201,
-    //         network_id: Default::default(),
-    //         base_reserve: 10,
-    //         min_temp_entry_expiration: 10,
-    //         min_persistent_entry_expiration: 10,
-    //         max_entry_expiration: 2000000,
-    //     });
-    //     (bid_modifier, receive_from_modifier) = get_fill_modifiers(&e, &auction_data);
-    //     assert_eq!(bid_modifier, 0_9950000);
-    //     assert_eq!(receive_from_modifier, 1_0000000);
+        e.ledger().set(LedgerInfo {
+            timestamp: 12345,
+            protocol_version: 1,
+            sequence_number: 1300,
+            network_id: Default::default(),
+            base_reserve: 10,
+            min_temp_entry_expiration: 10,
+            min_persistent_entry_expiration: 10,
+            max_entry_expiration: 2000000,
+        });
+        apply_fill_modifiers(&e, &mut auction_data);
+        assert_eq!(
+            auction_data.bid.get_unchecked(underlying_0.clone()),
+            50_0000000
+        );
+        assert_eq!(
+            auction_data.lot.get_unchecked(underlying_1.clone()),
+            100_0000000
+        );
+        auction_data = AuctionData {
+            bid: map![&e, (underlying_0.clone(), 100_0000000)],
+            lot: map![&e, (underlying_1.clone(), 100_0000000)],
+            block: 1000,
+        };
 
-    //     e.ledger().set(LedgerInfo {
-    //         timestamp: 12345,
-    //         protocol_version: 1,
-    //         sequence_number: 1300,
-    //         network_id: Default::default(),
-    //         base_reserve: 10,
-    //         min_temp_entry_expiration: 10,
-    //         min_persistent_entry_expiration: 10,
-    //         max_entry_expiration: 2000000,
-    //     });
-    //     (bid_modifier, receive_from_modifier) = get_fill_modifiers(&e, &auction_data);
-    //     assert_eq!(bid_modifier, 0_5000000);
-    //     assert_eq!(receive_from_modifier, 1_0000000);
-
-    //     e.ledger().set(LedgerInfo {
-    //         timestamp: 12345,
-    //         protocol_version: 1,
-    //         sequence_number: 1400,
-    //         network_id: Default::default(),
-    //         base_reserve: 10,
-    //         min_temp_entry_expiration: 10,
-    //         min_persistent_entry_expiration: 10,
-    //         max_entry_expiration: 2000000,
-    //     });
-    //     (bid_modifier, receive_from_modifier) = get_fill_modifiers(&e, &auction_data);
-    //     assert_eq!(bid_modifier, 0);
-    //     assert_eq!(receive_from_modifier, 1_0000000);
-    // }
+        e.ledger().set(LedgerInfo {
+            timestamp: 12345,
+            protocol_version: 1,
+            sequence_number: 1400,
+            network_id: Default::default(),
+            base_reserve: 10,
+            min_temp_entry_expiration: 10,
+            min_persistent_entry_expiration: 10,
+            max_entry_expiration: 2000000,
+        });
+        apply_fill_modifiers(&e, &mut auction_data);
+        assert_eq!(auction_data.bid.len(), 0);
+        assert_eq!(auction_data.lot.get_unchecked(underlying_1), 100_0000000);
+    }
 }

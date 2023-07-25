@@ -4,7 +4,6 @@ use crate::{
     errors::PoolError,
     pool::Pool,
     storage,
-    validator::require_nonnegative,
 };
 use cast::i128;
 use fixed_point_math::FixedPoint;
@@ -92,8 +91,6 @@ pub fn fill_interest_auction(e: &Env, auction_data: &mut AuctionData, filler: &A
 
 #[cfg(test)]
 mod tests {
-
-    use std::println;
 
     use crate::{
         auctions::auction::AuctionType,
@@ -484,14 +481,13 @@ mod tests {
         reserve_data_0.b_rate = 1_100_000_000;
         reserve_data_0.last_time = 12345;
         reserve_config_0.index = 0;
-        let reserve_0 = testutils::create_reserve(
+        testutils::create_reserve(
             &e,
             &pool_address,
             &underlying_0,
             &reserve_config_0,
             &reserve_data_0,
         );
-        println!("reserve_0.backstop_credit: {}", reserve_0.backstop_credit);
         underlying_0_client.mint(&pool_address, &1_000_0000000);
 
         let (underlying_1, underlying_1_client) = testutils::create_token_contract(&e, &bombadil);
@@ -559,19 +555,13 @@ mod tests {
 
             let pool = Pool::load(&e);
             let mut reserve_0 = pool.load_reserve(&e, &underlying_0);
-            println!("reserve_0.backstop_credit: {}", reserve_0.backstop_credit);
             reserve_0.backstop_credit += 100_0000000;
             reserve_0.store(&e);
             let mut reserve_1 = pool.load_reserve(&e, &underlying_1);
-            println!("reserve_1.backstop_credit: {}", reserve_1.backstop_credit);
             reserve_1.backstop_credit += 25_0000000;
             reserve_1.store(&e);
 
             e.budget().reset_unlimited();
-            let reserve_1 = pool.load_reserve(&e, &underlying_1);
-            assert_eq!(reserve_1.backstop_credit, 25_0000000);
-            let reserve_0 = pool.load_reserve(&e, &underlying_0);
-            assert_eq!(reserve_0.backstop_credit, 100_0000000);
             fill_interest_auction(&e, &mut auction_data, &samwise);
             // let result = calc_fill_interest_auction(&e, &auction);
             //TODO: test that usdc was transferred to backstop once the donate_usdc function is added to backstop

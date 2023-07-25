@@ -37,12 +37,12 @@ pub fn execute_submit(
 
     // TODO: Is this reentrancy guard necessary?
     // transfer tokens into the pool
-    for (address, amount) in pool_actions.iter() {
-        if amount > 0 {
+    for (address, action) in pool_actions.iter() {
+        if action.tokens_in > 0 {
             TokenClient::new(e, &address).transfer(
                 &spender,
                 &e.current_contract_address(),
-                &amount,
+                &action.tokens_in,
             );
         }
     }
@@ -52,12 +52,12 @@ pub fn execute_submit(
     storage::set_user_positions(e, &from, &new_positions);
 
     // transfer tokens out of the pool
-    for (address, amount) in pool_actions.iter() {
-        if amount < 0 {
+    for (address, action) in pool_actions.iter() {
+        if action.tokens_out > 0 {
             TokenClient::new(e, &address).transfer(
                 &e.current_contract_address(),
                 &to,
-                &(amount * -1),
+                &action.tokens_out,
             );
         }
     }
@@ -90,13 +90,11 @@ mod tests {
 
         let (underlying_0, underlying_0_client) = testutils::create_token_contract(&e, &bombadil);
         let (reserve_config, reserve_data) = testutils::default_reserve_meta(&e);
-        let reserve_0 =
-            testutils::create_reserve(&e, &pool, &underlying_0, &reserve_config, &reserve_data);
+        testutils::create_reserve(&e, &pool, &underlying_0, &reserve_config, &reserve_data);
 
         let (underlying_1, underlying_1_client) = testutils::create_token_contract(&e, &bombadil);
         let (reserve_config, reserve_data) = testutils::default_reserve_meta(&e);
-        let reserve_1 =
-            testutils::create_reserve(&e, &pool, &underlying_1, &reserve_config, &reserve_data);
+        testutils::create_reserve(&e, &pool, &underlying_1, &reserve_config, &reserve_data);
 
         underlying_0_client.mint(&frodo, &16_0000000);
 
@@ -175,13 +173,11 @@ mod tests {
 
         let (underlying_0, underlying_0_client) = testutils::create_token_contract(&e, &bombadil);
         let (reserve_config, reserve_data) = testutils::default_reserve_meta(&e);
-        let reserve_0 =
-            testutils::create_reserve(&e, &pool, &underlying_0, &reserve_config, &reserve_data);
+        testutils::create_reserve(&e, &pool, &underlying_0, &reserve_config, &reserve_data);
 
         let (underlying_1, _) = testutils::create_token_contract(&e, &bombadil);
         let (reserve_config, reserve_data) = testutils::default_reserve_meta(&e);
-        let reserve_1 =
-            testutils::create_reserve(&e, &pool, &underlying_1, &reserve_config, &reserve_data);
+        testutils::create_reserve(&e, &pool, &underlying_1, &reserve_config, &reserve_data);
 
         underlying_0_client.mint(&frodo, &16_0000000);
 

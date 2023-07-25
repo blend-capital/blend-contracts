@@ -1070,16 +1070,18 @@ mod tests {
         let (underlying_1, _) = testutils::create_token_contract(&e, &bombadil);
         let (mut reserve_config, mut reserve_data) = testutils::default_reserve_meta(&e);
         reserve_config.decimals = 9;
+        reserve_config.index = 1;
         reserve_data.b_supply = 100_000_000_000;
         reserve_data.d_supply = 50_000_000_000;
         let reserve_1 =
             testutils::create_reserve(&e, &pool, &underlying_1, &reserve_config, &reserve_data);
 
         let mut user_positions = Positions::env_default(&e, &samwise);
-        user_positions.add_liabilities(&e, &reserve_0, 2_00000);
-        user_positions.add_supply(&e, &reserve_1, 1_000_000_000);
-        user_positions.add_collateral(&e, &reserve_1, 1_000_000_000);
+
         e.as_contract(&pool, || {
+            user_positions.add_liabilities(&e, &reserve_0, 2_00000);
+            user_positions.add_supply(&e, &reserve_1, 1_000_000_000);
+            user_positions.add_collateral(&e, &reserve_1, 1_000_000_000);
             storage::set_backstop(&e, &backstop);
             storage::set_user_positions(&e, &samwise, &user_positions);
 
@@ -1198,16 +1200,18 @@ mod tests {
         let (underlying_1, _) = testutils::create_token_contract(&e, &bombadil);
         let (mut reserve_config, mut reserve_data) = testutils::default_reserve_meta(&e);
         reserve_config.decimals = 9;
+        reserve_config.index = 1;
         reserve_data.b_supply = 100_000_000_000;
         reserve_data.d_supply = 50_000_000_000;
         let reserve_1 =
             testutils::create_reserve(&e, &pool, &underlying_1, &reserve_config, &reserve_data);
 
         let mut user_positions = Positions::env_default(&e, &samwise);
-        user_positions.add_liabilities(&e, &reserve_0, 2_00000);
-        user_positions.add_supply(&e, &reserve_1, 1_000_000_000);
-        user_positions.add_collateral(&e, &reserve_1, 1_000_000_000);
+
         e.as_contract(&pool, || {
+            user_positions.add_liabilities(&e, &reserve_0, 2_00000);
+            user_positions.add_supply(&e, &reserve_1, 1_000_000_000);
+            user_positions.add_collateral(&e, &reserve_1, 1_000_000_000);
             storage::set_backstop(&e, &backstop);
             storage::set_user_positions(&e, &samwise, &user_positions);
 

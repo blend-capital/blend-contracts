@@ -1,4 +1,4 @@
-use soroban_sdk::{contracttype, panic_with_error, vec, Address, Env, Vec};
+use soroban_sdk::{contracttype, panic_with_error, vec, Address, Env, Symbol, Vec};
 
 use crate::{
     emissions, errors::PoolError, pool::Positions, storage, validator::require_nonnegative,
@@ -83,6 +83,10 @@ pub fn build_actions_from_request(
                     tokens_out: 0,
                     tokens_in: request.amount,
                 });
+                e.events().publish(
+                    (Symbol::new(e, "supply"), asset.clone(), from.clone()),
+                    (request.amount, b_tokens_minted),
+                );
             }
             1 => {
                 // withdraw
@@ -109,6 +113,10 @@ pub fn build_actions_from_request(
                     tokens_out,
                     tokens_in: 0,
                 });
+                e.events().publish(
+                    (Symbol::new(e, "withdraw"), asset.clone(), from.clone()),
+                    (tokens_out, to_burn),
+                );
             }
             2 => {
                 // supply collateral
@@ -129,6 +137,14 @@ pub fn build_actions_from_request(
                     tokens_out: 0,
                     tokens_in: request.amount,
                 });
+                e.events().publish(
+                    (
+                        Symbol::new(e, "supply_collateral"),
+                        asset.clone(),
+                        from.clone(),
+                    ),
+                    (request.amount, b_tokens_minted),
+                );
             }
             3 => {
                 // withdraw collateral
@@ -155,6 +171,14 @@ pub fn build_actions_from_request(
                     tokens_out,
                     tokens_in: 0,
                 });
+                e.events().publish(
+                    (
+                        Symbol::new(e, "withdraw_collateral"),
+                        asset.clone(),
+                        from.clone(),
+                    ),
+                    (tokens_out, to_burn),
+                );
                 check_health = true;
             }
             4 => {
@@ -177,6 +201,10 @@ pub fn build_actions_from_request(
                     tokens_out: request.amount,
                     tokens_in: 0,
                 });
+                e.events().publish(
+                    (Symbol::new(e, "borrow"), asset.clone(), from.clone()),
+                    (request.amount, d_tokens_minted),
+                );
                 check_health = true;
             }
             5 => {
@@ -203,6 +231,10 @@ pub fn build_actions_from_request(
                         tokens_out: amount_to_refund,
                         tokens_in: request.amount,
                     });
+                    e.events().publish(
+                        (Symbol::new(e, "repay"), asset.clone(), from.clone()),
+                        (request.amount - amount_to_refund, cur_d_tokens),
+                    );
                 } else {
                     reserve.d_supply -= d_tokens_burnt;
                     new_positions.remove_liabilities(e, request.reserve_index, d_tokens_burnt);
@@ -211,6 +243,10 @@ pub fn build_actions_from_request(
                         tokens_out: 0,
                         tokens_in: request.amount,
                     });
+                    e.events().publish(
+                        (Symbol::new(e, "repay"), asset.clone(), from.clone()),
+                        (request.amount, d_tokens_burnt),
+                    );
                 }
             }
             _ => panic_with_error!(e, PoolError::BadRequest),

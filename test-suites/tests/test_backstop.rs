@@ -2,7 +2,7 @@
 
 use fixed_point_math::FixedPoint;
 use soroban_sdk::{
-    testutils::{Address as _, AuthorizedFunction, AuthorizedInvocation},
+    testutils::{Address as _, AuthorizedFunction, AuthorizedInvocation, Events},
     vec, Address, IntoVal, Symbol,
 };
 use test_suites::{
@@ -16,6 +16,7 @@ use test_suites::{
 #[test]
 fn test_backstop() {
     let (fixture, frodo) = create_fixture_with_data(false);
+
     let pool = &fixture.pools[0].pool;
     let bstop_token = &fixture.tokens[TokenIndex::BSTOP];
     let sam = Address::random(&fixture.env);
@@ -81,6 +82,24 @@ fn test_backstop() {
         bstop_token.balance(&fixture.backstop.address),
         bstop_bstop_token_balance
     );
+    let event = vec![&fixture.env, fixture.env.events().all().last_unchecked()];
+    assert_eq!(
+        event,
+        vec![
+            &fixture.env,
+            (
+                fixture.backstop.address.clone(),
+                (Symbol::new(&fixture.env, "deposit"), pool.address.clone()).into_val(&fixture.env),
+                vec![
+                    &fixture.env,
+                    sam.to_val(),
+                    amount.into_val(&fixture.env),
+                    result.into_val(&fixture.env)
+                ]
+                .into_val(&fixture.env)
+            )
+        ]
+    );
 
     // Simulate the pool backstop making money and progress 6d23h (6d23hr total emissions for sam)
     // @dev: setup jumps 1 hour and 1 minute
@@ -125,6 +144,19 @@ fn test_backstop() {
         bstop_token.balance(&fixture.backstop.address),
         bstop_bstop_token_balance
     );
+    let event = vec![&fixture.env, fixture.env.events().all().last_unchecked()];
+    assert_eq!(
+        event,
+        vec![
+            &fixture.env,
+            (
+                fixture.backstop.address.clone(),
+                (Symbol::new(&fixture.env, "donate"), pool.address.clone()).into_val(&fixture.env),
+                vec![&fixture.env, frodo.to_val(), amount.into_val(&fixture.env),]
+                    .into_val(&fixture.env)
+            )
+        ]
+    );
 
     // Start the next emission cycle
     fixture.emitter.distribute();
@@ -165,6 +197,28 @@ fn test_backstop() {
         bstop_token.balance(&fixture.backstop.address),
         bstop_bstop_token_balance
     );
+    let event = vec![&fixture.env, fixture.env.events().all().last_unchecked()];
+    assert_eq!(
+        event,
+        vec![
+            &fixture.env,
+            (
+                fixture.backstop.address.clone(),
+                (
+                    Symbol::new(&fixture.env, "queue_withdrawal"),
+                    pool.address.clone()
+                )
+                    .into_val(&fixture.env),
+                vec![
+                    &fixture.env,
+                    sam.to_val(),
+                    amount.into_val(&fixture.env),
+                    result.exp.into_val(&fixture.env)
+                ]
+                .into_val(&fixture.env)
+            )
+        ]
+    );
 
     // Start the next emission cycle and jump 7 days (13d23hr total emissions for sam)
     fixture.jump(60 * 60 * 24 * 7);
@@ -199,6 +253,23 @@ fn test_backstop() {
     assert_eq!(
         bstop_token.balance(&fixture.backstop.address),
         bstop_bstop_token_balance
+    );
+    let event = vec![&fixture.env, fixture.env.events().all().last_unchecked()];
+    assert_eq!(
+        event,
+        vec![
+            &fixture.env,
+            (
+                fixture.backstop.address.clone(),
+                (
+                    Symbol::new(&fixture.env, "dequeue_withdrawal"),
+                    pool.address.clone()
+                )
+                    .into_val(&fixture.env),
+                vec![&fixture.env, sam.to_val(), amount.into_val(&fixture.env),]
+                    .into_val(&fixture.env)
+            )
+        ]
     );
 
     // Start the next emission cycle and jump 7 days (20d23hr total emissions for sam)
@@ -235,6 +306,19 @@ fn test_backstop() {
         bstop_token.balance(&fixture.backstop.address),
         bstop_bstop_token_balance
     );
+    let event = vec![&fixture.env, fixture.env.events().all().last_unchecked()];
+    assert_eq!(
+        event,
+        vec![
+            &fixture.env,
+            (
+                fixture.backstop.address.clone(),
+                (Symbol::new(&fixture.env, "draw"), pool.address.clone()).into_val(&fixture.env),
+                vec![&fixture.env, frodo.to_val(), amount.into_val(&fixture.env),]
+                    .into_val(&fixture.env)
+            )
+        ]
+    );
 
     // Jump to the end of the withdrawal period (27d23hr total emissions for sam)
     fixture.jump(60 * 60 * 24 * 16 + 1);
@@ -268,6 +352,25 @@ fn test_backstop() {
     assert_eq!(
         bstop_token.balance(&fixture.backstop.address),
         bstop_bstop_token_balance
+    );
+    let event = vec![&fixture.env, fixture.env.events().all().last_unchecked()];
+    assert_eq!(
+        event,
+        vec![
+            &fixture.env,
+            (
+                fixture.backstop.address.clone(),
+                (Symbol::new(&fixture.env, "withdraw"), pool.address.clone())
+                    .into_val(&fixture.env),
+                vec![
+                    &fixture.env,
+                    sam.to_val(),
+                    amount.into_val(&fixture.env),
+                    result.into_val(&fixture.env)
+                ]
+                .into_val(&fixture.env)
+            )
+        ]
     );
 
     // Sam claims emissions earned on the backstop deposit
@@ -309,5 +412,17 @@ fn test_backstop() {
         fixture.tokens[TokenIndex::BLND].balance(&fixture.backstop.address),
         bstop_blend_balance - emitted_blnd,
         100,
+    );
+    let event = vec![&fixture.env, fixture.env.events().all().last_unchecked()];
+    assert_eq!(
+        event,
+        vec![
+            &fixture.env,
+            (
+                fixture.backstop.address.clone(),
+                (Symbol::new(&fixture.env, "claim"), sam.clone()).into_val(&fixture.env),
+                emitted_blnd.into_val(&fixture.env),
+            )
+        ]
     );
 }

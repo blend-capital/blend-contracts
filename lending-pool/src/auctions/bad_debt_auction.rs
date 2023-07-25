@@ -1,9 +1,5 @@
 use crate::{
-    constants::SCALAR_7,
-    dependencies::{BackstopClient, OracleClient},
-    errors::PoolError,
-    pool::Pool,
-    storage,
+    constants::SCALAR_7, dependencies::BackstopClient, errors::PoolError, pool::Pool, storage,
 };
 use cast::i128;
 use fixed_point_math::FixedPoint;
@@ -22,9 +18,8 @@ pub fn create_bad_debt_auction_data(e: &Env, backstop: &Address) -> AuctionData 
         block: e.ledger().sequence() + 1,
     };
 
-    let pool = Pool::load(e);
-    let oracle_client = OracleClient::new(e, &pool.config.oracle);
-    let oracle_decimals = oracle_client.decimals();
+    let mut pool = Pool::load(e);
+    let oracle_decimals = pool.load_price_decimals(e);
     let backstop_positions = storage::get_user_positions(e, backstop);
     let reserve_list = storage::get_res_list(e);
     let mut debt_value = 0;
@@ -32,7 +27,7 @@ pub fn create_bad_debt_auction_data(e: &Env, backstop: &Address) -> AuctionData 
         let res_asset_address = reserve_list.get_unchecked(reserve_index);
         if liability_balance > 0 {
             let reserve = pool.load_reserve(e, &res_asset_address);
-            let asset_to_base = oracle_client.get_price(&res_asset_address);
+            let asset_to_base = pool.load_price(e, &res_asset_address);
             let asset_balance = reserve.to_asset_from_d_token(liability_balance);
             debt_value += asset_balance
                 .fixed_mul_floor(i128(asset_to_base), 10i128.pow(oracle_decimals))
@@ -47,7 +42,7 @@ pub fn create_bad_debt_auction_data(e: &Env, backstop: &Address) -> AuctionData 
     let backstop_client = BackstopClient::new(e, &backstop);
     let backstop_token = backstop_client.backstop_token();
     // TODO: This won't have an oracle entry. Once an LP implementation exists, unwrap base from LP
-    let backstop_token_to_base = oracle_client.get_price(&backstop_token);
+    let backstop_token_to_base = pool.load_price(e, &backstop_token);
     let mut lot_amount = debt_value
         .fixed_mul_floor(1_4000000, SCALAR_7)
         .unwrap_optimized()

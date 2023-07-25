@@ -1,4 +1,6 @@
-use soroban_sdk::{map, panic_with_error, Address, Env, Map};
+use soroban_sdk::{map, panic_with_error, unwrap::UnwrapOptimized, Address, Env, Map};
+
+use oracle::OracleClient;
 
 use crate::{
     errors::PoolError,
@@ -10,6 +12,8 @@ use super::reserve::Reserve;
 pub struct Pool {
     pub config: PoolConfig,
     pub reserves: Map<Address, Reserve>,
+    price_decimals: Option<u32>,
+    prices: Map<Address, i128>,
 }
 
 impl Pool {
@@ -19,6 +23,8 @@ impl Pool {
         Pool {
             config: pool_config,
             reserves: map![&e],
+            price_decimals: None,
+            prices: map![&e],
         }
     }
 
@@ -62,6 +68,38 @@ impl Pool {
         else if self.config.status > 1 && (action_type == 2 || action_type == 0) {
             panic_with_error!(e, PoolError::InvalidPoolStatus);
         }
+    }
+
+    /// Load the decimals of the prices for the Pool's oracle. Returns a cached version if one
+    /// already exists.
+    pub fn load_price_decimals(&mut self, e: &Env) -> u32 {
+        if let Some(decimals) = self.price_decimals {
+            return decimals;
+        }
+        let oracle_client = OracleClient::new(e, &self.config.oracle);
+        let decimals = oracle_client.decimals();
+        self.price_decimals = Some(decimals);
+        decimals
+    }
+
+    /// Load a price from the Pool's oracle. Returns a cached version if one already exists.
+    ///
+    /// ### Arguments
+    /// * asset - The address of the underlying asset
+    ///
+    /// ### Panics
+    /// If the price is stale
+    pub fn load_price(&mut self, e: &Env, asset: &Address) -> i128 {
+        if let Some(price) = self.prices.get(asset.clone()) {
+            return price;
+        }
+        let oracle_client = OracleClient::new(e, &self.config.oracle);
+        let price_data = oracle_client.lastprice(asset).unwrap_optimized();
+        if price_data.timestamp + 24 * 60 * 60 < e.ledger().timestamp() {
+            panic_with_error!(e, PoolError::StalePrice);
+        }
+        self.prices.set(asset.clone(), price_data.price);
+        price_data.price
     }
 }
 
@@ -234,6 +272,92 @@ mod tests {
             pool.require_action_allowed(&e, 3);
             // no panic
             assert!(true);
+        });
+    }
+
+    #[test]
+    fn test_load_price_decimals() {
+        let e = Env::default();
+
+        let pool = Address::random(&e);
+        let (oracle, _) = testutils::create_mock_oracle(&e);
+        let pool_config = PoolConfig {
+            oracle,
+            bstop_rate: 0_200_000_000,
+            status: 0,
+        };
+        e.as_contract(&pool, || {
+            storage::set_pool_config(&e, &pool_config);
+            let mut pool = Pool::load(&e);
+
+            let decimals = pool.load_price_decimals(&e);
+            assert_eq!(decimals, 7);
+        });
+    }
+
+    #[test]
+    fn test_load_price() {
+        let e = Env::default();
+
+        let pool = Address::random(&e);
+        let asset_0 = Address::random(&e);
+        let asset_1 = Address::random(&e);
+        let (oracle, oracle_client) = testutils::create_mock_oracle(&e);
+        oracle_client.set_price(&asset_0, &123);
+        oracle_client.set_price(&asset_1, &456);
+        let pool_config = PoolConfig {
+            oracle,
+            bstop_rate: 0_200_000_000,
+            status: 0,
+        };
+        e.as_contract(&pool, || {
+            storage::set_pool_config(&e, &pool_config);
+            let mut pool = Pool::load(&e);
+
+            let price = pool.load_price(&e, &asset_0);
+            assert_eq!(price, 123);
+
+            let price = pool.load_price(&e, &asset_1);
+            assert_eq!(price, 456);
+
+            // verify the price is cached
+            oracle_client.set_price(&asset_0, &789);
+            let price = pool.load_price(&e, &asset_0);
+            assert_eq!(price, 123);
+        });
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_load_price_panics_if_stale() {
+        let e = Env::default();
+
+        e.ledger().set(LedgerInfo {
+            timestamp: 1000 + 24 * 60 * 60 + 1,
+            protocol_version: 1,
+            sequence_number: 1234,
+            network_id: Default::default(),
+            base_reserve: 10,
+            min_temp_entry_expiration: 10,
+            min_persistent_entry_expiration: 10,
+            max_entry_expiration: 2000000,
+        });
+
+        let pool = Address::random(&e);
+        let asset = Address::random(&e);
+        let (oracle, oracle_client) = testutils::create_mock_oracle(&e);
+        oracle_client.set_price_timestamp(&asset, &123, &1000);
+        let pool_config = PoolConfig {
+            oracle,
+            bstop_rate: 0_200_000_000,
+            status: 0,
+        };
+        e.as_contract(&pool, || {
+            storage::set_pool_config(&e, &pool_config);
+            let mut pool = Pool::load(&e);
+
+            pool.load_price(&e, &asset);
+            assert!(false);
         });
     }
 }

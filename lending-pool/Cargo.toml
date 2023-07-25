@@ -19,9 +19,10 @@ testutils = [
 soroban-sdk = { workspace = true }
 fixed-point-math = { workspace = true }
 cast = { workspace = true }
+oracle = { path = "../oracle" }
 
 [dev_dependencies]
 soroban-sdk = { workspace = true, features = ["testutils"] }
 backstop-module = { path = "../backstop-module", features = ["testutils"] }
 mock-pool-factory = { path = "../mocks/mock-pool-factory", features = ["testutils"] }
-mock-blend-oracle = { path = "../mocks/mock-blend-oracle", features = ["testutils"] }
+mock-oracle = { path = "../mocks/mock-oracle", features = ["testutils"] }

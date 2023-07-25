@@ -46,7 +46,7 @@ fn test_pool_user() {
         &fixture.env,
         Request {
             request_type: 0,
-            reserve_index: weth_pool_index,
+            address: weth.address.clone(),
             amount,
         },
     ];
@@ -132,7 +132,7 @@ fn test_pool_user() {
         &fixture.env,
         Request {
             request_type: 1,
-            reserve_index: weth_pool_index,
+            address: weth.address.clone(),
             amount,
         },
     ];
@@ -202,7 +202,7 @@ fn test_pool_user() {
         &fixture.env,
         Request {
             request_type: 2,
-            reserve_index: xlm_pool_index,
+            address: xlm.address.clone(),
             amount,
         },
     ];
@@ -285,7 +285,7 @@ fn test_pool_user() {
         &fixture.env,
         Request {
             request_type: 4,
-            reserve_index: weth_pool_index,
+            address: weth.address.clone(),
             amount,
         },
     ];
@@ -368,12 +368,12 @@ fn test_pool_user() {
         &fixture.env,
         Request {
             request_type: 3,
-            reserve_index: xlm_pool_index,
+            address: xlm.address.clone(),
             amount: amount_withdrawal,
         },
         Request {
             request_type: 5,
-            reserve_index: weth_pool_index,
+            address: weth.address.clone(),
             amount: amount_repay,
         },
     ];

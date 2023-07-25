@@ -18,5 +18,5 @@ lending-pool = { path = "../lending-pool", features = ["testutils"] }
 backstop-module = { path = "../backstop-module", features = ["testutils"] }
 pool-factory = { path = "../pool-factory", features = ["testutils"] }
 emitter = { path = "../emitter", features = ["testutils"] }
-mock-blend-oracle = { path = "../mocks/mock-blend-oracle", features = ["testutils"] }
+mock-oracle = { path = "../mocks/mock-oracle", features = ["testutils"] }
 mock-pool-factory = { path = "../mocks/mock-pool-factory", features = ["testutils"] }

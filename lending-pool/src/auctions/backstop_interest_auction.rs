@@ -1,10 +1,5 @@
 use crate::{
-    constants::SCALAR_7,
-    dependencies::{OracleClient, TokenClient},
-    errors::PoolError,
-    pool::Pool,
-    storage,
-    validator::require_nonnegative,
+    constants::SCALAR_7, dependencies::TokenClient, errors::PoolError, pool::Pool, storage,
 };
 use cast::i128;
 use fixed_point_math::FixedPoint;
@@ -17,9 +12,7 @@ pub fn create_interest_auction_data(e: &Env, backstop: &Address) -> AuctionData 
         panic_with_error!(e, PoolError::AuctionInProgress);
     }
 
-    let pool = Pool::load(e);
-    let oracle_client = OracleClient::new(e, &pool.config.oracle);
-
+    let mut pool = Pool::load(e);
     let mut auction_data = AuctionData {
         lot: map![e],
         bid: map![e],
@@ -33,7 +26,7 @@ pub fn create_interest_auction_data(e: &Env, backstop: &Address) -> AuctionData 
         // don't store updated reserve data back to ledger. This will occur on the the auction's fill.
         let reserve = pool.load_reserve(e, &res_asset_address);
         if reserve.backstop_credit > 0 {
-            let asset_to_base = oracle_client.get_price(&res_asset_address);
+            let asset_to_base = pool.load_price(e, &res_asset_address);
             interest_value += i128(asset_to_base)
                 .fixed_mul_floor(reserve.backstop_credit, reserve.scalar)
                 .unwrap_optimized();
@@ -53,7 +46,7 @@ pub fn create_interest_auction_data(e: &Env, backstop: &Address) -> AuctionData 
     }
 
     let usdc_token = storage::get_usdc_token(e);
-    let usdc_to_base = oracle_client.get_price(&usdc_token);
+    let usdc_to_base = pool.load_price(e, &usdc_token);
     let bid_amount = interest_value
         .fixed_mul_floor(1_4000000, SCALAR_7)
         .unwrap_optimized()

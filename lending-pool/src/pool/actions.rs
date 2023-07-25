@@ -1,8 +1,11 @@
 use soroban_sdk::Map;
-use soroban_sdk::{contracttype, panic_with_error, vec, unwrap::UnwrapOptimized, Address, Env, Symbol, Vec};
+use soroban_sdk::{
+    contracttype, panic_with_error, unwrap::UnwrapOptimized, Address, Env, Symbol, Vec,
+};
 
 use crate::{
-    auctions, emissions, errors::PoolError, pool::Positions, storage, validator::require_nonnegative,
+    auctions, emissions, errors::PoolError, pool::Positions, storage,
+    validator::require_nonnegative,
 };
 
 use super::{pool::Pool, Reserve};
@@ -69,11 +72,19 @@ pub fn build_actions_from_request(
                 new_positions.add_supply(e, &reserve, b_tokens_minted);
                 actions.set(
                     reserve.asset.clone(),
-                    actions.get(request.address.clone()).or(Some(0)).unwrap_optimized() + request.amount,
+                    actions
+                        .get(request.address.clone())
+                        .or(Some(0))
+                        .unwrap_optimized()
+                        + request.amount,
                 );
                 pool.cache_reserve(reserve);
                 e.events().publish(
-                    (Symbol::new(e, "supply"), request.address.clone(), from.clone()),
+                    (
+                        Symbol::new(e, "supply"),
+                        request.address.clone(),
+                        from.clone(),
+                    ),
                     (request.amount, b_tokens_minted),
                 );
             }
@@ -101,11 +112,19 @@ pub fn build_actions_from_request(
                 new_positions.remove_supply(e, &reserve, to_burn);
                 actions.set(
                     reserve.asset.clone(),
-                    actions.get(request.address.clone()).or(Some(0)).unwrap_optimized() - tokens_out,
+                    actions
+                        .get(request.address.clone())
+                        .or(Some(0))
+                        .unwrap_optimized()
+                        - tokens_out,
                 );
                 pool.cache_reserve(reserve);
                 e.events().publish(
-                    (Symbol::new(e, "withdraw"), request.address.clone(), from.clone()),
+                    (
+                        Symbol::new(e, "withdraw"),
+                        request.address.clone(),
+                        from.clone(),
+                    ),
                     (tokens_out, to_burn),
                 );
             }
@@ -127,7 +146,11 @@ pub fn build_actions_from_request(
                 new_positions.add_collateral(e, &reserve, b_tokens_minted);
                 actions.set(
                     reserve.asset.clone(),
-                    actions.get(request.address.clone()).or(Some(0)).unwrap_optimized() + request.amount,
+                    actions
+                        .get(request.address.clone())
+                        .or(Some(0))
+                        .unwrap_optimized()
+                        + request.amount,
                 );
                 pool.cache_reserve(reserve);
                 e.events().publish(
@@ -163,7 +186,11 @@ pub fn build_actions_from_request(
                 new_positions.remove_collateral(e, &reserve, to_burn);
                 actions.set(
                     reserve.asset.clone(),
-                    actions.get(request.address.clone()).or(Some(0)).unwrap_optimized() - tokens_out,
+                    actions
+                        .get(request.address.clone())
+                        .or(Some(0))
+                        .unwrap_optimized()
+                        - tokens_out,
                 );
                 check_health = true;
                 pool.cache_reserve(reserve);
@@ -195,12 +222,20 @@ pub fn build_actions_from_request(
                 new_positions.add_liabilities(e, &reserve, d_tokens_minted);
                 actions.set(
                     reserve.asset.clone(),
-                    actions.get(request.address.clone()).or(Some(0)).unwrap_optimized() - request.amount,
+                    actions
+                        .get(request.address.clone())
+                        .or(Some(0))
+                        .unwrap_optimized()
+                        - request.amount,
                 );
                 check_health = true;
                 pool.cache_reserve(reserve);
                 e.events().publish(
-                    (Symbol::new(e, "borrow"), request.address.clone(), from.clone()),
+                    (
+                        Symbol::new(e, "borrow"),
+                        request.address.clone(),
+                        from.clone(),
+                    ),
                     (request.amount, d_tokens_minted),
                 );
             }
@@ -227,12 +262,19 @@ pub fn build_actions_from_request(
                     new_positions.remove_liabilities(e, &reserve, cur_d_tokens);
                     actions.set(
                         reserve.asset.clone(),
-                        actions.get(request.address.clone()).or(Some(0)).unwrap_optimized()
+                        actions
+                            .get(request.address.clone())
+                            .or(Some(0))
+                            .unwrap_optimized()
                             - amount_to_refund
                             + request.amount,
                     );
                     e.events().publish(
-                        (Symbol::new(e, "repay"), request.address.clone().clone(), from.clone()),
+                        (
+                            Symbol::new(e, "repay"),
+                            request.address.clone().clone(),
+                            from.clone(),
+                        ),
                         (request.amount - amount_to_refund, cur_d_tokens),
                     );
                 } else {
@@ -240,11 +282,18 @@ pub fn build_actions_from_request(
                     new_positions.remove_liabilities(e, &reserve, d_tokens_burnt);
                     actions.set(
                         reserve.asset.clone(),
-                        actions.get(request.address.clone()).or(Some(0)).unwrap_optimized()
+                        actions
+                            .get(request.address.clone())
+                            .or(Some(0))
+                            .unwrap_optimized()
                             + request.amount,
                     );
                     e.events().publish(
-                        (Symbol::new(e, "repay"), request.address.clone().clone(), from.clone()),
+                        (
+                            Symbol::new(e, "repay"),
+                            request.address.clone().clone(),
+                            from.clone(),
+                        ),
                         (request.amount, d_tokens_burnt),
                     );
                 }

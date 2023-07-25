@@ -10,7 +10,7 @@ use crate::token::{create_stellar_token, create_token, TokenClient};
 use backstop_module::BackstopModuleClient;
 use emitter::EmitterClient;
 use lending_pool::{PoolClient, ReserveConfig};
-use mock_blend_oracle::MockBlendOracleClient;
+use mock_oracle::MockOracleClient;
 use pool_factory::{PoolFactoryClient, PoolInitMeta};
 use soroban_sdk::testutils::{Address as _, BytesN as _, Ledger, LedgerInfo};
 use soroban_sdk::{Address, BytesN, Env, Symbol};
@@ -46,7 +46,7 @@ pub struct TestFixture<'a> {
     pub emitter: EmitterClient<'a>,
     pub backstop: BackstopModuleClient<'a>,
     pub pool_factory: PoolFactoryClient<'a>,
-    pub oracle: MockBlendOracleClient<'a>,
+    pub oracle: MockOracleClient<'a>,
     pub pools: Vec<PoolFixture<'a>>,
     pub tokens: Vec<TokenClient<'a>>,
 }

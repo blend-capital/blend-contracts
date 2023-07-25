@@ -2,7 +2,6 @@ use soroban_sdk::{map, panic_with_error, Address, Env, Symbol};
 
 use crate::{
     dependencies::TokenClient,
-    emissions,
     errors::PoolError,
     storage::{self, has_auction},
 };
@@ -51,8 +50,6 @@ fn transfer_bad_debt_to_backstop(e: &Env, user: &Address, backstop: &Address) {
         let asset = reserve_list.get_unchecked(reserve_index);
         let pool = Pool::load(e);
         let reserve = pool.load_reserve(e, &asset);
-        let reserve_config = storage::get_res_config(e, &asset);
-        let reserve_data = storage::get_res_data(e, &asset);
         new_backstop_positions.add_liabilities(e, &reserve, liability_balance);
 
         e.events().publish(

@@ -609,8 +609,9 @@ dependencies = [
  "backstop-module",
  "cast",
  "fixed-point-math",
- "mock-blend-oracle",
+ "mock-oracle",
  "mock-pool-factory",
+ "oracle",
  "soroban-sdk",
 ]
 
@@ -648,16 +649,17 @@ dependencies = [
 ]
 
 [[package]]
-name = "mock-blend-oracle"
+name = "mock-lending-pool"
 version = "0.0.0"
 dependencies = [
  "soroban-sdk",
 ]
 
 [[package]]
-name = "mock-lending-pool"
+name = "mock-oracle"
 version = "0.0.0"
 dependencies = [
+ "oracle",
  "soroban-sdk",
 ]
 
@@ -1264,7 +1266,7 @@ dependencies = [
  "emitter",
  "fixed-point-math",
  "lending-pool",
- "mock-blend-oracle",
+ "mock-oracle",
  "mock-pool-factory",
  "pool-factory",
  "rand",

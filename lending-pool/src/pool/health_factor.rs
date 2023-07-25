@@ -1,8 +1,7 @@
-use cast::i128;
 use fixed_point_math::FixedPoint;
 use soroban_sdk::{panic_with_error, unwrap::UnwrapOptimized, Env};
 
-use crate::{constants::SCALAR_7, dependencies::OracleClient, errors::PoolError, storage};
+use crate::{constants::SCALAR_7, errors::PoolError, storage};
 
 use super::{pool::Pool, Positions};
 
@@ -26,8 +25,7 @@ impl PositionData {
     /// * pool - The pool
     /// * positions - The positions to calculate the health factor for
     pub fn calculate_from_positions(e: &Env, pool: &mut Pool, positions: &Positions) -> Self {
-        let oracle_client = OracleClient::new(e, &pool.config.oracle);
-        let oracle_scalar = 10i128.pow(oracle_client.decimals());
+        let oracle_scalar = 10i128.pow(pool.load_price_decimals(e));
 
         let reserve_list = storage::get_res_list(e);
         let mut collateral_base = 0;
@@ -41,7 +39,7 @@ impl PositionData {
                 continue;
             }
             let reserve = pool.load_reserve(e, &reserve_list.get_unchecked(i));
-            let asset_to_base = i128(oracle_client.get_price(&reserve.asset));
+            let asset_to_base = pool.load_price(e, &reserve.asset);
 
             if b_token_balance > 0 {
                 // append users effective collateral to collateral_base

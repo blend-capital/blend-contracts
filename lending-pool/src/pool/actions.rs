@@ -5,7 +5,8 @@ use soroban_sdk::{
 };
 
 use crate::{
-    auctions, errors::PoolError, pool::Positions, storage, validator::require_nonnegative,
+    auctions, emissions, errors::PoolError, pool::Positions, storage,
+    validator::require_nonnegative,
 };
 
 use super::{pool::Pool, Reserve};

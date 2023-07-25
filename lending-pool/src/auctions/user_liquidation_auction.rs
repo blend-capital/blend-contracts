@@ -6,7 +6,7 @@ use crate::auctions::auction::AuctionData;
 use crate::constants::SCALAR_7;
 use crate::pool::{Pool, PositionData};
 use crate::validator::require_nonnegative;
-use crate::{dependencies::OracleClient, errors::PoolError, storage};
+use crate::{errors::PoolError, storage};
 
 use super::{apply_fill_modifiers, AuctionType};
 
@@ -29,9 +29,7 @@ pub fn create_user_liq_auction_data(
         block: e.ledger().sequence() + 1,
     };
     let mut pool = Pool::load(e);
-    let oracle_client = OracleClient::new(e, &pool.config.oracle);
-    let oracle_decimals = oracle_client.decimals();
-    let oracle_scalar = 10i128.pow(oracle_decimals);
+    let oracle_scalar = 10i128.pow(pool.load_price_decimals(e));
 
     let mut user_positions = storage::get_user_positions(e, user);
     let reserve_list = storage::get_res_list(e);

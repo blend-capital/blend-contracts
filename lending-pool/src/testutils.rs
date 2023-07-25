@@ -11,7 +11,7 @@ use fixed_point_math::FixedPoint;
 use soroban_sdk::{testutils::Address as _, unwrap::UnwrapOptimized, Address, Env, IntoVal};
 
 use backstop_module::{BackstopModule, BackstopModuleClient};
-use mock_blend_oracle::{MockBlendOracle, MockBlendOracleClient};
+use mock_oracle::{MockOracle, MockOracleClient};
 use mock_pool_factory::{MockPoolFactory, MockPoolFactoryClient};
 
 //************************************************
@@ -56,11 +56,11 @@ pub(crate) fn create_usdc_token<'a>(
 
 //***** Oracle ******
 
-pub(crate) fn create_mock_oracle(e: &Env) -> (Address, MockBlendOracleClient) {
-    let contract_address = e.register_contract(None, MockBlendOracle {});
+pub(crate) fn create_mock_oracle(e: &Env) -> (Address, MockOracleClient) {
+    let contract_address = e.register_contract(None, MockOracle {});
     (
         contract_address.clone(),
-        MockBlendOracleClient::new(e, &contract_address),
+        MockOracleClient::new(e, &contract_address),
     )
 }
 

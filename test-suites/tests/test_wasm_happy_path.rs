@@ -51,7 +51,7 @@ fn test_wasm_happy_path() {
             &fixture.env,
             Request {
                 request_type: 2,
-                reserve_index: usdc_pool_index,
+                address: usdc.address.clone(),
                 amount,
             },
         ],
@@ -80,7 +80,7 @@ fn test_wasm_happy_path() {
             &fixture.env,
             Request {
                 request_type: 2,
-                reserve_index: xlm_pool_index,
+                address: xlm.address.clone(),
                 amount,
             },
         ],
@@ -109,7 +109,7 @@ fn test_wasm_happy_path() {
             &fixture.env,
             Request {
                 request_type: 4,
-                reserve_index: usdc_pool_index,
+                address: usdc.address.clone(),
                 amount,
             },
         ],
@@ -138,7 +138,7 @@ fn test_wasm_happy_path() {
             &fixture.env,
             Request {
                 request_type: 4,
-                reserve_index: xlm_pool_index,
+                address: xlm.address.clone(),
                 amount,
             },
         ],
@@ -168,15 +168,15 @@ fn test_wasm_happy_path() {
     //  * 2.6% for USDC lending
     //  * rate will be dragged down due to rate modifier
 
-    // claim frodo's setup emissions (1h1m passes during setup)
-    // - Frodo should receive 60 * 61 * .3 = 1098 BLND from the pool claim
+    // claim frodo's setup emissions (1h1m passes during setup, frodo has pool positions for 1h, backstop whole time)
+    // - Frodo should receive 60 * 60 * .3 = 1098 BLND from the pool claim
     // - Frodo should receive 60 * 61 * .7 = 2562 BLND from the backstop claim
     let mut frodo_blnd_balance = 0;
     let claim_amount = pool_fixture
         .pool
         .claim(&frodo, &vec![&fixture.env, 0, 3], &frodo);
     frodo_blnd_balance += claim_amount;
-    assert_eq!(claim_amount, 1098_0000000);
+    assert_eq!(claim_amount, 1080_0000000);
     assert_eq!(
         fixture.tokens[TokenIndex::BLND].balance(&frodo),
         frodo_blnd_balance
@@ -230,7 +230,7 @@ fn test_wasm_happy_path() {
             &fixture.env,
             Request {
                 request_type: 5,
-                reserve_index: usdc_pool_index,
+                address: usdc.address.clone(),
                 amount,
             },
         ],
@@ -259,7 +259,7 @@ fn test_wasm_happy_path() {
             &fixture.env,
             Request {
                 request_type: 5,
-                reserve_index: xlm_pool_index,
+                address: xlm.address.clone(),
                 amount,
             },
         ],
@@ -288,7 +288,7 @@ fn test_wasm_happy_path() {
             &fixture.env,
             Request {
                 request_type: 3,
-                reserve_index: xlm_pool_index,
+                address: xlm.address.clone(),
                 amount,
             },
         ],
@@ -317,7 +317,7 @@ fn test_wasm_happy_path() {
             &fixture.env,
             Request {
                 request_type: 3,
-                reserve_index: usdc_pool_index,
+                address: usdc.address.clone(),
                 amount,
             },
         ],
@@ -432,7 +432,7 @@ fn test_wasm_happy_path() {
             &fixture.env,
             Request {
                 request_type: 5,
-                reserve_index: usdc_pool_index,
+                address: usdc.address.clone(),
                 amount: amount,
             },
         ],
@@ -464,7 +464,7 @@ fn test_wasm_happy_path() {
             &fixture.env,
             Request {
                 request_type: 5,
-                reserve_index: xlm_pool_index,
+                address: xlm.address.clone(),
                 amount: amount,
             },
         ],
@@ -497,7 +497,7 @@ fn test_wasm_happy_path() {
             &fixture.env,
             Request {
                 request_type: 3,
-                reserve_index: xlm_pool_index,
+                address: xlm.address.clone(),
                 amount: amount,
             },
         ],
@@ -525,7 +525,7 @@ fn test_wasm_happy_path() {
             &fixture.env,
             Request {
                 request_type: 3,
-                reserve_index: usdc_pool_index,
+                address: usdc.address.clone(),
                 amount: amount,
             },
         ],

@@ -44,14 +44,11 @@ fn transfer_bad_debt_to_backstop(e: &Env, user: &Address, backstop: &Address) {
     let mut new_user_state = user_state.clone();
     let mut new_backstop_state = backstop_state.clone();
     for (reserve_index, liability_balance) in user_state.positions.liabilities.iter() {
-        // no direct action is taken against the reserve, so the reserve's data does not
-        // need to be updated. However, emissions need to be accrued for the user up to
-        // this point.
         let asset = reserve_list.get_unchecked(reserve_index);
         let mut reserve = pool.load_reserve(e, &asset);
         new_backstop_state.add_liabilities(e, &mut reserve, liability_balance);
         new_user_state.remove_liabilities(e, &mut reserve, liability_balance);
-        pool.cache_reserve(reserve);
+        pool.cache_reserve(reserve, true);
 
         e.events().publish(
             (Symbol::new(&e, "bad_debt"), user),

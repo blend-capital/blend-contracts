@@ -152,12 +152,12 @@ impl User {
         for (asset, amount) in collateral_amounts.iter() {
             let mut reserve = pool.load_reserve(e, &asset);
             self.remove_collateral(e, &mut reserve, amount);
-            pool.cache_reserve(reserve);
+            pool.cache_reserve(reserve, true);
         }
         for (asset, amount) in liability_amounts.iter() {
             let mut reserve = pool.load_reserve(e, &asset);
             self.remove_liabilities(e, &mut reserve, amount);
-            pool.cache_reserve(reserve);
+            pool.cache_reserve(reserve, true);
         }
     }
 
@@ -172,12 +172,12 @@ impl User {
         for (asset, amount) in collateral_amounts.iter() {
             let mut reserve = pool.load_reserve(e, &asset);
             self.add_collateral(e, &mut reserve, amount);
-            pool.cache_reserve(reserve);
+            pool.cache_reserve(reserve, true);
         }
         for (asset, amount) in liability_amounts.iter() {
             let mut reserve = pool.load_reserve(e, &asset);
             self.add_liabilities(e, &mut reserve, amount);
-            pool.cache_reserve(reserve);
+            pool.cache_reserve(reserve, true);
         }
     }
 

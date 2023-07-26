@@ -68,6 +68,8 @@ impl PositionData {
                     )
                     .unwrap_optimized();
             }
+
+            pool.cache_reserve(reserve, false);
         }
 
         PositionData {

@@ -60,16 +60,20 @@ pub fn create_bad_debt_auction_data(e: &Env, backstop: &Address) -> AuctionData 
     auction_data
 }
 
-pub fn fill_bad_debt_auction(e: &Env, auction_data: &mut AuctionData, filler: &Address) {
+pub fn fill_bad_debt_auction(
+    e: &Env,
+    pool: &mut Pool,
+    auction_data: &mut AuctionData,
+    filler: &Address,
+) {
     let backstop_address = storage::get_backstop(e);
     apply_fill_modifiers(e, auction_data);
-    let mut pool = Pool::load(e);
     let mut backstop_state = User::load(e, &backstop_address);
     let mut filler_state = User::load(e, filler);
 
     // bid only contains d_token asset amounts
-    backstop_state.rm_positions(e, &mut pool, map![e], auction_data.bid.clone());
-    filler_state.add_positions(e, &mut pool, map![e], auction_data.bid.clone());
+    backstop_state.rm_positions(e, pool, map![e], auction_data.bid.clone());
+    filler_state.add_positions(e, pool, map![e], auction_data.bid.clone());
 
     let backstop_client = BackstopClient::new(&e, &backstop_address);
     let backstop_token_id = backstop_client.backstop_token();
@@ -580,7 +584,8 @@ mod tests {
                 &(u64::MAX as i128),
                 &1000000,
             );
-            fill_bad_debt_auction(&e, &mut auction_data, &samwise);
+            let mut pool = Pool::load(&e);
+            fill_bad_debt_auction(&e, &mut pool, &mut auction_data, &samwise);
             assert_eq!(backstop_token_client.balance(&backstop_address), 0);
             assert_eq!(backstop_token_client.balance(&samwise), 95_2000000);
             let samwise_positions = storage::get_user_positions(&e, &samwise);

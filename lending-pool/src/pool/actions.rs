@@ -86,7 +86,7 @@ pub fn build_actions_from_request(
                 let b_tokens_minted = reserve.to_b_token_down(request.amount);
                 from_state.add_supply(e, &mut reserve, b_tokens_minted);
                 actions.add_for_spender_transfer(&reserve.asset, request.amount);
-                pool.cache_reserve(reserve);
+                pool.cache_reserve(reserve, true);
                 e.events().publish(
                     (
                         Symbol::new(&e, "supply"),
@@ -108,7 +108,7 @@ pub fn build_actions_from_request(
                 }
                 from_state.remove_supply(e, &mut reserve, to_burn);
                 actions.add_for_pool_transfer(&reserve.asset, tokens_out);
-                pool.cache_reserve(reserve);
+                pool.cache_reserve(reserve, true);
                 e.events().publish(
                     (
                         Symbol::new(&e, "withdraw"),
@@ -124,7 +124,7 @@ pub fn build_actions_from_request(
                 let b_tokens_minted = reserve.to_b_token_down(request.amount);
                 from_state.add_collateral(e, &mut reserve, b_tokens_minted);
                 actions.add_for_spender_transfer(&reserve.asset, request.amount);
-                pool.cache_reserve(reserve);
+                pool.cache_reserve(reserve, true);
                 e.events().publish(
                     (
                         Symbol::new(&e, "supply_collateral"),
@@ -147,7 +147,7 @@ pub fn build_actions_from_request(
                 from_state.remove_collateral(e, &mut reserve, to_burn);
                 actions.add_for_pool_transfer(&reserve.asset, tokens_out);
                 check_health = true;
-                pool.cache_reserve(reserve);
+                pool.cache_reserve(reserve, true);
                 e.events().publish(
                     (
                         Symbol::new(&e, "withdraw_collateral"),
@@ -165,7 +165,7 @@ pub fn build_actions_from_request(
                 reserve.require_utilization_below_max(e);
                 actions.add_for_pool_transfer(&reserve.asset, request.amount);
                 check_health = true;
-                pool.cache_reserve(reserve);
+                pool.cache_reserve(reserve, true);
                 e.events().publish(
                     (
                         Symbol::new(&e, "borrow"),
@@ -206,11 +206,12 @@ pub fn build_actions_from_request(
                         (request.amount, d_tokens_burnt),
                     );
                 }
-                pool.cache_reserve(reserve);
+                pool.cache_reserve(reserve, true);
             }
             6 => {
                 auctions::fill(
                     e,
+                    pool,
                     u32(request.amount).unwrap_optimized(),
                     &request.address,
                     &from,

@@ -176,10 +176,15 @@ mod tests {
             0_300_0000,
             fixture.backstop.pool_eps(&pool_fixture.pool.address)
         );
-        let (emis_config, _) = pool_fixture
+        let (emis_config, emis_data) = pool_fixture
             .pool
             .get_reserve_emissions(&fixture.tokens[TokenIndex::USDC].address, &0)
             .unwrap();
+        assert_eq!(
+            emis_data.last_time,
+            fixture.env.ledger().timestamp() - 60 * 61
+        );
+        assert_eq!(emis_data.index, 0);
         assert_eq!(0_180_0000, emis_config.eps);
     }
 
@@ -226,10 +231,15 @@ mod tests {
             0_300_0000,
             fixture.backstop.pool_eps(&pool_fixture.pool.address)
         );
-        let (emis_config, _) = pool_fixture
+        let (emis_config, emis_data) = pool_fixture
             .pool
             .get_reserve_emissions(&fixture.tokens[TokenIndex::USDC].address, &0)
             .unwrap();
+        assert_eq!(
+            emis_data.last_time,
+            fixture.env.ledger().timestamp() - 60 * 61
+        );
+        assert_eq!(emis_data.index, 0);
         assert_eq!(0_180_0000, emis_config.eps);
     }
 }

@@ -1,5 +1,9 @@
 use crate::{
-    constants::SCALAR_7, dependencies::BackstopClient, errors::PoolError, pool::Pool, storage,
+    constants::SCALAR_7,
+    dependencies::BackstopClient,
+    errors::PoolError,
+    pool::{Pool, User},
+    storage,
 };
 use cast::i128;
 use fixed_point_math::FixedPoint;
@@ -59,13 +63,13 @@ pub fn create_bad_debt_auction_data(e: &Env, backstop: &Address) -> AuctionData 
 pub fn fill_bad_debt_auction(e: &Env, auction_data: &mut AuctionData, filler: &Address) {
     let backstop_address = storage::get_backstop(e);
     apply_fill_modifiers(e, auction_data);
-    let pool = Pool::load(e);
-    let mut backstop_positions = storage::get_user_positions(e, &backstop_address);
-    let mut filler_positions = storage::get_user_positions(e, filler);
+    let mut pool = Pool::load(e);
+    let mut backstop_state = User::load(e, &backstop_address);
+    let mut filler_state = User::load(e, filler);
 
     // bid only contains d_token asset amounts
-    backstop_positions.rm_positions(e, &pool, map![e], auction_data.bid.clone());
-    filler_positions.add_positions(e, &pool, map![e], auction_data.bid.clone());
+    backstop_state.rm_positions(e, &mut pool, map![e], auction_data.bid.clone());
+    filler_state.add_positions(e, &mut pool, map![e], auction_data.bid.clone());
 
     let backstop_client = BackstopClient::new(&e, &backstop_address);
     let backstop_token_id = backstop_client.backstop_token();
@@ -73,8 +77,8 @@ pub fn fill_bad_debt_auction(e: &Env, auction_data: &mut AuctionData, filler: &A
     let backstop_client = BackstopClient::new(&e, &backstop_address);
     backstop_client.draw(&e.current_contract_address(), &lot_amount, &filler);
 
-    storage::set_user_positions(e, &backstop_address, &backstop_positions);
-    storage::set_user_positions(e, &filler, &filler_positions);
+    backstop_state.store(e);
+    filler_state.store(e);
 }
 
 #[cfg(test)]
@@ -214,7 +218,6 @@ mod tests {
         oracle_client.set_price(&backstop_token_id, &0_5000000);
 
         let positions: Positions = Positions {
-            user: backstop_address.clone(),
             collateral: map![&e],
             liabilities: map![
                 &e,
@@ -326,7 +329,6 @@ mod tests {
         oracle_client.set_price(&backstop_token_id, &0_5000000);
 
         let positions: Positions = Positions {
-            user: backstop_address.clone(),
             collateral: map![&e],
             liabilities: map![
                 &e,
@@ -440,7 +442,6 @@ mod tests {
         oracle_client.set_price(&backstop_token_id, &0_5000000);
 
         let positions: Positions = Positions {
-            user: backstop_address.clone(),
             collateral: map![&e],
             liabilities: map![
                 &e,
@@ -552,7 +553,6 @@ mod tests {
             block: 51,
         };
         let positions: Positions = Positions {
-            user: backstop_address.clone(),
             collateral: map![&e],
             liabilities: map![
                 &e,

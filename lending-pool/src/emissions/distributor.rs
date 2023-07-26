@@ -5,12 +5,13 @@ use soroban_sdk::{panic_with_error, unwrap::UnwrapOptimized, Address, Env, Vec};
 use crate::{
     dependencies::TokenClient,
     errors::PoolError,
+    pool::User,
     storage::{self, ReserveEmissionsData, UserEmissionData},
 };
 
 /// Performs a claim against the given "reserve_token_ids" for "from"
 pub fn execute_claim(e: &Env, from: &Address, reserve_token_ids: &Vec<u32>, to: &Address) -> i128 {
-    let positions = storage::get_user_positions(e, &from);
+    let from_state = User::load(e, from);
     let reserve_list = storage::get_res_list(e);
     let mut to_claim = 0;
     for reserve_token_id in reserve_token_ids.clone() {
@@ -22,11 +23,11 @@ pub fn execute_claim(e: &Env, from: &Address, reserve_token_ids: &Vec<u32>, to: 
                 let reserve_data = storage::get_res_data(e, &res_address);
                 let (user_balance, supply) = match reserve_token_id % 2 {
                     0 => (
-                        positions.get_liabilities(reserve_index),
+                        from_state.get_liabilities(reserve_index),
                         reserve_data.d_supply,
                     ),
                     1 => (
-                        positions.get_total_supply(reserve_index),
+                        from_state.get_total_supply(reserve_index),
                         reserve_data.b_supply,
                     ),
                     _ => panic_with_error!(e, PoolError::BadRequest),
@@ -221,6 +222,7 @@ mod tests {
 
     use super::*;
     use soroban_sdk::{
+        map,
         testutils::{Address as AddressTestTrait, Ledger, LedgerInfo},
         vec,
     };
@@ -1064,8 +1066,7 @@ mod tests {
         reserve_config.decimals = 5;
         reserve_data.b_supply = 100_00000;
         reserve_data.d_supply = 50_00000;
-        let reserve_0 =
-            testutils::create_reserve(&e, &pool, &underlying_0, &reserve_config, &reserve_data);
+        testutils::create_reserve(&e, &pool, &underlying_0, &reserve_config, &reserve_data);
 
         let (underlying_1, _) = testutils::create_token_contract(&e, &bombadil);
         let (mut reserve_config, mut reserve_data) = testutils::default_reserve_meta(&e);
@@ -1073,15 +1074,14 @@ mod tests {
         reserve_config.index = 1;
         reserve_data.b_supply = 100_000_000_000;
         reserve_data.d_supply = 50_000_000_000;
-        let reserve_1 =
-            testutils::create_reserve(&e, &pool, &underlying_1, &reserve_config, &reserve_data);
+        testutils::create_reserve(&e, &pool, &underlying_1, &reserve_config, &reserve_data);
 
-        let mut user_positions = Positions::env_default(&e, &samwise);
-
+        let user_positions = Positions {
+            liabilities: map![&e, (0, 2_00000)],
+            collateral: map![&e, (1, 1_000_000_000)],
+            supply: map![&e, (1, 1_000_000_000)],
+        };
         e.as_contract(&pool, || {
-            user_positions.add_liabilities(&e, &reserve_0, 2_00000);
-            user_positions.add_supply(&e, &reserve_1, 1_000_000_000);
-            user_positions.add_collateral(&e, &reserve_1, 1_000_000_000);
             storage::set_backstop(&e, &backstop);
             storage::set_user_positions(&e, &samwise, &user_positions);
 
@@ -1194,8 +1194,7 @@ mod tests {
         reserve_config.decimals = 5;
         reserve_data.b_supply = 100_00000;
         reserve_data.d_supply = 50_00000;
-        let reserve_0 =
-            testutils::create_reserve(&e, &pool, &underlying_0, &reserve_config, &reserve_data);
+        testutils::create_reserve(&e, &pool, &underlying_0, &reserve_config, &reserve_data);
 
         let (underlying_1, _) = testutils::create_token_contract(&e, &bombadil);
         let (mut reserve_config, mut reserve_data) = testutils::default_reserve_meta(&e);
@@ -1203,15 +1202,14 @@ mod tests {
         reserve_config.index = 1;
         reserve_data.b_supply = 100_000_000_000;
         reserve_data.d_supply = 50_000_000_000;
-        let reserve_1 =
-            testutils::create_reserve(&e, &pool, &underlying_1, &reserve_config, &reserve_data);
+        testutils::create_reserve(&e, &pool, &underlying_1, &reserve_config, &reserve_data);
 
-        let mut user_positions = Positions::env_default(&e, &samwise);
-
+        let user_positions = Positions {
+            liabilities: map![&e, (0, 2_00000)],
+            collateral: map![&e, (1, 1_000_000_000)],
+            supply: map![&e, (1, 1_000_000_000)],
+        };
         e.as_contract(&pool, || {
-            user_positions.add_liabilities(&e, &reserve_0, 2_00000);
-            user_positions.add_supply(&e, &reserve_1, 1_000_000_000);
-            user_positions.add_collateral(&e, &reserve_1, 1_000_000_000);
             storage::set_backstop(&e, &backstop);
             storage::set_user_positions(&e, &samwise, &user_positions);
 

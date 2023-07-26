@@ -262,7 +262,6 @@ mod tests {
         oracle_client.set_price(&backstop_token_id, &0_5000000);
 
         let positions: Positions = Positions {
-            user: backstop_address.clone(),
             collateral: map![&e],
             liabilities: map![
                 &e,
@@ -453,7 +452,6 @@ mod tests {
 
         let liq_pct = 4500000;
         let positions: Positions = Positions {
-            user: samwise.clone(),
             collateral: map![
                 &e,
                 (reserve_config_0.index, 90_9100000),
@@ -528,7 +526,6 @@ mod tests {
         let collateral_amount = 17_8000000;
         let liability_amount = 20_0000000;
         let positions: Positions = Positions {
-            user: samwise.clone(),
             collateral: map![&e, (reserve_config_0.index, collateral_amount)],
             liabilities: map![&e, (reserve_config_1.index, liability_amount)],
             supply: map![&e],
@@ -602,7 +599,6 @@ mod tests {
         let collateral_amount = 15_0000000;
         let liability_amount = 20_0000000;
         let positions: Positions = Positions {
-            user: samwise.clone(),
             collateral: map![&e, (reserve_config_0.index, collateral_amount)],
             liabilities: map![&e, (reserve_config_1.index, liability_amount)],
             supply: map![&e],

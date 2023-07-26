@@ -33,8 +33,8 @@ impl PositionData {
         let mut collateral_raw = 0;
         let mut liability_raw = 0;
         for i in 0..reserve_list.len() {
-            let b_token_balance = positions.get_collateral(i);
-            let d_token_balance = positions.get_liabilities(i);
+            let b_token_balance = positions.collateral.get(i).unwrap_or(0);
+            let d_token_balance = positions.liabilities.get(i).unwrap_or(0);
             if b_token_balance == 0 && d_token_balance == 0 {
                 continue;
             }
@@ -108,6 +108,7 @@ mod tests {
     use super::*;
     use crate::{storage::PoolConfig, testutils};
     use soroban_sdk::{
+        map,
         testutils::{Address as _, Ledger, LedgerInfo},
         Address,
     };
@@ -119,14 +120,12 @@ mod tests {
         e.mock_all_auths();
 
         let bombadil = Address::random(&e);
-        let samwise = Address::random(&e);
         let pool = Address::random(&e);
         let (oracle, oracle_client) = testutils::create_mock_oracle(&e);
 
         let (underlying_0, _) = testutils::create_token_contract(&e, &bombadil);
         let (reserve_config, reserve_data) = testutils::default_reserve_meta(&e);
-        let reserve_0 =
-            testutils::create_reserve(&e, &pool, &underlying_0, &reserve_config, &reserve_data);
+        testutils::create_reserve(&e, &pool, &underlying_0, &reserve_config, &reserve_data);
 
         let (underlying_1, _) = testutils::create_token_contract(&e, &bombadil);
         let (mut reserve_config, mut reserve_data) = testutils::default_reserve_meta(&e);
@@ -138,8 +137,7 @@ mod tests {
         reserve_data.b_rate = 1_100_000_000;
         reserve_data.d_rate = 1_150_000_000;
         reserve_config.index = 1;
-        let reserve_1 =
-            testutils::create_reserve(&e, &pool, &underlying_1, &reserve_config, &reserve_data);
+        testutils::create_reserve(&e, &pool, &underlying_1, &reserve_config, &reserve_data);
 
         let (underlying_2, _) = testutils::create_token_contract(&e, &bombadil);
         let (mut reserve_config, mut reserve_data) = testutils::default_reserve_meta(&e);
@@ -149,8 +147,8 @@ mod tests {
         reserve_data.d_supply = 5_000_000;
         reserve_data.b_rate = 1_001_100_000;
         reserve_data.d_rate = 1_001_200_000;
-        let reserve_2 =
-            testutils::create_reserve(&e, &pool, &underlying_2, &reserve_config, &reserve_data);
+        testutils::create_reserve(&e, &pool, &underlying_2, &reserve_config, &reserve_data);
+
         oracle_client.set_price(&underlying_0, &1_0000000);
         oracle_client.set_price(&underlying_1, &2_5000000);
         oracle_client.set_price(&underlying_2, &1000_0000000);
@@ -171,13 +169,12 @@ mod tests {
             status: 0,
         };
 
-        let mut positions = Positions::env_default(&e, &samwise);
+        let positions = Positions {
+            liabilities: map![&e, (0, 1_5000000), (1, 50_987_654_321)],
+            collateral: map![&e, (0, 100_1234567), (2, 0_250_000)],
+            supply: map![&e, (1, 120_987_654_321)],
+        };
         e.as_contract(&pool, || {
-            positions.add_collateral(&e, &reserve_0, 100_1234567);
-            positions.add_liabilities(&e, &reserve_0, 1_5000000);
-            positions.add_liabilities(&e, &reserve_1, 50_987_654_321);
-            positions.add_supply(&e, &reserve_1, 120_987_654_321);
-            positions.add_collateral(&e, &reserve_2, 0_250_000);
             storage::set_pool_config(&e, &pool_config);
             let mut pool = Pool::load(&e);
             let position_data = PositionData::calculate_from_positions(&e, &mut pool, &positions);

@@ -4,12 +4,10 @@ use soroban_sdk::{
     contracttype, panic_with_error, unwrap::UnwrapOptimized, Address, Env, Symbol, Vec,
 };
 
-use crate::{
-    auctions, emissions, errors::PoolError, pool::Positions, storage,
-    validator::require_nonnegative,
-};
+use crate::{auctions, errors::PoolError, validator::require_nonnegative};
 
-use super::{pool::Pool, Reserve};
+use super::pool::Pool;
+use super::User;
 
 /// An request a user makes against the pool
 #[derive(Clone)]
@@ -19,12 +17,37 @@ pub struct Request {
     pub address: Address, // asset address or liquidatee
     pub amount: i128,
 }
-/// An action the pool takes as result of requests
-#[derive(Clone)]
-#[contracttype]
-pub struct Action {
-    pub tokens_in: i128,
-    pub tokens_out: i128,
+
+/// Transfer actions to be taken by the sender and pool
+pub struct Actions {
+    pub spender_transfer: Map<Address, i128>,
+    pub pool_transfer: Map<Address, i128>,
+}
+
+impl Actions {
+    /// Create an empty set of actions
+    pub fn new(e: &Env) -> Self {
+        Actions {
+            spender_transfer: Map::new(e),
+            pool_transfer: Map::new(e),
+        }
+    }
+
+    /// Add tokens the sender needs to transfer to the pool
+    pub fn add_for_spender_transfer(&mut self, asset: &Address, amount: i128) {
+        self.spender_transfer.set(
+            asset.clone(),
+            amount + self.spender_transfer.get(asset.clone()).unwrap_or(0),
+        );
+    }
+
+    // Add tokens the pool needs to transfer to "to"
+    pub fn add_for_pool_transfer(&mut self, asset: &Address, amount: i128) {
+        self.pool_transfer.set(
+            asset.clone(),
+            amount + self.pool_transfer.get(asset.clone()).unwrap_or(0),
+        );
+    }
 }
 
 /// Build a set of pool actions and the new positions from the supplied requests. Validates that the requests
@@ -37,55 +60,32 @@ pub struct Action {
 ///
 /// ### Returns
 /// A tuple of (actions, positions, check_health) where:
-/// * actions - A vec of actions to be taken by the pool
-/// * positions - The final positions after the actions are taken
+/// * actions - A actions to be taken by the pool
+/// * user - The state of the "from" user after the requests have been processed
 /// * check_health - A bool indicating if a health factor check should be performed
 ///
 /// ### Panics
 /// If the request is invalid, or if the pool is in an invalid state.
-// @dev: Emissions update calls are performed on each request before b or d supply has a chance to change. If the same
-//       reserve token is included twice in a request, the update emissions function will short circuit and not update
-//       the emissions, preventing any inaccuracies.
 pub fn build_actions_from_request(
     e: &Env,
     pool: &mut Pool,
     from: &Address,
     requests: Vec<Request>,
-) -> (Map<Address, Action>, Positions, bool) {
-    let mut actions: Map<Address, Action> = Map::new(&e); //tokens in is positive, tokens out is negative
-    let old_positions = storage::get_user_positions(e, from);
-    let mut new_positions = old_positions.clone();
+) -> (Actions, User, bool) {
+    let mut actions = Actions::new(e);
+    let mut from_state = User::load(e, from);
     let mut check_health = false;
     for request in requests.iter() {
-        // verify reserve is supported in the pool and the action is allowed
+        // verify the request is allowed
         require_nonnegative(e, &request.amount);
         pool.require_action_allowed(e, request.request_type.clone());
-        let mut reserve: Reserve;
-
         match request.request_type {
             0 => {
-                reserve = pool.load_reserve(e, &request.address);
                 // supply
+                let mut reserve = pool.load_reserve(e, &request.address);
                 let b_tokens_minted = reserve.to_b_token_down(request.amount);
-                reserve.b_supply += b_tokens_minted;
-                new_positions.add_supply(e, &reserve, b_tokens_minted);
-                if let Some(action) = actions.get(reserve.asset.clone()) {
-                    actions.set(
-                        reserve.asset.clone(),
-                        Action {
-                            tokens_in: action.tokens_in + request.amount,
-                            tokens_out: action.tokens_out,
-                        },
-                    );
-                } else {
-                    actions.set(
-                        reserve.asset.clone(),
-                        Action {
-                            tokens_in: request.amount,
-                            tokens_out: 0,
-                        },
-                    );
-                }
+                from_state.add_supply(e, &mut reserve, b_tokens_minted);
+                actions.add_for_spender_transfer(&reserve.asset, request.amount);
                 pool.cache_reserve(reserve);
                 e.events().publish(
                     (
@@ -97,35 +97,17 @@ pub fn build_actions_from_request(
                 );
             }
             1 => {
-                reserve = pool.load_reserve(e, &request.address);
                 // withdraw
-                let cur_b_tokens = new_positions.get_supply(reserve.index);
+                let mut reserve = pool.load_reserve(e, &request.address);
+                let cur_b_tokens = from_state.get_supply(reserve.index);
                 let mut to_burn = reserve.to_b_token_up(request.amount);
                 let mut tokens_out = request.amount;
                 if to_burn > cur_b_tokens {
                     to_burn = cur_b_tokens;
                     tokens_out = reserve.to_asset_from_b_token(cur_b_tokens);
                 }
-                reserve.b_supply -= to_burn;
-                new_positions.remove_supply(e, &reserve, to_burn);
-                if let Some(action) = actions.get(reserve.asset.clone()) {
-                    actions.set(
-                        reserve.asset.clone(),
-                        Action {
-                            tokens_in: action.tokens_in,
-                            tokens_out: action.tokens_out + tokens_out,
-                        },
-                    );
-                } else {
-                    actions.set(
-                        reserve.asset.clone(),
-                        Action {
-                            tokens_in: 0,
-                            tokens_out: tokens_out,
-                        },
-                    );
-                }
-
+                from_state.remove_supply(e, &mut reserve, to_burn);
+                actions.add_for_pool_transfer(&reserve.asset, tokens_out);
                 pool.cache_reserve(reserve);
                 e.events().publish(
                     (
@@ -137,28 +119,11 @@ pub fn build_actions_from_request(
                 );
             }
             2 => {
-                reserve = pool.load_reserve(e, &request.address);
                 // supply collateral
+                let mut reserve = pool.load_reserve(e, &request.address);
                 let b_tokens_minted = reserve.to_b_token_down(request.amount);
-                reserve.b_supply += b_tokens_minted;
-                new_positions.add_collateral(e, &reserve, b_tokens_minted);
-                if let Some(action) = actions.get(reserve.asset.clone()) {
-                    actions.set(
-                        reserve.asset.clone(),
-                        Action {
-                            tokens_in: action.tokens_in + request.amount,
-                            tokens_out: action.tokens_out,
-                        },
-                    );
-                } else {
-                    actions.set(
-                        reserve.asset.clone(),
-                        Action {
-                            tokens_in: request.amount,
-                            tokens_out: 0,
-                        },
-                    );
-                }
+                from_state.add_collateral(e, &mut reserve, b_tokens_minted);
+                actions.add_for_spender_transfer(&reserve.asset, request.amount);
                 pool.cache_reserve(reserve);
                 e.events().publish(
                     (
@@ -170,35 +135,17 @@ pub fn build_actions_from_request(
                 );
             }
             3 => {
-                reserve = pool.load_reserve(e, &request.address);
                 // withdraw collateral
-                let cur_b_tokens = new_positions.get_collateral(reserve.index);
+                let mut reserve = pool.load_reserve(e, &request.address);
+                let cur_b_tokens = from_state.get_collateral(reserve.index);
                 let mut to_burn = reserve.to_b_token_up(request.amount);
                 let mut tokens_out = request.amount;
                 if to_burn > cur_b_tokens {
                     to_burn = cur_b_tokens;
                     tokens_out = reserve.to_asset_from_b_token(cur_b_tokens);
                 }
-                reserve.b_supply -= to_burn;
-                new_positions.remove_collateral(e, &reserve, to_burn);
-
-                if let Some(action) = actions.get(reserve.asset.clone()) {
-                    actions.set(
-                        reserve.asset.clone(),
-                        Action {
-                            tokens_in: action.tokens_in,
-                            tokens_out: action.tokens_out + tokens_out,
-                        },
-                    );
-                } else {
-                    actions.set(
-                        reserve.asset.clone(),
-                        Action {
-                            tokens_in: 0,
-                            tokens_out: tokens_out,
-                        },
-                    );
-                }
+                from_state.remove_collateral(e, &mut reserve, to_burn);
+                actions.add_for_pool_transfer(&reserve.asset, tokens_out);
                 check_health = true;
                 pool.cache_reserve(reserve);
                 e.events().publish(
@@ -211,29 +158,12 @@ pub fn build_actions_from_request(
                 );
             }
             4 => {
-                reserve = pool.load_reserve(e, &request.address);
                 // borrow
+                let mut reserve = pool.load_reserve(e, &request.address);
                 let d_tokens_minted = reserve.to_d_token_up(request.amount);
-                reserve.d_supply += d_tokens_minted;
+                from_state.add_liabilities(e, &mut reserve, d_tokens_minted);
                 reserve.require_utilization_below_max(e);
-                new_positions.add_liabilities(e, &reserve, d_tokens_minted);
-                if let Some(action) = actions.get(reserve.asset.clone()) {
-                    actions.set(
-                        reserve.asset.clone(),
-                        Action {
-                            tokens_in: action.tokens_in,
-                            tokens_out: action.tokens_out + request.amount,
-                        },
-                    );
-                } else {
-                    actions.set(
-                        reserve.asset.clone(),
-                        Action {
-                            tokens_in: 0,
-                            tokens_out: request.amount,
-                        },
-                    );
-                }
+                actions.add_for_pool_transfer(&reserve.asset, request.amount);
                 check_health = true;
                 pool.cache_reserve(reserve);
                 e.events().publish(
@@ -246,34 +176,17 @@ pub fn build_actions_from_request(
                 );
             }
             5 => {
-                reserve = pool.load_reserve(e, &request.address);
                 // repay
-                let cur_d_tokens = new_positions.get_liabilities(reserve.index);
+                let mut reserve = pool.load_reserve(e, &request.address);
+                let cur_d_tokens = from_state.get_liabilities(reserve.index);
                 let d_tokens_burnt = reserve.to_d_token_down(request.amount);
+                actions.add_for_spender_transfer(&reserve.asset, request.amount);
                 if d_tokens_burnt > cur_d_tokens {
                     let amount_to_refund =
                         request.amount - reserve.to_asset_from_d_token(cur_d_tokens);
                     require_nonnegative(e, &amount_to_refund);
-                    reserve.d_supply -= cur_d_tokens;
-                    new_positions.remove_liabilities(e, &reserve, cur_d_tokens);
-
-                    if let Some(action) = actions.get(reserve.asset.clone()) {
-                        actions.set(
-                            reserve.asset.clone(),
-                            Action {
-                                tokens_in: action.tokens_in + request.amount,
-                                tokens_out: action.tokens_out + amount_to_refund,
-                            },
-                        );
-                    } else {
-                        actions.set(
-                            reserve.asset.clone(),
-                            Action {
-                                tokens_in: request.amount,
-                                tokens_out: amount_to_refund,
-                            },
-                        );
-                    }
+                    from_state.remove_liabilities(e, &mut reserve, cur_d_tokens);
+                    actions.add_for_pool_transfer(&reserve.asset, amount_to_refund);
                     e.events().publish(
                         (
                             Symbol::new(&e, "repay"),
@@ -283,26 +196,7 @@ pub fn build_actions_from_request(
                         (request.amount - amount_to_refund, cur_d_tokens),
                     );
                 } else {
-                    reserve.d_supply -= d_tokens_burnt;
-                    new_positions.remove_liabilities(e, &reserve, d_tokens_burnt);
-
-                    if let Some(action) = actions.get(reserve.asset.clone()) {
-                        actions.set(
-                            reserve.asset.clone(),
-                            Action {
-                                tokens_in: action.tokens_in + request.amount,
-                                tokens_out: action.tokens_out,
-                            },
-                        );
-                    } else {
-                        actions.set(
-                            reserve.asset.clone(),
-                            Action {
-                                tokens_in: request.amount,
-                                tokens_out: 0,
-                            },
-                        );
-                    }
+                    from_state.remove_liabilities(e, &mut reserve, d_tokens_burnt);
                     e.events().publish(
                         (
                             Symbol::new(&e, "repay"),
@@ -336,14 +230,15 @@ pub fn build_actions_from_request(
             _ => panic_with_error!(e, PoolError::BadRequest),
         }
     }
-    (actions, new_positions, check_health)
+    (actions, from_state, check_health)
 }
 
 #[cfg(test)]
 mod tests {
-    use std::println;
-
-    use crate::{storage::PoolConfig, testutils, AuctionData, AuctionType};
+    use crate::{
+        storage::{self, PoolConfig},
+        testutils, AuctionData, AuctionType, Positions,
+    };
 
     use super::*;
     use soroban_sdk::{
@@ -398,26 +293,28 @@ mod tests {
                     amount: 10_1234567,
                 },
             ];
-            let (actions, positions, health_check) =
+            let (actions, user, health_check) =
                 build_actions_from_request(&e, &mut pool, &samwise, requests);
 
             assert_eq!(health_check, false);
 
-            assert_eq!(actions.len(), 1);
-            let action = actions.get_unchecked(underlying.clone());
-            assert_eq!(action.tokens_in, 10_1234567);
-            assert_eq!(action.tokens_out, 0);
+            let spender_transfer = actions.spender_transfer;
+            let pool_transfer = actions.pool_transfer;
+            assert_eq!(spender_transfer.len(), 1);
+            assert_eq!(
+                spender_transfer.get_unchecked(underlying.clone()),
+                10_1234567
+            );
+            assert_eq!(pool_transfer.len(), 0);
 
+            let positions = user.positions.clone();
             assert_eq!(positions.liabilities.len(), 0);
             assert_eq!(positions.collateral.len(), 0);
             assert_eq!(positions.supply.len(), 1);
-            assert_eq!(positions.get_supply(0), 10_1234488);
+            assert_eq!(user.get_supply(0), 10_1234488);
 
-            let reserve = pool.load_reserve(&e, &underlying.clone());
-            assert_eq!(
-                reserve.b_supply,
-                reserve_data.b_supply + positions.get_supply(0)
-            );
+            let reserve = pool.load_reserve(&e, &underlying);
+            assert_eq!(reserve.b_supply, reserve_data.b_supply + user.get_supply(0));
         });
     }
 
@@ -432,15 +329,9 @@ mod tests {
         let samwise = Address::random(&e);
         let pool = Address::random(&e);
 
-        let (underlying_1, _) = testutils::create_token_contract(&e, &bombadil);
+        let (underlying, _) = testutils::create_token_contract(&e, &bombadil);
         let (reserve_config, reserve_data) = testutils::default_reserve_meta(&e);
-        let reserve = testutils::create_reserve(
-            &e,
-            &pool,
-            &underlying_1.clone(),
-            &reserve_config,
-            &reserve_data,
-        );
+        testutils::create_reserve(&e, &pool, &underlying, &reserve_config, &reserve_data);
 
         e.ledger().set(LedgerInfo {
             timestamp: 600,
@@ -458,9 +349,12 @@ mod tests {
             status: 0,
         };
 
+        let user_positions = Positions {
+            liabilities: map![&e],
+            collateral: map![&e],
+            supply: map![&e, (0, 20_0000000)],
+        };
         e.as_contract(&pool, || {
-            let mut user_positions = Positions::env_default(&e, &samwise);
-            user_positions.add_supply(&e, &reserve, 20_0000000);
             storage::set_pool_config(&e, &pool_config);
             storage::set_user_positions(&e, &samwise, &user_positions);
 
@@ -470,27 +364,28 @@ mod tests {
                 &e,
                 Request {
                     request_type: 1,
-                    address: underlying_1.clone(),
+                    address: underlying.clone(),
                     amount: 10_1234567,
                 },
             ];
-            println!("about to build actions");
-            let (actions, positions, health_check) =
+            let (actions, user, health_check) =
                 build_actions_from_request(&e, &mut pool, &samwise, requests);
 
             assert_eq!(health_check, false);
 
-            assert_eq!(actions.len(), 1);
-            let action = actions.get_unchecked(underlying_1.clone());
-            assert_eq!(action.tokens_out, 10_1234567);
-            assert_eq!(action.tokens_in, 0);
+            let spender_transfer = actions.spender_transfer;
+            let pool_transfer = actions.pool_transfer;
+            assert_eq!(spender_transfer.len(), 0);
+            assert_eq!(pool_transfer.len(), 1);
+            assert_eq!(pool_transfer.get_unchecked(underlying.clone()), 10_1234567);
 
+            let positions = user.positions.clone();
             assert_eq!(positions.liabilities.len(), 0);
             assert_eq!(positions.collateral.len(), 0);
             assert_eq!(positions.supply.len(), 1);
-            assert_eq!(positions.get_supply(0), 9_8765502);
+            assert_eq!(user.get_supply(0), 9_8765502);
 
-            let reserve = pool.load_reserve(&e, &underlying_1.clone());
+            let reserve = pool.load_reserve(&e, &underlying);
             assert_eq!(
                 reserve.b_supply,
                 reserve_data.b_supply - (20_0000000 - 9_8765502)
@@ -507,15 +402,9 @@ mod tests {
         let samwise = Address::random(&e);
         let pool = Address::random(&e);
 
-        let (underlying_1, _) = testutils::create_token_contract(&e, &bombadil);
+        let (underlying, _) = testutils::create_token_contract(&e, &bombadil);
         let (reserve_config, reserve_data) = testutils::default_reserve_meta(&e);
-        let reserve = testutils::create_reserve(
-            &e,
-            &pool,
-            &underlying_1.clone(),
-            &reserve_config,
-            &reserve_data,
-        );
+        testutils::create_reserve(&e, &pool, &underlying, &reserve_config, &reserve_data);
 
         e.ledger().set(LedgerInfo {
             timestamp: 600,
@@ -532,9 +421,12 @@ mod tests {
             bstop_rate: 0_200_000_000,
             status: 0,
         };
-        let mut user_positions = Positions::env_default(&e, &samwise);
+        let user_positions = Positions {
+            liabilities: map![&e],
+            collateral: map![&e],
+            supply: map![&e, (0, 20_0000000)],
+        };
         e.as_contract(&pool, || {
-            user_positions.add_supply(&e, &reserve, 20_0000000);
             storage::set_pool_config(&e, &pool_config);
             storage::set_user_positions(&e, &samwise, &user_positions);
 
@@ -544,24 +436,27 @@ mod tests {
                 &e,
                 Request {
                     request_type: 1,
-                    address: underlying_1.clone(),
+                    address: underlying.clone(),
                     amount: 21_0000000,
                 },
             ];
-            let (actions, positions, health_check) =
+            let (actions, user, health_check) =
                 build_actions_from_request(&e, &mut pool, &samwise, requests);
 
             assert_eq!(health_check, false);
 
-            assert_eq!(actions.len(), 1);
-            let action = actions.get_unchecked(underlying_1.clone());
-            assert_eq!(action.tokens_out, 20_0000137);
-            assert_eq!(action.tokens_in, 0);
+            let spender_transfer = actions.spender_transfer;
+            let pool_transfer = actions.pool_transfer;
+            assert_eq!(spender_transfer.len(), 0);
+            assert_eq!(pool_transfer.len(), 1);
+            assert_eq!(pool_transfer.get_unchecked(underlying.clone()), 20_0000137);
+
+            let positions = user.positions.clone();
             assert_eq!(positions.liabilities.len(), 0);
             assert_eq!(positions.collateral.len(), 0);
             assert_eq!(positions.supply.len(), 0);
 
-            let reserve = pool.load_reserve(&e, &underlying_1.clone());
+            let reserve = pool.load_reserve(&e, &underlying.clone());
             assert_eq!(reserve.b_supply, reserve_data.b_supply - 20_0000000);
         });
     }
@@ -609,25 +504,30 @@ mod tests {
                     amount: 10_1234567,
                 },
             ];
-            let (actions, positions, health_check) =
+            let (actions, user, health_check) =
                 build_actions_from_request(&e, &mut pool, &samwise, requests);
 
             assert_eq!(health_check, false);
 
-            assert_eq!(actions.len(), 1);
-            let action = actions.get_unchecked(underlying.clone());
-            assert_eq!(action.tokens_in, 10_1234567);
-            assert_eq!(action.tokens_out, 0);
+            let spender_transfer = actions.spender_transfer;
+            let pool_transfer = actions.pool_transfer;
+            assert_eq!(spender_transfer.len(), 1);
+            assert_eq!(
+                spender_transfer.get_unchecked(underlying.clone()),
+                10_1234567
+            );
+            assert_eq!(pool_transfer.len(), 0);
 
+            let positions = user.positions.clone();
             assert_eq!(positions.liabilities.len(), 0);
             assert_eq!(positions.collateral.len(), 1);
             assert_eq!(positions.supply.len(), 0);
-            assert_eq!(positions.get_collateral(0), 10_1234488);
+            assert_eq!(user.get_collateral(0), 10_1234488);
 
             let reserve = pool.load_reserve(&e, &underlying.clone());
             assert_eq!(
                 reserve.b_supply,
-                reserve_data.b_supply + positions.get_collateral(0)
+                reserve_data.b_supply + user.get_collateral(0)
             );
         });
     }
@@ -643,10 +543,9 @@ mod tests {
         let samwise = Address::random(&e);
         let pool = Address::random(&e);
 
-        let (underlying_1, _) = testutils::create_token_contract(&e, &bombadil);
+        let (underlying, _) = testutils::create_token_contract(&e, &bombadil);
         let (reserve_config, reserve_data) = testutils::default_reserve_meta(&e);
-        let reserve =
-            testutils::create_reserve(&e, &pool, &underlying_1, &reserve_config, &reserve_data);
+        testutils::create_reserve(&e, &pool, &underlying, &reserve_config, &reserve_data);
 
         e.ledger().set(LedgerInfo {
             timestamp: 600,
@@ -663,9 +562,12 @@ mod tests {
             bstop_rate: 0_200_000_000,
             status: 0,
         };
-        let mut user_positions = Positions::env_default(&e, &samwise);
+        let user_positions = Positions {
+            liabilities: map![&e],
+            collateral: map![&e, (0, 20_0000000)],
+            supply: map![&e],
+        };
         e.as_contract(&pool, || {
-            user_positions.add_collateral(&e, &reserve, 20_0000000);
             storage::set_pool_config(&e, &pool_config);
             storage::set_user_positions(&e, &samwise, &user_positions);
 
@@ -675,26 +577,28 @@ mod tests {
                 &e,
                 Request {
                     request_type: 3,
-                    address: underlying_1.clone(),
+                    address: underlying.clone(),
                     amount: 10_1234567,
                 },
             ];
-            let (actions, positions, health_check) =
+            let (actions, user, health_check) =
                 build_actions_from_request(&e, &mut pool, &samwise, requests);
 
             assert_eq!(health_check, true);
 
-            assert_eq!(actions.len(), 1);
-            let action = actions.get_unchecked(underlying_1.clone());
-            assert_eq!(action.tokens_out, 10_1234567);
-            assert_eq!(action.tokens_in, 0);
+            let spender_transfer = actions.spender_transfer;
+            let pool_transfer = actions.pool_transfer;
+            assert_eq!(spender_transfer.len(), 0);
+            assert_eq!(pool_transfer.len(), 1);
+            assert_eq!(pool_transfer.get_unchecked(underlying.clone()), 10_1234567);
 
+            let positions = user.positions.clone();
             assert_eq!(positions.liabilities.len(), 0);
             assert_eq!(positions.collateral.len(), 1);
             assert_eq!(positions.supply.len(), 0);
-            assert_eq!(positions.get_collateral(0), 9_8765502);
+            assert_eq!(user.get_collateral(0), 9_8765502);
 
-            let reserve = pool.load_reserve(&e, &underlying_1);
+            let reserve = pool.load_reserve(&e, &underlying);
             assert_eq!(
                 reserve.b_supply,
                 reserve_data.b_supply - (20_0000000 - 9_8765502)
@@ -711,15 +615,9 @@ mod tests {
         let samwise = Address::random(&e);
         let pool = Address::random(&e);
 
-        let (underlying_1, _) = testutils::create_token_contract(&e, &bombadil);
+        let (underlying, _) = testutils::create_token_contract(&e, &bombadil);
         let (reserve_config, reserve_data) = testutils::default_reserve_meta(&e);
-        let reserve = testutils::create_reserve(
-            &e,
-            &pool,
-            &underlying_1.clone(),
-            &reserve_config,
-            &reserve_data,
-        );
+        testutils::create_reserve(&e, &pool, &underlying, &reserve_config, &reserve_data);
 
         e.ledger().set(LedgerInfo {
             timestamp: 600,
@@ -736,9 +634,12 @@ mod tests {
             bstop_rate: 0_200_000_000,
             status: 0,
         };
-        let mut user_positions = Positions::env_default(&e, &samwise);
+        let user_positions = Positions {
+            liabilities: map![&e],
+            collateral: map![&e, (0, 20_0000000)],
+            supply: map![&e],
+        };
         e.as_contract(&pool, || {
-            user_positions.add_collateral(&e, &reserve, 20_0000000);
             storage::set_pool_config(&e, &pool_config);
             storage::set_user_positions(&e, &samwise, &user_positions);
 
@@ -748,25 +649,27 @@ mod tests {
                 &e,
                 Request {
                     request_type: 3,
-                    address: underlying_1.clone(),
+                    address: underlying.clone(),
                     amount: 21_0000000,
                 },
             ];
-            let (actions, positions, health_check) =
+            let (actions, user, health_check) =
                 build_actions_from_request(&e, &mut pool, &samwise, requests);
 
             assert_eq!(health_check, true);
 
-            assert_eq!(actions.len(), 1);
-            let action = actions.get_unchecked(underlying_1.clone());
-            assert_eq!(action.tokens_out, 20_0000137);
-            assert_eq!(action.tokens_in, 0);
+            let spender_transfer = actions.spender_transfer;
+            let pool_transfer = actions.pool_transfer;
+            assert_eq!(spender_transfer.len(), 0);
+            assert_eq!(pool_transfer.len(), 1);
+            assert_eq!(pool_transfer.get_unchecked(underlying.clone()), 20_0000137);
 
+            let positions = user.positions.clone();
             assert_eq!(positions.liabilities.len(), 0);
             assert_eq!(positions.collateral.len(), 0);
             assert_eq!(positions.supply.len(), 0);
 
-            let reserve = pool.load_reserve(&e, &underlying_1.clone());
+            let reserve = pool.load_reserve(&e, &underlying);
             assert_eq!(reserve.b_supply, reserve_data.b_supply - 20_0000000);
         });
     }
@@ -782,15 +685,9 @@ mod tests {
         let samwise = Address::random(&e);
         let pool = Address::random(&e);
 
-        let (underlying_1, _) = testutils::create_token_contract(&e, &bombadil);
+        let (underlying, _) = testutils::create_token_contract(&e, &bombadil);
         let (reserve_config, reserve_data) = testutils::default_reserve_meta(&e);
-        testutils::create_reserve(
-            &e,
-            &pool,
-            &underlying_1.clone(),
-            &reserve_config,
-            &reserve_data,
-        );
+        testutils::create_reserve(&e, &pool, &underlying, &reserve_config, &reserve_data);
         e.ledger().set(LedgerInfo {
             timestamp: 600,
             protocol_version: 1,
@@ -815,27 +712,27 @@ mod tests {
                 &e,
                 Request {
                     request_type: 4,
-                    address: underlying_1.clone(),
+                    address: underlying.clone(),
                     amount: 10_1234567,
                 },
             ];
-            println!("here");
-            let (actions, positions, health_check) =
+            let (actions, user, health_check) =
                 build_actions_from_request(&e, &mut pool, &samwise, requests);
-            println!("here");
             assert_eq!(health_check, true);
 
-            assert_eq!(actions.len(), 1);
-            let action = actions.get_unchecked(underlying_1.clone());
-            assert_eq!(action.tokens_out, 10_1234567);
-            assert_eq!(action.tokens_in, 0);
+            let spender_transfer = actions.spender_transfer;
+            let pool_transfer = actions.pool_transfer;
+            assert_eq!(spender_transfer.len(), 0);
+            assert_eq!(pool_transfer.len(), 1);
+            assert_eq!(pool_transfer.get_unchecked(underlying.clone()), 10_1234567);
 
+            let positions = user.positions.clone();
             assert_eq!(positions.liabilities.len(), 1);
             assert_eq!(positions.collateral.len(), 0);
             assert_eq!(positions.supply.len(), 0);
-            assert_eq!(positions.get_liabilities(0), 10_1234452);
+            assert_eq!(user.get_liabilities(0), 10_1234452);
 
-            let reserve = pool.load_reserve(&e, &underlying_1);
+            let reserve = pool.load_reserve(&e, &underlying);
             assert_eq!(reserve.d_supply, reserve_data.d_supply + 10_1234452);
         });
     }
@@ -851,10 +748,9 @@ mod tests {
         let samwise = Address::random(&e);
         let pool = Address::random(&e);
 
-        let (underlying_1, _) = testutils::create_token_contract(&e, &bombadil);
+        let (underlying, _) = testutils::create_token_contract(&e, &bombadil);
         let (reserve_config, reserve_data) = testutils::default_reserve_meta(&e);
-        let reserve =
-            testutils::create_reserve(&e, &pool, &underlying_1, &reserve_config, &reserve_data);
+        testutils::create_reserve(&e, &pool, &underlying, &reserve_config, &reserve_data);
 
         e.ledger().set(LedgerInfo {
             timestamp: 600,
@@ -871,9 +767,12 @@ mod tests {
             bstop_rate: 0_200_000_000,
             status: 0,
         };
-        let mut user_positions = Positions::env_default(&e, &samwise);
+        let user_positions = Positions {
+            liabilities: map![&e, (0, 20_0000000)],
+            collateral: map![&e],
+            supply: map![&e],
+        };
         e.as_contract(&pool, || {
-            user_positions.add_liabilities(&e, &reserve, 20_0000000);
             storage::set_pool_config(&e, &pool_config);
             storage::set_user_positions(&e, &samwise, &user_positions);
 
@@ -883,27 +782,32 @@ mod tests {
                 &e,
                 Request {
                     request_type: 5,
-                    address: underlying_1.clone(),
+                    address: underlying.clone(),
                     amount: 10_1234567,
                 },
             ];
-            let (actions, positions, health_check) =
+            let (actions, user, health_check) =
                 build_actions_from_request(&e, &mut pool, &samwise, requests);
 
             assert_eq!(health_check, false);
 
-            assert_eq!(actions.len(), 1);
-            let action = actions.get_unchecked(underlying_1.clone());
-            assert_eq!(action.tokens_in, 10_1234567);
-            assert_eq!(action.tokens_out, 0);
+            let spender_transfer = actions.spender_transfer;
+            let pool_transfer = actions.pool_transfer;
+            assert_eq!(spender_transfer.len(), 1);
+            assert_eq!(
+                spender_transfer.get_unchecked(underlying.clone()),
+                10_1234567
+            );
+            assert_eq!(pool_transfer.len(), 0);
 
+            let positions = user.positions.clone();
             assert_eq!(positions.liabilities.len(), 1);
             assert_eq!(positions.collateral.len(), 0);
             assert_eq!(positions.supply.len(), 0);
             let d_tokens_repaid = 10_1234451;
-            assert_eq!(positions.get_liabilities(0), 20_0000000 - d_tokens_repaid);
+            assert_eq!(user.get_liabilities(0), 20_0000000 - d_tokens_repaid);
 
-            let reserve = pool.load_reserve(&e, &underlying_1);
+            let reserve = pool.load_reserve(&e, &underlying);
             assert_eq!(reserve.d_supply, reserve_data.d_supply - d_tokens_repaid);
         });
     }
@@ -917,15 +821,9 @@ mod tests {
         let samwise = Address::random(&e);
         let pool = Address::random(&e);
 
-        let (underlying_1, _) = testutils::create_token_contract(&e, &bombadil);
+        let (underlying, _) = testutils::create_token_contract(&e, &bombadil);
         let (reserve_config, reserve_data) = testutils::default_reserve_meta(&e);
-        let reserve = testutils::create_reserve(
-            &e,
-            &pool,
-            &underlying_1.clone(),
-            &reserve_config,
-            &reserve_data,
-        );
+        testutils::create_reserve(&e, &pool, &underlying, &reserve_config, &reserve_data);
 
         e.ledger().set(LedgerInfo {
             timestamp: 600,
@@ -942,9 +840,12 @@ mod tests {
             bstop_rate: 0_200_000_000,
             status: 0,
         };
-        let mut user_positions = Positions::env_default(&e, &samwise);
+        let user_positions = Positions {
+            liabilities: map![&e, (0, 20_0000000)],
+            collateral: map![&e],
+            supply: map![&e],
+        };
         e.as_contract(&pool, || {
-            user_positions.add_liabilities(&e, &reserve, 20_0000000);
             storage::set_pool_config(&e, &pool_config);
             storage::set_user_positions(&e, &samwise, &user_positions);
 
@@ -954,28 +855,35 @@ mod tests {
                 &e,
                 Request {
                     request_type: 5,
-                    address: underlying_1.clone(),
+                    address: underlying.clone(),
                     amount: 21_0000000,
                 },
             ];
-            let (actions, positions, health_check) =
+            let (actions, user, health_check) =
                 build_actions_from_request(&e, &mut pool, &samwise, requests);
 
             assert_eq!(health_check, false);
 
-            assert_eq!(actions.len(), 1);
-            let action = actions.get_unchecked(underlying_1.clone());
-            assert_eq!(action.tokens_in, 21_0000000);
-            assert_eq!(action.tokens_out, 0_9999771);
+            let spender_transfer = actions.spender_transfer;
+            let pool_transfer = actions.pool_transfer;
+            assert_eq!(spender_transfer.len(), 1);
+            assert_eq!(
+                spender_transfer.get_unchecked(underlying.clone()),
+                21_0000000
+            );
+            assert_eq!(pool_transfer.len(), 1);
+            assert_eq!(pool_transfer.get_unchecked(underlying.clone()), 0_9999771);
 
+            let positions = user.positions.clone();
             assert_eq!(positions.liabilities.len(), 0);
             assert_eq!(positions.collateral.len(), 0);
             assert_eq!(positions.supply.len(), 0);
 
-            let reserve = pool.load_reserve(&e, &underlying_1);
+            let reserve = pool.load_reserve(&e, &underlying);
             assert_eq!(reserve.d_supply, reserve_data.d_supply - 20_0000000);
         });
     }
+
     #[test]
     fn test_aggregating_actions() {
         let e = Env::default();
@@ -985,13 +893,13 @@ mod tests {
         let samwise = Address::random(&e);
         let pool = Address::random(&e);
 
-        let (underlying_1, _) = testutils::create_token_contract(&e, &bombadil);
+        let (underlying, _) = testutils::create_token_contract(&e, &bombadil);
         let (reserve_config, mut reserve_data) = testutils::default_reserve_meta(&e);
         reserve_data.last_time = 600;
-        let reserve = testutils::create_reserve(
+        testutils::create_reserve(
             &e,
             &pool,
-            &underlying_1.clone(),
+            &underlying.clone(),
             &reserve_config,
             &reserve_data,
         );
@@ -1011,7 +919,7 @@ mod tests {
             bstop_rate: 0_200_000_000,
             status: 0,
         };
-        let user_positions = Positions::env_default(&e, &samwise);
+        let user_positions = Positions::env_default(&e);
         e.as_contract(&pool, || {
             storage::set_pool_config(&e, &pool_config);
             storage::set_user_positions(&e, &samwise, &user_positions);
@@ -1022,55 +930,62 @@ mod tests {
                 &e,
                 Request {
                     request_type: 0,
-                    address: underlying_1.clone(),
+                    address: underlying.clone(),
                     amount: 10_0000000,
                 },
                 Request {
                     request_type: 1,
-                    address: underlying_1.clone(),
+                    address: underlying.clone(),
                     amount: 5_0000000,
                 },
                 Request {
                     request_type: 2,
-                    address: underlying_1.clone(),
+                    address: underlying.clone(),
                     amount: 10_0000000,
                 },
                 Request {
                     request_type: 3,
-                    address: underlying_1.clone(),
+                    address: underlying.clone(),
                     amount: 5_0000000,
                 },
                 Request {
                     request_type: 4,
-                    address: underlying_1.clone(),
+                    address: underlying.clone(),
                     amount: 20_0000000,
                 },
                 Request {
                     request_type: 5,
-                    address: underlying_1.clone(),
+                    address: underlying.clone(),
                     amount: 21_0000000,
                 },
             ];
-            let (actions, positions, health_check) =
+            let (actions, user, health_check) =
                 build_actions_from_request(&e, &mut pool, &samwise, requests);
 
             assert_eq!(health_check, true);
 
-            assert_eq!(actions.len(), 1);
-            let action = actions.get_unchecked(underlying_1.clone());
+            let spender_transfer = actions.spender_transfer;
+            let pool_transfer = actions.pool_transfer;
+            assert_eq!(spender_transfer.len(), 1);
             assert_eq!(
-                action.tokens_out,
+                spender_transfer.get_unchecked(underlying.clone()),
+                10_0000000 + 10_0000000 + 21_0000000
+            );
+            assert_eq!(pool_transfer.len(), 1);
+            assert_eq!(
+                pool_transfer.get_unchecked(underlying.clone()),
                 5_0000000 + 5_0000000 + 20_0000000 + 1_0000000
             );
-            assert_eq!(action.tokens_in, 10_0000000 + 10_0000000 + 21_0000000);
 
+            let positions = user.positions.clone();
             assert_eq!(positions.liabilities.len(), 0);
             assert_eq!(positions.collateral.len(), 1);
             assert_eq!(positions.supply.len(), 1);
-            assert_eq!(positions.collateral.get_unchecked(reserve.index), 5_0000000);
-            assert_eq!(positions.supply.get_unchecked(reserve.index), 5_0000000);
+            assert_eq!(positions.collateral.get_unchecked(0), 5_0000000);
+            assert_eq!(positions.supply.get_unchecked(0), 5_0000000);
         });
     }
+
     #[test]
     fn test_fill_user_liquidation() {
         let e = Env::default();
@@ -1155,7 +1070,6 @@ mod tests {
             status: 0,
         };
         let positions: Positions = Positions {
-            user: samwise.clone(),
             collateral: map![
                 &e,
                 (reserve_config_0.index, 90_9100000),
@@ -1192,9 +1106,11 @@ mod tests {
                 storage::has_auction(&e, &(AuctionType::UserLiquidation as u32), &samwise),
                 false
             );
-            assert_eq!(actions.len(), 0);
+            assert_eq!(actions.pool_transfer.len(), 0);
+            assert_eq!(actions.spender_transfer.len(), 0);
         });
     }
+
     #[test]
     fn test_fill_bad_debt_auction() {
         let e = Env::default();
@@ -1271,7 +1187,6 @@ mod tests {
             block: 51,
         };
         let positions: Positions = Positions {
-            user: backstop_address.clone(),
             collateral: map![&e],
             liabilities: map![
                 &e,
@@ -1311,7 +1226,8 @@ mod tests {
                 storage::has_auction(&e, &(AuctionType::BadDebtAuction as u32), &backstop_address),
                 false
             );
-            assert_eq!(actions.len(), 0);
+            assert_eq!(actions.pool_transfer.len(), 0);
+            assert_eq!(actions.spender_transfer.len(), 0);
         });
     }
     #[test]
@@ -1359,7 +1275,7 @@ mod tests {
         );
         underlying_0_client.mint(&pool_address, &1_000_0000000);
 
-        let (underlying_1, underlying_1_client) = testutils::create_token_contract(&e, &bombadil);
+        let (underlying_1, underlying_client) = testutils::create_token_contract(&e, &bombadil);
         let (mut reserve_config_1, mut reserve_data_1) = testutils::default_reserve_meta(&e);
         reserve_data_1.b_rate = 1_100_000_000;
         reserve_data_1.last_time = 12345;
@@ -1371,7 +1287,7 @@ mod tests {
             &reserve_config_1,
             &reserve_data_1,
         );
-        underlying_1_client.mint(&pool_address, &1_000_0000000);
+        underlying_client.mint(&pool_address, &1_000_0000000);
 
         let (underlying_2, underlying_2_client) = testutils::create_token_contract(&e, &bombadil);
         let (mut reserve_config_2, mut reserve_data_2) = testutils::default_reserve_meta(&e);
@@ -1435,7 +1351,8 @@ mod tests {
                 ),
                 false
             );
-            assert_eq!(actions.len(), 0);
+            assert_eq!(actions.pool_transfer.len(), 0);
+            assert_eq!(actions.spender_transfer.len(), 0);
         });
     }
 }

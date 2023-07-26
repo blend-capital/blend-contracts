@@ -62,9 +62,6 @@ pub fn fill_interest_auction(e: &Env, auction_data: &mut AuctionData, filler: &A
     apply_fill_modifiers(e, auction_data);
 
     // bid only contains the USDC token
-    let usdc_token = storage::get_usdc_token(e);
-    let bid_amount = auction_data.bid.get_unchecked(usdc_token);
-
     // TODO: add donate_usdc function to backstop
     // let backstop_client = BackstopClient::new(&e, &backstop_address);
     // backstop_client.donate(&filler, &e.current_contract_id(), &bid_amount_modified);

@@ -200,7 +200,7 @@ pub trait PoolTrait {
     ///
     /// ### Panics
     /// If the user liquidation auction was unable to be created
-    fn new_liquidation_auction(e: Env, user: Address, percent_liquidated: i128) -> AuctionData;
+    fn new_liquidation_auction(e: Env, user: Address, percent_liquidated: u64) -> AuctionData;
 
     /// Delete a user liquidation auction if the user is no longer eligible to be liquidated.
     ///
@@ -390,7 +390,7 @@ impl PoolTrait for Pool {
 
     /***** Auction / Liquidation Functions *****/
 
-    fn new_liquidation_auction(e: Env, user: Address, percent_liquidated: i128) -> AuctionData {
+    fn new_liquidation_auction(e: Env, user: Address, percent_liquidated: u64) -> AuctionData {
         let auction_data = auctions::create_liquidation(&e, &user, percent_liquidated);
 
         e.events().publish(

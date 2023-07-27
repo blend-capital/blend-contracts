@@ -77,7 +77,7 @@ pub fn create(e: &Env, auction_type: u32) -> AuctionData {
 ///
 /// ### Panics
 /// If the auction is unable to be created
-pub fn create_liquidation(e: &Env, user: &Address, percent_liquidated: i128) -> AuctionData {
+pub fn create_liquidation(e: &Env, user: &Address, percent_liquidated: u64) -> AuctionData {
     let auction_data = create_user_liq_auction_data(e, user, percent_liquidated);
 
     storage::set_auction(

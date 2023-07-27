@@ -3,11 +3,11 @@
 
 use libfuzzer_sys::fuzz_target;
 use fixed_point_math::FixedPoint;
-use soroban_sdk::{testutils::Address as AddressTestTrait, vec, Address};
+use lending_pool::Request;
+use soroban_sdk::{testutils::Address as _, vec, Address};
 use test_suites::{
     assertions::assert_approx_eq_abs,
     create_fixture_with_data,
-    pool::Request,
     test_fixture::{TokenIndex, SCALAR_7, SCALAR_9, TestFixture},
 };
 use soroban_sdk::arbitrary::arbitrary::{self, Arbitrary, Unstructured};
@@ -75,7 +75,7 @@ fuzz_target!(|input: Input| {
                 &fixture.env,
                 Request {
                     request_type: 2,
-                    reserve_index: usdc_pool_index,
+                    address: usdc.address.clone(),
                     amount,
                 },
             ],
@@ -112,7 +112,7 @@ fuzz_target!(|input: Input| {
                 &fixture.env,
                 Request {
                     request_type: 2,
-                    reserve_index: xlm_pool_index,
+                    address: xlm.address.clone(),
                     amount,
                 },
             ],
@@ -149,7 +149,7 @@ fuzz_target!(|input: Input| {
                 &fixture.env,
                 Request {
                     request_type: 4,
-                    reserve_index: usdc_pool_index,
+                    address: usdc.address.clone(),
                     amount,
                 },
             ],
@@ -189,7 +189,7 @@ fuzz_target!(|input: Input| {
                 &fixture.env,
                 Request {
                     request_type: 4,
-                    reserve_index: xlm_pool_index,
+                    address: xlm.address.clone(),
                     amount,
                 },
             ],
@@ -294,7 +294,7 @@ fuzz_target!(|input: Input| {
                 &fixture.env,
                 Request {
                     request_type: 5,
-                    reserve_index: usdc_pool_index,
+                    address: usdc.address.clone(),
                     amount,
                 },
             ],
@@ -334,7 +334,7 @@ fuzz_target!(|input: Input| {
                 &fixture.env,
                 Request {
                     request_type: 5,
-                    reserve_index: xlm_pool_index,
+                    address: xlm.address.clone(),
                     amount,
                 },
             ],
@@ -374,7 +374,7 @@ fuzz_target!(|input: Input| {
                 &fixture.env,
                 Request {
                     request_type: 3,
-                    reserve_index: xlm_pool_index,
+                    address: xlm.address.clone(),
                     amount,
                 },
             ],
@@ -415,7 +415,7 @@ fuzz_target!(|input: Input| {
                 &fixture.env,
                 Request {
                     request_type: 3,
-                    reserve_index: usdc_pool_index,
+                    address: usdc.address.clone(),
                     amount,
                 },
             ],

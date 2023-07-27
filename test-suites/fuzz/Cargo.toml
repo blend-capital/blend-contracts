@@ -10,12 +10,16 @@ cargo-fuzz = true
 [dependencies]
 libfuzzer-sys = "0.4"
 fixed-point-math = "0.0.2"
-soroban-sdk.version = "0.9.2"
+soroban-sdk.git = "https://github.com/stellar/rs-soroban-sdk"
+soroban-sdk.rev = "b1cec10b79cee3c1ecf63079b1088ce97b32c68a"
 soroban-sdk.features = ["testutils"]
 extension-trait = "1"
 
 [dependencies.test-suites]
 path = ".."
+
+[dependencies.lending-pool]
+path = "../../lending-pool"
 
 # Prevent this from interfering with workspaces
 [workspace]

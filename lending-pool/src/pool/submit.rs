@@ -1,4 +1,4 @@
-use crate::{dependencies::TokenClient, storage};
+use crate::dependencies::TokenClient;
 use soroban_sdk::{Address, Env, Vec};
 
 use super::{
@@ -27,47 +27,38 @@ pub fn execute_submit(
 ) -> Positions {
     let mut pool = Pool::load(e);
 
-    let (pool_actions, new_positions, check_health) =
+    let (actions, new_from_state, check_health) =
         build_actions_from_request(e, &mut pool, &from, requests);
 
     if check_health {
         // panics if the new positions set does not meet the health factor requirement
-        PositionData::calculate_from_positions(e, &mut pool, &new_positions).require_healthy(e);
+        PositionData::calculate_from_positions(e, &mut pool, &new_from_state.positions)
+            .require_healthy(e);
     }
 
-    // TODO: Is this reentrancy guard necessary?
-    // transfer tokens into the pool
-    for (address, action) in pool_actions.iter() {
-        if action.tokens_in > 0 {
-            TokenClient::new(e, &address).transfer(
-                &spender,
-                &e.current_contract_address(),
-                &action.tokens_in,
-            );
-        }
+    // transfer tokens from sender to pool
+    for (address, amount) in actions.spender_transfer.iter() {
+        TokenClient::new(e, &address).transfer(&spender, &e.current_contract_address(), &amount);
     }
 
     // store updated info to ledger
     pool.store_cached_reserves(e);
-    storage::set_user_positions(e, &from, &new_positions);
+    new_from_state.store(e);
 
-    // transfer tokens out of the pool
-    for (address, action) in pool_actions.iter() {
-        if action.tokens_out > 0 {
-            TokenClient::new(e, &address).transfer(
-                &e.current_contract_address(),
-                &to,
-                &action.tokens_out,
-            );
-        }
+    // transfer tokens from pool to "to"
+    for (address, amount) in actions.pool_transfer.iter() {
+        TokenClient::new(e, &address).transfer(&e.current_contract_address(), &to, &amount);
     }
 
-    new_positions
+    new_from_state.positions
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::{storage::PoolConfig, testutils};
+    use crate::{
+        storage::{self, PoolConfig},
+        testutils,
+    };
 
     use super::*;
     use soroban_sdk::{
@@ -140,8 +131,8 @@ mod tests {
             assert_eq!(positions.liabilities.len(), 1);
             assert_eq!(positions.collateral.len(), 1);
             assert_eq!(positions.supply.len(), 0);
-            assert_eq!(positions.get_collateral(0), 14_9999884);
-            assert_eq!(positions.get_liabilities(1), 1_4999983);
+            assert_eq!(positions.collateral.get_unchecked(0), 14_9999884);
+            assert_eq!(positions.liabilities.get_unchecked(1), 1_4999983);
 
             assert_eq!(
                 underlying_0_client.balance(&pool),

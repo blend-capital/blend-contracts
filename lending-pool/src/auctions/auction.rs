@@ -77,7 +77,7 @@ pub fn create(e: &Env, auction_type: u32) -> AuctionData {
 ///
 /// ### Panics
 /// If the auction is unable to be created
-pub fn create_liquidation(e: &Env, user: &Address, percent_liquidated: i128) -> AuctionData {
+pub fn create_liquidation(e: &Env, user: &Address, percent_liquidated: u64) -> AuctionData {
     let auction_data = create_user_liq_auction_data(e, user, percent_liquidated);
 
     storage::set_auction(
@@ -115,6 +115,7 @@ pub fn delete_liquidation(e: &Env, user: &Address) {
 /// TODO: Use auth-next to avoid required allowances
 ///
 /// ### Arguments
+/// * `pool` - The pool
 /// * `auction_type` - The type of auction to fill
 /// * `user` - The user involved in the auction
 /// * `filler` - The Address filling the auction
@@ -122,12 +123,14 @@ pub fn delete_liquidation(e: &Env, user: &Address) {
 /// ### Panics
 /// If the auction does not exist, or if the pool is unable to fulfill either side
 /// of the auction quote
-pub fn fill(e: &Env, auction_type: u32, user: &Address, filler: &Address) {
+pub fn fill(e: &Env, pool: &mut Pool, auction_type: u32, user: &Address, filler: &Address) {
     let mut auction_data = storage::get_auction(e, &auction_type, user);
     match AuctionType::from_u32(auction_type) {
-        AuctionType::UserLiquidation => fill_user_liq_auction(e, &mut auction_data, &user, &filler),
-        AuctionType::BadDebtAuction => fill_bad_debt_auction(e, &mut auction_data, &filler),
-        AuctionType::InterestAuction => fill_interest_auction(e, &mut auction_data, filler),
+        AuctionType::UserLiquidation => {
+            fill_user_liq_auction(e, pool, &mut auction_data, &user, &filler)
+        }
+        AuctionType::BadDebtAuction => fill_bad_debt_auction(e, pool, &mut auction_data, &filler),
+        AuctionType::InterestAuction => fill_interest_auction(e, pool, &mut auction_data, filler),
     };
 
     storage::del_auction(e, &auction_type, user);
@@ -262,7 +265,6 @@ mod tests {
         oracle_client.set_price(&backstop_token_id, &0_5000000);
 
         let positions: Positions = Positions {
-            user: backstop_address.clone(),
             collateral: map![&e],
             liabilities: map![
                 &e,
@@ -453,7 +455,6 @@ mod tests {
 
         let liq_pct = 4500000;
         let positions: Positions = Positions {
-            user: samwise.clone(),
             collateral: map![
                 &e,
                 (reserve_config_0.index, 90_9100000),
@@ -528,7 +529,6 @@ mod tests {
         let collateral_amount = 17_8000000;
         let liability_amount = 20_0000000;
         let positions: Positions = Positions {
-            user: samwise.clone(),
             collateral: map![&e, (reserve_config_0.index, collateral_amount)],
             liabilities: map![&e, (reserve_config_1.index, liability_amount)],
             supply: map![&e],
@@ -602,7 +602,6 @@ mod tests {
         let collateral_amount = 15_0000000;
         let liability_amount = 20_0000000;
         let positions: Positions = Positions {
-            user: samwise.clone(),
             collateral: map![&e, (reserve_config_0.index, collateral_amount)],
             liabilities: map![&e, (reserve_config_1.index, liability_amount)],
             supply: map![&e],

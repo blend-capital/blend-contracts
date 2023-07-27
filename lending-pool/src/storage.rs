@@ -140,7 +140,7 @@ pub fn get_user_positions(e: &Env, user: &Address) -> Positions {
     e.storage()
         .persistent()
         .get::<PoolDataKey, Positions>(&key)
-        .unwrap_or(Positions::env_default(e, user))
+        .unwrap_or(Positions::env_default(e))
 }
 
 /// Set the user's positions

@@ -58,19 +58,20 @@ pub fn create_interest_auction_data(e: &Env, backstop: &Address) -> AuctionData 
     auction_data
 }
 
-pub fn fill_interest_auction(e: &Env, auction_data: &mut AuctionData, filler: &Address) {
+pub fn fill_interest_auction(
+    e: &Env,
+    pool: &mut Pool,
+    auction_data: &mut AuctionData,
+    filler: &Address,
+) {
     apply_fill_modifiers(e, auction_data);
 
     // bid only contains the USDC token
-    let usdc_token = storage::get_usdc_token(e);
-    let bid_amount = auction_data.bid.get_unchecked(usdc_token);
-
     // TODO: add donate_usdc function to backstop
     // let backstop_client = BackstopClient::new(&e, &backstop_address);
     // backstop_client.donate(&filler, &e.current_contract_id(), &bid_amount_modified);
 
     // lot contains underlying tokens, but the backstop credit must be updated on the reserve
-    let pool = Pool::load(e);
     for (res_asset_address, lot_amount) in auction_data.lot.iter() {
         let mut reserve = pool.load_reserve(e, &res_asset_address);
         reserve.backstop_credit -= lot_amount;
@@ -547,7 +548,7 @@ mod tests {
                 &1000000,
             );
 
-            let pool = Pool::load(&e);
+            let mut pool = Pool::load(&e);
             let mut reserve_0 = pool.load_reserve(&e, &underlying_0);
             reserve_0.backstop_credit += 100_0000000;
             reserve_0.store(&e);
@@ -556,7 +557,7 @@ mod tests {
             reserve_1.store(&e);
 
             e.budget().reset_unlimited();
-            fill_interest_auction(&e, &mut auction_data, &samwise);
+            fill_interest_auction(&e, &mut pool, &mut auction_data, &samwise);
             // let result = calc_fill_interest_auction(&e, &auction);
             //TODO: test that usdc was transferred to backstop once the donate_usdc function is added to backstop
             // assert_eq!(usdc_client.balance(&samwise), 23_8000000);

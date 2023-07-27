@@ -18,15 +18,15 @@ pub enum PoolError {
     InvalidUtilRate = 12,
     // Emission Errors (20-29)
     EmissionFailure = 20,
+    // Oracle Errors (30-39)
+    StalePrice = 30,
     // Auction Errors (100-199)
     InvalidLiquidation = 100,
     InvalidLot = 101,
     InvalidBids = 102,
     AuctionInProgress = 103,
     InvalidAuctionType = 104,
-    InvalidLotTooLarge = 105,
-    InvalidLotTooSmall = 106,
-    InvalidBidTooLarge = 107,
-    InvalidBidTooSmall = 108,
-    InterestTooSmall = 109,
+    InvalidLiqTooLarge = 105,
+    InvalidLiqTooSmall = 106,
+    InterestTooSmall = 107,
 }

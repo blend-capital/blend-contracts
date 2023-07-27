@@ -1,11 +1,11 @@
 #![cfg(test)]
 
 use fixed_point_math::FixedPoint;
-use soroban_sdk::{testutils::Address as AddressTestTrait, vec, Address};
+use lending_pool::Request;
+use soroban_sdk::{testutils::Address as _, vec, Address};
 use test_suites::{
     assertions::assert_approx_eq_abs,
     create_fixture_with_data,
-    pool::Request,
     test_fixture::{TokenIndex, SCALAR_7, SCALAR_9},
 };
 
@@ -51,7 +51,7 @@ fn test_wasm_happy_path() {
             &fixture.env,
             Request {
                 request_type: 2,
-                reserve_index: usdc_pool_index,
+                address: usdc.address.clone(),
                 amount,
             },
         ],
@@ -80,7 +80,7 @@ fn test_wasm_happy_path() {
             &fixture.env,
             Request {
                 request_type: 2,
-                reserve_index: xlm_pool_index,
+                address: xlm.address.clone(),
                 amount,
             },
         ],
@@ -109,7 +109,7 @@ fn test_wasm_happy_path() {
             &fixture.env,
             Request {
                 request_type: 4,
-                reserve_index: usdc_pool_index,
+                address: usdc.address.clone(),
                 amount,
             },
         ],
@@ -138,7 +138,7 @@ fn test_wasm_happy_path() {
             &fixture.env,
             Request {
                 request_type: 4,
-                reserve_index: xlm_pool_index,
+                address: xlm.address.clone(),
                 amount,
             },
         ],
@@ -230,7 +230,7 @@ fn test_wasm_happy_path() {
             &fixture.env,
             Request {
                 request_type: 5,
-                reserve_index: usdc_pool_index,
+                address: usdc.address.clone(),
                 amount,
             },
         ],
@@ -259,7 +259,7 @@ fn test_wasm_happy_path() {
             &fixture.env,
             Request {
                 request_type: 5,
-                reserve_index: xlm_pool_index,
+                address: xlm.address.clone(),
                 amount,
             },
         ],
@@ -288,7 +288,7 @@ fn test_wasm_happy_path() {
             &fixture.env,
             Request {
                 request_type: 3,
-                reserve_index: xlm_pool_index,
+                address: xlm.address.clone(),
                 amount,
             },
         ],
@@ -317,7 +317,7 @@ fn test_wasm_happy_path() {
             &fixture.env,
             Request {
                 request_type: 3,
-                reserve_index: usdc_pool_index,
+                address: usdc.address.clone(),
                 amount,
             },
         ],
@@ -432,7 +432,7 @@ fn test_wasm_happy_path() {
             &fixture.env,
             Request {
                 request_type: 5,
-                reserve_index: usdc_pool_index,
+                address: usdc.address.clone(),
                 amount: amount,
             },
         ],
@@ -464,7 +464,7 @@ fn test_wasm_happy_path() {
             &fixture.env,
             Request {
                 request_type: 5,
-                reserve_index: xlm_pool_index,
+                address: xlm.address.clone(),
                 amount: amount,
             },
         ],
@@ -497,7 +497,7 @@ fn test_wasm_happy_path() {
             &fixture.env,
             Request {
                 request_type: 3,
-                reserve_index: xlm_pool_index,
+                address: xlm.address.clone(),
                 amount: amount,
             },
         ],
@@ -525,7 +525,7 @@ fn test_wasm_happy_path() {
             &fixture.env,
             Request {
                 request_type: 3,
-                reserve_index: usdc_pool_index,
+                address: usdc.address.clone(),
                 amount: amount,
             },
         ],
@@ -539,4 +539,44 @@ fn test_wasm_happy_path() {
         10,
     );
     assert_eq!(result.collateral.get(usdc_pool_index), None);
+
+    // Frodo queues for withdrawal a portion of his backstop deposit
+    // Backstop shares are still 1 to 1 with BSTOP tokens - no donation via auction or other means has occurred
+    let mut frodo_bstop_token_balance = fixture.tokens[TokenIndex::BSTOP].balance(&frodo);
+    let mut backstop_bstop_token_balance =
+        fixture.tokens[TokenIndex::BSTOP].balance(&fixture.backstop.address);
+    let amount = 500 * SCALAR_7;
+    let result = fixture
+        .backstop
+        .queue_withdrawal(&frodo, &pool_fixture.pool.address, &amount);
+    assert_eq!(result.amount, amount);
+    assert_eq!(
+        result.exp,
+        fixture.env.ledger().timestamp() + 60 * 60 * 24 * 30
+    );
+    assert_eq!(
+        fixture.tokens[TokenIndex::BSTOP].balance(&frodo),
+        frodo_bstop_token_balance
+    );
+    assert_eq!(
+        fixture.tokens[TokenIndex::BSTOP].balance(&fixture.backstop.address),
+        backstop_bstop_token_balance
+    );
+
+    // Time passes and Frodo withdraws his queued for withdrawal backstop deposit
+    fixture.jump(60 * 60 * 24 * 30 + 1);
+    let result = fixture
+        .backstop
+        .withdraw(&frodo, &pool_fixture.pool.address, &amount);
+    frodo_bstop_token_balance += result;
+    backstop_bstop_token_balance -= result;
+    assert_eq!(result, amount);
+    assert_eq!(
+        fixture.tokens[TokenIndex::BSTOP].balance(&frodo),
+        frodo_bstop_token_balance
+    );
+    assert_eq!(
+        fixture.tokens[TokenIndex::BSTOP].balance(&fixture.backstop.address),
+        backstop_bstop_token_balance
+    );
 }

@@ -25,8 +25,8 @@ pub use pool::Pool;
 mod reserve;
 pub use reserve::Reserve;
 
-mod positions;
-pub use positions::Positions;
+mod user;
+pub use user::{Positions, User};
 
 mod status;
 pub use status::{execute_update_pool_status, set_pool_status};

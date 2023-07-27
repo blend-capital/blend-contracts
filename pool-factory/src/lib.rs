@@ -6,6 +6,7 @@ extern crate std;
 mod errors;
 mod pool_factory;
 mod storage;
+mod test;
 
 pub use errors::PoolFactoryError;
 pub use pool_factory::*;

@@ -46,11 +46,7 @@ pub fn execute_initialize(
 }
 
 /// Update the pool
-pub fn execute_update_pool(e: &Env, from: &Address, backstop_take_rate: u64) {
-    if from.clone() != storage::get_admin(e) {
-        panic_with_error!(e, PoolError::NotAuthorized);
-    }
-
+pub fn execute_update_pool(e: &Env, backstop_take_rate: u64) {
     // ensure backstop is [0,1)
     if backstop_take_rate.clone() >= 1_000_000_000 {
         panic_with_error!(e, PoolError::BadRequest);
@@ -61,11 +57,7 @@ pub fn execute_update_pool(e: &Env, from: &Address, backstop_take_rate: u64) {
 }
 
 /// Initialize a reserve for the pool
-pub fn initialize_reserve(e: &Env, from: &Address, asset: &Address, config: &ReserveConfig) {
-    if from.clone() != storage::get_admin(e) {
-        panic_with_error!(e, PoolError::NotAuthorized);
-    }
-
+pub fn initialize_reserve(e: &Env, asset: &Address, config: &ReserveConfig) {
     if storage::has_res(e, asset) {
         panic_with_error!(e, PoolError::AlreadyInitialized);
     }
@@ -99,11 +91,7 @@ pub fn initialize_reserve(e: &Env, from: &Address, asset: &Address, config: &Res
 }
 
 /// Update a reserve in the pool
-pub fn execute_update_reserve(e: &Env, from: &Address, asset: &Address, config: &ReserveConfig) {
-    if from.clone() != storage::get_admin(e) {
-        panic_with_error!(e, PoolError::NotAuthorized);
-    }
-
+pub fn execute_update_reserve(e: &Env, asset: &Address, config: &ReserveConfig) {
     require_valid_reserve_metadata(e, config);
 
     let pool = Pool::load(e);
@@ -192,8 +180,6 @@ mod tests {
         let e = Env::default();
         let pool = Address::random(&e);
 
-        let admin = Address::random(&e);
-
         let pool_config = PoolConfig {
             oracle: Address::random(&e),
             bstop_rate: 0_100_000_000,
@@ -201,40 +187,13 @@ mod tests {
         };
         e.as_contract(&pool, || {
             storage::set_pool_config(&e, &pool_config);
-            storage::set_admin(&e, &admin);
 
             // happy path
-            execute_update_pool(&e, &admin, 0_200_000_000u64);
+            execute_update_pool(&e, 0_200_000_000u64);
             let new_pool_config = storage::get_pool_config(&e);
             assert_eq!(new_pool_config.bstop_rate, 0_200_000_000u64);
             assert_eq!(new_pool_config.oracle, pool_config.oracle);
             assert_eq!(new_pool_config.status, pool_config.status);
-
-            // // invalid value
-            // let result = execute_update_pool(&e, &admin, 1_000_000_000u64);
-            // assert_eq!(result, Err(PoolError::BadRequest));
-        });
-    }
-
-    #[test]
-    #[should_panic]
-    //#[should_panic(expected = "Status(ContractError(1))")]
-    fn test_execute_update_pool_requires_admin() {
-        let e = Env::default();
-        let pool = Address::random(&e);
-        let sauron = Address::random(&e);
-        let admin = Address::random(&e);
-
-        let pool_config = PoolConfig {
-            oracle: Address::random(&e),
-            bstop_rate: 0_100_000_000,
-            status: 0,
-        };
-        e.as_contract(&pool, || {
-            storage::set_pool_config(&e, &pool_config);
-            storage::set_admin(&e, &admin);
-
-            execute_update_pool(&e, &sauron, 0_200_000_000u64);
         });
     }
 
@@ -245,8 +204,6 @@ mod tests {
         let e = Env::default();
         let pool = Address::random(&e);
 
-        let admin = Address::random(&e);
-
         let pool_config = PoolConfig {
             oracle: Address::random(&e),
             bstop_rate: 0_100_000_000,
@@ -254,9 +211,8 @@ mod tests {
         };
         e.as_contract(&pool, || {
             storage::set_pool_config(&e, &pool_config);
-            storage::set_admin(&e, &admin);
 
-            execute_update_pool(&e, &admin, 1_000_000_000u64);
+            execute_update_pool(&e, 1_000_000_000u64);
         });
     }
 
@@ -265,6 +221,7 @@ mod tests {
         let e = Env::default();
         let pool = Address::random(&e);
         let bombadil = Address::random(&e);
+
         let (asset_id_0, _) = testutils::create_token_contract(&e, &bombadil);
         let (asset_id_1, _) = testutils::create_token_contract(&e, &bombadil);
 
@@ -281,11 +238,9 @@ mod tests {
             reactivity: 100,
         };
         e.as_contract(&pool, || {
-            storage::set_admin(&e, &bombadil);
+            initialize_reserve(&e, &asset_id_0, &metadata);
 
-            initialize_reserve(&e, &bombadil, &asset_id_0, &metadata);
-
-            initialize_reserve(&e, &bombadil, &asset_id_1, &metadata);
+            initialize_reserve(&e, &asset_id_1, &metadata);
             let res_config_0 = storage::get_res_config(&e, &asset_id_0);
             let res_config_1 = storage::get_res_config(&e, &asset_id_1);
             assert_eq!(res_config_0.decimals, metadata.decimals);
@@ -299,35 +254,6 @@ mod tests {
             assert_eq!(res_config_0.reactivity, metadata.reactivity);
             assert_eq!(res_config_0.index, 0);
             assert_eq!(res_config_1.index, 1);
-        });
-    }
-
-    #[test]
-    #[should_panic]
-    //#[should_panic(expected = "Status(ContractError(1))")]
-    fn test_initialize_reserve_requires_admin() {
-        let e = Env::default();
-        let pool = Address::random(&e);
-        let bombadil = Address::random(&e);
-        let sauron = Address::random(&e);
-        let (asset_id, _) = testutils::create_token_contract(&e, &bombadil);
-
-        let metadata = ReserveConfig {
-            index: 0,
-            decimals: 7,
-            c_factor: 0_7500000,
-            l_factor: 0_7500000,
-            util: 0_5000000,
-            max_util: 0_9500000,
-            r_one: 0_0500000,
-            r_two: 0_5000000,
-            r_three: 1_5000000,
-            reactivity: 100,
-        };
-        e.as_contract(&pool, || {
-            storage::set_admin(&e, &bombadil);
-
-            initialize_reserve(&e, &sauron, &asset_id, &metadata);
         });
     }
 
@@ -353,12 +279,10 @@ mod tests {
             reactivity: 100,
         };
         e.as_contract(&pool, || {
-            storage::set_admin(&e, &bombadil);
-
-            initialize_reserve(&e, &bombadil, &asset_id, &metadata);
+            initialize_reserve(&e, &asset_id, &metadata);
             let res_config = storage::get_res_config(&e, &asset_id);
             assert_eq!(res_config.index, 0);
-            initialize_reserve(&e, &bombadil, &asset_id, &metadata);
+            initialize_reserve(&e, &asset_id, &metadata);
         });
     }
 
@@ -384,12 +308,10 @@ mod tests {
             reactivity: 100,
         };
         e.as_contract(&pool, || {
-            storage::set_admin(&e, &bombadil);
-
-            initialize_reserve(&e, &bombadil, &asset_id, &metadata);
+            initialize_reserve(&e, &asset_id, &metadata);
             let res_config = storage::get_res_config(&e, &asset_id);
             assert_eq!(res_config.index, 0);
-            initialize_reserve(&e, &bombadil, &asset_id, &metadata);
+            initialize_reserve(&e, &asset_id, &metadata);
         });
     }
 
@@ -445,12 +367,11 @@ mod tests {
             status: 0,
         };
         e.as_contract(&pool, || {
-            storage::set_admin(&e, &bombadil);
             storage::set_pool_config(&e, &pool_config);
 
             let res_config_old = storage::get_res_config(&e, &underlying);
 
-            execute_update_reserve(&e, &bombadil, &underlying, &new_metadata);
+            execute_update_reserve(&e, &underlying, &new_metadata);
             let res_config_updated = storage::get_res_config(&e, &underlying);
             assert_eq!(res_config_updated.decimals, new_metadata.decimals);
             assert_eq!(res_config_updated.c_factor, new_metadata.c_factor);
@@ -468,57 +389,6 @@ mod tests {
             assert!(res_data.d_rate > 1_000_000_000);
             assert!(res_data.backstop_credit > 0);
             assert_eq!(res_data.last_time, 10000);
-        });
-    }
-
-    #[test]
-    #[should_panic]
-    //#[should_panic(expected = "Status(ContractError(1))")]
-    fn test_execute_update_reserve_requires_admin() {
-        let e = Env::default();
-        e.mock_all_auths();
-        e.ledger().set(LedgerInfo {
-            timestamp: 500,
-            protocol_version: 1,
-            sequence_number: 100,
-            network_id: Default::default(),
-            base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
-        });
-
-        let pool = Address::random(&e);
-        let bombadil = Address::random(&e);
-        let sauron = Address::random(&e);
-
-        let (underlying, _) = testutils::create_token_contract(&e, &bombadil);
-        let (reserve_config, reserve_data) = testutils::default_reserve_meta(&e);
-        testutils::create_reserve(&e, &pool, &underlying, &reserve_config, &reserve_data);
-
-        let new_metadata = ReserveConfig {
-            index: 99,
-            decimals: 7,
-            c_factor: 0_7500000,
-            l_factor: 0_7500000,
-            util: 0_7777777,
-            max_util: 0_9500000,
-            r_one: 0_0500000,
-            r_two: 0_5000000,
-            r_three: 1_5000000,
-            reactivity: 105,
-        };
-
-        let pool_config = PoolConfig {
-            oracle: Address::random(&e),
-            bstop_rate: 0_100_000_000,
-            status: 0,
-        };
-        e.as_contract(&pool, || {
-            storage::set_admin(&e, &bombadil);
-            storage::set_pool_config(&e, &pool_config);
-
-            execute_update_reserve(&e, &sauron, &underlying, &new_metadata);
         });
     }
 
@@ -565,10 +435,9 @@ mod tests {
             status: 0,
         };
         e.as_contract(&pool, || {
-            storage::set_admin(&e, &bombadil);
             storage::set_pool_config(&e, &pool_config);
 
-            execute_update_reserve(&e, &bombadil, &underlying, &new_metadata);
+            execute_update_reserve(&e, &underlying, &new_metadata);
         });
     }
 

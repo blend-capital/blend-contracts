@@ -1,14 +1,12 @@
 use crate::{
-    auctions::{self, AuctionData, AuctionQuote, LiquidationMetadata},
+    auctions::{self, AuctionData},
     emissions::{self, ReserveEmissionMetadata},
     pool::{self, Positions, Request},
     storage::{
         self, PoolConfig, ReserveConfig, ReserveData, ReserveEmissionsConfig, ReserveEmissionsData,
     },
 };
-use soroban_sdk::{
-    contract, contractimpl, unwrap::UnwrapOptimized, Address, Env, Map, Symbol, Vec,
-};
+use soroban_sdk::{contract, contractimpl, Address, Env, Map, Symbol, Vec};
 
 /// ### Pool
 ///
@@ -41,37 +39,34 @@ pub trait PoolTrait {
         usdc_id: Address,
     );
 
-    /// Update the pool
+    /// (Admin only) Update the pool
     ///
     /// ### Arguments
-    /// * `admin` - The Address for the admin
     /// * `backstop_take_rate` - The new take rate for the backstop
     ///
     /// ### Panics
     /// If the caller is not the admin
-    fn update_pool(e: Env, admin: Address, backstiop_take_rate: u64);
+    fn update_pool(e: Env, backstiop_take_rate: u64);
 
-    /// Initialize a reserve in the pool
+    /// (Admin only) Initialize a reserve in the pool
     ///
     /// ### Arguments
-    /// * `admin` - The Address for the admin
     /// * `asset` - The underlying asset to add as a reserve
     /// * `config` - The ReserveConfig for the reserve
     ///
     /// ### Panics
     /// If the caller is not the admin or the reserve is already setup
-    fn init_reserve(e: Env, admin: Address, asset: Address, metadata: ReserveConfig);
+    fn init_reserve(e: Env, asset: Address, metadata: ReserveConfig);
 
-    /// Update a reserve in the pool
+    /// (Admin only) Update a reserve in the pool
     ///
     /// ### Arguments
-    /// * `admin` - The Address for the admin
     /// * `asset` - The underlying asset to add as a reserve
     /// * `config` - The ReserveConfig for the reserve
     ///
     /// ### Panics
     /// If the caller is not the admin or the reserve does not exist
-    fn update_reserve(e: Env, admin: Address, asset: Address, config: ReserveConfig);
+    fn update_reserve(e: Env, asset: Address, config: ReserveConfig);
 
     /// Fetch the reserve configuration for a reserve
     ///
@@ -132,15 +127,18 @@ pub trait PoolTrait {
     /// can perform a status update via `set_status`
     fn update_status(e: Env) -> u32;
 
-    /// Pool status is changed to "pool_status"
+    /// (Admin only) Pool status is changed to "pool_status"
     /// * 0 = active
     /// * 1 = on ice
     /// * 2 = frozen
+    /// * 3 = admin frozen (only the admin can unfreeze)
     ///
     /// ### Arguments
-    /// * `admin` - The admin Address
     /// * 'pool_status' - The pool status to be set
-    fn set_status(e: Env, admin: Address, pool_status: u32);
+    ///
+    /// ### Panics
+    /// If the caller is not the admin
+    fn set_status(e: Env, pool_status: u32);
 
     /// Fetch the configuration of the pool
     fn get_pool_config(e: Env) -> PoolConfig;
@@ -157,22 +155,17 @@ pub trait PoolTrait {
     /// Returns the expiration timestamp
     fn update_emissions(e: Env) -> u64;
 
-    /// Set the emission configuration for the pool
+    /// (Admin only) Set the emission configuration for the pool
     ///
     /// Changes will be applied in the next pool `update_emissions`, and affect the next emission cycle
     ///
     /// ### Arguments
-    /// * `admin` - The Address of the admin
     /// * `res_emission_metadata` - A vector of ReserveEmissionMetadata to update metadata to
     ///
     /// ### Panics
     /// * If the caller is not the admin
     /// * If the sum of ReserveEmissionMetadata shares is greater than 1
-    fn set_emissions_config(
-        e: Env,
-        admin: Address,
-        res_emission_metadata: Vec<ReserveEmissionMetadata>,
-    );
+    fn set_emissions_config(e: Env, res_emission_metadata: Vec<ReserveEmissionMetadata>);
 
     /// Claims outstanding emissions for the caller for the given reserve's
     ///
@@ -203,11 +196,11 @@ pub trait PoolTrait {
     ///
     /// ### Arguments
     /// * `user` - The user getting liquidated through the auction
-    /// * `data` - The metadata for the liquidation
+    /// * `percent_liquidated` - The percent of the user's position being liquidated
     ///
     /// ### Panics
     /// If the user liquidation auction was unable to be created
-    fn new_liquidation_auction(e: Env, user: Address, data: LiquidationMetadata) -> AuctionData;
+    fn new_liquidation_auction(e: Env, user: Address, percent_liquidated: u64) -> AuctionData;
 
     /// Delete a user liquidation auction if the user is no longer eligible to be liquidated.
     ///
@@ -236,19 +229,6 @@ pub trait PoolTrait {
     /// ### Panics
     /// If the auction was unable to be created
     fn new_auction(e: Env, auction_type: u32) -> AuctionData;
-
-    /// Fill the auction from `from`
-    ///
-    /// Returns the executed AuctionQuote
-    ///
-    /// ### Arguments
-    /// * `from` - The address filling the auction
-    /// * `auction_type` - The type of auction
-    /// * `user` - The Address involved in the auction
-    ///
-    /// ### Panics
-    /// If the auction does not exist of if the fill action was not successful
-    fn fill_auction(e: Env, from: Address, auction_type: u32, user: Address) -> AuctionQuote;
 }
 
 #[contractimpl]
@@ -277,36 +257,37 @@ impl PoolTrait for Pool {
         );
     }
 
-    fn update_pool(e: Env, admin: Address, backstop_take_rate: u64) {
+    fn update_pool(e: Env, backstop_take_rate: u64) {
         storage::bump_instance(&e);
+        let admin = storage::get_admin(&e);
         admin.require_auth();
 
-        pool::execute_update_pool(&e, &admin, backstop_take_rate);
-
-        e.events().publish(
-            (Symbol::new(&e, "update_pool"), admin),
-            (backstop_take_rate,),
-        );
-    }
-
-    fn init_reserve(e: Env, admin: Address, asset: Address, config: ReserveConfig) {
-        storage::bump_instance(&e);
-        admin.require_auth();
-
-        pool::initialize_reserve(&e, &admin, &asset, &config);
+        pool::execute_update_pool(&e, backstop_take_rate);
 
         e.events()
-            .publish((Symbol::new(&e, "init_reserve"), admin), (asset,));
+            .publish((Symbol::new(&e, "update_pool"), admin), backstop_take_rate);
     }
 
-    fn update_reserve(e: Env, admin: Address, asset: Address, config: ReserveConfig) {
+    fn init_reserve(e: Env, asset: Address, config: ReserveConfig) {
         storage::bump_instance(&e);
+        let admin = storage::get_admin(&e);
         admin.require_auth();
 
-        pool::execute_update_reserve(&e, &admin, &asset, &config);
+        pool::initialize_reserve(&e, &asset, &config);
 
         e.events()
-            .publish((Symbol::new(&e, "update_reserve"), admin), (asset,));
+            .publish((Symbol::new(&e, "init_reserve"), admin), asset);
+    }
+
+    fn update_reserve(e: Env, asset: Address, config: ReserveConfig) {
+        storage::bump_instance(&e);
+        let admin = storage::get_admin(&e);
+        admin.require_auth();
+
+        pool::execute_update_reserve(&e, &asset, &config);
+
+        e.events()
+            .publish((Symbol::new(&e, "update_reserve"), admin), asset);
     }
 
     fn get_reserve_config(e: Env, asset: Address) -> ReserveConfig {
@@ -341,18 +322,17 @@ impl PoolTrait for Pool {
         storage::bump_instance(&e);
         let new_status = pool::execute_update_pool_status(&e);
 
-        // msg.sender
-        let caller = e.call_stack().get(0).unwrap_optimized().0;
         e.events()
-            .publish((Symbol::new(&e, "set_status"), caller), new_status);
+            .publish((Symbol::new(&e, "set_status"),), new_status);
         new_status
     }
 
-    fn set_status(e: Env, admin: Address, pool_status: u32) {
+    fn set_status(e: Env, pool_status: u32) {
         storage::bump_instance(&e);
+        let admin = storage::get_admin(&e);
         admin.require_auth();
 
-        pool::set_pool_status(&e, &admin, pool_status);
+        pool::set_pool_status(&e, pool_status);
 
         e.events()
             .publish((Symbol::new(&e, "set_status"), admin), pool_status);
@@ -378,11 +358,8 @@ impl PoolTrait for Pool {
         next_expiration
     }
 
-    fn set_emissions_config(
-        e: Env,
-        admin: Address,
-        res_emission_metadata: Vec<ReserveEmissionMetadata>,
-    ) {
+    fn set_emissions_config(e: Env, res_emission_metadata: Vec<ReserveEmissionMetadata>) {
+        let admin = storage::get_admin(&e);
         admin.require_auth();
 
         emissions::set_pool_emissions(&e, res_emission_metadata);
@@ -413,8 +390,8 @@ impl PoolTrait for Pool {
 
     /***** Auction / Liquidation Functions *****/
 
-    fn new_liquidation_auction(e: Env, user: Address, data: LiquidationMetadata) -> AuctionData {
-        let auction_data = auctions::create_liquidation(&e, &user, data);
+    fn new_liquidation_auction(e: Env, user: Address, percent_liquidated: u64) -> AuctionData {
+        let auction_data = auctions::create_liquidation(&e, &user, percent_liquidated);
 
         e.events().publish(
             (Symbol::new(&e, "new_liquidation_auction"), user),
@@ -446,18 +423,5 @@ impl PoolTrait for Pool {
         );
 
         auction_data
-    }
-
-    fn fill_auction(e: Env, from: Address, auction_type: u32, user: Address) -> AuctionQuote {
-        from.require_auth();
-
-        let auction_quote = auctions::fill(&e, auction_type, &user, &from);
-
-        e.events().publish(
-            (Symbol::new(&e, "fill_auction"), from),
-            (auction_type, user),
-        );
-
-        auction_quote
     }
 }

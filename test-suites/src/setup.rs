@@ -1,7 +1,8 @@
+use lending_pool::{Request, ReserveEmissionMetadata};
 use soroban_sdk::{testutils::Address as _, vec, Address, Symbol, Vec};
 
 use crate::{
-    pool::{default_reserve_metadata, Request, ReserveEmissionMetadata},
+    pool::default_reserve_metadata,
     test_fixture::{TestFixture, TokenIndex, SCALAR_7},
 };
 
@@ -49,9 +50,7 @@ pub fn create_fixture_with_data<'a>(wasm: bool) -> (TestFixture<'a>, Address) {
             share: 0_400_0000
         },
     ];
-    pool_fixture
-        .pool
-        .set_emissions_config(&fixture.bombadil, &reserve_emissions);
+    pool_fixture.pool.set_emissions_config(&reserve_emissions);
 
     // mint whale tokens
     let frodo = Address::random(&fixture.env);
@@ -81,12 +80,12 @@ pub fn create_fixture_with_data<'a>(wasm: bool) -> (TestFixture<'a>, Address) {
         &fixture.env,
         Request {
             request_type: 2,
-            reserve_index: pool_fixture.reserves[&TokenIndex::USDC],
+            address: fixture.tokens[TokenIndex::USDC].address.clone(),
             amount: 10_000 * 10i128.pow(6),
         },
         Request {
             request_type: 4,
-            reserve_index: pool_fixture.reserves[&TokenIndex::USDC],
+            address: fixture.tokens[TokenIndex::USDC].address.clone(),
             amount: 8_000 * 10i128.pow(6),
         },
     ];
@@ -97,12 +96,12 @@ pub fn create_fixture_with_data<'a>(wasm: bool) -> (TestFixture<'a>, Address) {
         &fixture.env,
         Request {
             request_type: 2,
-            reserve_index: pool_fixture.reserves[&TokenIndex::WETH],
+            address: fixture.tokens[TokenIndex::WETH].address.clone(),
             amount: 10 * 10i128.pow(9),
         },
         Request {
             request_type: 4,
-            reserve_index: pool_fixture.reserves[&TokenIndex::WETH],
+            address: fixture.tokens[TokenIndex::WETH].address.clone(),
             amount: 5 * 10i128.pow(9),
         },
     ];
@@ -113,12 +112,12 @@ pub fn create_fixture_with_data<'a>(wasm: bool) -> (TestFixture<'a>, Address) {
         &fixture.env,
         Request {
             request_type: 2,
-            reserve_index: pool_fixture.reserves[&TokenIndex::XLM],
+            address: fixture.tokens[TokenIndex::XLM].address.clone(),
             amount: 100_000 * SCALAR_7,
         },
         Request {
             request_type: 4,
-            reserve_index: pool_fixture.reserves[&TokenIndex::XLM],
+            address: fixture.tokens[TokenIndex::XLM].address.clone(),
             amount: 65_000 * SCALAR_7,
         },
     ];
@@ -177,10 +176,15 @@ mod tests {
             0_300_0000,
             fixture.backstop.pool_eps(&pool_fixture.pool.address)
         );
-        let (emis_config, _) = pool_fixture
+        let (emis_config, emis_data) = pool_fixture
             .pool
             .get_reserve_emissions(&fixture.tokens[TokenIndex::USDC].address, &0)
             .unwrap();
+        assert_eq!(
+            emis_data.last_time,
+            fixture.env.ledger().timestamp() - 60 * 61
+        );
+        assert_eq!(emis_data.index, 0);
         assert_eq!(0_180_0000, emis_config.eps);
     }
 
@@ -227,10 +231,15 @@ mod tests {
             0_300_0000,
             fixture.backstop.pool_eps(&pool_fixture.pool.address)
         );
-        let (emis_config, _) = pool_fixture
+        let (emis_config, emis_data) = pool_fixture
             .pool
             .get_reserve_emissions(&fixture.tokens[TokenIndex::USDC].address, &0)
             .unwrap();
+        assert_eq!(
+            emis_data.last_time,
+            fixture.env.ledger().timestamp() - 60 * 61
+        );
+        assert_eq!(emis_data.index, 0);
         assert_eq!(0_180_0000, emis_config.eps);
     }
 }

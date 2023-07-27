@@ -21,7 +21,7 @@ pub trait EmitterTrait {
     ///
     /// ### Errors
     /// If the caller is not the listed backstop module
-    fn distribute(e: Env) -> Result<i128, EmitterError>;
+    fn distribute(e: Env) -> i128;
 
     /// Fetch the current backstop
     fn get_backstop(e: Env) -> Address;
@@ -51,18 +51,18 @@ impl EmitterTrait for Emitter {
         storage::set_last_distro_time(&e, &(e.ledger().timestamp() - 7 * 24 * 60 * 60));
     }
 
-    fn distribute(e: Env) -> Result<i128, EmitterError> {
+    fn distribute(e: Env) -> i128 {
         storage::bump_instance(&e);
         let backstop_address = storage::get_backstop(&e);
         backstop_address.require_auth();
 
-        let distribution_amount = emitter::execute_distribute(&e, &backstop_address)?;
+        let distribution_amount = emitter::execute_distribute(&e, &backstop_address);
 
         e.events().publish(
             (Symbol::new(&e, "distribute"),),
             (backstop_address, distribution_amount),
         );
-        Ok(distribution_amount)
+        distribution_amount
     }
 
     fn get_backstop(e: Env) -> Address {

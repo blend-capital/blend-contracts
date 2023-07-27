@@ -89,6 +89,7 @@ pub fn create_user_liq_auction_data(
             let d_tokens_removed = d_token_balance
                 .fixed_mul_ceil(percent_liquidated, SCALAR_7)
                 .unwrap_optimized();
+            //TODO: consider changing percent_liquidated to an unsigned int to avoid the nonnegative check
             require_nonnegative(e, &d_tokens_removed);
             liquidation_quote
                 .bid

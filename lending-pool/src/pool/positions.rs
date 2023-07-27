@@ -139,7 +139,7 @@ impl Positions {
             self.add_liabilities(e, &reserve, amount);
         }
     }
-
+    //TODO: these functions are unecessary, but save roughly 200 bytes - is it better to have them or directly call update_emissions?
     fn update_d_emissions(&self, e: &Env, reserve: &Reserve, amount: i128) {
         emissions::update_emissions(
             e,

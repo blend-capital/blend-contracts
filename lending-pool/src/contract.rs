@@ -1,5 +1,5 @@
 use crate::{
-    auctions::{self, AuctionData, AuctionQuote, LiquidationMetadata},
+    auctions::{self, AuctionData},
     emissions::{self, ReserveEmissionMetadata},
     pool::{self, Positions, Request},
     storage::{
@@ -196,11 +196,11 @@ pub trait PoolTrait {
     ///
     /// ### Arguments
     /// * `user` - The user getting liquidated through the auction
-    /// * `data` - The metadata for the liquidation
+    /// * `percent_liquidated` - The percent of the user's position being liquidated
     ///
     /// ### Panics
     /// If the user liquidation auction was unable to be created
-    fn new_liquidation_auction(e: Env, user: Address, data: LiquidationMetadata) -> AuctionData;
+    fn new_liquidation_auction(e: Env, user: Address, percent_liquidated: u64) -> AuctionData;
 
     /// Delete a user liquidation auction if the user is no longer eligible to be liquidated.
     ///
@@ -229,19 +229,6 @@ pub trait PoolTrait {
     /// ### Panics
     /// If the auction was unable to be created
     fn new_auction(e: Env, auction_type: u32) -> AuctionData;
-
-    /// Fill the auction from `from`
-    ///
-    /// Returns the executed AuctionQuote
-    ///
-    /// ### Arguments
-    /// * `from` - The address filling the auction
-    /// * `auction_type` - The type of auction
-    /// * `user` - The Address involved in the auction
-    ///
-    /// ### Panics
-    /// If the auction does not exist of if the fill action was not successful
-    fn fill_auction(e: Env, from: Address, auction_type: u32, user: Address) -> AuctionQuote;
 }
 
 #[contractimpl]
@@ -403,8 +390,8 @@ impl PoolTrait for Pool {
 
     /***** Auction / Liquidation Functions *****/
 
-    fn new_liquidation_auction(e: Env, user: Address, data: LiquidationMetadata) -> AuctionData {
-        let auction_data = auctions::create_liquidation(&e, &user, data);
+    fn new_liquidation_auction(e: Env, user: Address, percent_liquidated: u64) -> AuctionData {
+        let auction_data = auctions::create_liquidation(&e, &user, percent_liquidated);
 
         e.events().publish(
             (Symbol::new(&e, "new_liquidation_auction"), user),
@@ -436,18 +423,5 @@ impl PoolTrait for Pool {
         );
 
         auction_data
-    }
-
-    fn fill_auction(e: Env, from: Address, auction_type: u32, user: Address) -> AuctionQuote {
-        from.require_auth();
-
-        let auction_quote = auctions::fill(&e, auction_type, &user, &from);
-
-        e.events().publish(
-            (Symbol::new(&e, "fill_auction"), from),
-            (auction_type, user),
-        );
-
-        auction_quote
     }
 }

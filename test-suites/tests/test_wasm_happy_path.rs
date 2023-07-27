@@ -51,7 +51,7 @@ fn test_wasm_happy_path() {
             &fixture.env,
             Request {
                 request_type: 2,
-                reserve_index: usdc_pool_index,
+                address: usdc.address.clone(),
                 amount,
             },
         ],
@@ -80,7 +80,7 @@ fn test_wasm_happy_path() {
             &fixture.env,
             Request {
                 request_type: 2,
-                reserve_index: xlm_pool_index,
+                address: xlm.address.clone(),
                 amount,
             },
         ],
@@ -109,7 +109,7 @@ fn test_wasm_happy_path() {
             &fixture.env,
             Request {
                 request_type: 4,
-                reserve_index: usdc_pool_index,
+                address: usdc.address.clone(),
                 amount,
             },
         ],
@@ -138,7 +138,7 @@ fn test_wasm_happy_path() {
             &fixture.env,
             Request {
                 request_type: 4,
-                reserve_index: xlm_pool_index,
+                address: xlm.address.clone(),
                 amount,
             },
         ],
@@ -230,7 +230,7 @@ fn test_wasm_happy_path() {
             &fixture.env,
             Request {
                 request_type: 5,
-                reserve_index: usdc_pool_index,
+                address: usdc.address.clone(),
                 amount,
             },
         ],
@@ -259,7 +259,7 @@ fn test_wasm_happy_path() {
             &fixture.env,
             Request {
                 request_type: 5,
-                reserve_index: xlm_pool_index,
+                address: xlm.address.clone(),
                 amount,
             },
         ],
@@ -288,7 +288,7 @@ fn test_wasm_happy_path() {
             &fixture.env,
             Request {
                 request_type: 3,
-                reserve_index: xlm_pool_index,
+                address: xlm.address.clone(),
                 amount,
             },
         ],
@@ -317,7 +317,7 @@ fn test_wasm_happy_path() {
             &fixture.env,
             Request {
                 request_type: 3,
-                reserve_index: usdc_pool_index,
+                address: usdc.address.clone(),
                 amount,
             },
         ],
@@ -432,7 +432,7 @@ fn test_wasm_happy_path() {
             &fixture.env,
             Request {
                 request_type: 5,
-                reserve_index: usdc_pool_index,
+                address: usdc.address.clone(),
                 amount: amount,
             },
         ],
@@ -464,7 +464,7 @@ fn test_wasm_happy_path() {
             &fixture.env,
             Request {
                 request_type: 5,
-                reserve_index: xlm_pool_index,
+                address: xlm.address.clone(),
                 amount: amount,
             },
         ],
@@ -497,7 +497,7 @@ fn test_wasm_happy_path() {
             &fixture.env,
             Request {
                 request_type: 3,
-                reserve_index: xlm_pool_index,
+                address: xlm.address.clone(),
                 amount: amount,
             },
         ],
@@ -525,7 +525,7 @@ fn test_wasm_happy_path() {
             &fixture.env,
             Request {
                 request_type: 3,
-                reserve_index: usdc_pool_index,
+                address: usdc.address.clone(),
                 amount: amount,
             },
         ],

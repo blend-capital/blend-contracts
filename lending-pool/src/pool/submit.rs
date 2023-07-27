@@ -1,4 +1,4 @@
-use crate::{dependencies::TokenClient, storage};
+use crate::dependencies::TokenClient;
 use soroban_sdk::{Address, Env, Vec};
 
 use super::{
@@ -27,47 +27,38 @@ pub fn execute_submit(
 ) -> Positions {
     let mut pool = Pool::load(e);
 
-    let (pool_actions, new_positions, check_health) =
+    let (actions, new_from_state, check_health) =
         build_actions_from_request(e, &mut pool, &from, requests);
 
     if check_health {
         // panics if the new positions set does not meet the health factor requirement
-        PositionData::calculate_from_positions(e, &mut pool, &new_positions).require_healthy(e);
+        PositionData::calculate_from_positions(e, &mut pool, &new_from_state.positions)
+            .require_healthy(e);
     }
 
-    // TODO: Is this reentrancy guard necessary?
-    // transfer tokens into the pool
-    for action in pool_actions.iter() {
-        if action.tokens_in > 0 {
-            TokenClient::new(e, &action.asset).transfer(
-                &spender,
-                &e.current_contract_address(),
-                &action.tokens_in,
-            );
-        }
+    // transfer tokens from sender to pool
+    for (address, amount) in actions.spender_transfer.iter() {
+        TokenClient::new(e, &address).transfer(&spender, &e.current_contract_address(), &amount);
     }
 
     // store updated info to ledger
     pool.store_cached_reserves(e);
-    storage::set_user_positions(e, &from, &new_positions);
+    new_from_state.store(e);
 
-    // transfer tokens out of the pool
-    for action in pool_actions.iter() {
-        if action.tokens_out > 0 {
-            TokenClient::new(e, &action.asset).transfer(
-                &e.current_contract_address(),
-                &to,
-                &action.tokens_out,
-            );
-        }
+    // transfer tokens from pool to "to"
+    for (address, amount) in actions.pool_transfer.iter() {
+        TokenClient::new(e, &address).transfer(&e.current_contract_address(), &to, &amount);
     }
 
-    new_positions
+    new_from_state.positions
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::{storage::PoolConfig, testutils};
+    use crate::{
+        storage::{self, PoolConfig},
+        testutils,
+    };
 
     use super::*;
     use soroban_sdk::{
@@ -88,18 +79,18 @@ mod tests {
         let pool = Address::random(&e);
         let (oracle, oracle_client) = testutils::create_mock_oracle(&e);
 
+        let (underlying_0, underlying_0_client) = testutils::create_token_contract(&e, &bombadil);
+        let (reserve_config, reserve_data) = testutils::default_reserve_meta(&e);
+        testutils::create_reserve(&e, &pool, &underlying_0, &reserve_config, &reserve_data);
+
         let (underlying_1, underlying_1_client) = testutils::create_token_contract(&e, &bombadil);
         let (reserve_config, reserve_data) = testutils::default_reserve_meta(&e);
         testutils::create_reserve(&e, &pool, &underlying_1, &reserve_config, &reserve_data);
 
-        let (underlying_2, underlying_2_client) = testutils::create_token_contract(&e, &bombadil);
-        let (reserve_config, reserve_data) = testutils::default_reserve_meta(&e);
-        testutils::create_reserve(&e, &pool, &underlying_2, &reserve_config, &reserve_data);
+        underlying_0_client.mint(&frodo, &16_0000000);
 
-        underlying_1_client.mint(&frodo, &16_0000000);
-
-        oracle_client.set_price(&underlying_1, &1_0000000);
-        oracle_client.set_price(&underlying_2, &5_0000000);
+        oracle_client.set_price(&underlying_0, &1_0000000);
+        oracle_client.set_price(&underlying_1, &5_0000000);
 
         e.ledger().set(LedgerInfo {
             timestamp: 600,
@@ -119,19 +110,19 @@ mod tests {
         e.as_contract(&pool, || {
             storage::set_pool_config(&e, &pool_config);
 
+            let pre_pool_balance_0 = underlying_0_client.balance(&pool);
             let pre_pool_balance_1 = underlying_1_client.balance(&pool);
-            let pre_pool_balance_2 = underlying_2_client.balance(&pool);
 
             let requests = vec![
                 &e,
                 Request {
                     request_type: 2,
-                    reserve_index: 0,
+                    address: underlying_0,
                     amount: 15_0000000,
                 },
                 Request {
                     request_type: 4,
-                    reserve_index: 1,
+                    address: underlying_1,
                     amount: 1_5000000,
                 },
             ];
@@ -140,20 +131,20 @@ mod tests {
             assert_eq!(positions.liabilities.len(), 1);
             assert_eq!(positions.collateral.len(), 1);
             assert_eq!(positions.supply.len(), 0);
-            assert_eq!(positions.get_collateral(0), 14_9999884);
-            assert_eq!(positions.get_liabilities(1), 1_4999983);
+            assert_eq!(positions.collateral.get_unchecked(0), 14_9999884);
+            assert_eq!(positions.liabilities.get_unchecked(1), 1_4999983);
 
+            assert_eq!(
+                underlying_0_client.balance(&pool),
+                pre_pool_balance_0 + 15_0000000
+            );
             assert_eq!(
                 underlying_1_client.balance(&pool),
-                pre_pool_balance_1 + 15_0000000
-            );
-            assert_eq!(
-                underlying_2_client.balance(&pool),
-                pre_pool_balance_2 - 1_5000000
+                pre_pool_balance_1 - 1_5000000
             );
 
-            assert_eq!(underlying_1_client.balance(&frodo), 1_0000000);
-            assert_eq!(underlying_2_client.balance(&merry), 1_5000000);
+            assert_eq!(underlying_0_client.balance(&frodo), 1_0000000);
+            assert_eq!(underlying_1_client.balance(&merry), 1_5000000);
         });
     }
 
@@ -171,18 +162,18 @@ mod tests {
         let pool = Address::random(&e);
         let (oracle, oracle_client) = testutils::create_mock_oracle(&e);
 
-        let (underlying_1, underlying_1_client) = testutils::create_token_contract(&e, &bombadil);
+        let (underlying_0, underlying_0_client) = testutils::create_token_contract(&e, &bombadil);
+        let (reserve_config, reserve_data) = testutils::default_reserve_meta(&e);
+        testutils::create_reserve(&e, &pool, &underlying_0, &reserve_config, &reserve_data);
+
+        let (underlying_1, _) = testutils::create_token_contract(&e, &bombadil);
         let (reserve_config, reserve_data) = testutils::default_reserve_meta(&e);
         testutils::create_reserve(&e, &pool, &underlying_1, &reserve_config, &reserve_data);
 
-        let (underlying_2, _) = testutils::create_token_contract(&e, &bombadil);
-        let (reserve_config, reserve_data) = testutils::default_reserve_meta(&e);
-        testutils::create_reserve(&e, &pool, &underlying_2, &reserve_config, &reserve_data);
+        underlying_0_client.mint(&frodo, &16_0000000);
 
-        underlying_1_client.mint(&frodo, &16_0000000);
-
-        oracle_client.set_price(&underlying_1, &1_0000000);
-        oracle_client.set_price(&underlying_2, &5_0000000);
+        oracle_client.set_price(&underlying_0, &1_0000000);
+        oracle_client.set_price(&underlying_1, &5_0000000);
 
         e.ledger().set(LedgerInfo {
             timestamp: 600,
@@ -206,12 +197,12 @@ mod tests {
                 &e,
                 Request {
                     request_type: 2,
-                    reserve_index: 0,
+                    address: underlying_0,
                     amount: 15_0000000,
                 },
                 Request {
                     request_type: 4,
-                    reserve_index: 1,
+                    address: underlying_1,
                     amount: 1_7500000,
                 },
             ];

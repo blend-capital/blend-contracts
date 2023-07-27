@@ -1,16 +1,19 @@
-use cast::i128;
 use fixed_point_math::FixedPoint;
 use soroban_sdk::{panic_with_error, unwrap::UnwrapOptimized, Env};
 
-use crate::{constants::SCALAR_7, dependencies::OracleClient, errors::PoolError, storage};
+use crate::{constants::SCALAR_7, errors::PoolError, storage};
 
 use super::{pool::Pool, Positions};
 
 pub struct PositionData {
     /// The effective collateral balance denominated in the base asset
     pub collateral_base: i128,
+    // The raw collateral balance demoninated in the base asset
+    pub collateral_raw: i128,
     /// The effective liability balance denominated in the base asset
     pub liability_base: i128,
+    // The raw liability balance demoninated in the base asset
+    pub liability_raw: i128,
     /// The scalar for the base asset
     pub scalar: i128,
 }
@@ -22,26 +25,33 @@ impl PositionData {
     /// * pool - The pool
     /// * positions - The positions to calculate the health factor for
     pub fn calculate_from_positions(e: &Env, pool: &mut Pool, positions: &Positions) -> Self {
-        let oracle_client = OracleClient::new(e, &pool.config.oracle);
-        let oracle_scalar = 10i128.pow(oracle_client.decimals());
+        let oracle_scalar = 10i128.pow(pool.load_price_decimals(e));
 
         let reserve_list = storage::get_res_list(e);
         let mut collateral_base = 0;
         let mut liability_base = 0;
+        let mut collateral_raw = 0;
+        let mut liability_raw = 0;
         for i in 0..reserve_list.len() {
-            let b_token_balance = positions.get_collateral(i);
-            let d_token_balance = positions.get_liabilities(i);
+            let b_token_balance = positions.collateral.get(i).unwrap_or(0);
+            let d_token_balance = positions.liabilities.get(i).unwrap_or(0);
             if b_token_balance == 0 && d_token_balance == 0 {
                 continue;
             }
             let reserve = pool.load_reserve(e, &reserve_list.get_unchecked(i));
-            let asset_to_base = i128(oracle_client.get_price(&reserve.asset));
+            let asset_to_base = pool.load_price(e, &reserve.asset);
 
             if b_token_balance > 0 {
                 // append users effective collateral to collateral_base
                 let asset_collateral = reserve.to_effective_asset_from_b_token(b_token_balance);
                 collateral_base += asset_to_base
                     .fixed_mul_floor(asset_collateral, reserve.scalar)
+                    .unwrap_optimized();
+                collateral_raw += asset_to_base
+                    .fixed_mul_floor(
+                        reserve.to_asset_from_b_token(b_token_balance),
+                        reserve.scalar,
+                    )
                     .unwrap_optimized();
             }
 
@@ -51,12 +61,22 @@ impl PositionData {
                 liability_base += asset_to_base
                     .fixed_mul_floor(asset_liability, reserve.scalar)
                     .unwrap_optimized();
+                liability_raw += asset_to_base
+                    .fixed_mul_floor(
+                        reserve.to_asset_from_d_token(d_token_balance),
+                        reserve.scalar,
+                    )
+                    .unwrap_optimized();
             }
+
+            pool.cache_reserve(reserve, false);
         }
 
         PositionData {
             collateral_base,
+            collateral_raw,
             liability_base,
+            liability_raw,
             scalar: oracle_scalar,
         }
     }
@@ -90,6 +110,7 @@ mod tests {
     use super::*;
     use crate::{storage::PoolConfig, testutils};
     use soroban_sdk::{
+        map,
         testutils::{Address as _, Ledger, LedgerInfo},
         Address,
     };
@@ -104,11 +125,11 @@ mod tests {
         let pool = Address::random(&e);
         let (oracle, oracle_client) = testutils::create_mock_oracle(&e);
 
-        let (underlying_1, _) = testutils::create_token_contract(&e, &bombadil);
+        let (underlying_0, _) = testutils::create_token_contract(&e, &bombadil);
         let (reserve_config, reserve_data) = testutils::default_reserve_meta(&e);
-        testutils::create_reserve(&e, &pool, &underlying_1, &reserve_config, &reserve_data);
+        testutils::create_reserve(&e, &pool, &underlying_0, &reserve_config, &reserve_data);
 
-        let (underlying_2, _) = testutils::create_token_contract(&e, &bombadil);
+        let (underlying_1, _) = testutils::create_token_contract(&e, &bombadil);
         let (mut reserve_config, mut reserve_data) = testutils::default_reserve_meta(&e);
         reserve_config.decimals = 9;
         reserve_config.c_factor = 0_8500000;
@@ -117,20 +138,22 @@ mod tests {
         reserve_data.d_supply = 70_000_000_000;
         reserve_data.b_rate = 1_100_000_000;
         reserve_data.d_rate = 1_150_000_000;
-        testutils::create_reserve(&e, &pool, &underlying_2, &reserve_config, &reserve_data);
+        reserve_config.index = 1;
+        testutils::create_reserve(&e, &pool, &underlying_1, &reserve_config, &reserve_data);
 
-        let (underlying_3, _) = testutils::create_token_contract(&e, &bombadil);
+        let (underlying_2, _) = testutils::create_token_contract(&e, &bombadil);
         let (mut reserve_config, mut reserve_data) = testutils::default_reserve_meta(&e);
         reserve_config.decimals = 6;
+        reserve_config.index = 2;
         reserve_data.b_supply = 10_000_000;
         reserve_data.d_supply = 5_000_000;
         reserve_data.b_rate = 1_001_100_000;
         reserve_data.d_rate = 1_001_200_000;
-        testutils::create_reserve(&e, &pool, &underlying_3, &reserve_config, &reserve_data);
+        testutils::create_reserve(&e, &pool, &underlying_2, &reserve_config, &reserve_data);
 
-        oracle_client.set_price(&underlying_1, &1_0000000);
-        oracle_client.set_price(&underlying_2, &2_5000000);
-        oracle_client.set_price(&underlying_3, &1000_0000000);
+        oracle_client.set_price(&underlying_0, &1_0000000);
+        oracle_client.set_price(&underlying_1, &2_5000000);
+        oracle_client.set_price(&underlying_2, &1000_0000000);
 
         e.ledger().set(LedgerInfo {
             timestamp: 0,
@@ -148,18 +171,19 @@ mod tests {
             status: 0,
         };
 
-        let mut positions = Positions::env_default(&e);
-        positions.add_collateral(0, 100_1234567);
-        positions.add_liabilities(0, 1_5000000);
-        positions.add_liabilities(1, 50_987_654_321);
-        positions.add_supply(1, 120_987_654_321);
-        positions.add_collateral(2, 0_250_000);
+        let positions = Positions {
+            liabilities: map![&e, (0, 1_5000000), (1, 50_987_654_321)],
+            collateral: map![&e, (0, 100_1234567), (2, 0_250_000)],
+            supply: map![&e, (1, 120_987_654_321)],
+        };
         e.as_contract(&pool, || {
             storage::set_pool_config(&e, &pool_config);
             let mut pool = Pool::load(&e);
             let position_data = PositionData::calculate_from_positions(&e, &mut pool, &positions);
             assert_eq!(position_data.collateral_base, 262_7985925);
             assert_eq!(position_data.liability_base, 185_2368827);
+            assert_eq!(position_data.collateral_raw, 350_3984567);
+            assert_eq!(position_data.liability_raw, 148_0895061);
             assert_eq!(position_data.scalar, 1_0000000);
         });
     }
@@ -170,7 +194,9 @@ mod tests {
 
         let position_data = PositionData {
             collateral_base: 9_1234567,
+            collateral_raw: 12_0000000,
             liability_base: 9_1233333,
+            liability_raw: 10_0000000,
             scalar: 1_0000000,
         };
 
@@ -185,7 +211,9 @@ mod tests {
 
         let position_data = PositionData {
             collateral_base: 9_1234567,
+            collateral_raw: 12_0000000,
             liability_base: 0,
+            liability_raw: 0,
             scalar: 1_0000000,
         };
 
@@ -202,7 +230,9 @@ mod tests {
 
         let position_data = PositionData {
             collateral_base: 9_1234567,
+            collateral_raw: 12_0000000,
             liability_base: 9_1234567,
+            liability_raw: 10_0000000,
             scalar: 1_0000000,
         };
 

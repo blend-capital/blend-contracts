@@ -80,6 +80,12 @@ pub trait PoolTrait {
     /// * `asset` - The underlying asset to add as a reserve
     fn get_reserve_data(e: Env, asset: Address) -> ReserveData;
 
+    /// Fetch the positions for an address
+    ///
+    /// ### Arguments
+    /// * `address` - The address to fetch positions for
+    fn get_positions(e: Env, address: Address) -> Positions;
+
     /// Submit a set of requests to the pool where 'from' takes on the position, 'sender' sends any
     /// required tokens to the pool and 'to' receives any tokens sent from the pool
     ///
@@ -296,6 +302,10 @@ impl PoolTrait for Pool {
 
     fn get_reserve_data(e: Env, asset: Address) -> ReserveData {
         storage::get_res_data(&e, &asset)
+    }
+
+    fn get_positions(e: Env, address: Address) -> Positions {
+        storage::get_user_positions(&e, &address)
     }
 
     fn submit(

@@ -3,7 +3,7 @@
 
 use libfuzzer_sys::fuzz_target;
 use fixed_point_math::FixedPoint;
-use lending_pool::Request;
+use lending_pool::{Request, PoolState, PositionData};
 use soroban_sdk::{testutils::Address as _, vec, Address};
 use test_suites::{
     assertions::assert_approx_eq_abs,
@@ -449,17 +449,35 @@ fuzz_target!(|input: Input| {
 
 #[extension_trait::extension_trait]
 impl Asserts for TestFixture<'_> {
+    /// Assert the pool has not lent out more funds than it has
     fn assert_invariants(&self) {
         let pool_fixture = &self.pools[0];
-        let usdc = &self.tokens[TokenIndex::USDC];
-        let usdc_pool_index = pool_fixture.reserves[&TokenIndex::USDC];
+        
+        let mut supply: i128 = 0;
+        let mut liabilities: i128 = 0;
+        self.env.as_contract(&pool_fixture.pool.address, || {
+            let mut pool_state = PoolState::load(&self.env);
+            for (token_index, reserve_index) in pool_fixture.reserves.iter() {
+                let asset = &self.tokens[token_index.clone()];
+                let reserve = pool_state.load_reserve(&self.env, &asset.address);
+                let asset_to_base = pool_state.load_price(&self.env, &reserve.asset);
+                supply += asset_to_base.fixed_mul_floor(reserve.total_supply(), reserve.scalar).unwrap();
+                liabilities += asset_to_base.fixed_mul_ceil(reserve.total_liabilities(), reserve.scalar).unwrap();
+            }
+        });
 
-        let usdc_reserve_config = pool_fixture.pool.get_reserve_config(&usdc.address);
-        let usdc_reserve_data = pool_fixture.pool.get_reserve_data(&usdc.address);
+        assert!(supply > liabilities);
+    }
 
-        //eprintln!("{:#?}", usdc_reserve_config);
-        //eprintln!("{:#?}", usdc_reserve_data);
+    /// Assert the user is not underwater
+    fn assert_user_invariants(&self, user: &Address) {
+        let pool_fixture = &self.pools[0];
 
-        // todo
+        let positions = pool_fixture.pool.get_positions(&user);
+        self.env.as_contract(&pool_fixture.pool.address, || {
+            let mut pool_state = PoolState::load(&self.env);
+            let data = PositionData::calculate_from_positions(&self.env, &mut pool_state, &positions);
+            assert!(data.as_health_factor() > data.scalar);
+        });
     }
 }

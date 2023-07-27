@@ -3,6 +3,9 @@
 #[cfg(any(test, feature = "testutils"))]
 extern crate std;
 
+#[cfg(any(test, feature = "testutils"))]
+pub use pool::{Pool as PoolState, PositionData, Reserve};
+
 mod auctions;
 mod constants;
 mod contract;

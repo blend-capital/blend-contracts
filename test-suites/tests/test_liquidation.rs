@@ -1,10 +1,8 @@
 #![cfg(test)]
+use cast::i128;
 use fixed_point_math::FixedPoint;
-use lending_pool::{PoolDataKey, Request, ReserveConfig, ReserveData};
-use rand::distributions::FisherF;
-use soroban_sdk::{
-    map, storage, testutils::Address as AddressTestTrait, vec, Address, Symbol, Vec,
-};
+use lending_pool::{Request, ReserveConfig};
+use soroban_sdk::{testutils::Address as AddressTestTrait, vec, Address, Vec};
 use test_suites::{
     assertions::assert_approx_eq_abs,
     create_fixture_with_data,
@@ -105,7 +103,6 @@ fn test_liquidations() {
         fixture.backstop.update_emission_cycle();
         pool_fixture.pool.update_emissions();
     }
-    println!("update emissions");
     // Frodo starts an interest auction
     // type 2 is an interest auction
     let auction_data = pool_fixture.pool.new_auction(&2);
@@ -127,90 +124,10 @@ fn test_liquidations() {
     //NOTE: bid USDC amount is seven decimals whereas reserve(and lot) USDC has 6 decomals
     assert_approx_eq_abs(usdc_donate_bid_amount, 392_1769961, SCALAR_7);
     assert_eq!(auction_data.block, 1452403);
-    println!("new auction");
     let liq_pct = 3000000;
     let auction_data = pool_fixture
         .pool
         .new_liquidation_auction(&samwise, &liq_pct);
-    // println!(
-    //     "xlm collateral: {:?}",
-    //     sam_positions.collateral.get_unchecked(1)
-    // );
-    // println!(
-    //     "weth collateral: {:?}",
-    //     sam_positions.collateral.get_unchecked(2)
-    // );
-    // println!(
-    //     "xlm liability: {:?}",
-    //     sam_positions.liabilities.get_unchecked(1)
-    // );
-    // println!(
-    //     "usdc liability {:?}",
-    //     sam_positions.liabilities.get_unchecked(0)
-    // );
-    // //bump actions
-    // let frodo_requests: Vec<Request> = vec![
-    //     &fixture.env,
-    //     Request {
-    //         request_type: 2,
-    //         address: fixture.tokens[TokenIndex::USDC].address.clone(),
-    //         amount: 1,
-    //     },
-    //     Request {
-    //         request_type: 2,
-    //         address: fixture.tokens[TokenIndex::XLM].address.clone(),
-    //         amount: 1,
-    //     },
-    //     Request {
-    //         request_type: 2,
-    //         address: fixture.tokens[TokenIndex::WETH].address.clone(),
-    //         amount: 1,
-    //     },
-    // ];
-    // // Supply frodo tokens
-    // pool_fixture
-    //     .pool
-    //     .submit(&frodo, &frodo, &frodo, &frodo_requests);
-    fixture.env.as_contract(&pool_fixture.pool.address, || {
-        // let key = PoolDataKey::ResData(fixture.tokens[TokenIndex::XLM].address.clone());
-        // let xlm_reserve_data = fixture
-        //     .env
-        //     .storage()
-        //     .persistent()
-        //     .get::<PoolDataKey, ReserveData>(&key)
-        //     .unwrap();
-        // println!("xlm d_rate: {:?}", xlm_reserve_data.d_rate);
-        // println!("xlm b_rate: {:?}", xlm_reserve_data.b_rate);
-
-        // let key = PoolDataKey::ResData(fixture.tokens[TokenIndex::WETH].address.clone());
-        // let weth_reserve_data = fixture
-        //     .env
-        //     .storage()
-        //     .persistent()
-        //     .get::<PoolDataKey, ReserveData>(&key)
-        //     .unwrap();
-        // println!("weth d_rate: {:?}", weth_reserve_data.d_rate);
-        // println!("weth b_rate: {:?}", weth_reserve_data.b_rate);
-        // let key = PoolDataKey::ResData(fixture.tokens[TokenIndex::USDC].address.clone());
-        // let usdc_reserve_data = fixture
-        //     .env
-        //     .storage()
-        //     .persistent()
-        //     .get::<PoolDataKey, ReserveData>(&key)
-        //     .unwrap();
-        // println!("usdc d_rate: {:?}", usdc_reserve_data.d_rate);
-        // println!("usdc b_rate: {:?}", weth_reserve_data.b_rate);
-        // let usdc_address = fixture
-        //     .env
-        //     .storage()
-        //     .persistent()
-        //     .get::<Symbol, Address>(&Symbol::new(&fixture.env, "USDCTkn"))
-        //     .unwrap();
-        // let bid_amt = auction_data
-        //     .bid
-        //     .get_unchecked(fixture.tokens[TokenIndex::USDC].address.clone());
-        // println!("bid amount: {:?}", bid_amt);
-    });
 
     let usdc_bid_amount = auction_data
         .bid
@@ -218,8 +135,10 @@ fn test_liquidations() {
     assert_approx_eq_abs(
         usdc_bid_amount,
         sam_positions
-            .get_liabilities(0)
-            .fixed_mul_ceil(liq_pct, SCALAR_7)
+            .liabilities
+            .get(0)
+            .unwrap()
+            .fixed_mul_ceil(i128(liq_pct), SCALAR_7)
             .unwrap(),
         SCALAR_7,
     );
@@ -229,8 +148,10 @@ fn test_liquidations() {
     assert_approx_eq_abs(
         xlm_bid_amount,
         sam_positions
-            .get_liabilities(1)
-            .fixed_mul_ceil(liq_pct, SCALAR_7)
+            .liabilities
+            .get(1)
+            .unwrap()
+            .fixed_mul_ceil(i128(liq_pct), SCALAR_7)
             .unwrap(),
         SCALAR_7,
     );
@@ -243,7 +164,6 @@ fn test_liquidations() {
         .get_unchecked(fixture.tokens[TokenIndex::WETH].address.clone());
     assert_approx_eq_abs(weth_lot_amount, 4_260750195, 1000);
 
-    println!("new liquidation auction");
     //let 100 blocks pass to scale up the modifier
     fixture.jump(101 * 5);
 
@@ -252,12 +172,12 @@ fn test_liquidations() {
         &fixture.env,
         Request {
             request_type: 6,
-            address: samwise,
+            address: samwise.clone(),
             amount: 0,
         },
         Request {
             request_type: 6,
-            address: fixture.backstop.address, //address shouldn't matter
+            address: fixture.backstop.address.clone(), //address shouldn't matter
             amount: 2,
         },
         Request {
@@ -273,15 +193,17 @@ fn test_liquidations() {
         pool_fixture
             .pool
             .submit(&frodo, &frodo, &frodo, &fill_requests);
-    println!("filled auctions");
     assert_approx_eq_abs(
         frodo_positions_post_fill.collateral.get_unchecked(2),
-        weth_lot_amount + 10 * 10i128.pow(9),
+        weth_lot_amount
+            .fixed_div_floor(2_0000000, SCALAR_7)
+            .unwrap()
+            + 10 * 10i128.pow(9),
         1000,
     );
     assert_approx_eq_abs(
         frodo_positions_post_fill.collateral.get_unchecked(1),
-        xlm_lot_amount + 100_000 * SCALAR_7,
+        xlm_lot_amount.fixed_div_floor(2_0000000, SCALAR_7).unwrap() + 100_000 * SCALAR_7,
         1000,
     );
     assert_approx_eq_abs(
@@ -291,16 +213,15 @@ fn test_liquidations() {
     );
     assert_approx_eq_abs(
         frodo_positions_post_fill.liabilities.get_unchecked(0),
-        8_000 * 10i128.pow(6),
-        1000,
+        8_000 * 10i128.pow(6) + 559_285757,
+        100000,
     );
     assert_approx_eq_abs(
         fixture.tokens[TokenIndex::USDC].balance(&frodo),
-        frodo_usdc_balance - 9847_500000
+        frodo_usdc_balance - usdc_bid_amount
             + usdc_interest_lot_amount
                 .fixed_div_floor(2 * 10i128.pow(6), 10i128.pow(6))
-                .unwrap()
-            - usdc_donate_bid_amount,
+                .unwrap(), // - usdc_donate_bid_amount TODO: add donate diff when donating is implemented
         10i128.pow(6),
     );
     assert_approx_eq_abs(
@@ -320,200 +241,206 @@ fn test_liquidations() {
         10i128.pow(9),
     );
 
-    // //tank eth price
-    // fixture.oracle.set_price(
-    //     &fixture.tokens[TokenIndex::WETH].address,
-    //     &(500 * 10i128.pow(9)),
-    // );
-    // //fully liquidate user
-    // let sam_usdc_d_tokens = pool_fixture.reserves[0].d_token.balance(&samwise);
-    // let sam_xlm_d_tokens = pool_fixture.reserves[1].d_token.balance(&samwise);
-    // let sam_b_tokens_weth = sam_b_tokens_weth - expected_weth_amt;
-    // let sam_b_tokens_xlm = sam_b_tokens_xlm - expected_xlm_amt;
+    //tank eth price
+    fixture.oracle.set_price(
+        &fixture.tokens[TokenIndex::WETH].address.clone(),
+        &(500 * SCALAR_7),
+    );
+    //fully liquidate user
+    let blank_requests: Vec<Request> = vec![&fixture.env];
+    pool_fixture
+        .pool
+        .submit(&samwise, &samwise, &samwise, &blank_requests);
+    let liq_pct = 1_0000000;
+    let auction_data_2 = pool_fixture
+        .pool
+        .new_liquidation_auction(&samwise, &liq_pct);
 
-    // let liq_data_2: LiquidationMetadata = LiquidationMetadata {
-    //     collateral: map![
-    //         &fixture.env,
-    //         (
-    //             fixture.tokens[TokenIndex::WETH].address.clone(),
-    //             sam_b_tokens_weth
-    //         ),
-    //         (
-    //             fixture.tokens[TokenIndex::XLM].address.clone(),
-    //             sam_b_tokens_xlm
-    //         )
-    //     ],
-    //     liability: map![
-    //         &fixture.env,
-    //         (
-    //             fixture.tokens[TokenIndex::USDC].address.clone(),
-    //             sam_usdc_d_tokens
-    //         ),
-    //         (
-    //             fixture.tokens[TokenIndex::XLM].address.clone(),
-    //             sam_xlm_d_tokens
-    //         )
-    //     ],
-    // };
-    // assert_eq!(
-    //     sam_b_tokens_weth,
-    //     pool_fixture.reserves[2].b_token.balance(&samwise)
-    // );
-    // let auction_data_2 = pool_fixture
-    //     .pool
-    //     .new_liquidation_auction(&samwise, &liq_data_2);
+    let usdc_bid_amount = auction_data_2
+        .bid
+        .get_unchecked(fixture.tokens[TokenIndex::USDC].address.clone());
+    assert_approx_eq_abs(usdc_bid_amount, 19599_872330, 100000);
+    let xlm_bid_amount = auction_data_2
+        .bid
+        .get_unchecked(fixture.tokens[TokenIndex::XLM].address.clone());
+    assert_approx_eq_abs(xlm_bid_amount, 45498_8226700, SCALAR_7);
+    let xlm_lot_amount = auction_data_2
+        .lot
+        .get_unchecked(fixture.tokens[TokenIndex::XLM].address.clone());
+    assert_approx_eq_abs(xlm_lot_amount, 139947_2453890, SCALAR_7);
+    let weth_lot_amount = auction_data_2
+        .lot
+        .get_unchecked(fixture.tokens[TokenIndex::WETH].address.clone());
+    assert_approx_eq_abs(weth_lot_amount, 14_869584990, 100000000);
 
-    // let usdc_bid_amount = auction_data_2.bid.get_unchecked(0).unwrap();
-    // assert_approx_eq_abs(usdc_bid_amount, sam_usdc_d_tokens, SCALAR_7);
-    // let xlm_bid_amount = auction_data_2.bid.get_unchecked(1).unwrap();
-    // assert_approx_eq_abs(xlm_bid_amount, sam_xlm_d_tokens, SCALAR_7);
-    // let xlm_lot_amount = auction_data_2.lot.get_unchecked(1).unwrap();
-    // assert_approx_eq_abs(xlm_lot_amount, sam_b_tokens_xlm, SCALAR_7);
-    // let weth_lot_amount = auction_data_2.lot.get_unchecked(2).unwrap();
-    // assert_approx_eq_abs(weth_lot_amount, sam_b_tokens_weth, 1000);
+    //allow 250 blocks to pass
+    fixture.jump(251 * 5);
+    //fill user liquidation
+    let frodo_usdc_balance = fixture.tokens[TokenIndex::USDC].balance(&frodo);
+    let frodo_xlm_balance = fixture.tokens[TokenIndex::XLM].balance(&frodo);
+    let fill_requests = vec![
+        &fixture.env,
+        Request {
+            request_type: 6,
+            address: samwise.clone(),
+            amount: 0,
+        },
+        Request {
+            request_type: 5,
+            address: fixture.tokens[TokenIndex::USDC].address.clone(),
+            amount: usdc_bid_amount
+                .fixed_div_floor(2_0000000, SCALAR_7)
+                .unwrap(),
+        },
+        Request {
+            request_type: 5,
+            address: fixture.tokens[TokenIndex::XLM].address.clone(),
+            amount: xlm_bid_amount.fixed_div_floor(2_0000000, SCALAR_7).unwrap(),
+        },
+    ];
+    let usdc_filled = usdc_bid_amount
+        .fixed_mul_floor(3_0000000, SCALAR_7)
+        .unwrap()
+        .fixed_div_floor(4_0000000, SCALAR_7)
+        .unwrap();
+    let xlm_filled = xlm_bid_amount
+        .fixed_mul_floor(3_0000000, SCALAR_7)
+        .unwrap()
+        .fixed_div_floor(4_0000000, SCALAR_7)
+        .unwrap();
+    let new_frodo_positions = pool_fixture
+        .pool
+        .submit(&frodo, &frodo, &frodo, &fill_requests);
+    assert_approx_eq_abs(
+        frodo_positions_post_fill.collateral.get(1).unwrap() + xlm_lot_amount,
+        new_frodo_positions.collateral.get(1).unwrap(),
+        SCALAR_7,
+    );
+    assert_approx_eq_abs(
+        frodo_positions_post_fill.collateral.get(2).unwrap() + weth_lot_amount,
+        new_frodo_positions.collateral.get(2).unwrap(),
+        SCALAR_7,
+    );
+    assert_approx_eq_abs(
+        frodo_positions_post_fill.liabilities.get(0).unwrap() + usdc_filled - 9147_499950,
+        new_frodo_positions.liabilities.get(0).unwrap(),
+        10i128.pow(6),
+    );
+    assert_approx_eq_abs(
+        frodo_positions_post_fill.liabilities.get(1).unwrap() + xlm_filled - 22438_6298700,
+        new_frodo_positions.liabilities.get(1).unwrap(),
+        SCALAR_7,
+    );
+    assert_approx_eq_abs(
+        frodo_usdc_balance - 9799_936164,
+        fixture.tokens[TokenIndex::USDC].balance(&frodo),
+        10i128.pow(6),
+    );
+    assert_approx_eq_abs(
+        frodo_xlm_balance - 22749_4113400,
+        fixture.tokens[TokenIndex::XLM].balance(&frodo),
+        SCALAR_7,
+    );
 
-    // //allow 250 blocks to pass
-    // fixture.jump(251 * 5);
-    // //fill user liquidation
-    // let frodo_xlm_btoken_balance = pool_fixture.reserves[1].b_token.balance(&frodo);
-    // let frodo_weth_btoken_balance = pool_fixture.reserves[2].b_token.balance(&frodo);
-    // let frodo_usdc_balance = fixture.tokens[TokenIndex::USDC].balance(&frodo);
-    // let frodo_xlm_balance = fixture.tokens[TokenIndex::XLM].balance(&frodo);
-    // let quote = pool_fixture.pool.fill_auction(&frodo, &0, &samwise);
-    // assert_approx_eq_abs(
-    //     pool_fixture.reserves[1].b_token.balance(&frodo) - frodo_xlm_btoken_balance,
-    //     sam_b_tokens_xlm,
-    //     SCALAR_7,
-    // );
-    // assert_approx_eq_abs(
-    //     pool_fixture.reserves[2].b_token.balance(&frodo) - frodo_weth_btoken_balance,
-    //     sam_b_tokens_weth,
-    //     1000,
-    // );
-    // assert_approx_eq_abs(
-    //     frodo_usdc_balance - fixture.tokens[TokenIndex::USDC].balance(&frodo),
-    //     5981_750792,
-    //     10i128.pow(6),
-    // );
-    // assert_approx_eq_abs(
-    //     frodo_xlm_balance - fixture.tokens[TokenIndex::XLM].balance(&frodo),
-    //     14422_6728800,
-    //     SCALAR_7,
-    // );
-    // let (_, quote_usdc_bid) = quote.bid.get(0).unwrap().unwrap();
-    // let (_, quote_xlm_bid) = quote.bid.get(1).unwrap().unwrap();
-    // let (_, quote_weth_lot) = quote.lot.get(1).unwrap().unwrap();
-    // let (_, quote_xlm_lot) = quote.lot.get(0).unwrap().unwrap();
-    // assert_approx_eq_abs(quote_usdc_bid, 5710_0889820, SCALAR_7);
-    // assert_approx_eq_abs(quote_xlm_bid, 14290_6823500, SCALAR_7);
-    // assert_approx_eq_abs(quote_weth_lot, sam_b_tokens_weth, 1000);
-    // assert_approx_eq_abs(quote_xlm_lot, sam_b_tokens_xlm, SCALAR_7);
+    //transfer bad debt to the backstop
+    let blank_request: Vec<Request> = vec![&fixture.env];
+    let samwise_positions_pre_bd =
+        pool_fixture
+            .pool
+            .submit(&samwise, &samwise, &samwise, &blank_request);
+    pool_fixture.pool.bad_debt(&samwise);
+    let backstop_positions = pool_fixture.pool.submit(
+        &fixture.backstop.address,
+        &fixture.backstop.address,
+        &fixture.backstop.address,
+        &blank_request,
+    );
+    assert_eq!(
+        samwise_positions_pre_bd.liabilities.get(0).unwrap(),
+        backstop_positions.liabilities.get(0).unwrap()
+    );
+    assert_eq!(
+        samwise_positions_pre_bd.liabilities.get(1).unwrap(),
+        backstop_positions.liabilities.get(1).unwrap()
+    );
 
-    // //transfer bad debt to the backstop
-    // pool_fixture.pool.bad_debt(&samwise);
-    // assert_eq!(pool_fixture.reserves[0].d_token.balance(&samwise), 0);
-    // assert_eq!(pool_fixture.reserves[1].d_token.balance(&samwise), 0);
-    // assert_eq!(
-    //     pool_fixture.reserves[0]
-    //         .d_token
-    //         .balance(&fixture.backstop.address),
-    //     sam_usdc_d_tokens - quote_usdc_bid
-    // );
-    // assert_eq!(
-    //     pool_fixture.reserves[1]
-    //         .d_token
-    //         .balance(&fixture.backstop.address),
-    //     sam_xlm_d_tokens - quote_xlm_bid
-    // );
+    // create a bad debt auction
+    let bad_debt_auction_data = pool_fixture.pool.new_auction(&1);
+    assert_eq!(bad_debt_auction_data.bid.len(), 2);
+    assert_eq!(bad_debt_auction_data.lot.len(), 1);
+    assert_eq!(
+        bad_debt_auction_data
+            .bid
+            .get_unchecked(fixture.tokens[TokenIndex::USDC].address.clone()),
+        samwise_positions_pre_bd.liabilities.get(0).unwrap()
+    );
+    assert_eq!(
+        bad_debt_auction_data
+            .bid
+            .get_unchecked(fixture.tokens[TokenIndex::XLM].address.clone()),
+        samwise_positions_pre_bd.liabilities.get(1).unwrap()
+    );
+    assert_approx_eq_abs(
+        bad_debt_auction_data
+            .lot
+            .get_unchecked(fixture.tokens[TokenIndex::BSTOP].address.clone()),
+        17927_4990300,
+        SCALAR_7,
+    );
+    // allow 150 blocks to pass
+    fixture.jump(151 * 5);
+    // fill bad debt auction
+    let frodo_bstop_pre_fill = fixture.tokens[TokenIndex::BSTOP].balance(&frodo);
+    let backstop_bstop_pre_fill =
+        fixture.tokens[TokenIndex::BSTOP].balance(&fixture.backstop.address);
+    let bad_debt_fill_request = vec![
+        &fixture.env,
+        Request {
+            request_type: 6,
+            address: fixture.backstop.address.clone(),
+            amount: 1,
+        },
+    ];
+    let post_bd_fill_frodo_positions =
+        pool_fixture
+            .pool
+            .submit(&frodo, &frodo, &frodo, &bad_debt_fill_request);
 
-    // // create a bad debt auction
-    // let bad_debt_auction_data = pool_fixture.pool.new_auction(&1);
-    // assert_eq!(bad_debt_auction_data.bid.len(), 2);
-    // assert_eq!(bad_debt_auction_data.lot.len(), 1);
-    // assert_eq!(
-    //     bad_debt_auction_data.bid.get_unchecked(0).unwrap(),
-    //     sam_usdc_d_tokens - quote_usdc_bid
-    // );
-    // assert_eq!(
-    //     bad_debt_auction_data.bid.get_unchecked(1).unwrap(),
-    //     sam_xlm_d_tokens - quote_xlm_bid
-    // );
-    // assert_approx_eq_abs(
-    //     bad_debt_auction_data.lot.get_unchecked(u32::MAX).unwrap(),
-    //     6929_0835410,
-    //     SCALAR_7,
-    // );
-    // // allow 150 blocks to pass
-    // fixture.jump(151 * 5);
-    // // fill bad debt auction
-    // let frodo_usdc_pre_fill = fixture.tokens[TokenIndex::USDC].balance(&frodo);
-    // let frodo_xlm_pre_fill = fixture.tokens[TokenIndex::XLM].balance(&frodo);
-    // let frodo_bstop_pre_fill = fixture.tokens[TokenIndex::BSTOP].balance(&frodo);
-    // let backstop_bstop_pre_fill =
-    //     fixture.tokens[TokenIndex::BSTOP].balance(&fixture.backstop.address);
-    // let bad_debt_auction_quote =
-    //     pool_fixture
-    //         .pool
-    //         .fill_auction(&frodo, &1, &fixture.backstop.address);
-    // let (_, bad_debt_auction_quote_usdc_bid) = bad_debt_auction_quote.bid.get(0).unwrap().unwrap();
-    // let (_, bad_debt_auction_quote_xlm_bid) = bad_debt_auction_quote.bid.get(1).unwrap().unwrap();
-    // let (_, bad_debt_auction_quote_lot) = bad_debt_auction_quote.lot.get(0).unwrap().unwrap();
-    // assert_eq!(
-    //     bad_debt_auction_quote_usdc_bid,
-    //     sam_usdc_d_tokens - quote_usdc_bid,
-    // );
-    // assert_eq!(
-    //     pool_fixture.reserves[0]
-    //         .d_token
-    //         .balance(&fixture.backstop.address),
-    //     0,
-    // );
-    // assert_approx_eq_abs(
-    //     frodo_usdc_pre_fill - fixture.tokens[TokenIndex::USDC].balance(&frodo),
-    //     1993_916931,
-    //     10i128.pow(6),
-    // );
-    // assert_eq!(
-    //     bad_debt_auction_quote_xlm_bid,
-    //     sam_xlm_d_tokens - quote_xlm_bid,
-    // );
-    // assert_eq!(
-    //     pool_fixture.reserves[1]
-    //         .d_token
-    //         .balance(&fixture.backstop.address),
-    //     0,
-    // );
-    // assert_approx_eq_abs(
-    //     frodo_xlm_pre_fill - fixture.tokens[TokenIndex::XLM].balance(&frodo),
-    //     4807_5576270,
-    //     SCALAR_7,
-    // );
-    // assert_approx_eq_abs(bad_debt_auction_quote_lot, 5196_8126560, SCALAR_7);
-    // assert_approx_eq_abs(
-    //     fixture.tokens[TokenIndex::BSTOP].balance(&frodo) - frodo_bstop_pre_fill,
-    //     5196_8126560,
-    //     SCALAR_7,
-    // );
-    // assert_approx_eq_abs(
-    //     backstop_bstop_pre_fill
-    //         - fixture.tokens[TokenIndex::BSTOP].balance(&fixture.backstop.address),
-    //     5196_8126560,
-    //     SCALAR_7,
-    // );
-    // //check that frodo was correctly slashed
-    // let original_deposit = 2_000_000 * SCALAR_7;
-    // let pre_withdraw_frodo_bstp = fixture.tokens[TokenIndex::BSTOP].balance(&frodo);
-    // fixture
-    //     .backstop
-    //     .queue_withdrawal(&frodo, &pool_fixture.pool.address, &original_deposit);
-    // //jump a month
-    // fixture.jump(45 * 24 * 60 * 60);
-    // fixture
-    //     .backstop
-    //     .withdraw(&frodo, &pool_fixture.pool.address, &original_deposit);
-    // assert_approx_eq_abs(
-    //     fixture.tokens[TokenIndex::BSTOP].balance(&frodo),
-    //     pre_withdraw_frodo_bstp + original_deposit - 5196_8126560,
-    //     SCALAR_7,
-    // );
+    assert_eq!(
+        post_bd_fill_frodo_positions.liabilities.get(0).unwrap(),
+        new_frodo_positions.liabilities.get(0).unwrap()
+            + samwise_positions_pre_bd.liabilities.get(0).unwrap(),
+    );
+    assert_eq!(
+        post_bd_fill_frodo_positions.liabilities.get(1).unwrap(),
+        new_frodo_positions.liabilities.get(1).unwrap()
+            + samwise_positions_pre_bd.liabilities.get(1).unwrap(),
+    );
+    assert_approx_eq_abs(
+        fixture.tokens[TokenIndex::BSTOP].balance(&frodo),
+        frodo_bstop_pre_fill + 13445_6242800,
+        SCALAR_7,
+    );
+    assert_approx_eq_abs(
+        backstop_bstop_pre_fill
+            - fixture.tokens[TokenIndex::BSTOP].balance(&fixture.backstop.address),
+        13445_6242800,
+        SCALAR_7,
+    );
+    //check that frodo was correctly slashed
+    let original_deposit = 2_000_000 * SCALAR_7;
+    let pre_withdraw_frodo_bstp = fixture.tokens[TokenIndex::BSTOP].balance(&frodo);
+    fixture
+        .backstop
+        .queue_withdrawal(&frodo, &pool_fixture.pool.address, &original_deposit);
+    //jump a month
+    fixture.jump(45 * 24 * 60 * 60);
+    fixture
+        .backstop
+        .withdraw(&frodo, &pool_fixture.pool.address, &original_deposit);
+    assert_approx_eq_abs(
+        fixture.tokens[TokenIndex::BSTOP].balance(&frodo),
+        pre_withdraw_frodo_bstp + original_deposit - 13445_6242800,
+        SCALAR_7,
+    );
 }

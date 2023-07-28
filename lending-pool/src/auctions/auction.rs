@@ -1,7 +1,7 @@
 use crate::{
     constants::SCALAR_7,
     errors::PoolError,
-    pool::{Pool, PositionData},
+    pool::{Pool, PositionData, User},
     storage,
 };
 use cast::i128;
@@ -123,14 +123,18 @@ pub fn delete_liquidation(e: &Env, user: &Address) {
 /// ### Panics
 /// If the auction does not exist, or if the pool is unable to fulfill either side
 /// of the auction quote
-pub fn fill(e: &Env, pool: &mut Pool, auction_type: u32, user: &Address, filler: &Address) {
+pub fn fill(e: &Env, pool: &mut Pool, auction_type: u32, user: &Address, filler_state: &mut User) {
     let mut auction_data = storage::get_auction(e, &auction_type, user);
     match AuctionType::from_u32(auction_type) {
         AuctionType::UserLiquidation => {
-            fill_user_liq_auction(e, pool, &mut auction_data, &user, &filler)
+            fill_user_liq_auction(e, pool, &mut auction_data, &user, filler_state)
         }
-        AuctionType::BadDebtAuction => fill_bad_debt_auction(e, pool, &mut auction_data, &filler),
-        AuctionType::InterestAuction => fill_interest_auction(e, pool, &mut auction_data, filler),
+        AuctionType::BadDebtAuction => {
+            fill_bad_debt_auction(e, pool, &mut auction_data, filler_state)
+        }
+        AuctionType::InterestAuction => {
+            fill_interest_auction(e, pool, &mut auction_data, &filler_state.address)
+        }
     };
 
     storage::del_auction(e, &auction_type, user);

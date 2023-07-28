@@ -122,15 +122,13 @@ pub fn fill_user_liq_auction(
     pool: &mut Pool,
     auction_data: &mut AuctionData,
     user: &Address,
-    filler: &Address,
+    filler_state: &mut User,
 ) {
     apply_fill_modifiers(e, auction_data);
     let mut user_state = User::load(e, user);
-    let mut filler_state = User::load(e, filler);
     user_state.rm_positions(e, pool, auction_data.lot.clone(), auction_data.bid.clone());
     filler_state.add_positions(e, pool, auction_data.lot.clone(), auction_data.bid.clone());
     user_state.store(e);
-    filler_state.store(e);
 }
 
 #[cfg(test)]
@@ -709,8 +707,9 @@ mod tests {
             });
             e.budget().reset_unlimited();
             let mut pool = Pool::load(&e);
-            fill_user_liq_auction(&e, &mut pool, &mut auction_data, &samwise, &frodo);
-            let frodo_positions = storage::get_user_positions(&e, &frodo);
+            let mut frodo_state = User::load(&e, &frodo);
+            fill_user_liq_auction(&e, &mut pool, &mut auction_data, &samwise, &mut frodo_state);
+            let frodo_positions = frodo_state.positions;
             assert_eq!(
                 frodo_positions
                     .collateral
@@ -875,7 +874,8 @@ mod tests {
             });
             e.budget().reset_unlimited();
             let mut pool = Pool::load(&e);
-            fill_user_liq_auction(&e, &mut pool, &mut auction_data, &samwise, &frodo);
+            let mut frodo_state = User::load(&e, &frodo);
+            fill_user_liq_auction(&e, &mut pool, &mut auction_data, &samwise, &mut frodo_state);
             let mut pool = Pool::load(&e);
             let samwise_positions = storage::get_user_positions(&e, &samwise);
             let samwise_hf =
@@ -991,9 +991,10 @@ mod tests {
                 block: 50,
             };
             let mut pool = Pool::load(&e);
-            fill_user_liq_auction(&e, &mut pool, &mut auction_data, &samwise, &frodo);
+            let mut frodo_state = User::load(&e, &frodo);
+            fill_user_liq_auction(&e, &mut pool, &mut auction_data, &samwise, &mut frodo_state);
 
-            let frodo_positions = storage::get_user_positions(&e, &frodo);
+            let frodo_positions = frodo_state.positions;
             assert_eq!(
                 frodo_positions
                     .collateral
@@ -1130,9 +1131,10 @@ mod tests {
                 block: 50,
             };
             let mut pool = Pool::load(&e);
-            fill_user_liq_auction(&e, &mut pool, &mut auction_data, &samwise, &frodo);
+            let mut frodo_state = User::load(&e, &frodo);
+            fill_user_liq_auction(&e, &mut pool, &mut auction_data, &samwise, &mut frodo_state);
 
-            let frodo_positions = storage::get_user_positions(&e, &frodo);
+            let frodo_positions = frodo_state.positions;
             assert_eq!(
                 frodo_positions
                     .collateral

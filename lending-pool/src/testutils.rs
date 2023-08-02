@@ -1,13 +1,13 @@
 #![cfg(test)]
 
 use crate::{
-    constants::SCALAR_9,
+    constants::{SCALAR_7, SCALAR_9},
     dependencies::{TokenClient, TOKEN_WASM},
     pool::Reserve,
     storage::{self, ReserveConfig, ReserveData},
 };
 use fixed_point_math::FixedPoint;
-use soroban_sdk::{testutils::Address as _, unwrap::UnwrapOptimized, Address, Env, IntoVal};
+use soroban_sdk::{map, testutils::Address as _, unwrap::UnwrapOptimized, Address, Env, IntoVal};
 
 use backstop_module::{BackstopModule, BackstopModuleClient};
 use mock_oracle::{MockOracle, MockOracleClient};
@@ -92,7 +92,12 @@ pub(crate) fn setup_backstop(
 ) {
     let (pool_factory, mock_pool_factory_client) = create_mock_pool_factory(e);
     mock_pool_factory_client.set_pool(pool_address);
-    BackstopModuleClient::new(e, backstop_id).initialize(backstop_token, blnd_token, &pool_factory);
+    BackstopModuleClient::new(e, backstop_id).initialize(
+        backstop_token,
+        blnd_token,
+        &pool_factory,
+        &map![e, (pool_address.clone(), 50_000_000 * SCALAR_7)],
+    );
     e.as_contract(pool_address, || {
         storage::set_backstop(e, backstop_id);
     });

@@ -19,6 +19,8 @@ pub enum EmitterDataKey {
     BlendLPId,
     // The last timestamp distribution was ran on
     LastDistro,
+    // The drop status for the current backstop
+    DropStatus,
 }
 
 /// Bump the instance rent for the contract. Bumps for 10 days due to the 7-day cycle window of this contract
@@ -109,4 +111,28 @@ pub fn set_last_distro_time(e: &Env, last_distro: &u64) {
     e.storage()
         .persistent()
         .set::<EmitterDataKey, u64>(&EmitterDataKey::LastDistro, last_distro);
+}
+
+/// Get whether the emitter has performed the drop distribution or not for the current backstop
+///
+/// Returns true if the emitter has dropped
+pub fn get_drop_status(e: &Env) -> bool {
+    // TODO: Change to instance - https://github.com/stellar/rs-soroban-sdk/issues/1040
+    e.storage()
+        .persistent()
+        .bump(&EmitterDataKey::DropStatus, SHARED_BUMP_AMOUNT);
+    e.storage()
+        .persistent()
+        .get(&EmitterDataKey::DropStatus)
+        .unwrap_optimized()
+}
+
+/// Set whether the emitter has performed the drop distribution or not for the current backstop
+///
+/// ### Arguments
+/// * `new_status` - new drop status
+pub fn set_drop_status(e: &Env, new_status: bool) {
+    e.storage()
+        .persistent()
+        .set::<EmitterDataKey, bool>(&EmitterDataKey::DropStatus, &new_status);
 }

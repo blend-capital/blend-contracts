@@ -7,4 +7,5 @@ pub enum EmitterError {
     AlreadyInitialized = 10,
     NotAuthorized = 20,
     InsufficientBackstopSize = 30,
+    BadDrop = 40,
 }

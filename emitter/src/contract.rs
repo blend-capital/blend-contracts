@@ -36,6 +36,14 @@ pub trait EmitterTrait {
     /// ### Errors
     /// If the input contract does not have more backstop deposits than the listed backstop module
     fn swap_backstop(e: Env, new_backstop_id: Address);
+
+    /// Distributes initial BLND post-backstop swap or protocol launch
+    ///
+    /// Returns OK or an error
+    ///
+    /// ### Errors
+    /// If drop has already been called for this backstop
+    fn drop(e: Env);
 }
 
 #[contractimpl]
@@ -75,5 +83,12 @@ impl EmitterTrait for Emitter {
 
         e.events()
             .publish((Symbol::new(&e, "swap"),), (new_backstop_id,));
+    }
+
+    fn drop(e: Env) {
+        storage::bump_instance(&e);
+        let drop_list = emitter::execute_drop(&e);
+
+        e.events().publish((Symbol::new(&e, "drop"),), drop_list);
     }
 }

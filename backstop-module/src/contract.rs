@@ -4,7 +4,7 @@ use crate::{
     errors::BackstopError,
     storage,
 };
-use soroban_sdk::{contract, contractimpl, panic_with_error, Address, Env, Symbol, Vec};
+use soroban_sdk::{contract, contractimpl, panic_with_error, Address, Env, Map, Symbol, Vec};
 
 /// ### Backstop Module
 ///
@@ -19,10 +19,17 @@ pub trait BackstopModuleTrait {
     /// * `backstop_token` - The backstop token ID - generally an LP token where 1 of the tokens is BLND
     /// * `blnd_token` - The BLND token ID
     /// * `pool_factory` - The pool factory ID
+    /// * `drop_list` - The list of addresses to distribute initial BLND to and the percent of the distribution they should receive
     ///
     /// ### Errors
     /// If initialize has already been called
-    fn initialize(e: Env, backstop_token: Address, blnd_token: Address, pool_factory: Address);
+    fn initialize(
+        e: Env,
+        backstop_token: Address,
+        blnd_token: Address,
+        pool_factory: Address,
+        drop_list: Map<Address, i128>,
+    );
 
     /********** Core **********/
 
@@ -119,6 +126,9 @@ pub trait BackstopModuleTrait {
     /// If an invalid pool address is included
     fn claim(e: Env, from: Address, pool_addresses: Vec<Address>, to: Address);
 
+    /// Fetch the drop list
+    fn drop_list(e: Env) -> Map<Address, i128>;
+
     /********** Fund Management *********/
 
     /// Take backstop token from a pools backstop
@@ -152,7 +162,13 @@ pub trait BackstopModuleTrait {
 /// utilizes other modules to carry out contract functionality.
 #[contractimpl]
 impl BackstopModuleTrait for BackstopModule {
-    fn initialize(e: Env, backstop_token: Address, blnd_token: Address, pool_factory: Address) {
+    fn initialize(
+        e: Env,
+        backstop_token: Address,
+        blnd_token: Address,
+        pool_factory: Address,
+        drop_list: Map<Address, i128>,
+    ) {
         if storage::has_backstop_token(&e) {
             panic_with_error!(e, BackstopError::AlreadyInitialized);
         }
@@ -160,6 +176,7 @@ impl BackstopModuleTrait for BackstopModule {
         storage::set_backstop_token(&e, &backstop_token);
         storage::set_blnd_token(&e, &blnd_token);
         storage::set_pool_factory(&e, &pool_factory);
+        storage::set_drop_list(&e, &drop_list);
     }
 
     /********** Core **********/
@@ -261,6 +278,10 @@ impl BackstopModuleTrait for BackstopModule {
         let amount = emissions::execute_claim(&e, &from, &pool_addresses, &to);
 
         e.events().publish((Symbol::new(&e, "claim"), from), amount);
+    }
+
+    fn drop_list(e: Env) -> Map<Address, i128> {
+        storage::get_drop_list(&e)
     }
 
     /********** Fund Management *********/

@@ -176,7 +176,6 @@ impl BackstopModuleTrait for BackstopModule {
         storage::set_backstop_token(&e, &backstop_token);
         storage::set_blnd_token(&e, &blnd_token);
         storage::set_pool_factory(&e, &pool_factory);
-        //TODO: may want to verify that total amounts in drop list are less than 50 mil
         storage::set_drop_list(&e, &drop_list);
     }
 

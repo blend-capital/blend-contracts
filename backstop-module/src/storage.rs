@@ -383,7 +383,7 @@ pub fn set_user_emis_data(
 
 /********** Drop Emissions **********/
 
-// Get the current pool addresses that are in the drop list and the amount of the initial distribution they receive
+/// Get the current pool addresses that are in the drop list and the amount of the initial distribution they receive
 ///
 pub fn get_drop_list(e: &Env) -> Map<Address, i128> {
     e.storage()

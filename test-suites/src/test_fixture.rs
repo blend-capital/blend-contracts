@@ -176,6 +176,7 @@ impl TestFixture<'_> {
     /********** Chain Helpers ***********/
 
     pub fn jump(&self, time: u64) {
+        let time = time.saturating_sub(self.env.ledger().timestamp());
         let blocks = time / 5;
         self.env.ledger().set(LedgerInfo {
             timestamp: self.env.ledger().timestamp() + time,

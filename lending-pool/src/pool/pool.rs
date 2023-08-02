@@ -102,8 +102,17 @@ impl Pool {
         }
         let oracle_client = OracleClient::new(e, &self.config.oracle);
         let price_data = oracle_client.lastprice(asset).unwrap_optimized();
-        if price_data.timestamp + 24 * 60 * 60 < e.ledger().timestamp() {
-            panic_with_error!(e, PoolError::StalePrice);
+        let max_good_price_timestamp = price_data.timestamp.checked_add(24 * 60 * 60);
+        match max_good_price_timestamp {
+            Some(max_good_price_timestamp) => {
+                if max_good_price_timestamp < e.ledger().timestamp() {
+                    panic_with_error!(e, PoolError::StalePrice);
+                }
+            }
+            None => {
+                // We are approaching the end of time. Suspicious!
+                assert!(price_data.timestamp <= e.ledger().timestamp());
+            }
         }
         self.prices.set(asset.clone(), price_data.price);
         price_data.price

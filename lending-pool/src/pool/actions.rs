@@ -214,7 +214,7 @@ pub fn build_actions_from_request(
                     pool,
                     u32(request.amount).unwrap_optimized(),
                     &request.address,
-                    &from,
+                    &mut from_state,
                 );
                 if request.amount < 2 {
                     check_health = true;

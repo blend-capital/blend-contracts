@@ -90,6 +90,7 @@ fn test_emitter() {
     assert_eq!(fixture.env.auths().len(), 0);
     assert_eq!(fixture.emitter.get_backstop(), new_backstop.clone());
     let event = vec![&fixture.env, fixture.env.events().all().last_unchecked()];
+    println!("event: {:?}", event);
     assert_eq!(
         event,
         vec![

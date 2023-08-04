@@ -127,7 +127,7 @@ pub fn build_actions_from_request(
                 pool.cache_reserve(reserve, true);
                 e.events().publish(
                     (
-                        Symbol::new(&e, "supply_collateral"),
+                        Symbol::new(&e, "supply_col"),
                         request.address.clone(),
                         from.clone(),
                     ),
@@ -150,7 +150,7 @@ pub fn build_actions_from_request(
                 pool.cache_reserve(reserve, true);
                 e.events().publish(
                     (
-                        Symbol::new(&e, "withdraw_collateral"),
+                        Symbol::new(&e, "wdraw_col"),
                         request.address.clone(),
                         from.clone(),
                     ),
@@ -221,7 +221,7 @@ pub fn build_actions_from_request(
                 }
                 e.events().publish(
                     (
-                        Symbol::new(&e, "fill_auction"),
+                        Symbol::new(&e, "fill_auct"),
                         request.address.clone().clone(),
                         request.amount,
                     ),

@@ -2,8 +2,9 @@
 
 use fixed_point_math::FixedPoint;
 use soroban_sdk::{
+    map,
     testutils::{Address as _, AuthorizedFunction, AuthorizedInvocation, Events},
-    vec, Address, IntoVal, Symbol,
+    vec, Address, IntoVal, Map, Symbol,
 };
 use test_suites::{
     assertions::assert_approx_eq_abs,
@@ -22,10 +23,12 @@ fn test_backstop() {
     let sam = Address::random(&fixture.env);
 
     // Verify initialization can't be re-run
+    let blank_drop_map: Map<Address, i128> = map![&fixture.env];
     let result = fixture.backstop.try_initialize(
         &Address::random(&fixture.env),
         &Address::random(&fixture.env),
         &Address::random(&fixture.env),
+        &blank_drop_map,
     );
     assert!(result.is_err());
     assert_eq!(

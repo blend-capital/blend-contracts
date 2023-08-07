@@ -9,7 +9,7 @@ use cast::i128;
 use fixed_point_math::FixedPoint;
 use soroban_sdk::{map, panic_with_error, unwrap::UnwrapOptimized, Address, Env};
 
-use super::{apply_fill_modifiers, AuctionData, AuctionType};
+use super::{AuctionData, AuctionType};
 
 pub fn create_bad_debt_auction_data(e: &Env, backstop: &Address) -> AuctionData {
     if storage::has_auction(&e, &(AuctionType::BadDebtAuction as u32), backstop) {
@@ -67,7 +67,6 @@ pub fn fill_bad_debt_auction(
     filler_state: &mut User,
 ) {
     let backstop_address = storage::get_backstop(e);
-    apply_fill_modifiers(e, auction_data);
     let mut backstop_state = User::load(e, &backstop_address);
 
     // bid only contains d_token asset amounts
@@ -89,6 +88,8 @@ pub fn fill_bad_debt_auction(
 
 #[cfg(test)]
 mod tests {
+    use std::println;
+
     use crate::{auctions::auction::AuctionType, pool::Positions, storage::PoolConfig, testutils};
 
     use super::*;
@@ -487,7 +488,7 @@ mod tests {
         e.ledger().set(LedgerInfo {
             timestamp: 12345,
             protocol_version: 1,
-            sequence_number: 301, // 75% bid, 100% lot
+            sequence_number: 51,
             network_id: Default::default(),
             base_reserve: 10,
             min_temp_entry_expiration: 10,
@@ -554,8 +555,12 @@ mod tests {
             status: 0,
         };
         let mut auction_data = AuctionData {
-            bid: map![&e, (underlying_0, 10_0000000), (underlying_1, 2_5000000)],
-            lot: map![&e, (backstop_token_id, 95_2000000)],
+            bid: map![
+                &e,
+                (underlying_0, 10_0000000 - 2_5000000),
+                (underlying_1, 2_5000000 - 6250000)
+            ],
+            lot: map![&e, (backstop_token_id.clone(), 47_6000000)],
             block: 51,
         };
         let positions: Positions = Positions {
@@ -588,9 +593,14 @@ mod tests {
             );
             let mut pool = Pool::load(&e);
             let mut samwise_state = User::load(&e, &samwise);
+            println!(
+                "lot amt {:?}",
+                auction_data.lot.get_unchecked(backstop_token_id)
+            );
+            println!("backstop id  {:?}", backstop_client.backstop_token());
             fill_bad_debt_auction(&e, &mut pool, &mut auction_data, &mut samwise_state);
-            assert_eq!(backstop_token_client.balance(&backstop_address), 0);
-            assert_eq!(backstop_token_client.balance(&samwise), 95_2000000);
+            assert_eq!(backstop_token_client.balance(&backstop_address), 47_6000000);
+            assert_eq!(backstop_token_client.balance(&samwise), 47_6000000);
             let samwise_positions = samwise_state.positions;
             assert_eq!(
                 samwise_positions

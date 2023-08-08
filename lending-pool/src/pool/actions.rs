@@ -1,8 +1,5 @@
-use cast::u32;
 use soroban_sdk::Map;
-use soroban_sdk::{
-    contracttype, panic_with_error, unwrap::UnwrapOptimized, Address, Env, Symbol, Vec,
-};
+use soroban_sdk::{contracttype, panic_with_error, Address, Env, Symbol, Vec};
 
 use crate::{auctions, errors::PoolError, validator::require_nonnegative};
 
@@ -127,7 +124,7 @@ pub fn build_actions_from_request(
                 pool.cache_reserve(reserve, true);
                 e.events().publish(
                     (
-                        Symbol::new(&e, "supply_col"),
+                        Symbol::new(&e, "supply_collateral"),
                         request.address.clone(),
                         from.clone(),
                     ),
@@ -150,7 +147,7 @@ pub fn build_actions_from_request(
                 pool.cache_reserve(reserve, true);
                 e.events().publish(
                     (
-                        Symbol::new(&e, "wdraw_col"),
+                        Symbol::new(&e, "withdraw_collateral"),
                         request.address.clone(),
                         from.clone(),
                     ),
@@ -209,6 +206,7 @@ pub fn build_actions_from_request(
                 pool.cache_reserve(reserve, true);
             }
             6 => {
+                // fill user liquidation auction
                 auctions::fill(
                     e,
                     pool,
@@ -221,14 +219,16 @@ pub fn build_actions_from_request(
 
                 e.events().publish(
                     (
-                        Symbol::new(&e, "f_lq_auct"),
+                        Symbol::new(&e, "fill_auction"),
                         request.address.clone().clone(),
-                        request.amount,
+                        0 as u32,
                     ),
                     (from.clone(), request.amount),
                 );
             }
             7 => {
+                // fill bad debt auction
+                // Note: will fail if input address is not the backstop since there cannot be a bad debt auction for a different address in storage
                 auctions::fill(
                     e,
                     pool,
@@ -241,14 +241,16 @@ pub fn build_actions_from_request(
 
                 e.events().publish(
                     (
-                        Symbol::new(&e, "f_bd_auct"),
+                        Symbol::new(&e, "fill_auction"),
                         request.address.clone().clone(),
-                        request.amount,
+                        1 as u32,
                     ),
                     (from.clone(), request.amount),
                 );
             }
             8 => {
+                // fill interest auction
+                // Note: will fail if input address is not the backstop since there cannot be an interest auction for a different address in storage
                 auctions::fill(
                     e,
                     pool,
@@ -259,9 +261,9 @@ pub fn build_actions_from_request(
                 );
                 e.events().publish(
                     (
-                        Symbol::new(&e, "f_in_auct"),
+                        Symbol::new(&e, "fill_auction"),
                         request.address.clone().clone(),
-                        request.amount,
+                        2 as u32,
                     ),
                     (from.clone(), request.amount),
                 );
@@ -274,7 +276,6 @@ pub fn build_actions_from_request(
 
 #[cfg(test)]
 mod tests {
-    use std::println;
 
     use crate::{
         storage::{self, PoolConfig},
@@ -1269,10 +1270,8 @@ mod tests {
                     amount: 1_0000000,
                 },
             ];
-            println!("requests:");
             let (actions, _, health_check) =
                 build_actions_from_request(&e, &mut pool, &frodo, requests);
-            println!("requests:");
 
             assert_eq!(health_check, true);
             assert_eq!(

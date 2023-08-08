@@ -265,7 +265,7 @@ impl PoolTrait for Pool {
         pool::execute_update_pool(&e, backstop_take_rate);
 
         e.events()
-            .publish((Symbol::new(&e, "updt_pool"), admin), backstop_take_rate);
+            .publish((Symbol::new(&e, "update_pool"), admin), backstop_take_rate);
     }
 
     fn init_reserve(e: Env, asset: Address, config: ReserveConfig) {
@@ -276,7 +276,7 @@ impl PoolTrait for Pool {
         pool::initialize_reserve(&e, &asset, &config);
 
         e.events()
-            .publish((Symbol::new(&e, "init_res"), admin), asset);
+            .publish((Symbol::new(&e, "init_reserve"), admin), asset);
     }
 
     fn update_reserve(e: Env, asset: Address, config: ReserveConfig) {
@@ -287,7 +287,7 @@ impl PoolTrait for Pool {
         pool::execute_update_reserve(&e, &asset, &config);
 
         e.events()
-            .publish((Symbol::new(&e, "updt_res"), admin), asset);
+            .publish((Symbol::new(&e, "update_reserve"), admin), asset);
     }
 
     fn get_reserve_config(e: Env, asset: Address) -> ReserveConfig {
@@ -354,7 +354,7 @@ impl PoolTrait for Pool {
         let next_expiration = pool::update_pool_emissions(&e);
 
         e.events()
-            .publish((Symbol::new(&e, "updt_emiss"),), next_expiration);
+            .publish((Symbol::new(&e, "update_emissions"),), next_expiration);
         next_expiration
     }
 
@@ -393,8 +393,10 @@ impl PoolTrait for Pool {
     fn new_liquidation_auction(e: Env, user: Address, percent_liquidated: u64) -> AuctionData {
         let auction_data = auctions::create_liquidation(&e, &user, percent_liquidated);
 
-        e.events()
-            .publish((Symbol::new(&e, "n_lq_auct"), user), auction_data.clone());
+        e.events().publish(
+            (Symbol::new(&e, "new_liquidation_auction"), user),
+            auction_data.clone(),
+        );
         auction_data
     }
 
@@ -402,7 +404,8 @@ impl PoolTrait for Pool {
     fn del_liquidation_auction(e: Env, user: Address) {
         auctions::delete_liquidation(&e, &user);
 
-        e.events().publish((Symbol::new(&e, "d_lq_auct"), user), ());
+        e.events()
+            .publish((Symbol::new(&e, "delete_liquidation_auction"), user), ());
     }
 
     fn get_auction(e: Env, auction_type: u32, user: Address) -> AuctionData {
@@ -414,7 +417,7 @@ impl PoolTrait for Pool {
         let auction_data = auctions::create(&e, auction_type);
 
         e.events().publish(
-            (Symbol::new(&e, "n_auct"), auction_type),
+            (Symbol::new(&e, "new_auction"), auction_type),
             auction_data.clone(),
         );
 

@@ -61,7 +61,7 @@ pub fn create_interest_auction_data(e: &Env, backstop: &Address) -> AuctionData 
 pub fn fill_interest_auction(
     e: &Env,
     pool: &mut Pool,
-    auction_data: &mut AuctionData,
+    auction_data: &AuctionData,
     filler: &Address,
 ) {
     // bid only contains the USDC token

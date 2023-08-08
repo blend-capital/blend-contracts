@@ -117,11 +117,10 @@ pub fn create_user_liq_auction_data(
     liquidation_quote
 }
 
-// TODO: we can remove this function but I wasn't sure if it made organization confusing
 pub fn fill_user_liq_auction(
     e: &Env,
     pool: &mut Pool,
-    auction_data: &mut AuctionData,
+    auction_data: &AuctionData,
     user: &Address,
     filler_state: &mut User,
 ) {

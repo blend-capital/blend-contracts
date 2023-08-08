@@ -23,7 +23,6 @@ pub fn create_bad_debt_auction_data(e: &Env, backstop: &Address) -> AuctionData 
     };
 
     let mut pool = Pool::load(e);
-    let oracle_decimals = pool.load_price_decimals(e);
     let backstop_positions = storage::get_user_positions(e, backstop);
     let reserve_list = storage::get_res_list(e);
     let mut debt_value = 0;
@@ -63,7 +62,7 @@ pub fn create_bad_debt_auction_data(e: &Env, backstop: &Address) -> AuctionData 
 pub fn fill_bad_debt_auction(
     e: &Env,
     pool: &mut Pool,
-    auction_data: &mut AuctionData,
+    auction_data: &AuctionData,
     filler_state: &mut User,
 ) {
     let backstop_address = storage::get_backstop(e);
@@ -88,7 +87,6 @@ pub fn fill_bad_debt_auction(
 
 #[cfg(test)]
 mod tests {
-    use std::println;
 
     use crate::{auctions::auction::AuctionType, pool::Positions, storage::PoolConfig, testutils};
 
@@ -593,11 +591,6 @@ mod tests {
             );
             let mut pool = Pool::load(&e);
             let mut samwise_state = User::load(&e, &samwise);
-            println!(
-                "lot amt {:?}",
-                auction_data.lot.get_unchecked(backstop_token_id)
-            );
-            println!("backstop id  {:?}", backstop_client.backstop_token());
             fill_bad_debt_auction(&e, &mut pool, &mut auction_data, &mut samwise_state);
             assert_eq!(backstop_token_client.balance(&backstop_address), 47_6000000);
             assert_eq!(backstop_token_client.balance(&samwise), 47_6000000);

@@ -141,16 +141,16 @@ pub fn fill(
         let new_auction = apply_fill_pct(e, &mut auction_data, percent_filled);
         storage::set_auction(e, &auction_type, user, &new_auction);
     }
-    apply_fill_modifiers(e, &mut auction_data);
+    let filled_auction = apply_fill_modifiers(e, &mut auction_data);
     match AuctionType::from_u32(auction_type) {
         AuctionType::UserLiquidation => {
-            fill_user_liq_auction(e, pool, &mut auction_data, user, filler_state)
+            fill_user_liq_auction(e, pool, &filled_auction, user, filler_state)
         }
         AuctionType::BadDebtAuction => {
-            fill_bad_debt_auction(e, pool, &mut auction_data, filler_state)
+            fill_bad_debt_auction(e, pool, &filled_auction, filler_state)
         }
         AuctionType::InterestAuction => {
-            fill_interest_auction(e, pool, &mut auction_data, &filler_state.address)
+            fill_interest_auction(e, pool, &filled_auction, &filler_state.address)
         }
     };
 }
@@ -159,7 +159,7 @@ pub fn fill(
 ///
 /// Returns a tuple of i128's => (bid modifier, lot modifier) scaled
 /// to 7 decimal places
-pub(super) fn apply_fill_modifiers(e: &Env, auction_data: &mut AuctionData) {
+pub(super) fn apply_fill_modifiers(e: &Env, auction_data: &mut AuctionData) -> AuctionData {
     let block_dif = i128(e.ledger().sequence() - auction_data.block) * 1_0000000;
     // increment the modifier 0.5% every block
     let per_block_scalar: i128 = 0_0050000;
@@ -192,7 +192,17 @@ pub(super) fn apply_fill_modifiers(e: &Env, auction_data: &mut AuctionData) {
             }
         }
     };
+    auction_data.clone()
 }
+// fn shave_remainder(
+//     e: &Env,
+//     bid_mod: i128,
+//     pct_mod: u64,
+//     auction_data: &mut A,
+// ) -> Map<Address, i128> {
+//     let remainder_set = map![&e];
+//     for (asset, amount) in set {}
+// }
 
 fn apply_fill_pct(e: &Env, auction_data: &mut AuctionData, percent_filled: u64) -> AuctionData {
     let mut new_auction_data: AuctionData = AuctionData {
@@ -719,16 +729,12 @@ mod tests {
 
         let pool_address = Address::random(&e);
 
-        let (oracle_address, oracle_client) = testutils::create_mock_oracle(&e);
+        let (oracle_address, _) = testutils::create_mock_oracle(&e);
 
         // creating reserves for a pool exhausts the budget
         e.budget().reset_unlimited();
         let (underlying_0, _) = testutils::create_token_contract(&e, &bombadil);
-        let (mut reserve_config_0, mut reserve_data_0) = testutils::default_reserve_meta(&e);
-        reserve_data_0.last_time = 12345;
-        reserve_data_0.b_rate = 1_100_000_000;
-        reserve_config_0.c_factor = 0_8500000;
-        reserve_config_0.l_factor = 0_9000000;
+        let (mut reserve_config_0, reserve_data_0) = testutils::default_reserve_meta(&e);
         reserve_config_0.index = 0;
         testutils::create_reserve(
             &e,
@@ -739,11 +745,7 @@ mod tests {
         );
 
         let (underlying_1, _) = testutils::create_token_contract(&e, &bombadil);
-        let (mut reserve_config_1, mut reserve_data_1) = testutils::default_reserve_meta(&e);
-        reserve_data_1.b_rate = 1_200_000_000;
-        reserve_config_1.c_factor = 0_7500000;
-        reserve_config_1.l_factor = 0_7500000;
-        reserve_data_1.last_time = 12345;
+        let (mut reserve_config_1, reserve_data_1) = testutils::default_reserve_meta(&e);
         reserve_config_1.index = 1;
         testutils::create_reserve(
             &e,
@@ -753,10 +755,8 @@ mod tests {
             &reserve_data_1,
         );
 
-        let (underlying_2, reserve_2_asset) = testutils::create_token_contract(&e, &bombadil);
+        let (underlying_2, _) = testutils::create_token_contract(&e, &bombadil);
         let (mut reserve_config_2, reserve_data_2) = testutils::default_reserve_meta(&e);
-        reserve_config_2.c_factor = 0_0000000;
-        reserve_config_2.l_factor = 0_7000000;
         reserve_config_2.index = 2;
         testutils::create_reserve(
             &e,
@@ -766,13 +766,6 @@ mod tests {
             &reserve_data_2,
         );
         e.budget().reset_unlimited();
-
-        oracle_client.set_price(&underlying_0, &2_0000000);
-        oracle_client.set_price(&underlying_1, &4_0000000);
-        oracle_client.set_price(&underlying_2, &50_0000000);
-
-        reserve_2_asset.mint(&frodo, &0_8000000);
-        reserve_2_asset.approve(&frodo, &pool_address, &i128::MAX, &1000000);
 
         let auction_data = AuctionData {
             bid: map![&e, (underlying_2.clone(), 1_2375000)],
@@ -816,16 +809,6 @@ mod tests {
             let mut pool = Pool::load(&e);
             let mut frodo_state = User::load(&e, &frodo);
             fill(&e, &mut pool, 0, &samwise, &mut frodo_state, 1_000_0000);
-
-            let expected_new_auction_data = AuctionData {
-                bid: map![&e, (underlying_2.clone(), 9281250)],
-                lot: map![
-                    &e,
-                    (underlying_0.clone(), 22_9196497),
-                    (underlying_1.clone(), 1_1546805)
-                ],
-                block: 176,
-            };
             let has_auction = storage::has_auction(&e, &0, &samwise);
             assert_eq!(has_auction, false);
         });
@@ -853,16 +836,12 @@ mod tests {
 
         let pool_address = Address::random(&e);
 
-        let (oracle_address, oracle_client) = testutils::create_mock_oracle(&e);
+        let (oracle_address, _) = testutils::create_mock_oracle(&e);
 
         // creating reserves for a pool exhausts the budget
         e.budget().reset_unlimited();
         let (underlying_0, _) = testutils::create_token_contract(&e, &bombadil);
-        let (mut reserve_config_0, mut reserve_data_0) = testutils::default_reserve_meta(&e);
-        reserve_data_0.last_time = 12345;
-        reserve_data_0.b_rate = 1_100_000_000;
-        reserve_config_0.c_factor = 0_8500000;
-        reserve_config_0.l_factor = 0_9000000;
+        let (mut reserve_config_0, reserve_data_0) = testutils::default_reserve_meta(&e);
         reserve_config_0.index = 0;
         testutils::create_reserve(
             &e,
@@ -873,11 +852,7 @@ mod tests {
         );
 
         let (underlying_1, _) = testutils::create_token_contract(&e, &bombadil);
-        let (mut reserve_config_1, mut reserve_data_1) = testutils::default_reserve_meta(&e);
-        reserve_data_1.b_rate = 1_200_000_000;
-        reserve_config_1.c_factor = 0_7500000;
-        reserve_config_1.l_factor = 0_7500000;
-        reserve_data_1.last_time = 12345;
+        let (mut reserve_config_1, reserve_data_1) = testutils::default_reserve_meta(&e);
         reserve_config_1.index = 1;
         testutils::create_reserve(
             &e,
@@ -887,10 +862,8 @@ mod tests {
             &reserve_data_1,
         );
 
-        let (underlying_2, reserve_2_asset) = testutils::create_token_contract(&e, &bombadil);
+        let (underlying_2, _) = testutils::create_token_contract(&e, &bombadil);
         let (mut reserve_config_2, reserve_data_2) = testutils::default_reserve_meta(&e);
-        reserve_config_2.c_factor = 0_0000000;
-        reserve_config_2.l_factor = 0_7000000;
         reserve_config_2.index = 2;
         testutils::create_reserve(
             &e,
@@ -900,13 +873,6 @@ mod tests {
             &reserve_data_2,
         );
         e.budget().reset_unlimited();
-
-        oracle_client.set_price(&underlying_0, &2_0000000);
-        oracle_client.set_price(&underlying_1, &4_0000000);
-        oracle_client.set_price(&underlying_2, &50_0000000);
-
-        reserve_2_asset.mint(&frodo, &0_8000000);
-        reserve_2_asset.approve(&frodo, &pool_address, &i128::MAX, &1000000);
 
         let auction_data = AuctionData {
             bid: map![&e, (underlying_2.clone(), 1_2375000)],
@@ -968,6 +934,200 @@ mod tests {
     }
 
     #[test]
+    fn test_partial_partial_full_fill() {
+        let e = Env::default();
+
+        e.mock_all_auths();
+        e.ledger().set(LedgerInfo {
+            timestamp: 12345,
+            protocol_version: 1,
+            sequence_number: 175,
+            network_id: Default::default(),
+            base_reserve: 10,
+            min_temp_entry_expiration: 10,
+            min_persistent_entry_expiration: 10,
+            max_entry_expiration: 2000000,
+        });
+
+        let bombadil = Address::random(&e);
+        let samwise = Address::random(&e);
+        let frodo = Address::random(&e);
+
+        let pool_address = Address::random(&e);
+
+        let (oracle_address, _) = testutils::create_mock_oracle(&e);
+
+        // creating reserves for a pool exhausts the budget
+        e.budget().reset_unlimited();
+        let (underlying_0, _) = testutils::create_token_contract(&e, &bombadil);
+        let (mut reserve_config_0, reserve_data_0) = testutils::default_reserve_meta(&e);
+
+        reserve_config_0.index = 0;
+        testutils::create_reserve(
+            &e,
+            &pool_address,
+            &underlying_0,
+            &reserve_config_0,
+            &reserve_data_0,
+        );
+
+        let (underlying_1, _) = testutils::create_token_contract(&e, &bombadil);
+        let (mut reserve_config_1, reserve_data_1) = testutils::default_reserve_meta(&e);
+
+        reserve_config_1.index = 1;
+        testutils::create_reserve(
+            &e,
+            &pool_address,
+            &underlying_1,
+            &reserve_config_1,
+            &reserve_data_1,
+        );
+
+        let (underlying_2, _) = testutils::create_token_contract(&e, &bombadil);
+        let (mut reserve_config_2, reserve_data_2) = testutils::default_reserve_meta(&e);
+
+        reserve_config_2.index = 2;
+        testutils::create_reserve(
+            &e,
+            &pool_address,
+            &underlying_2,
+            &reserve_config_2,
+            &reserve_data_2,
+        );
+        e.budget().reset_unlimited();
+
+        let auction_data = AuctionData {
+            bid: map![&e, (underlying_2.clone(), 100_000_0000)],
+            lot: map![
+                &e,
+                (underlying_0.clone(), 10_000_0000),
+                (underlying_1.clone(), 1_000_0000)
+            ],
+            block: 176,
+        };
+        let pool_config = PoolConfig {
+            oracle: oracle_address,
+            bstop_rate: 0_100_000_000,
+            status: 0,
+        };
+        let positions: Positions = Positions {
+            collateral: map![
+                &e,
+                (reserve_config_0.index, 30_000_0000),
+                (reserve_config_1.index, 3_000_0000),
+            ],
+            liabilities: map![&e, (reserve_config_2.index, 200_000_0000),],
+            supply: map![&e],
+        };
+        e.as_contract(&pool_address, || {
+            storage::set_user_positions(&e, &samwise, &positions);
+            storage::set_pool_config(&e, &pool_config);
+            storage::set_auction(&e, &0, &samwise, &auction_data);
+
+            // Partial fill 1 - 25% @ 50% lot mod
+            e.ledger().set(LedgerInfo {
+                timestamp: 12345 + 100 * 5,
+                protocol_version: 1,
+                sequence_number: 176 + 100,
+                network_id: Default::default(),
+                base_reserve: 10,
+                min_temp_entry_expiration: 10,
+                min_persistent_entry_expiration: 10,
+                max_entry_expiration: 2000000,
+            });
+            e.budget().reset_unlimited();
+            let mut pool = Pool::load(&e);
+            let mut frodo_state = User::load(&e, &frodo);
+            fill(&e, &mut pool, 0, &samwise, &mut frodo_state, 2500000);
+
+            let expected_new_auction_data = AuctionData {
+                bid: map![&e, (underlying_2.clone(), 75_000_0000)],
+                lot: map![
+                    &e,
+                    (underlying_0.clone(), 7_500_0000),
+                    (underlying_1.clone(), 750_0000)
+                ],
+                block: 176,
+            };
+
+            // Partial fill 2 - 66% @ 100% mods
+            let new_auction = storage::get_auction(&e, &0, &samwise);
+            assert_eq!(new_auction.bid, expected_new_auction_data.bid);
+            assert_eq!(new_auction.lot, expected_new_auction_data.lot);
+            assert_eq!(new_auction.block, expected_new_auction_data.block);
+
+            e.ledger().set(LedgerInfo {
+                timestamp: 12345 + 200 * 5,
+                protocol_version: 1,
+                sequence_number: 176 + 200,
+                network_id: Default::default(),
+                base_reserve: 10,
+                min_temp_entry_expiration: 10,
+                min_persistent_entry_expiration: 10,
+                max_entry_expiration: 2000000,
+            });
+            e.budget().reset_unlimited();
+            let mut pool = Pool::load(&e);
+            let mut frodo_state = User::load(&e, &frodo);
+            fill(&e, &mut pool, 0, &samwise, &mut frodo_state, 6666667);
+
+            let expected_new_auction_data = AuctionData {
+                bid: map![&e, (underlying_2.clone(), 24_999_9975)],
+                lot: map![
+                    &e,
+                    (underlying_0.clone(), 2_499_9998),
+                    (underlying_1.clone(), 250_0000)
+                ],
+                block: 176,
+            };
+            let new_auction = storage::get_auction(&e, &0, &samwise);
+            assert_eq!(new_auction.bid, expected_new_auction_data.bid);
+            assert_eq!(new_auction.lot, expected_new_auction_data.lot);
+            assert_eq!(new_auction.block, expected_new_auction_data.block);
+
+            // full fill at 50% bid mod
+            e.ledger().set(LedgerInfo {
+                timestamp: 12345 + 300 * 5,
+                protocol_version: 1,
+                sequence_number: 176 + 300,
+                network_id: Default::default(),
+                base_reserve: 10,
+                min_temp_entry_expiration: 10,
+                min_persistent_entry_expiration: 10,
+                max_entry_expiration: 2000000,
+            });
+            e.budget().reset_unlimited();
+            let mut pool = Pool::load(&e);
+            let mut frodo_state = User::load(&e, &frodo);
+            fill(&e, &mut pool, 0, &samwise, &mut frodo_state, 1_000_0000);
+            let new_auction = storage::has_auction(&e, &0, &samwise);
+            assert_eq!(new_auction, false);
+            let samwise_positions = storage::get_user_positions(&e, &samwise);
+            assert_eq!(
+                samwise_positions
+                    .collateral
+                    .get(reserve_config_0.index)
+                    .unwrap_optimized(),
+                30_000_0000 - 1_250_0000 - 5_000_0002 - 2_499_9998
+            );
+            assert_eq!(
+                samwise_positions
+                    .collateral
+                    .get(reserve_config_1.index)
+                    .unwrap_optimized(),
+                3_000_0000 - 125_0000 - 500_0000 - 250_0000
+            );
+            assert_eq!(
+                samwise_positions
+                    .liabilities
+                    .get(reserve_config_2.index)
+                    .unwrap_optimized(),
+                200_000_0000 - 25_000_0000 - 50_000_0025 - 12_499_9988
+            );
+        });
+    }
+
+    #[test]
     // #[should_panic(expected = "ContractError(2)")]
     #[should_panic]
     fn test_fill_fails_pct_too_large() {
@@ -991,16 +1151,12 @@ mod tests {
 
         let pool_address = Address::random(&e);
 
-        let (oracle_address, oracle_client) = testutils::create_mock_oracle(&e);
+        let (oracle_address, _) = testutils::create_mock_oracle(&e);
 
         // creating reserves for a pool exhausts the budget
         e.budget().reset_unlimited();
         let (underlying_0, _) = testutils::create_token_contract(&e, &bombadil);
-        let (mut reserve_config_0, mut reserve_data_0) = testutils::default_reserve_meta(&e);
-        reserve_data_0.last_time = 12345;
-        reserve_data_0.b_rate = 1_100_000_000;
-        reserve_config_0.c_factor = 0_8500000;
-        reserve_config_0.l_factor = 0_9000000;
+        let (mut reserve_config_0, reserve_data_0) = testutils::default_reserve_meta(&e);
         reserve_config_0.index = 0;
         testutils::create_reserve(
             &e,
@@ -1011,11 +1167,7 @@ mod tests {
         );
 
         let (underlying_1, _) = testutils::create_token_contract(&e, &bombadil);
-        let (mut reserve_config_1, mut reserve_data_1) = testutils::default_reserve_meta(&e);
-        reserve_data_1.b_rate = 1_200_000_000;
-        reserve_config_1.c_factor = 0_7500000;
-        reserve_config_1.l_factor = 0_7500000;
-        reserve_data_1.last_time = 12345;
+        let (mut reserve_config_1, reserve_data_1) = testutils::default_reserve_meta(&e);
         reserve_config_1.index = 1;
         testutils::create_reserve(
             &e,
@@ -1025,10 +1177,8 @@ mod tests {
             &reserve_data_1,
         );
 
-        let (underlying_2, reserve_2_asset) = testutils::create_token_contract(&e, &bombadil);
+        let (underlying_2, _) = testutils::create_token_contract(&e, &bombadil);
         let (mut reserve_config_2, reserve_data_2) = testutils::default_reserve_meta(&e);
-        reserve_config_2.c_factor = 0_0000000;
-        reserve_config_2.l_factor = 0_7000000;
         reserve_config_2.index = 2;
         testutils::create_reserve(
             &e,
@@ -1038,13 +1188,6 @@ mod tests {
             &reserve_data_2,
         );
         e.budget().reset_unlimited();
-
-        oracle_client.set_price(&underlying_0, &2_0000000);
-        oracle_client.set_price(&underlying_1, &4_0000000);
-        oracle_client.set_price(&underlying_2, &50_0000000);
-
-        reserve_2_asset.mint(&frodo, &0_8000000);
-        reserve_2_asset.approve(&frodo, &pool_address, &i128::MAX, &1000000);
 
         let auction_data = AuctionData {
             bid: map![&e, (underlying_2.clone(), 1_2375000)],
@@ -1129,16 +1272,12 @@ mod tests {
 
         let pool_address = Address::random(&e);
 
-        let (oracle_address, oracle_client) = testutils::create_mock_oracle(&e);
+        let (oracle_address, _) = testutils::create_mock_oracle(&e);
 
         // creating reserves for a pool exhausts the budget
         e.budget().reset_unlimited();
         let (underlying_0, _) = testutils::create_token_contract(&e, &bombadil);
-        let (mut reserve_config_0, mut reserve_data_0) = testutils::default_reserve_meta(&e);
-        reserve_data_0.last_time = 12345;
-        reserve_data_0.b_rate = 1_100_000_000;
-        reserve_config_0.c_factor = 0_8500000;
-        reserve_config_0.l_factor = 0_9000000;
+        let (mut reserve_config_0, reserve_data_0) = testutils::default_reserve_meta(&e);
         reserve_config_0.index = 0;
         testutils::create_reserve(
             &e,
@@ -1149,11 +1288,8 @@ mod tests {
         );
 
         let (underlying_1, _) = testutils::create_token_contract(&e, &bombadil);
-        let (mut reserve_config_1, mut reserve_data_1) = testutils::default_reserve_meta(&e);
-        reserve_data_1.b_rate = 1_200_000_000;
-        reserve_config_1.c_factor = 0_7500000;
-        reserve_config_1.l_factor = 0_7500000;
-        reserve_data_1.last_time = 12345;
+        let (mut reserve_config_1, reserve_data_1) = testutils::default_reserve_meta(&e);
+
         reserve_config_1.index = 1;
         testutils::create_reserve(
             &e,
@@ -1163,10 +1299,9 @@ mod tests {
             &reserve_data_1,
         );
 
-        let (underlying_2, reserve_2_asset) = testutils::create_token_contract(&e, &bombadil);
+        let (underlying_2, _) = testutils::create_token_contract(&e, &bombadil);
         let (mut reserve_config_2, reserve_data_2) = testutils::default_reserve_meta(&e);
-        reserve_config_2.c_factor = 0_0000000;
-        reserve_config_2.l_factor = 0_7000000;
+
         reserve_config_2.index = 2;
         testutils::create_reserve(
             &e,
@@ -1176,14 +1311,6 @@ mod tests {
             &reserve_data_2,
         );
         e.budget().reset_unlimited();
-
-        oracle_client.set_price(&underlying_0, &2_0000000);
-        oracle_client.set_price(&underlying_1, &4_0000000);
-        oracle_client.set_price(&underlying_2, &50_0000000);
-
-        reserve_2_asset.mint(&frodo, &0_8000000);
-        reserve_2_asset.approve(&frodo, &pool_address, &i128::MAX, &1000000);
-
         let auction_data = AuctionData {
             bid: map![&e, (underlying_2.clone(), 1_2375000)],
             lot: map![

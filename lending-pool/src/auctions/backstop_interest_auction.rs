@@ -5,7 +5,7 @@ use cast::i128;
 use fixed_point_math::FixedPoint;
 use soroban_sdk::{map, panic_with_error, unwrap::UnwrapOptimized, Address, Env};
 
-use super::{apply_fill_modifiers, AuctionData, AuctionType};
+use super::{AuctionData, AuctionType};
 
 pub fn create_interest_auction_data(e: &Env, backstop: &Address) -> AuctionData {
     if storage::has_auction(e, &(AuctionType::InterestAuction as u32), backstop) {
@@ -61,11 +61,9 @@ pub fn create_interest_auction_data(e: &Env, backstop: &Address) -> AuctionData 
 pub fn fill_interest_auction(
     e: &Env,
     pool: &mut Pool,
-    auction_data: &mut AuctionData,
+    auction_data: &AuctionData,
     filler: &Address,
 ) {
-    apply_fill_modifiers(e, auction_data);
-
     // bid only contains the USDC token
     // TODO: add donate_usdc function to backstop
     // let backstop_client = BackstopClient::new(&e, &backstop_address);

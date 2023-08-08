@@ -13,7 +13,11 @@ use lending_pool::{PoolClient, ReserveConfig};
 use mock_oracle::MockOracleClient;
 use pool_factory::{PoolFactoryClient, PoolInitMeta};
 use soroban_sdk::testutils::{Address as _, BytesN as _, Ledger, LedgerInfo};
+<<<<<<< HEAD
 use soroban_sdk::{map, Address, BytesN, Env, Map, Symbol};
+=======
+use soroban_sdk::{Address, BytesN, Env, Map, Symbol};
+>>>>>>> origin
 
 pub const SCALAR_7: i128 = 1_000_0000;
 pub const SCALAR_9: i128 = 1_000_000_000;
@@ -93,12 +97,11 @@ impl TestFixture<'_> {
 
         // initialize backstop
         let (backstop_token_id, backstop_token_client) = create_token(&e, &bombadil, 7, "BSTOP");
-        let blank_drop_map: Map<Address, i128> = map![&e];
         backstop_client.initialize(
             &backstop_token_id,
             &blnd_id,
             &pool_factory_id,
-            &blank_drop_map,
+            &Map::new(&e),
         );
 
         // initialize pool factory

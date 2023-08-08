@@ -28,7 +28,7 @@ fn test_backstop() {
         &Address::random(&fixture.env),
         &Address::random(&fixture.env),
         &Address::random(&fixture.env),
-        &blank_drop_map,
+        &Map::new(&fixture.env),
     );
     assert!(result.is_err());
     assert_eq!(

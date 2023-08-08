@@ -194,15 +194,6 @@ pub(super) fn apply_fill_modifiers(e: &Env, auction_data: &mut AuctionData) -> A
     };
     auction_data.clone()
 }
-// fn shave_remainder(
-//     e: &Env,
-//     bid_mod: i128,
-//     pct_mod: u64,
-//     auction_data: &mut A,
-// ) -> Map<Address, i128> {
-//     let remainder_set = map![&e];
-//     for (asset, amount) in set {}
-// }
 
 fn apply_fill_pct(e: &Env, auction_data: &mut AuctionData, percent_filled: u64) -> AuctionData {
     let mut new_auction_data: AuctionData = AuctionData {

@@ -13,11 +13,7 @@ use lending_pool::{PoolClient, ReserveConfig};
 use mock_oracle::MockOracleClient;
 use pool_factory::{PoolFactoryClient, PoolInitMeta};
 use soroban_sdk::testutils::{Address as _, BytesN as _, Ledger, LedgerInfo};
-<<<<<<< HEAD
-use soroban_sdk::{map, Address, BytesN, Env, Map, Symbol};
-=======
 use soroban_sdk::{Address, BytesN, Env, Map, Symbol};
->>>>>>> origin
 
 pub const SCALAR_7: i128 = 1_000_0000;
 pub const SCALAR_9: i128 = 1_000_000_000;

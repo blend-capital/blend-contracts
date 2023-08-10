@@ -128,7 +128,7 @@ fn test_liquidations() {
     //NOTE: bid USDC amount is seven decimals whereas reserve(and lot) USDC has 6 decomals
     assert_approx_eq_abs(usdc_donate_bid_amount, 392_1769961, SCALAR_7);
     assert_eq!(auction_data.block, 1452403);
-    let liq_pct = 3000000;
+    let liq_pct = 30;
     let events = fixture.env.events().all();
     let event = vec![&fixture.env, events.get_unchecked(events.len() - 1)];
     assert_eq!(
@@ -157,7 +157,7 @@ fn test_liquidations() {
             .liabilities
             .get(0)
             .unwrap()
-            .fixed_mul_ceil(i128(liq_pct), SCALAR_7)
+            .fixed_mul_ceil(i128(liq_pct * 100000), SCALAR_7)
             .unwrap(),
         SCALAR_7,
     );
@@ -170,7 +170,7 @@ fn test_liquidations() {
             .liabilities
             .get(1)
             .unwrap()
-            .fixed_mul_ceil(i128(liq_pct), SCALAR_7)
+            .fixed_mul_ceil(i128(liq_pct * 100000), SCALAR_7)
             .unwrap(),
         SCALAR_7,
     );
@@ -211,22 +211,22 @@ fn test_liquidations() {
         Request {
             request_type: 6,
             address: samwise.clone(),
-            amount: 2500000,
+            amount: 25,
         },
         Request {
             request_type: 6,
             address: samwise.clone(),
-            amount: 1_0000000,
+            amount: 100,
         },
         Request {
             request_type: 8,
             address: fixture.backstop.address.clone(), //address shouldn't matter
-            amount: 9900000,
+            amount: 99,
         },
         Request {
             request_type: 8,
             address: fixture.backstop.address.clone(), //address shouldn't matter
-            amount: 1_0000000,
+            amount: 100,
         },
         Request {
             request_type: 5,
@@ -291,9 +291,9 @@ fn test_liquidations() {
     let events = fixture.env.events().all();
 
     let event = vec![&fixture.env, events.get_unchecked(events.len() - 12)];
-    let fill_pct_1: i128 = 2500000;
-    let fill_pct_2: i128 = 1_0000000;
-    let fill_pct_3: i128 = 9900000;
+    let fill_pct_1: i128 = 25;
+    let fill_pct_2: i128 = 100;
+    let fill_pct_3: i128 = 99;
     let event_data_1: Vec<Val> = vec![
         &fixture.env,
         frodo.into_val(&fixture.env),
@@ -386,7 +386,7 @@ fn test_liquidations() {
     pool_fixture
         .pool
         .submit(&samwise, &samwise, &samwise, &blank_requests);
-    let liq_pct = 1_0000000;
+    let liq_pct = 100;
     let auction_data_2 = pool_fixture
         .pool
         .new_liquidation_auction(&samwise, &liq_pct);
@@ -418,7 +418,7 @@ fn test_liquidations() {
         Request {
             request_type: 6,
             address: samwise.clone(),
-            amount: 1_0000000,
+            amount: 100,
         },
         Request {
             request_type: 5,
@@ -549,7 +549,7 @@ fn test_liquidations() {
         Request {
             request_type: 7,
             address: fixture.backstop.address.clone(),
-            amount: 2000000,
+            amount: 20,
         },
     ];
     let post_bd_fill_frodo_positions =
@@ -628,7 +628,7 @@ fn test_liquidations() {
     assert_eq!(new_auction.block, bad_debt_auction_data.block);
     let events = fixture.env.events().all();
     let event = vec![&fixture.env, events.get_unchecked(events.len() - 1)];
-    let fill_pct: i128 = 2000000;
+    let fill_pct: i128 = 20;
     let event_data: Vec<Val> = vec![
         &fixture.env,
         frodo.into_val(&fixture.env),
@@ -663,7 +663,7 @@ fn test_liquidations() {
         Request {
             request_type: 7,
             address: fixture.backstop.address.clone(),
-            amount: 1_0000000,
+            amount: 100,
         },
     ];
     let post_bd_fill_frodo_positions =
@@ -694,7 +694,7 @@ fn test_liquidations() {
     );
     let events = fixture.env.events().all();
     let event = vec![&fixture.env, events.get_unchecked(events.len() - 1)];
-    let fill_pct: i128 = 1_0000000;
+    let fill_pct: i128 = 100;
     let event_data: Vec<Val> = vec![
         &fixture.env,
         frodo.into_val(&fixture.env),

@@ -196,7 +196,7 @@ pub trait PoolTrait {
     ///
     /// ### Arguments
     /// * `user` - The user getting liquidated through the auction
-    /// * `percent_liquidated` - The percent of the user's position being liquidated
+    /// * `percent_liquidated` - The percent of the user's position being liquidated as a percentage (15 => 15%)
     ///
     /// ### Panics
     /// If the user liquidation auction was unable to be created

@@ -1137,7 +1137,7 @@ mod tests {
                 Request {
                     request_type: 6,
                     address: samwise.clone(),
-                    amount: 500_0000,
+                    amount: 50,
                 },
             ];
             let (actions, _, health_check) =
@@ -1267,7 +1267,7 @@ mod tests {
                 Request {
                     request_type: 7,
                     address: backstop_address.clone(),
-                    amount: 1_0000000,
+                    amount: 100,
                 },
             ];
             let (actions, _, health_check) =
@@ -1389,7 +1389,7 @@ mod tests {
                 Request {
                     request_type: 8,
                     address: backstop_address.clone(),
-                    amount: 1_000_0000,
+                    amount: 100,
                 },
             ];
             let (actions, _, health_check) =

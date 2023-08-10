@@ -118,7 +118,8 @@ pub fn delete_liquidation(e: &Env, user: &Address) {
 /// * `pool` - The pool
 /// * `auction_type` - The type of auction to fill
 /// * `user` - The user involved in the auction
-/// * `filler` - The Address filling the auction
+/// * `filler_state` - The Address filling the auction
+/// * `percent_filled` - The percentage being filled as a number (i.e. 15 => 15%)
 ///
 /// ### Panics
 /// If the auction does not exist, or if the pool is unable to fulfill either side
@@ -132,7 +133,7 @@ pub fn fill(
     percent_filled: u64,
 ) {
     let auction_data = storage::get_auction(e, &auction_type, user);
-    if percent_filled > 1_0000000 || percent_filled == 0 {
+    if percent_filled > 100 || percent_filled == 0 {
         panic_with_error!(e, PoolError::BadRequest);
     }
 
@@ -161,7 +162,7 @@ pub fn fill(
 ///
 /// ### Arguments
 /// * `auction_data` - The auction data to scale
-/// * `percent_filled` - The percentage of the auction being filled, scaled as a decimal to 7 decimal places
+/// * `percent_filled` - The percentage being filled as a number (i.e. 15 => 15%)
 ///
 /// Returns the (Scaled Auction, Remaining Auction) such that:
 /// - Scaled Auction is the auction data scaled
@@ -202,7 +203,7 @@ fn scale_auction(
     }
 
     // scale the auction
-    let percent_filled_i128 = i128(percent_filled);
+    let percent_filled_i128 = i128(percent_filled) * 1_00000; // scale to decimal form in 7 decimals from percentage
     for (asset, amount) in auction_data.bid.iter() {
         // apply percent scalar and store remainder to base auction
         // round up to avoid rounding exploits
@@ -528,7 +529,7 @@ mod tests {
         oracle_client.set_price(&underlying_1, &4_0000000);
         oracle_client.set_price(&underlying_2, &50_0000000);
 
-        let liq_pct = 4500000;
+        let liq_pct = 45;
         let positions: Positions = Positions {
             collateral: map![
                 &e,
@@ -818,7 +819,7 @@ mod tests {
             e.budget().reset_unlimited();
             let mut pool = Pool::load(&e);
             let mut frodo_state = User::load(&e, &frodo);
-            fill(&e, &mut pool, 0, &samwise, &mut frodo_state, 1_000_0000);
+            fill(&e, &mut pool, 0, &samwise, &mut frodo_state, 100);
             let has_auction = storage::has_auction(&e, &0, &samwise);
             assert_eq!(has_auction, false);
         });
@@ -925,7 +926,7 @@ mod tests {
             e.budget().reset_unlimited();
             let mut pool = Pool::load(&e);
             let mut frodo_state = User::load(&e, &frodo);
-            fill(&e, &mut pool, 0, &samwise, &mut frodo_state, 2500000);
+            fill(&e, &mut pool, 0, &samwise, &mut frodo_state, 25);
 
             let expected_new_auction_data = AuctionData {
                 bid: map![&e, (underlying_2.clone(), 9281250)],
@@ -946,8 +947,9 @@ mod tests {
     #[test]
     fn test_partial_partial_full_fill() {
         let e = Env::default();
-
+        e.budget().reset_unlimited();
         e.mock_all_auths();
+
         e.ledger().set(LedgerInfo {
             timestamp: 12345,
             protocol_version: 1,
@@ -967,8 +969,6 @@ mod tests {
 
         let (oracle_address, _) = testutils::create_mock_oracle(&e);
 
-        // creating reserves for a pool exhausts the budget
-        e.budget().reset_unlimited();
         let (underlying_0, _) = testutils::create_token_contract(&e, &bombadil);
         let (mut reserve_config_0, reserve_data_0) = testutils::default_reserve_meta(&e);
 
@@ -1004,7 +1004,6 @@ mod tests {
             &reserve_config_2,
             &reserve_data_2,
         );
-        e.budget().reset_unlimited();
 
         let auction_data = AuctionData {
             bid: map![&e, (underlying_2.clone(), 100_000_0000)],
@@ -1045,10 +1044,9 @@ mod tests {
                 min_persistent_entry_expiration: 10,
                 max_entry_expiration: 2000000,
             });
-            e.budget().reset_unlimited();
             let mut pool = Pool::load(&e);
             let mut frodo_state = User::load(&e, &frodo);
-            fill(&e, &mut pool, 0, &samwise, &mut frodo_state, 2500000);
+            fill(&e, &mut pool, 0, &samwise, &mut frodo_state, 25);
 
             let expected_new_auction_data = AuctionData {
                 bid: map![&e, (underlying_2.clone(), 75_000_0000)],
@@ -1076,17 +1074,16 @@ mod tests {
                 min_persistent_entry_expiration: 10,
                 max_entry_expiration: 2000000,
             });
-            e.budget().reset_unlimited();
             let mut pool = Pool::load(&e);
             let mut frodo_state = User::load(&e, &frodo);
-            fill(&e, &mut pool, 0, &samwise, &mut frodo_state, 6666667);
+            fill(&e, &mut pool, 0, &samwise, &mut frodo_state, 67);
 
             let expected_new_auction_data = AuctionData {
-                bid: map![&e, (underlying_2.clone(), 24_999_9975)],
+                bid: map![&e, (underlying_2.clone(), 24_7500000)],
                 lot: map![
                     &e,
-                    (underlying_0.clone(), 2_499_9998),
-                    (underlying_1.clone(), 250_0000)
+                    (underlying_0.clone(), 2_4750000),
+                    (underlying_1.clone(), 0_2475000)
                 ],
                 block: 176,
             };
@@ -1106,10 +1103,9 @@ mod tests {
                 min_persistent_entry_expiration: 10,
                 max_entry_expiration: 2000000,
             });
-            e.budget().reset_unlimited();
             let mut pool = Pool::load(&e);
             let mut frodo_state = User::load(&e, &frodo);
-            fill(&e, &mut pool, 0, &samwise, &mut frodo_state, 1_000_0000);
+            fill(&e, &mut pool, 0, &samwise, &mut frodo_state, 100);
             let new_auction = storage::has_auction(&e, &0, &samwise);
             assert_eq!(new_auction, false);
             let samwise_positions = storage::get_user_positions(&e, &samwise);
@@ -1132,7 +1128,7 @@ mod tests {
                     .liabilities
                     .get(reserve_config_2.index)
                     .unwrap_optimized(),
-                200_000_0000 - 25_000_0000 - 50_000_0025 - 12_499_9988
+                200_000_0000 - 25_000_0000 - 50_000_0025 - 12_6249975
             );
         });
     }
@@ -1197,7 +1193,6 @@ mod tests {
             &reserve_config_2,
             &reserve_data_2,
         );
-        e.budget().reset_unlimited();
 
         let auction_data = AuctionData {
             bid: map![&e, (underlying_2.clone(), 1_2375000)],
@@ -1240,7 +1235,7 @@ mod tests {
             e.budget().reset_unlimited();
             let mut pool = Pool::load(&e);
             let mut frodo_state = User::load(&e, &frodo);
-            fill(&e, &mut pool, 0, &samwise, &mut frodo_state, 2_5000000);
+            fill(&e, &mut pool, 0, &samwise, &mut frodo_state, 101);
 
             let expected_new_auction_data = AuctionData {
                 bid: map![&e, (underlying_2.clone(), 9281250)],
@@ -1404,7 +1399,7 @@ mod tests {
             min_persistent_entry_expiration: 10,
             max_entry_expiration: 2000000,
         });
-        let (scaled_auction, remaining_auction) = scale_auction(&e, &base_auction_data, 1_0000000);
+        let (scaled_auction, remaining_auction) = scale_auction(&e, &base_auction_data, 100);
         assert_eq!(
             scaled_auction.bid.get_unchecked(underlying_0.clone()),
             100_0000000
@@ -1423,7 +1418,7 @@ mod tests {
             min_persistent_entry_expiration: 10,
             max_entry_expiration: 2000000,
         });
-        let (scaled_auction, remaining_auction) = scale_auction(&e, &base_auction_data, 1_0000000);
+        let (scaled_auction, remaining_auction) = scale_auction(&e, &base_auction_data, 100);
         assert_eq!(
             scaled_auction.bid.get_unchecked(underlying_0.clone()),
             100_0000000
@@ -1445,7 +1440,7 @@ mod tests {
             min_persistent_entry_expiration: 10,
             max_entry_expiration: 2000000,
         });
-        let (scaled_auction, remaining_auction) = scale_auction(&e, &base_auction_data, 1_0000000);
+        let (scaled_auction, remaining_auction) = scale_auction(&e, &base_auction_data, 100);
         assert_eq!(
             scaled_auction.bid.get_unchecked(underlying_0.clone()),
             100_0000000
@@ -1467,7 +1462,7 @@ mod tests {
             min_persistent_entry_expiration: 10,
             max_entry_expiration: 2000000,
         });
-        let (scaled_auction, remaining_auction) = scale_auction(&e, &base_auction_data, 1_0000000);
+        let (scaled_auction, remaining_auction) = scale_auction(&e, &base_auction_data, 100);
         assert_eq!(
             scaled_auction.bid.get_unchecked(underlying_0.clone()),
             50_0000000
@@ -1489,7 +1484,7 @@ mod tests {
             min_persistent_entry_expiration: 10,
             max_entry_expiration: 2000000,
         });
-        let (scaled_auction, remaining_auction) = scale_auction(&e, &base_auction_data, 1_0000000);
+        let (scaled_auction, remaining_auction) = scale_auction(&e, &base_auction_data, 100);
         assert_eq!(scaled_auction.bid.len(), 0);
         assert_eq!(
             scaled_auction.lot.get_unchecked(underlying_1.clone()),
@@ -1523,8 +1518,7 @@ mod tests {
             min_persistent_entry_expiration: 10,
             max_entry_expiration: 2000000,
         });
-        let (scaled_auction, remaining_auction_option) =
-            scale_auction(&e, &base_auction_data, 0_5000000);
+        let (scaled_auction, remaining_auction_option) = scale_auction(&e, &base_auction_data, 50);
         let remaining_auction = remaining_auction_option.unwrap();
         assert_eq!(
             scaled_auction.bid.get_unchecked(underlying_0.clone()),
@@ -1552,8 +1546,7 @@ mod tests {
             max_entry_expiration: 2000000,
         });
 
-        let (scaled_auction, remaining_auction_option) =
-            scale_auction(&e, &base_auction_data, 0_6000000);
+        let (scaled_auction, remaining_auction_option) = scale_auction(&e, &base_auction_data, 60);
         let remaining_auction = remaining_auction_option.unwrap();
         assert_eq!(
             scaled_auction.bid.get_unchecked(underlying_0.clone()),
@@ -1584,8 +1577,7 @@ mod tests {
             max_entry_expiration: 2000000,
         });
 
-        let (scaled_auction, remaining_auction_option) =
-            scale_auction(&e, &base_auction_data, 0_6000000);
+        let (scaled_auction, remaining_auction_option) = scale_auction(&e, &base_auction_data, 60);
         let remaining_auction = remaining_auction_option.unwrap();
         assert_eq!(
             scaled_auction.bid.get_unchecked(underlying_0.clone()),
@@ -1615,8 +1607,7 @@ mod tests {
             min_persistent_entry_expiration: 10,
             max_entry_expiration: 2000000,
         });
-        let (scaled_auction, remaining_auction_option) =
-            scale_auction(&e, &base_auction_data, 0_5000000);
+        let (scaled_auction, remaining_auction_option) = scale_auction(&e, &base_auction_data, 50);
         let remaining_auction = remaining_auction_option.unwrap();
         assert_eq!(scaled_auction.bid.len(), 0);
         assert_eq!(

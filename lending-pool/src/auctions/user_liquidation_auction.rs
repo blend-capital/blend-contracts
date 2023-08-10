@@ -19,9 +19,10 @@ pub fn create_user_liq_auction_data(
     if storage::has_auction(e, &(AuctionType::UserLiquidation as u32), &user) {
         panic_with_error!(e, PoolError::AuctionInProgress);
     }
-    if percent_liquidated > 1_0000000 {
+    if percent_liquidated > 100 || percent_liquidated == 0 {
         panic_with_error!(e, PoolError::InvalidLiquidation);
     }
+    let percent_liquidated_i128 = i128(percent_liquidated) * 1_00000; // scale to decimal form with 7 decimals
 
     let mut liquidation_quote = AuctionData {
         bid: map![e],
@@ -57,7 +58,7 @@ pub fn create_user_liq_auction_data(
 
     let est_withdrawn_collateral = position_data
         .liability_raw
-        .fixed_mul_floor(i128(percent_liquidated), oracle_scalar)
+        .fixed_mul_floor(percent_liquidated_i128, oracle_scalar)
         .unwrap_optimized()
         .fixed_mul_floor(est_incentive, SCALAR_7)
         .unwrap_optimized();
@@ -83,14 +84,14 @@ pub fn create_user_liq_auction_data(
     for (asset, amount) in user_state.positions.liabilities.iter() {
         let res_asset_address = reserve_list.get_unchecked(asset);
         let d_tokens_removed = amount
-            .fixed_mul_ceil(i128(percent_liquidated), SCALAR_7)
+            .fixed_mul_ceil(percent_liquidated_i128, SCALAR_7)
             .unwrap_optimized();
         liquidation_quote
             .bid
             .set(res_asset_address, d_tokens_removed);
     }
 
-    if percent_liquidated == 1_0000000 {
+    if percent_liquidated == 100 {
         // ensure that there isn't enough collateral to fill without fully liquidating
         if est_withdrawn_collateral < position_data.collateral_raw {
             panic_with_error!(e, PoolError::InvalidLiqTooLarge);
@@ -166,7 +167,7 @@ mod tests {
             max_entry_expiration: 2000000,
         });
 
-        let liq_pct = 5000000;
+        let liq_pct = 50;
 
         let auction_data = AuctionData {
             bid: map![&e],
@@ -261,7 +262,7 @@ mod tests {
         oracle_client.set_price(&underlying_1, &4_0000000);
         oracle_client.set_price(&underlying_2, &50_0000000);
 
-        let liq_pct = 0_4500000;
+        let liq_pct = 45;
         let positions: Positions = Positions {
             collateral: map![
                 &e,
@@ -366,7 +367,7 @@ mod tests {
         oracle_client.set_price(&underlying_1, &4_0000000);
         oracle_client.set_price(&underlying_2, &50_0000000);
 
-        let liq_pct = 1_0000000;
+        let liq_pct = 100;
         let pool_config = PoolConfig {
             oracle: oracle_address,
             bstop_rate: 0_100_000_000,
@@ -464,7 +465,7 @@ mod tests {
         oracle_client.set_price(&underlying_1, &4_0000000);
         oracle_client.set_price(&underlying_2, &50_0000000);
 
-        let liq_pct = 0_4600000;
+        let liq_pct = 46;
         let pool_config = PoolConfig {
             oracle: oracle_address,
             bstop_rate: 0_100_000_000,
@@ -563,7 +564,7 @@ mod tests {
         oracle_client.set_price(&underlying_1, &4_0000000);
         oracle_client.set_price(&underlying_2, &50_0000000);
 
-        let liq_pct = 0_2500000;
+        let liq_pct = 25;
         let pool_config = PoolConfig {
             oracle: oracle_address,
             bstop_rate: 0_100_000_000,

@@ -8,7 +8,7 @@ use crate::constants::SCALAR_7;
 use crate::pool::{Pool, PositionData, User};
 use crate::{errors::PoolError, storage};
 
-use super::{apply_fill_modifiers, AuctionType};
+use super::AuctionType;
 
 // TODO: Revalidate math with alternative decimal reserve
 pub fn create_user_liq_auction_data(
@@ -19,9 +19,10 @@ pub fn create_user_liq_auction_data(
     if storage::has_auction(e, &(AuctionType::UserLiquidation as u32), &user) {
         panic_with_error!(e, PoolError::AuctionInProgress);
     }
-    if percent_liquidated > 1_0000000 {
+    if percent_liquidated > 100 || percent_liquidated == 0 {
         panic_with_error!(e, PoolError::InvalidLiquidation);
     }
+    let percent_liquidated_i128 = i128(percent_liquidated) * 1_00000; // scale to decimal form with 7 decimals
 
     let mut liquidation_quote = AuctionData {
         bid: map![e],
@@ -57,7 +58,7 @@ pub fn create_user_liq_auction_data(
 
     let est_withdrawn_collateral = position_data
         .liability_raw
-        .fixed_mul_floor(i128(percent_liquidated), oracle_scalar)
+        .fixed_mul_floor(percent_liquidated_i128, oracle_scalar)
         .unwrap_optimized()
         .fixed_mul_floor(est_incentive, SCALAR_7)
         .unwrap_optimized();
@@ -83,14 +84,14 @@ pub fn create_user_liq_auction_data(
     for (asset, amount) in user_state.positions.liabilities.iter() {
         let res_asset_address = reserve_list.get_unchecked(asset);
         let d_tokens_removed = amount
-            .fixed_mul_ceil(i128(percent_liquidated), SCALAR_7)
+            .fixed_mul_ceil(percent_liquidated_i128, SCALAR_7)
             .unwrap_optimized();
         liquidation_quote
             .bid
             .set(res_asset_address, d_tokens_removed);
     }
 
-    if percent_liquidated == 1_0000000 {
+    if percent_liquidated == 100 {
         // ensure that there isn't enough collateral to fill without fully liquidating
         if est_withdrawn_collateral < position_data.collateral_raw {
             panic_with_error!(e, PoolError::InvalidLiqTooLarge);
@@ -120,11 +121,10 @@ pub fn create_user_liq_auction_data(
 pub fn fill_user_liq_auction(
     e: &Env,
     pool: &mut Pool,
-    auction_data: &mut AuctionData,
+    auction_data: &AuctionData,
     user: &Address,
     filler_state: &mut User,
 ) {
-    apply_fill_modifiers(e, auction_data);
     let mut user_state = User::load(e, user);
     user_state.rm_positions(e, pool, auction_data.lot.clone(), auction_data.bid.clone());
     filler_state.add_positions(e, pool, auction_data.lot.clone(), auction_data.bid.clone());
@@ -167,7 +167,7 @@ mod tests {
             max_entry_expiration: 2000000,
         });
 
-        let liq_pct = 5000000;
+        let liq_pct = 50;
 
         let auction_data = AuctionData {
             bid: map![&e],
@@ -262,7 +262,7 @@ mod tests {
         oracle_client.set_price(&underlying_1, &4_0000000);
         oracle_client.set_price(&underlying_2, &50_0000000);
 
-        let liq_pct = 0_4500000;
+        let liq_pct = 45;
         let positions: Positions = Positions {
             collateral: map![
                 &e,
@@ -367,7 +367,7 @@ mod tests {
         oracle_client.set_price(&underlying_1, &4_0000000);
         oracle_client.set_price(&underlying_2, &50_0000000);
 
-        let liq_pct = 1_0000000;
+        let liq_pct = 100;
         let pool_config = PoolConfig {
             oracle: oracle_address,
             bstop_rate: 0_100_000_000,
@@ -465,7 +465,7 @@ mod tests {
         oracle_client.set_price(&underlying_1, &4_0000000);
         oracle_client.set_price(&underlying_2, &50_0000000);
 
-        let liq_pct = 0_4600000;
+        let liq_pct = 46;
         let pool_config = PoolConfig {
             oracle: oracle_address,
             bstop_rate: 0_100_000_000,
@@ -564,7 +564,7 @@ mod tests {
         oracle_client.set_price(&underlying_1, &4_0000000);
         oracle_client.set_price(&underlying_2, &50_0000000);
 
-        let liq_pct = 0_2500000;
+        let liq_pct = 25;
         let pool_config = PoolConfig {
             oracle: oracle_address,
             bstop_rate: 0_100_000_000,
@@ -674,7 +674,6 @@ mod tests {
             ],
             block: 176,
         };
-        let liq_pct = 0_4500000;
         let pool_config = PoolConfig {
             oracle: oracle_address,
             bstop_rate: 0_100_000_000,
@@ -692,13 +691,11 @@ mod tests {
         e.as_contract(&pool_address, || {
             storage::set_user_positions(&e, &samwise, &positions);
             storage::set_pool_config(&e, &pool_config);
-            create_user_liq_auction_data(&e, &samwise, liq_pct.clone());
 
-            //scale up modifiers
             e.ledger().set(LedgerInfo {
-                timestamp: 12345 + 175 * 5,
+                timestamp: 12345 + 200 * 5,
                 protocol_version: 1,
-                sequence_number: 176 + 175,
+                sequence_number: 176 + 200,
                 network_id: Default::default(),
                 base_reserve: 10,
                 min_temp_entry_expiration: 10,
@@ -715,14 +712,14 @@ mod tests {
                     .collateral
                     .get(reserve_config_0.index)
                     .unwrap_optimized(),
-                26_7395912
+                30_5595329
             );
             assert_eq!(
                 frodo_positions
                     .collateral
                     .get(reserve_config_1.index)
                     .unwrap_optimized(),
-                1_3471271
+                1_5395739
             );
             assert_eq!(
                 frodo_positions
@@ -737,14 +734,14 @@ mod tests {
                     .collateral
                     .get(reserve_config_0.index)
                     .unwrap_optimized(),
-                90_9100000 - 26_7395912
+                90_9100000 - 30_5595329
             );
             assert_eq!(
                 samwise_positions
                     .collateral
                     .get(reserve_config_1.index)
                     .unwrap_optimized(),
-                04_5800000 - 1_3471271
+                04_5800000 - 1_5395739
             );
             assert_eq!(
                 samwise_positions
@@ -841,7 +838,6 @@ mod tests {
             ],
             block: 176,
         };
-        let liq_pct = 0_4500000;
         let pool_config = PoolConfig {
             oracle: oracle_address,
             bstop_rate: 0_100_000_000,
@@ -859,8 +855,6 @@ mod tests {
         e.as_contract(&pool_address, || {
             storage::set_user_positions(&e, &samwise, &positions);
             storage::set_pool_config(&e, &pool_config);
-            create_user_liq_auction_data(&e, &samwise, liq_pct.clone());
-
             //scale up modifiers
             e.ledger().set(LedgerInfo {
                 timestamp: 12345 + 200 * 5,
@@ -882,285 +876,6 @@ mod tests {
                 PositionData::calculate_from_positions(&e, &mut pool, &samwise_positions)
                     .as_health_factor();
             assert_eq!(samwise_hf, 1_1458978);
-        });
-    }
-    #[test]
-    fn test_liquidate_user_dust_collateral() {
-        let e = Env::default();
-
-        e.mock_all_auths();
-        e.ledger().set(LedgerInfo {
-            timestamp: 12345,
-            protocol_version: 1,
-            sequence_number: 50,
-            network_id: Default::default(),
-            base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
-        });
-
-        let bombadil = Address::random(&e);
-        let samwise = Address::random(&e);
-        let frodo = Address::random(&e);
-
-        let pool_address = Address::random(&e);
-
-        let (oracle_address, oracle_client) = testutils::create_mock_oracle(&e);
-
-        let backstop_id = Address::random(&e);
-
-        // creating reserves for a pool exhausts the budget
-        e.budget().reset_unlimited();
-        let (underlying_0, _) = testutils::create_token_contract(&e, &bombadil);
-        let (mut reserve_config_0, mut reserve_data_0) = testutils::default_reserve_meta(&e);
-        reserve_data_0.last_time = 12345;
-        reserve_data_0.b_rate = 2_100_000_000;
-        reserve_config_0.c_factor = 0_8500000;
-        reserve_config_0.l_factor = 0_9000000;
-        reserve_config_0.index = 0;
-        testutils::create_reserve(
-            &e,
-            &pool_address,
-            &underlying_0,
-            &reserve_config_0,
-            &reserve_data_0,
-        );
-
-        let (underlying_1, reserve_1_asset) = testutils::create_token_contract(&e, &bombadil);
-        let (mut reserve_config_1, mut reserve_data_1) = testutils::default_reserve_meta(&e);
-        reserve_data_1.b_rate = 1_100_000_000;
-        reserve_config_1.c_factor = 0_0000000;
-        reserve_config_1.l_factor = 0_7000000;
-        reserve_data_1.last_time = 12345;
-        reserve_config_1.index = 1;
-        testutils::create_reserve(
-            &e,
-            &pool_address,
-            &underlying_1,
-            &reserve_config_1,
-            &reserve_data_1,
-        );
-        reserve_1_asset.mint(&frodo, &500_0000000);
-        reserve_1_asset.approve(&frodo, &pool_address, &i128::MAX, &1000000);
-
-        oracle_client.set_price(&underlying_0, &2_0000000);
-        oracle_client.set_price(&underlying_1, &50_0000000);
-        e.budget().reset_unlimited();
-
-        let liq_pct = 1_0000000;
-        let pool_config = PoolConfig {
-            oracle: oracle_address,
-            bstop_rate: 0_100_000_000,
-            status: 0,
-        };
-        let positions = Positions {
-            collateral: map![&e, (reserve_config_0.index, 00_0000001)],
-            liabilities: map![&e, (reserve_config_1.index, 2_7500000)],
-            supply: map![&e],
-        };
-        e.as_contract(&pool_address, || {
-            storage::set_user_positions(&e, &samwise, &positions);
-            storage::set_pool_config(&e, &pool_config);
-            storage::set_backstop(&e, &backstop_id);
-
-            e.budget().reset_unlimited();
-            let result = create_user_liq_auction_data(&e, &samwise, liq_pct.clone());
-
-            assert_eq!(result.block, 51);
-            assert_eq!(result.bid.get_unchecked(underlying_1.clone()), 2_7500000);
-            assert_eq!(result.bid.len(), 1);
-            assert_eq!(result.lot.get_unchecked(underlying_0.clone()), 0_00000001);
-            assert_eq!(result.lot.len(), 1);
-
-            // scale up modifiers
-            e.ledger().set(LedgerInfo {
-                timestamp: 12345,
-                protocol_version: 1,
-                sequence_number: 50 + 400,
-                network_id: Default::default(),
-                base_reserve: 10,
-                min_temp_entry_expiration: 10,
-                min_persistent_entry_expiration: 10,
-                max_entry_expiration: 2000000,
-            });
-            // liquidate user
-            let mut auction_data = AuctionData {
-                bid: map![&e, (underlying_1, 2_7500000)],
-                lot: map![&e, (underlying_0, 00_0000001)],
-                block: 50,
-            };
-            let mut pool = Pool::load(&e);
-            let mut frodo_state = User::load(&e, &frodo);
-            fill_user_liq_auction(&e, &mut pool, &mut auction_data, &samwise, &mut frodo_state);
-
-            let frodo_positions = frodo_state.positions;
-            assert_eq!(
-                frodo_positions
-                    .collateral
-                    .get(reserve_config_0.index)
-                    .unwrap_optimized(),
-                0_00000001
-            );
-            assert_eq!(
-                frodo_positions.liabilities.get(reserve_config_1.index),
-                None
-            );
-            let samwise_positions = storage::get_user_positions(&e, &samwise);
-            assert_eq!(
-                samwise_positions.collateral.get(reserve_config_0.index),
-                None
-            );
-            assert_eq!(
-                samwise_positions
-                    .liabilities
-                    .get(reserve_config_1.index)
-                    .unwrap_optimized(),
-                2_7500000
-            );
-        });
-    }
-
-    #[test]
-    fn test_liquidate_user_more_collateral() {
-        let e = Env::default();
-
-        e.mock_all_auths();
-        e.ledger().set(LedgerInfo {
-            timestamp: 12345,
-            protocol_version: 1,
-            sequence_number: 50,
-            network_id: Default::default(),
-            base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
-        });
-
-        let bombadil = Address::random(&e);
-        let samwise = Address::random(&e);
-        let frodo = Address::random(&e);
-
-        let pool_address = Address::random(&e);
-
-        let (oracle_address, oracle_client) = testutils::create_mock_oracle(&e);
-
-        let backstop_id = Address::random(&e);
-
-        // creating reserves for a pool exhausts the budget
-        e.budget().reset_unlimited();
-        let (underlying_0, _) = testutils::create_token_contract(&e, &bombadil);
-        let (mut reserve_config_0, mut reserve_data_0) = testutils::default_reserve_meta(&e);
-        reserve_data_0.last_time = 12345;
-        reserve_data_0.b_rate = 1_000_000_000;
-        reserve_config_0.c_factor = 0_8500000;
-        reserve_config_0.l_factor = 0_9000000;
-        reserve_config_0.index = 0;
-        testutils::create_reserve(
-            &e,
-            &pool_address,
-            &underlying_0,
-            &reserve_config_0,
-            &reserve_data_0,
-        );
-
-        let (underlying_1, reserve_1_asset) = testutils::create_token_contract(&e, &bombadil);
-        let (mut reserve_config_1, mut reserve_data_1) = testutils::default_reserve_meta(&e);
-        reserve_data_1.b_rate = 1_000_000_000;
-        reserve_config_1.c_factor = 0_0000000;
-        reserve_config_1.l_factor = 0_7000000;
-        reserve_data_1.last_time = 12345;
-        reserve_config_1.index = 1;
-        testutils::create_reserve(
-            &e,
-            &pool_address,
-            &underlying_1,
-            &reserve_config_1,
-            &reserve_data_1,
-        );
-        reserve_1_asset.mint(&frodo, &500_0000000_0000000);
-        reserve_1_asset.approve(&frodo, &pool_address, &i128::MAX, &1000000);
-
-        e.budget().reset_unlimited();
-
-        oracle_client.set_price(&underlying_0, &2_0000000);
-        oracle_client.set_price(&underlying_1, &50_0000000);
-
-        let liq_pct = 1_0000000;
-        let pool_config = PoolConfig {
-            oracle: oracle_address,
-            bstop_rate: 0_100_000_000,
-            status: 0,
-        };
-        let positions = Positions {
-            collateral: map![&e, (reserve_config_0.index, 3000_0000000)],
-            liabilities: map![&e, (reserve_config_1.index, 200_7500000_0000000)],
-            supply: map![&e],
-        };
-        e.as_contract(&pool_address, || {
-            storage::set_user_positions(&e, &samwise, &positions);
-            storage::set_pool_config(&e, &pool_config);
-            storage::set_backstop(&e, &backstop_id);
-
-            e.budget().reset_unlimited();
-            let result = create_user_liq_auction_data(&e, &samwise, liq_pct);
-
-            assert_eq!(result.block, 51);
-            assert_eq!(
-                result.bid.get_unchecked(underlying_1.clone()),
-                200_7500000_0000000
-            );
-            assert_eq!(result.bid.len(), 1);
-            assert_eq!(result.lot.get_unchecked(underlying_0.clone()), 3000_0000000);
-            assert_eq!(result.lot.len(), 1);
-            //scale up modifiers
-            e.ledger().set(LedgerInfo {
-                timestamp: 12345 + 399 * 5,
-                protocol_version: 1,
-                sequence_number: 50 + 399,
-                network_id: Default::default(),
-                base_reserve: 10,
-                min_temp_entry_expiration: 10,
-                min_persistent_entry_expiration: 10,
-                max_entry_expiration: 2000000,
-            });
-            //liquidate user
-            let mut auction_data = AuctionData {
-                bid: map![&e, (underlying_1, 200_7500000_0000000)],
-                lot: map![&e, (underlying_0, 3000_0000000)],
-                block: 50,
-            };
-            let mut pool = Pool::load(&e);
-            let mut frodo_state = User::load(&e, &frodo);
-            fill_user_liq_auction(&e, &mut pool, &mut auction_data, &samwise, &mut frodo_state);
-
-            let frodo_positions = frodo_state.positions;
-            assert_eq!(
-                frodo_positions
-                    .collateral
-                    .get(reserve_config_0.index)
-                    .unwrap_optimized(),
-                3000_0000000
-            );
-            assert_eq!(
-                frodo_positions
-                    .liabilities
-                    .get(reserve_config_1.index)
-                    .unwrap_optimized(),
-                1_0037500_0000000
-            );
-            let samwise_positions = storage::get_user_positions(&e, &samwise);
-            assert_eq!(
-                samwise_positions.collateral.get(reserve_config_0.index),
-                None
-            );
-            assert_eq!(
-                samwise_positions
-                    .liabilities
-                    .get(reserve_config_1.index)
-                    .unwrap_optimized(),
-                200_7500000_0000000 - 1_0037500_0000000
-            );
         });
     }
 }

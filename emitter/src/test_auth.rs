@@ -1,6 +1,6 @@
 #![cfg(test)]
 extern crate std;
-use std::{println, vec as std_vec};
+use std::vec as std_vec;
 
 use crate::{contract::EmitterClient, dependencies::TokenClient};
 
@@ -50,7 +50,6 @@ fn test_distribute_requires_auth() {
 
     let result = emitter_client.distribute();
     let authorizations = e.auths();
-    println!("{:?}", authorizations);
 
     let expected_emissions: i128 = ((seconds_passed + 7 * 24 * 60 * 60) * 1_0000000) as i128;
     assert_eq!(result, expected_emissions);

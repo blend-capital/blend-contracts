@@ -188,10 +188,10 @@ fn test_pool_user() {
                 (
                     Symbol::new(&fixture.env, "withdraw"),
                     weth.address.clone(),
-                    sam.clone()
+                    sam.clone(),
                 )
                     .into_val(&fixture.env),
-                event_data.into_val(&fixture.env)
+                event_data.into_val(&fixture.env),
             )
         ]
     );

@@ -79,6 +79,8 @@ pub fn set_pool_emissions(e: &Env, res_emission_metadata: Vec<ReserveEmissionMet
 ///
 /// Needs to be run each time a new emission cycle starts
 ///
+/// Returns the new expiration timestamp
+///
 /// ### Panics
 /// If update has already been run for this emission cycle
 pub fn update_emissions_cycle(e: &Env, next_exp: u64, pool_eps: u64) -> u64 {

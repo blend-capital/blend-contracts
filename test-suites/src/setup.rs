@@ -173,7 +173,10 @@ mod tests {
 
         // validate emissions are turned on
         assert_eq!(
-            0_300_0000,
+            (
+                0_300_0000,
+                fixture.env.ledger().timestamp() - 60 * 61 + 7 * 24 * 60 * 60
+            ),
             fixture.backstop.pool_eps(&pool_fixture.pool.address)
         );
         let (emis_config, emis_data) = pool_fixture
@@ -228,7 +231,10 @@ mod tests {
 
         // validate emissions are turned on
         assert_eq!(
-            0_300_0000,
+            (
+                0_300_0000,
+                fixture.env.ledger().timestamp() - 60 * 61 + 7 * 24 * 60 * 60
+            ),
             fixture.backstop.pool_eps(&pool_fixture.pool.address)
         );
         let (emis_config, emis_data) = pool_fixture

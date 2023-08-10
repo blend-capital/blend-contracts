@@ -4,7 +4,8 @@ use crate::{
     errors::PoolError,
     storage::{self, PoolConfig, ReserveConfig, ReserveData},
 };
-use soroban_sdk::{panic_with_error, Address, Env, Symbol};
+use cast::u64;
+use soroban_sdk::{panic_with_error, unwrap::UnwrapOptimized, Address, Env, Symbol};
 
 use super::pool::Pool;
 
@@ -114,9 +115,8 @@ pub fn execute_update_reserve(e: &Env, asset: &Address, config: &ReserveConfig) 
 pub fn update_pool_emissions(e: &Env) -> u64 {
     let backstop_address = storage::get_backstop(e);
     let backstop_client = BackstopClient::new(e, &backstop_address);
-    let next_exp = backstop_client.next_emission_cycle();
-    let pool_eps = backstop_client.pool_eps(&e.current_contract_address()) as u64;
-    emissions::update_emissions_cycle(e, next_exp, pool_eps)
+    let (pool_eps, next_exp) = backstop_client.pool_eps(&e.current_contract_address());
+    emissions::update_emissions_cycle(e, next_exp, u64(pool_eps).unwrap_optimized())
 }
 
 fn require_valid_reserve_metadata(e: &Env, metadata: &ReserveConfig) {

@@ -400,7 +400,6 @@ impl PoolTrait for Pool {
         auction_data
     }
 
-    // TODO: Consider checking this before filling an auction based on estimated gas cost.
     fn del_liquidation_auction(e: Env, user: Address) {
         auctions::delete_liquidation(&e, &user);
 

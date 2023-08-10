@@ -2,7 +2,6 @@
 
 use fixed_point_math::FixedPoint;
 use soroban_sdk::{
-    map,
     testutils::{Address as _, AuthorizedFunction, AuthorizedInvocation, Events},
     vec, Address, IntoVal, Map, Symbol,
 };
@@ -23,7 +22,6 @@ fn test_backstop() {
     let sam = Address::random(&fixture.env);
 
     // Verify initialization can't be re-run
-    let blank_drop_map: Map<Address, i128> = map![&fixture.env];
     let result = fixture.backstop.try_initialize(
         &Address::random(&fixture.env),
         &Address::random(&fixture.env),

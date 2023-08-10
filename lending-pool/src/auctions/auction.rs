@@ -131,129 +131,119 @@ pub fn fill(
     filler_state: &mut User,
     percent_filled: u64,
 ) {
-    let mut auction_data = storage::get_auction(e, &auction_type, user);
+    let auction_data = storage::get_auction(e, &auction_type, user);
     if percent_filled > 1_0000000 || percent_filled == 0 {
         panic_with_error!(e, PoolError::BadRequest);
     }
 
-    let remaining_auction = apply_fill_pct(e, &mut auction_data, percent_filled);
-
-    let fill_auction = apply_fill_modifiers(e, &auction_data);
+    let (to_fill_auction, remaining_auction) = scale_auction(e, &auction_data, percent_filled);
     match AuctionType::from_u32(auction_type) {
         AuctionType::UserLiquidation => {
-            fill_user_liq_auction(e, pool, &fill_auction, user, filler_state)
+            fill_user_liq_auction(e, pool, &to_fill_auction, user, filler_state)
         }
-        AuctionType::BadDebtAuction => fill_bad_debt_auction(e, pool, &fill_auction, filler_state),
+        AuctionType::BadDebtAuction => {
+            fill_bad_debt_auction(e, pool, &to_fill_auction, filler_state)
+        }
         AuctionType::InterestAuction => {
-            fill_interest_auction(e, pool, &fill_auction, &filler_state.address)
+            fill_interest_auction(e, pool, &to_fill_auction, &filler_state.address)
         }
     };
-    if let Some(new_auction) = remaining_auction {
-        storage::set_auction(e, &auction_type, user, &new_auction);
+
+    if let Some(auction_to_store) = remaining_auction {
+        storage::set_auction(e, &auction_type, user, &auction_to_store);
     } else {
         storage::del_auction(e, &auction_type, user);
     }
 }
 
-/// APplies calculated fill modifiers to the auction
+/// Scale the auction based on the percent being filled and the amount of blocks that have passed
+/// since the auction began.
 ///
-/// Returns the auction that will be filled
-/// to 7 decimal places
-pub(super) fn apply_fill_modifiers(e: &Env, auction_data: &AuctionData) -> AuctionData {
-    let block_dif = i128(e.ledger().sequence() - auction_data.block) * 1_0000000;
-    // increment the modifier 0.5% every block
-    let per_block_scalar: i128 = 0_0050000;
-    let mut fill_auction = AuctionData {
+/// ### Arguments
+/// * `auction_data` - The auction data to scale
+/// * `percent_filled` - The percentage of the auction being filled, scaled as a decimal to 7 decimal places
+///
+/// Returns the (Scaled Auction, Remaining Auction) such that:
+/// - Scaled Auction is the auction data scaled
+/// - Remaining Auction is the leftover auction data that will be stored in the ledger, or deleted if None
+fn scale_auction(
+    e: &Env,
+    auction_data: &AuctionData,
+    percent_filled: u64,
+) -> (AuctionData, Option<AuctionData>) {
+    let mut to_fill_auction = AuctionData {
         bid: map![&e],
         lot: map![&e],
         block: auction_data.block,
     };
-    if block_dif > 200_0000000 {
-        fill_auction.lot = auction_data.lot.clone();
-
-        if block_dif < 400_0000000 {
-            let bid_mod = 2_0000000
-                - block_dif
-                    .fixed_mul_floor(per_block_scalar, SCALAR_7)
-                    .unwrap_optimized();
-            for (asset, amount) in auction_data.bid.iter() {
-                fill_auction.bid.set(
-                    asset,
-                    amount.fixed_mul_ceil(bid_mod, SCALAR_7).unwrap_optimized(),
-                );
-            }
-        }
-    } else {
-        fill_auction.bid = auction_data.bid.clone();
-
-        if block_dif > 0 {
-            let lot_mod = block_dif
-                .fixed_mul_floor(per_block_scalar, SCALAR_7)
-                .unwrap_optimized();
-            for (asset, amount) in auction_data.lot.iter() {
-                let new_amount = amount.fixed_mul_floor(lot_mod, SCALAR_7).unwrap_optimized();
-                // avoid setting the lot to 0
-                if new_amount > 0 {
-                    fill_auction.lot.set(asset, new_amount);
-                } else {
-                    fill_auction.lot.remove(asset);
-                }
-            }
-        }
-    };
-    fill_auction.block = block_dif.fixed_div_ceil(1_0000000, SCALAR_7).unwrap() as u32;
-    fill_auction
-}
-
-/// Modifies auction_data to reflect the percent of the auction the user wants to fill
-/// and returns the unfilled portion as auction data so it can be stored
-///
-/// ### Arguments
-/// * `auction_data` - The auction data to modify, this is the auction currently being filled
-/// * `percent_filled` - The percent of the auction the user is filling
-///
-/// ### Returns
-/// * `AuctionData` - The unfilled portion of the auction - this will be stored on ledger
-fn apply_fill_pct(
-    e: &Env,
-    auction_data: &mut AuctionData,
-    percent_filled: u64,
-) -> Option<AuctionData> {
-    let mut new_auction_data: AuctionData = AuctionData {
-        lot: map![e],
-        bid: map![e],
+    let mut remaining_auction = AuctionData {
+        bid: map![&e],
+        lot: map![&e],
         block: auction_data.block,
     };
+
+    // determine block based auction modifiers
+    let bid_modifier: i128;
+    let lot_modifier: i128;
+    let per_block_scalar: i128 = 0_0050000; // modifier moves 0.5% every block
+    let block_dif = i128(e.ledger().sequence() - auction_data.block);
+    if block_dif > 200 {
+        // lot 100%, bid scaling down from 100% to 0%
+        lot_modifier = SCALAR_7;
+        if block_dif < 400 {
+            bid_modifier = SCALAR_7 - (block_dif - 200) * per_block_scalar;
+        } else {
+            bid_modifier = 0;
+        }
+    } else {
+        // lot scaling from 0% to 100%, bid 100%
+        lot_modifier = block_dif * per_block_scalar;
+        bid_modifier = SCALAR_7;
+    }
+
+    // scale the auction
+    let percent_filled_i128 = i128(percent_filled);
     for (asset, amount) in auction_data.bid.iter() {
-        // Note: this rounds the amount removed down to the nearest stroop to avoid rounding exploits
-        let remaining = amount
-            .fixed_mul_floor(1_0000000 - percent_filled as i128, SCALAR_7)
+        // apply percent scalar and store remainder to base auction
+        // round up to avoid rounding exploits
+        let to_fill_base = amount
+            .fixed_mul_ceil(percent_filled_i128, SCALAR_7)
             .unwrap_optimized();
-        auction_data.bid.set(asset.clone(), amount - remaining);
-        // Avoid setting 0 bids
-        if remaining > 0 {
-            new_auction_data.bid.set(asset, remaining);
+        let remaining_base = amount - to_fill_base;
+        if remaining_base > 0 {
+            remaining_auction.bid.set(asset.clone(), remaining_base);
+        }
+        // apply block scalar to to_fill auction and don't store if 0
+        let to_fill_scaled = to_fill_base
+            .fixed_mul_ceil(bid_modifier, SCALAR_7)
+            .unwrap_optimized();
+        if to_fill_scaled > 0 {
+            to_fill_auction.bid.set(asset, to_fill_scaled);
         }
     }
     for (asset, amount) in auction_data.lot.iter() {
-        // Note: this rounds the amount removed up to the nearest stroop to avoid rounding exploits
-        let remaining = amount
-            .fixed_mul_ceil(1_0000000 - percent_filled as i128, SCALAR_7)
+        // apply percent scalar and store remainder to base auction
+        // round down to avoid rounding exploits
+        let to_fill_base = amount
+            .fixed_mul_floor(percent_filled_i128, SCALAR_7)
             .unwrap_optimized();
-        // Avoid setting 0 lots
-        if remaining != amount {
-            auction_data.lot.set(asset.clone(), amount - remaining);
-        } else {
-            auction_data.lot.remove(asset.clone());
+        let remaining_base = amount - to_fill_base;
+        if remaining_base > 0 {
+            remaining_auction.lot.set(asset.clone(), remaining_base);
         }
-        if remaining > 0 {
-            new_auction_data.lot.set(asset, remaining);
+        // apply block scalar to to_fill auction and don't store if 0
+        let to_fill_scaled = to_fill_base
+            .fixed_mul_floor(lot_modifier, SCALAR_7)
+            .unwrap_optimized();
+        if to_fill_scaled > 0 {
+            to_fill_auction.lot.set(asset, to_fill_scaled);
         }
     }
-    if new_auction_data.lot.is_empty() && new_auction_data.bid.is_empty() {
-        None
+
+    if remaining_auction.lot.is_empty() && remaining_auction.bid.is_empty() {
+        (to_fill_auction, None)
     } else {
-        Some(new_auction_data)
+        (to_fill_auction, Some(remaining_auction))
     }
 }
 
@@ -1391,17 +1381,19 @@ mod tests {
     }
 
     #[test]
-    fn test_apply_fill_modifiers() {
+    fn test_scale_auction_100_fill_pct() {
+        // 0 blocks
         let e = Env::default();
         let underlying_0 = Address::random(&e);
         let underlying_1 = Address::random(&e);
 
-        let mut auction_data = AuctionData {
+        let base_auction_data = AuctionData {
             bid: map![&e, (underlying_0.clone(), 100_0000000)],
             lot: map![&e, (underlying_1.clone(), 100_0000000)],
             block: 1000,
         };
 
+        // 0 blocks
         e.ledger().set(LedgerInfo {
             timestamp: 12345,
             protocol_version: 1,
@@ -1412,19 +1404,15 @@ mod tests {
             min_persistent_entry_expiration: 10,
             max_entry_expiration: 2000000,
         });
-        let fill_auction = apply_fill_modifiers(&e, &mut auction_data);
+        let (scaled_auction, remaining_auction) = scale_auction(&e, &base_auction_data, 1_0000000);
         assert_eq!(
-            fill_auction.bid.get_unchecked(underlying_0.clone()),
+            scaled_auction.bid.get_unchecked(underlying_0.clone()),
             100_0000000
         );
+        assert_eq!(scaled_auction.lot.len(), 0);
+        assert!(remaining_auction.is_none());
 
-        assert_eq!(fill_auction.lot.len(), 0);
-        auction_data = AuctionData {
-            bid: map![&e, (underlying_0.clone(), 100_0000000)],
-            lot: map![&e, (underlying_1.clone(), 100_0000000)],
-            block: 1000,
-        };
-
+        // 100 blocks
         e.ledger().set(LedgerInfo {
             timestamp: 12345,
             protocol_version: 1,
@@ -1435,21 +1423,18 @@ mod tests {
             min_persistent_entry_expiration: 10,
             max_entry_expiration: 2000000,
         });
-        let fill_auction = apply_fill_modifiers(&e, &mut auction_data);
+        let (scaled_auction, remaining_auction) = scale_auction(&e, &base_auction_data, 1_0000000);
         assert_eq!(
-            fill_auction.bid.get_unchecked(underlying_0.clone()),
+            scaled_auction.bid.get_unchecked(underlying_0.clone()),
             100_0000000
         );
         assert_eq!(
-            fill_auction.lot.get_unchecked(underlying_1.clone()),
+            scaled_auction.lot.get_unchecked(underlying_1.clone()),
             50_0000000
         );
-        auction_data = AuctionData {
-            bid: map![&e, (underlying_0.clone(), 100_0000000)],
-            lot: map![&e, (underlying_1.clone(), 100_0000000)],
-            block: 1000,
-        };
+        assert!(remaining_auction.is_none());
 
+        // 200 blocks
         e.ledger().set(LedgerInfo {
             timestamp: 12345,
             protocol_version: 1,
@@ -1460,46 +1445,18 @@ mod tests {
             min_persistent_entry_expiration: 10,
             max_entry_expiration: 2000000,
         });
-        let fill_auction = apply_fill_modifiers(&e, &mut auction_data);
+        let (scaled_auction, remaining_auction) = scale_auction(&e, &base_auction_data, 1_0000000);
         assert_eq!(
-            fill_auction.bid.get_unchecked(underlying_0.clone()),
+            scaled_auction.bid.get_unchecked(underlying_0.clone()),
             100_0000000
         );
         assert_eq!(
-            fill_auction.lot.get_unchecked(underlying_1.clone()),
+            scaled_auction.lot.get_unchecked(underlying_1.clone()),
             100_0000000
         );
-        auction_data = AuctionData {
-            bid: map![&e, (underlying_0.clone(), 100_0000000)],
-            lot: map![&e, (underlying_1.clone(), 100_0000000)],
-            block: 1000,
-        };
+        assert!(remaining_auction.is_none());
 
-        e.ledger().set(LedgerInfo {
-            timestamp: 12345,
-            protocol_version: 1,
-            sequence_number: 1201,
-            network_id: Default::default(),
-            base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
-        });
-        let fill_auction = apply_fill_modifiers(&e, &mut auction_data);
-        assert_eq!(
-            fill_auction.bid.get_unchecked(underlying_0.clone()),
-            99_5000000
-        );
-        assert_eq!(
-            fill_auction.lot.get_unchecked(underlying_1.clone()),
-            100_0000000
-        );
-        auction_data = AuctionData {
-            bid: map![&e, (underlying_0.clone(), 100_0000000)],
-            lot: map![&e, (underlying_1.clone(), 100_0000000)],
-            block: 1000,
-        };
-
+        // 300 blocks
         e.ledger().set(LedgerInfo {
             timestamp: 12345,
             protocol_version: 1,
@@ -1510,21 +1467,18 @@ mod tests {
             min_persistent_entry_expiration: 10,
             max_entry_expiration: 2000000,
         });
-        let fill_auction = apply_fill_modifiers(&e, &mut auction_data);
+        let (scaled_auction, remaining_auction) = scale_auction(&e, &base_auction_data, 1_0000000);
         assert_eq!(
-            fill_auction.bid.get_unchecked(underlying_0.clone()),
+            scaled_auction.bid.get_unchecked(underlying_0.clone()),
             50_0000000
         );
         assert_eq!(
-            fill_auction.lot.get_unchecked(underlying_1.clone()),
+            scaled_auction.lot.get_unchecked(underlying_1.clone()),
             100_0000000
         );
-        auction_data = AuctionData {
-            bid: map![&e, (underlying_0.clone(), 100_0000000)],
-            lot: map![&e, (underlying_1.clone(), 100_0000000)],
-            block: 1000,
-        };
+        assert!(remaining_auction.is_none());
 
+        // 400 blocks
         e.ledger().set(LedgerInfo {
             timestamp: 12345,
             protocol_version: 1,
@@ -1535,91 +1489,147 @@ mod tests {
             min_persistent_entry_expiration: 10,
             max_entry_expiration: 2000000,
         });
-        let fill_auction = apply_fill_modifiers(&e, &mut auction_data);
-        assert_eq!(fill_auction.bid.len(), 0);
-        assert_eq!(fill_auction.lot.get_unchecked(underlying_1), 100_0000000);
+        let (scaled_auction, remaining_auction) = scale_auction(&e, &base_auction_data, 1_0000000);
+        assert_eq!(scaled_auction.bid.len(), 0);
+        assert_eq!(
+            scaled_auction.lot.get_unchecked(underlying_1.clone()),
+            100_0000000
+        );
+        assert!(remaining_auction.is_none());
     }
 
     #[test]
-    fn test_apply_fill_pct() {
+    fn test_scale_auction_not_100_fill_pct() {
+        // @dev: bids always round up, lots always round down
+        //       the remaining is exact based on scaled auction
         let e = Env::default();
         let underlying_0 = Address::random(&e);
         let underlying_1 = Address::random(&e);
 
-        let mut auction_data = AuctionData {
-            bid: map![&e, (underlying_0.clone(), 100_0000000)],
-            lot: map![&e, (underlying_1.clone(), 100_0000000)],
+        let base_auction_data = AuctionData {
+            bid: map![&e, (underlying_0.clone(), 25_0000005)],
+            lot: map![&e, (underlying_1.clone(), 25_0000005)],
             block: 1000,
         };
-        apply_fill_pct(&e, &mut auction_data, 1_0000000);
+
+        // 0 blocks
+        e.ledger().set(LedgerInfo {
+            timestamp: 12345,
+            protocol_version: 1,
+            sequence_number: 1000,
+            network_id: Default::default(),
+            base_reserve: 10,
+            min_temp_entry_expiration: 10,
+            min_persistent_entry_expiration: 10,
+            max_entry_expiration: 2000000,
+        });
+        let (scaled_auction, remaining_auction_option) =
+            scale_auction(&e, &base_auction_data, 0_5000000);
+        let remaining_auction = remaining_auction_option.unwrap();
         assert_eq!(
-            auction_data.bid.get_unchecked(underlying_0.clone()),
-            100_0000000
+            scaled_auction.bid.get_unchecked(underlying_0.clone()),
+            12_5000003 // fill pct rounds up
+        );
+        assert_eq!(scaled_auction.lot.len(), 0);
+        assert_eq!(
+            remaining_auction.bid.get_unchecked(underlying_0.clone()),
+            12_5000002
         );
         assert_eq!(
-            auction_data.lot.get_unchecked(underlying_1.clone()),
-            100_0000000
+            remaining_auction.lot.get_unchecked(underlying_1.clone()),
+            12_5000003
         );
-        auction_data = AuctionData {
-            bid: map![
-                &e,
-                (underlying_0.clone(), 100_0000001),
-                (underlying_1.clone(), 100_0000001)
-            ],
-            lot: map![
-                &e,
-                (underlying_1.clone(), 100_0000001),
-                (underlying_0.clone(), 100_0000001)
-            ],
-            block: 1000,
-        };
-        let expected_new_auction = AuctionData {
-            bid: map![
-                &e,
-                (underlying_0.clone(), 75_0000000),
-                (underlying_1.clone(), 75_0000000)
-            ],
-            lot: map![
-                &e,
-                (underlying_1.clone(), 75_0000001),
-                (underlying_0.clone(), 75_0000001)
-            ],
-            block: 1000,
-        };
-        let new_auction = apply_fill_pct(&e, &mut auction_data, 2500000).unwrap();
+
+        // 100 blocks
+        e.ledger().set(LedgerInfo {
+            timestamp: 12345,
+            protocol_version: 1,
+            sequence_number: 1100,
+            network_id: Default::default(),
+            base_reserve: 10,
+            min_temp_entry_expiration: 10,
+            min_persistent_entry_expiration: 10,
+            max_entry_expiration: 2000000,
+        });
+
+        let (scaled_auction, remaining_auction_option) =
+            scale_auction(&e, &base_auction_data, 0_6000000);
+        let remaining_auction = remaining_auction_option.unwrap();
         assert_eq!(
-            auction_data.bid.get_unchecked(underlying_0.clone()),
-            25_0000001
+            scaled_auction.bid.get_unchecked(underlying_0.clone()),
+            15_0000003
         );
         assert_eq!(
-            auction_data.bid.get_unchecked(underlying_1.clone()),
-            25_0000001
+            scaled_auction.lot.get_unchecked(underlying_1.clone()),
+            7_5000001 // modifier rounds down
         );
         assert_eq!(
-            auction_data.lot.get_unchecked(underlying_0.clone()),
-            25_0000000
+            remaining_auction.bid.get_unchecked(underlying_0.clone()),
+            10_0000002
         );
         assert_eq!(
-            auction_data.lot.get_unchecked(underlying_1.clone()),
-            25_0000000
+            remaining_auction.lot.get_unchecked(underlying_1.clone()),
+            10_0000002
         );
-        assert_eq!(new_auction.bid, expected_new_auction.bid);
-        assert_eq!(new_auction.lot, expected_new_auction.lot);
-        // test rounding
-        auction_data = AuctionData {
-            bid: map![&e, (underlying_0.clone(), 1)],
-            lot: map![&e, (underlying_1.clone(), 1)],
-            block: 1000,
-        };
-        let expected_new_auction = AuctionData {
-            bid: map![&e],
-            lot: map![&e, (underlying_1.clone(), 1)],
-            block: 1000,
-        };
-        let new_auction_data = apply_fill_pct(&e, &mut auction_data, 5000000).unwrap();
-        assert_eq!(auction_data.bid.get_unchecked(underlying_0.clone()), 1);
-        assert_eq!(auction_data.lot.get(underlying_1.clone()), None);
-        assert_eq!(new_auction_data.bid, expected_new_auction.bid);
-        assert_eq!(new_auction_data.lot, expected_new_auction.lot);
+
+        // 300 blocks
+        e.ledger().set(LedgerInfo {
+            timestamp: 12345,
+            protocol_version: 1,
+            sequence_number: 1300,
+            network_id: Default::default(),
+            base_reserve: 10,
+            min_temp_entry_expiration: 10,
+            min_persistent_entry_expiration: 10,
+            max_entry_expiration: 2000000,
+        });
+
+        let (scaled_auction, remaining_auction_option) =
+            scale_auction(&e, &base_auction_data, 0_6000000);
+        let remaining_auction = remaining_auction_option.unwrap();
+        assert_eq!(
+            scaled_auction.bid.get_unchecked(underlying_0.clone()),
+            7_5000002 // modifier rounds up
+        );
+        assert_eq!(
+            scaled_auction.lot.get_unchecked(underlying_1.clone()),
+            15_0000003
+        );
+        assert_eq!(
+            remaining_auction.bid.get_unchecked(underlying_0.clone()),
+            10_0000002
+        );
+        assert_eq!(
+            remaining_auction.lot.get_unchecked(underlying_1.clone()),
+            10_0000002
+        );
+
+        // 400 blocks
+        e.ledger().set(LedgerInfo {
+            timestamp: 12345,
+            protocol_version: 1,
+            sequence_number: 1400,
+            network_id: Default::default(),
+            base_reserve: 10,
+            min_temp_entry_expiration: 10,
+            min_persistent_entry_expiration: 10,
+            max_entry_expiration: 2000000,
+        });
+        let (scaled_auction, remaining_auction_option) =
+            scale_auction(&e, &base_auction_data, 0_5000000);
+        let remaining_auction = remaining_auction_option.unwrap();
+        assert_eq!(scaled_auction.bid.len(), 0);
+        assert_eq!(
+            scaled_auction.lot.get_unchecked(underlying_1.clone()),
+            12_5000002 // fill pct rounds down
+        );
+        assert_eq!(
+            remaining_auction.bid.get_unchecked(underlying_0.clone()),
+            12_5000002
+        );
+        assert_eq!(
+            remaining_auction.lot.get_unchecked(underlying_1.clone()),
+            12_5000003
+        );
     }
 }

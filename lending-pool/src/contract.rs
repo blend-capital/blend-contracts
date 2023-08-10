@@ -202,7 +202,7 @@ pub trait PoolTrait {
     ///
     /// ### Arguments
     /// * `user` - The user getting liquidated through the auction
-    /// * `percent_liquidated` - The percent of the user's position being liquidated
+    /// * `percent_liquidated` - The percent of the user's position being liquidated as a percentage (15 => 15%)
     ///
     /// ### Panics
     /// If the user liquidation auction was unable to be created
@@ -407,16 +407,14 @@ impl PoolTrait for Pool {
             (Symbol::new(&e, "new_liquidation_auction"), user),
             auction_data.clone(),
         );
-
         auction_data
     }
 
-    // TODO: Consider checking this before filling an auction based on estimated gas cost.
     fn del_liquidation_auction(e: Env, user: Address) {
         auctions::delete_liquidation(&e, &user);
 
         e.events()
-            .publish((Symbol::new(&e, "del_liquidation_auction"), user), ());
+            .publish((Symbol::new(&e, "delete_liquidation_auction"), user), ());
     }
 
     fn get_auction(e: Env, auction_type: u32, user: Address) -> AuctionData {

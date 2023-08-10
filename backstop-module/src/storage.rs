@@ -1,4 +1,4 @@
-use soroban_sdk::{contracttype, unwrap::UnwrapOptimized, vec, Address, Env, Vec};
+use soroban_sdk::{contracttype, unwrap::UnwrapOptimized, vec, Address, Env, Map, Vec};
 
 use crate::backstop::{PoolBalance, UserBalance};
 
@@ -56,6 +56,7 @@ pub enum BackstopDataKey {
     BckstpTkn,
     PoolFact,
     BLNDTkn,
+    DropList,
 }
 
 /****************************
@@ -378,4 +379,28 @@ pub fn set_user_emis_data(
     e.storage()
         .persistent()
         .set::<BackstopDataKey, UserEmissionData>(&key, user_emis_data);
+}
+
+/********** Drop Emissions **********/
+
+/// Get the current pool addresses that are in the drop list and the amount of the initial distribution they receive
+///
+pub fn get_drop_list(e: &Env) -> Map<Address, i128> {
+    e.storage()
+        .persistent()
+        .bump(&BackstopDataKey::DropList, INSTANCE_BUMP_AMOUNT);
+    e.storage()
+        .persistent()
+        .get::<BackstopDataKey, Map<Address, i128>>(&BackstopDataKey::DropList)
+        .unwrap()
+}
+
+/// Set the reward zone
+///
+/// ### Arguments
+/// * `drop_list` - The map of pool addresses  that comprise the reward zone
+pub fn set_drop_list(e: &Env, drop_list: &Map<Address, i128>) {
+    e.storage()
+        .persistent()
+        .set::<BackstopDataKey, Map<Address, i128>>(&BackstopDataKey::DropList, drop_list);
 }

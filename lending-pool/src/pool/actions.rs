@@ -1,8 +1,5 @@
-use cast::u32;
 use soroban_sdk::Map;
-use soroban_sdk::{
-    contracttype, panic_with_error, unwrap::UnwrapOptimized, Address, Env, Symbol, Vec,
-};
+use soroban_sdk::{contracttype, panic_with_error, Address, Env, Symbol, Vec};
 
 use crate::{auctions, errors::PoolError, validator::require_nonnegative};
 
@@ -209,23 +206,66 @@ pub fn build_actions_from_request(
                 pool.cache_reserve(reserve, true);
             }
             6 => {
+                // fill user liquidation auction
                 auctions::fill(
                     e,
                     pool,
-                    u32(request.amount).unwrap_optimized(),
+                    0,
                     &request.address,
-                    &from,
+                    &mut from_state,
+                    request.amount as u64,
                 );
-                if request.amount < 2 {
-                    check_health = true;
-                }
+                check_health = true;
+
                 e.events().publish(
                     (
                         Symbol::new(&e, "fill_auction"),
                         request.address.clone().clone(),
-                        request.amount,
+                        0 as u32,
                     ),
-                    from.clone(),
+                    (from.clone(), request.amount),
+                );
+            }
+            7 => {
+                // fill bad debt auction
+                // Note: will fail if input address is not the backstop since there cannot be a bad debt auction for a different address in storage
+                auctions::fill(
+                    e,
+                    pool,
+                    1,
+                    &request.address,
+                    &mut from_state,
+                    request.amount as u64,
+                );
+                check_health = true;
+
+                e.events().publish(
+                    (
+                        Symbol::new(&e, "fill_auction"),
+                        request.address.clone().clone(),
+                        1 as u32,
+                    ),
+                    (from.clone(), request.amount),
+                );
+            }
+            8 => {
+                // fill interest auction
+                // Note: will fail if input address is not the backstop since there cannot be an interest auction for a different address in storage
+                auctions::fill(
+                    e,
+                    pool,
+                    2,
+                    &request.address,
+                    &mut from_state,
+                    request.amount as u64,
+                );
+                e.events().publish(
+                    (
+                        Symbol::new(&e, "fill_auction"),
+                        request.address.clone().clone(),
+                        2 as u32,
+                    ),
+                    (from.clone(), request.amount),
                 );
             }
             _ => panic_with_error!(e, PoolError::BadRequest),
@@ -236,6 +276,7 @@ pub fn build_actions_from_request(
 
 #[cfg(test)]
 mod tests {
+
     use crate::{
         storage::{self, PoolConfig},
         testutils, AuctionData, AuctionType, Positions,
@@ -1096,17 +1137,27 @@ mod tests {
                 Request {
                     request_type: 6,
                     address: samwise.clone(),
-                    amount: 0,
+                    amount: 50,
                 },
             ];
             let (actions, _, health_check) =
                 build_actions_from_request(&e, &mut pool, &frodo, requests);
 
             assert_eq!(health_check, true);
-            assert_eq!(
-                storage::has_auction(&e, &(AuctionType::UserLiquidation as u32), &samwise),
-                false
-            );
+            let exp_new_auction = AuctionData {
+                bid: map![&e, (underlying_2.clone(), 6187500)],
+                lot: map![
+                    &e,
+                    (underlying_0.clone(), 15_2797665),
+                    (underlying_1.clone(), 7697870)
+                ],
+                block: 176,
+            };
+            let new_auction =
+                storage::get_auction(&e, &(AuctionType::UserLiquidation as u32), &samwise);
+            assert_eq!(exp_new_auction.bid, new_auction.bid);
+            assert_eq!(exp_new_auction.lot, new_auction.lot);
+            assert_eq!(exp_new_auction.block, new_auction.block);
             assert_eq!(actions.pool_transfer.len(), 0);
             assert_eq!(actions.spender_transfer.len(), 0);
         });
@@ -1214,9 +1265,9 @@ mod tests {
             let requests = vec![
                 &e,
                 Request {
-                    request_type: 6,
+                    request_type: 7,
                     address: backstop_address.clone(),
-                    amount: 1,
+                    amount: 100,
                 },
             ];
             let (actions, _, health_check) =
@@ -1231,6 +1282,7 @@ mod tests {
             assert_eq!(actions.spender_transfer.len(), 0);
         });
     }
+
     #[test]
     fn test_fill_interest_auction() {
         let e = Env::default();
@@ -1335,9 +1387,9 @@ mod tests {
             let requests = vec![
                 &e,
                 Request {
-                    request_type: 6,
+                    request_type: 8,
                     address: backstop_address.clone(),
-                    amount: 2,
+                    amount: 100,
                 },
             ];
             let (actions, _, health_check) =

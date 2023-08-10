@@ -4,7 +4,7 @@ use crate::{
     errors::BackstopError,
     storage,
 };
-use soroban_sdk::{contract, contractimpl, panic_with_error, Address, Env, Symbol, Vec};
+use soroban_sdk::{contract, contractimpl, panic_with_error, Address, Env, Map, Symbol, Vec};
 
 /// ### Backstop Module
 ///
@@ -19,10 +19,17 @@ pub trait BackstopModuleTrait {
     /// * `backstop_token` - The backstop token ID - generally an LP token where 1 of the tokens is BLND
     /// * `blnd_token` - The BLND token ID
     /// * `pool_factory` - The pool factory ID
+    /// * `drop_list` - The list of addresses to distribute initial BLND to and the percent of the distribution they should receive
     ///
     /// ### Errors
     /// If initialize has already been called
-    fn initialize(e: Env, backstop_token: Address, blnd_token: Address, pool_factory: Address);
+    fn initialize(
+        e: Env,
+        backstop_token: Address,
+        blnd_token: Address,
+        pool_factory: Address,
+        drop_list: Map<Address, i128>,
+    );
 
     /********** Core **********/
 
@@ -87,9 +94,6 @@ pub trait BackstopModuleTrait {
     /// Update the backstop for the next emissions cycle from the Emitter
     fn update_emission_cycle(e: Env);
 
-    /// Fetch the next emission cycle window in seconds since epoch in UTC
-    fn next_emission_cycle(e: Env) -> u64;
-
     /// Add a pool to the reward zone, and if the reward zone is full, a pool to remove
     ///
     /// ### Arguments
@@ -103,8 +107,9 @@ pub trait BackstopModuleTrait {
     /// Fetch the reward zone
     fn get_rz(e: Env) -> Vec<Address>;
 
-    /// Fetch the EPS (emissions per second) for the current distribution window of a pool
-    fn pool_eps(e: Env, pool_address: Address) -> i128;
+    /// Fetch the EPS (emissions per second) and expiration for the current distribution window of a pool
+    /// in a tuple where (EPS, expiration)
+    fn pool_eps(e: Env, pool_address: Address) -> (i128, u64);
 
     /// Claim backstop deposit emissions from a list of pools for `from`
     ///
@@ -118,6 +123,9 @@ pub trait BackstopModuleTrait {
     /// ### Errors
     /// If an invalid pool address is included
     fn claim(e: Env, from: Address, pool_addresses: Vec<Address>, to: Address);
+
+    /// Fetch the drop list
+    fn drop_list(e: Env) -> Map<Address, i128>;
 
     /********** Fund Management *********/
 
@@ -152,7 +160,13 @@ pub trait BackstopModuleTrait {
 /// utilizes other modules to carry out contract functionality.
 #[contractimpl]
 impl BackstopModuleTrait for BackstopModule {
-    fn initialize(e: Env, backstop_token: Address, blnd_token: Address, pool_factory: Address) {
+    fn initialize(
+        e: Env,
+        backstop_token: Address,
+        blnd_token: Address,
+        pool_factory: Address,
+        drop_list: Map<Address, i128>,
+    ) {
         if storage::has_backstop_token(&e) {
             panic_with_error!(e, BackstopError::AlreadyInitialized);
         }
@@ -160,6 +174,7 @@ impl BackstopModuleTrait for BackstopModule {
         storage::set_backstop_token(&e, &backstop_token);
         storage::set_blnd_token(&e, &blnd_token);
         storage::set_pool_factory(&e, &pool_factory);
+        storage::set_drop_list(&e, &drop_list);
     }
 
     /********** Core **********/
@@ -234,10 +249,6 @@ impl BackstopModuleTrait for BackstopModule {
         emissions::update_emission_cycle(&e);
     }
 
-    fn next_emission_cycle(e: Env) -> u64 {
-        storage::get_next_emission_cycle(&e)
-    }
-
     fn add_reward(e: Env, to_add: Address, to_remove: Address) {
         storage::bump_instance(&e);
         emissions::add_to_reward_zone(&e, to_add.clone(), to_remove.clone());
@@ -250,8 +261,11 @@ impl BackstopModuleTrait for BackstopModule {
         storage::get_reward_zone(&e)
     }
 
-    fn pool_eps(e: Env, pool_address: Address) -> i128 {
-        storage::get_pool_eps(&e, &pool_address)
+    fn pool_eps(e: Env, pool_address: Address) -> (i128, u64) {
+        (
+            storage::get_pool_eps(&e, &pool_address),
+            storage::get_next_emission_cycle(&e),
+        )
     }
 
     fn claim(e: Env, from: Address, pool_addresses: Vec<Address>, to: Address) {
@@ -261,6 +275,10 @@ impl BackstopModuleTrait for BackstopModule {
         let amount = emissions::execute_claim(&e, &from, &pool_addresses, &to);
 
         e.events().publish((Symbol::new(&e, "claim"), from), amount);
+    }
+
+    fn drop_list(e: Env) -> Map<Address, i128> {
+        storage::get_drop_list(&e)
     }
 
     /********** Fund Management *********/

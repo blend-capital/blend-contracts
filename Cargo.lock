@@ -1263,6 +1263,7 @@ name = "test-suites"
 version = "0.0.0"
 dependencies = [
  "backstop-module",
+ "cast",
  "emitter",
  "fixed-point-math",
  "lending-pool",

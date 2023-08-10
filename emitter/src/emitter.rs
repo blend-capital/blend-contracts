@@ -4,7 +4,7 @@ use crate::{
     errors::EmitterError,
     storage,
 };
-use soroban_sdk::{panic_with_error, Address, Env};
+use soroban_sdk::{panic_with_error, Address, Env, Map};
 
 /// Perform a distribution
 pub fn execute_distribute(e: &Env, backstop: &Address) -> i128 {
@@ -31,9 +31,36 @@ pub fn execute_swap_backstop(e: &Env, new_backstop_id: Address) {
     let new_backstop_balance = backstop_token_client.balance(&new_backstop_id);
     if new_backstop_balance > backstop_balance {
         storage::set_backstop(e, &new_backstop_id);
+        storage::set_drop_status(e, false);
     } else {
         panic_with_error!(e, EmitterError::InsufficientBackstopSize);
     }
+}
+
+/// Perform drop BLND distribution
+pub fn execute_drop(e: &Env) -> Map<Address, i128> {
+    if storage::get_drop_status(e) {
+        panic_with_error!(e, EmitterError::BadDrop);
+    }
+    let backstop = storage::get_backstop(e);
+    let backstop_client = BackstopClient::new(&e, &backstop);
+    let backstop_token = backstop_client.backstop_token();
+    let backstop_token_client = TokenClient::new(&e, &backstop_token);
+
+    let drop_list: Map<Address, i128> = backstop_client.drop_list();
+    let mut drop_amount = 0;
+    for (_, amt) in drop_list.iter() {
+        drop_amount += amt;
+    }
+    // drop cannot be more than 50 million tokens
+    if drop_amount > 50_000_000 * SCALAR_7 {
+        panic_with_error!(e, EmitterError::BadDrop);
+    }
+    for (addr, amt) in drop_list.iter() {
+        backstop_token_client.mint(&addr, &amt);
+    }
+    storage::set_drop_status(e, true);
+    return drop_list;
 }
 
 #[cfg(test)]
@@ -41,7 +68,10 @@ mod tests {
     use crate::{storage, testutils::create_backstop};
 
     use super::*;
-    use soroban_sdk::testutils::{Address as _, Ledger, LedgerInfo};
+    use soroban_sdk::{
+        map,
+        testutils::{Address as _, Ledger, LedgerInfo},
+    };
 
     #[test]
     fn test_distribute() {
@@ -101,7 +131,12 @@ mod tests {
         let backstop_token = e.register_stellar_asset_contract(bombadil.clone());
         let backstop_token_client = TokenClient::new(&e, &backstop_token);
 
-        backstop_client.initialize(&backstop_token, &Address::random(&e), &Address::random(&e));
+        backstop_client.initialize(
+            &backstop_token,
+            &Address::random(&e),
+            &Address::random(&e),
+            &Map::new(&e),
+        );
 
         backstop_token_client.mint(&backstop, &(1_000_000 * SCALAR_7));
         backstop_token_client.mint(&new_backstop, &(1_000_001 * SCALAR_7));
@@ -109,9 +144,11 @@ mod tests {
         e.as_contract(&emitter, || {
             storage::set_last_distro_time(&e, &1000);
             storage::set_backstop(&e, &backstop);
+            storage::set_drop_status(&e, true);
 
             execute_swap_backstop(&e, new_backstop.clone());
             assert_eq!(storage::get_backstop(&e), new_backstop);
+            assert_eq!(storage::get_drop_status(&e), false);
         });
     }
 
@@ -141,7 +178,12 @@ mod tests {
         let backstop_token = e.register_stellar_asset_contract(bombadil.clone());
         let backstop_token_client = TokenClient::new(&e, &backstop_token);
 
-        backstop_client.initialize(&backstop_token, &Address::random(&e), &Address::random(&e));
+        backstop_client.initialize(
+            &backstop_token,
+            &Address::random(&e),
+            &Address::random(&e),
+            &Map::new(&e),
+        );
 
         backstop_token_client.mint(&backstop, &(1_000_000 * SCALAR_7));
         backstop_token_client.mint(&new_backstop, &(1_000_000 * SCALAR_7));
@@ -152,6 +194,151 @@ mod tests {
 
             execute_swap_backstop(&e, new_backstop.clone());
             assert!(false, "Should have panicked");
+        });
+    }
+    #[test]
+    fn test_drop() {
+        let e = Env::default();
+        e.mock_all_auths();
+
+        e.ledger().set(LedgerInfo {
+            timestamp: 12345,
+            protocol_version: 1,
+            sequence_number: 50,
+            network_id: Default::default(),
+            base_reserve: 10,
+            min_temp_entry_expiration: 10,
+            min_persistent_entry_expiration: 10,
+            max_entry_expiration: 2000000,
+        });
+
+        let bombadil = Address::random(&e);
+        let frodo = Address::random(&e);
+        let samwise = Address::random(&e);
+        let emitter = Address::random(&e);
+        let (backstop, backstop_client) = create_backstop(&e);
+
+        let backstop_token = e.register_stellar_asset_contract(bombadil.clone());
+        let backstop_token_client = TokenClient::new(&e, &backstop_token);
+        let drop_list = map![
+            &e,
+            (frodo.clone(), 20_000_000 * SCALAR_7),
+            (samwise.clone(), 30_000_000 * SCALAR_7)
+        ];
+
+        backstop_client.initialize(
+            &backstop_token,
+            &Address::random(&e),
+            &Address::random(&e),
+            &drop_list,
+        );
+
+        e.as_contract(&emitter, || {
+            storage::set_last_distro_time(&e, &1000);
+            storage::set_backstop(&e, &backstop);
+            storage::set_drop_status(&e, false);
+
+            let list = execute_drop(&e);
+            assert_eq!(storage::get_drop_status(&e), true);
+            assert_eq!(list.len(), 2);
+            assert_eq!(backstop_token_client.balance(&frodo), 20_000_000 * SCALAR_7);
+            assert_eq!(
+                backstop_token_client.balance(&samwise),
+                30_000_000 * SCALAR_7
+            );
+        });
+    }
+
+    #[test]
+    #[should_panic(expected = "HostError")]
+    fn test_drop_already_dropped() {
+        let e = Env::default();
+        e.mock_all_auths();
+
+        e.ledger().set(LedgerInfo {
+            timestamp: 12345,
+            protocol_version: 1,
+            sequence_number: 50,
+            network_id: Default::default(),
+            base_reserve: 10,
+            min_temp_entry_expiration: 10,
+            min_persistent_entry_expiration: 10,
+            max_entry_expiration: 2000000,
+        });
+
+        let bombadil = Address::random(&e);
+        let frodo = Address::random(&e);
+        let samwise = Address::random(&e);
+        let emitter = Address::random(&e);
+        let (backstop, backstop_client) = create_backstop(&e);
+
+        let backstop_token = e.register_stellar_asset_contract(bombadil.clone());
+        let drop_list = map![
+            &e,
+            (frodo.clone(), 20_000_000 * SCALAR_7),
+            (samwise.clone(), 30_000_000 * SCALAR_7)
+        ];
+
+        backstop_client.initialize(
+            &backstop_token,
+            &Address::random(&e),
+            &Address::random(&e),
+            &drop_list,
+        );
+
+        e.as_contract(&emitter, || {
+            storage::set_last_distro_time(&e, &1000);
+            storage::set_backstop(&e, &backstop);
+            storage::set_drop_status(&e, true);
+
+            execute_drop(&e);
+            assert_eq!(storage::get_drop_status(&e), true);
+        });
+    }
+    #[test]
+    #[should_panic(expected = "HostError")]
+    fn test_drop_too_large() {
+        let e = Env::default();
+        e.mock_all_auths();
+
+        e.ledger().set(LedgerInfo {
+            timestamp: 12345,
+            protocol_version: 1,
+            sequence_number: 50,
+            network_id: Default::default(),
+            base_reserve: 10,
+            min_temp_entry_expiration: 10,
+            min_persistent_entry_expiration: 10,
+            max_entry_expiration: 2000000,
+        });
+
+        let bombadil = Address::random(&e);
+        let frodo = Address::random(&e);
+        let samwise = Address::random(&e);
+        let emitter = Address::random(&e);
+        let (backstop, backstop_client) = create_backstop(&e);
+
+        let backstop_token = e.register_stellar_asset_contract(bombadil.clone());
+        let drop_list = map![
+            &e,
+            (frodo.clone(), 20_000_000 * SCALAR_7),
+            (samwise.clone(), 30_000_001 * SCALAR_7)
+        ];
+
+        backstop_client.initialize(
+            &backstop_token,
+            &Address::random(&e),
+            &Address::random(&e),
+            &drop_list,
+        );
+
+        e.as_contract(&emitter, || {
+            storage::set_last_distro_time(&e, &1000);
+            storage::set_backstop(&e, &backstop);
+            storage::set_drop_status(&e, false);
+
+            execute_drop(&e);
+            assert_eq!(storage::get_drop_status(&e), false);
         });
     }
 }

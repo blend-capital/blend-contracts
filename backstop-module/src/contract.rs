@@ -94,9 +94,6 @@ pub trait BackstopModuleTrait {
     /// Update the backstop for the next emissions cycle from the Emitter
     fn update_emission_cycle(e: Env);
 
-    /// Fetch the next emission cycle window in seconds since epoch in UTC
-    fn next_emission_cycle(e: Env) -> u64;
-
     /// Add a pool to the reward zone, and if the reward zone is full, a pool to remove
     ///
     /// ### Arguments
@@ -110,8 +107,9 @@ pub trait BackstopModuleTrait {
     /// Fetch the reward zone
     fn get_rz(e: Env) -> Vec<Address>;
 
-    /// Fetch the EPS (emissions per second) for the current distribution window of a pool
-    fn pool_eps(e: Env, pool_address: Address) -> i128;
+    /// Fetch the EPS (emissions per second) and expiration for the current distribution window of a pool
+    /// in a tuple where (EPS, expiration)
+    fn pool_eps(e: Env, pool_address: Address) -> (i128, u64);
 
     /// Claim backstop deposit emissions from a list of pools for `from`
     ///
@@ -251,10 +249,6 @@ impl BackstopModuleTrait for BackstopModule {
         emissions::update_emission_cycle(&e);
     }
 
-    fn next_emission_cycle(e: Env) -> u64 {
-        storage::get_next_emission_cycle(&e)
-    }
-
     fn add_reward(e: Env, to_add: Address, to_remove: Address) {
         storage::bump_instance(&e);
         emissions::add_to_reward_zone(&e, to_add.clone(), to_remove.clone());
@@ -267,8 +261,11 @@ impl BackstopModuleTrait for BackstopModule {
         storage::get_reward_zone(&e)
     }
 
-    fn pool_eps(e: Env, pool_address: Address) -> i128 {
-        storage::get_pool_eps(&e, &pool_address)
+    fn pool_eps(e: Env, pool_address: Address) -> (i128, u64) {
+        (
+            storage::get_pool_eps(&e, &pool_address),
+            storage::get_next_emission_cycle(&e),
+        )
     }
 
     fn claim(e: Env, from: Address, pool_addresses: Vec<Address>, to: Address) {

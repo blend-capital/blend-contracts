@@ -181,12 +181,11 @@ impl TestFixture<'_> {
     /********** Chain Helpers ***********/
 
     pub fn jump(&self, time: u64) {
-        let time = time.saturating_sub(self.env.ledger().timestamp());
         let blocks = time / 5;
         self.env.ledger().set(LedgerInfo {
-            timestamp: self.env.ledger().timestamp() + time,
+            timestamp: self.env.ledger().timestamp().saturating_add(time),
             protocol_version: 1,
-            sequence_number: self.env.ledger().sequence() + (blocks as u32),
+            sequence_number: self.env.ledger().sequence().saturating_add(blocks as u32),
             network_id: Default::default(),
             base_reserve: 10,
             min_temp_entry_expiration: 10,

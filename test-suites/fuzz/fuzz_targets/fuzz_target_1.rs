@@ -461,7 +461,7 @@ impl Asserts for TestFixture<'_> {
                 let asset = &self.tokens[token_index.clone()];
                 let reserve = pool_state.load_reserve(&self.env, &asset.address);
                 let asset_to_base = pool_state.load_price(&self.env, &reserve.asset);
-                supply += asset_to_base.fixed_mul_floor(reserve.total_supply(), reserve.scalar).unwrap();
+                supply += asset_to_base.fixed_mul_floor(reserve.total_supply() + reserve.backstop_credit, reserve.scalar).unwrap();
                 liabilities += asset_to_base.fixed_mul_ceil(reserve.total_liabilities(), reserve.scalar).unwrap();
             }
         });

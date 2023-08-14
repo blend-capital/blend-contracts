@@ -6,7 +6,7 @@ use crate::{auctions::AuctionData, pool::Positions};
 
 pub(crate) const INSTANCE_BUMP_AMOUNT: u32 = 34560; // 2 days
 pub(crate) const SHARED_BUMP_AMOUNT: u32 = 69120; // 4 days
-pub(crate) const CYCLE_BUMP_AMOUNT: u32 = 69120; // 10 days - use for shared data accessed on the 7-day cycle window
+pub(crate) const CYCLE_BUMP_AMOUNT: u32 = 172800; // 10 days - use for shared data accessed on the 7-day cycle window
 pub(crate) const USER_BUMP_AMOUNT: u32 = 518400; // 30 days
 
 /********** Storage Types **********/
@@ -332,6 +332,7 @@ pub fn set_res_config(e: &Env, asset: &Address, config: &ReserveConfig) {
     e.storage()
         .persistent()
         .set::<PoolDataKey, ReserveConfig>(&key, &config);
+    e.storage().persistent().bump(&key, SHARED_BUMP_AMOUNT);
 }
 
 /// Checks if a reserve exists for an asset
@@ -371,6 +372,7 @@ pub fn set_res_data(e: &Env, asset: &Address, data: &ReserveData) {
     e.storage()
         .persistent()
         .set::<PoolDataKey, ReserveData>(&key, data);
+    e.storage().persistent().bump(&key, SHARED_BUMP_AMOUNT);
 }
 
 /********** Reserve List (ResList) **********/
@@ -435,6 +437,7 @@ pub fn set_res_emis_config(
     e.storage()
         .persistent()
         .set::<PoolDataKey, ReserveEmissionsConfig>(&key, res_emis_config);
+    e.storage().persistent().bump(&key, SHARED_BUMP_AMOUNT);
 }
 
 /// Fetch the emission data for the reserve b or d token
@@ -468,6 +471,7 @@ pub fn set_res_emis_data(e: &Env, res_token_index: &u32, res_emis_data: &Reserve
     e.storage()
         .persistent()
         .set::<PoolDataKey, ReserveEmissionsData>(&key, res_emis_data);
+    e.storage().persistent().bump(&key, SHARED_BUMP_AMOUNT);
 }
 
 /********** User Emissions **********/

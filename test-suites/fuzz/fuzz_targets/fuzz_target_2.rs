@@ -154,6 +154,36 @@ fuzz_target!(|input: Input| {
     }
 });
 
+type ContractResult<T> = Result<Result<T, soroban_sdk::ConversionError>, Result<soroban_sdk::Error, core::convert::Infallible>>;
+
+/// Panic if a contract call result might have been the result of an unexpected panic.
+///
+/// Calls that return an error with type `ScErrorType::WasmVm` and code `ScErrorCode::InvalidAction`
+/// are assumed to be unintended errors. These are the codes that result from plain `panic!` invocations,
+/// thus contracts should never simply call `panic!`, but instead use `panic_with_error!`.
+///
+/// Other rare types of internal exception can return `InvalidAction`.
+#[track_caller]
+fn verify_result<T>(env: &soroban_sdk::Env, r: &ContractResult<T>) {
+    use soroban_sdk::{Error, ConversionError};
+    use soroban_sdk::xdr::{ScErrorType, ScErrorCode};
+    use soroban_sdk::testutils::Events;
+    match r {
+        Err(Ok(e)) => {
+            if e.is_type(ScErrorType::WasmVm) && e.is_code(ScErrorCode::InvalidAction) {
+                let msg = "contract failed with InvalidAction - panic?";
+                eprintln!("{msg}");
+                eprintln!("recent events (10):");
+                for (i, event) in env.events().all().iter().rev().take(10).enumerate() {
+                    eprintln!("{i}: {event:?}");
+                }
+                panic!("{msg}");
+            }
+        }
+        _ => { }
+    }
+}
+
 impl Command {
     fn run(&self, state: &State) {
         use Command::*;
@@ -183,7 +213,7 @@ impl PassTime {
 
 impl MerrySupplyUsdc {
     fn run(&self, state: &State) {
-        let _ = state.pool_fixture.pool.try_submit(
+        let r = state.pool_fixture.pool.try_submit(
             &state.merry,
             &state.merry,
             &state.merry,
@@ -196,12 +226,13 @@ impl MerrySupplyUsdc {
                 },
             ],
         );
+        verify_result(&state.fixture.env, &r);
     }
 }
 
 impl SamSupplyXlm {
     fn run(&self, state: &State) {
-        let _ = state.pool_fixture.pool.try_submit(
+        let r = state.pool_fixture.pool.try_submit(
             &state.sam,
             &state.sam,
             &state.sam,
@@ -214,12 +245,13 @@ impl SamSupplyXlm {
                 },
             ],
         );
+        verify_result(&state.fixture.env, &r);
     }
 }
 
 impl MerryWithdrawUsdc {
     fn run(&self, state: &State) {
-        let _ = state.pool_fixture.pool.try_submit(
+        let r = state.pool_fixture.pool.try_submit(
             &state.merry,
             &state.merry,
             &state.merry,
@@ -232,12 +264,13 @@ impl MerryWithdrawUsdc {
                 },
             ],
         );
+        verify_result(&state.fixture.env, &r);
     }
 }
 
 impl SamWithdrawXlm {
     fn run(&self, state: &State) {
-        let _ = state.pool_fixture.pool.try_submit(
+        let r = state.pool_fixture.pool.try_submit(
             &state.sam,
             &state.sam,
             &state.sam,
@@ -250,12 +283,13 @@ impl SamWithdrawXlm {
                 },
             ],
         );
+        verify_result(&state.fixture.env, &r);
     }
 }
 
 impl MerryBorrowXlm {
     fn run(&self, state: &State) {
-        let _ = state.pool_fixture.pool.try_submit(
+        let r = state.pool_fixture.pool.try_submit(
             &state.merry,
             &state.merry,
             &state.merry,
@@ -268,12 +302,13 @@ impl MerryBorrowXlm {
                 },
             ],
         );
+        verify_result(&state.fixture.env, &r);
     }
 }
 
 impl SamBorrowUsdc {
     fn run(&self, state: &State) {
-        let _ = state.pool_fixture.pool.try_submit(
+        let r = state.pool_fixture.pool.try_submit(
             &state.sam,
             &state.sam,
             &state.sam,
@@ -286,12 +321,13 @@ impl SamBorrowUsdc {
                 },
             ],
         );
+        verify_result(&state.fixture.env, &r);
     }
 }
 
 impl MerryRepayXlm {
     fn run(&self, state: &State) {
-        let _ = state.pool_fixture.pool.try_submit(
+        let r = state.pool_fixture.pool.try_submit(
             &state.merry,
             &state.merry,
             &state.merry,
@@ -304,12 +340,13 @@ impl MerryRepayXlm {
                 },
             ],
         );
+        verify_result(&state.fixture.env, &r);
     }
 }
 
 impl SamRepayUsdc {
     fn run(&self, state: &State) {
-        let _ = state.pool_fixture.pool.try_submit(
+        let r = state.pool_fixture.pool.try_submit(
             &state.sam,
             &state.sam,
             &state.sam,
@@ -322,46 +359,51 @@ impl SamRepayUsdc {
                 },
             ],
         );
+        verify_result(&state.fixture.env, &r);
     }
 }
 
 impl FrodoClaimPool {
     fn run(&self, state: &State) {
-        let _ = state.pool_fixture.pool.try_claim(
+        let r = state.pool_fixture.pool.try_claim(
             &state.frodo,
             &vec![&state.fixture.env, 0, 3],
             &state.frodo,
         );
+        verify_result(&state.fixture.env, &r);
     }
 }
 
 impl FrodoClaimBackstop {
     fn run(&self, state: &State) {
-        let _ = state.fixture.backstop.claim(
+        let r = state.fixture.backstop.try_claim(
             &state.frodo,
             &vec![&state.fixture.env, state.pool_fixture.pool.address.clone()],
             &state.frodo,                  
         );
+        verify_result(&state.fixture.env, &r);
     }
 }
 
 impl MerryClaimPool {
     fn run(&self, state: &State) {
-        let _ = state.pool_fixture.pool.try_claim(
+        let r = state.pool_fixture.pool.try_claim(
             &state.merry,
             &vec![&state.fixture.env, 0, 3],
             &state.merry,
         );
+        verify_result(&state.fixture.env, &r);
     }
 }
 
 impl SamClaimPool {
     fn run(&self, state: &State) {
-        let _ = state.pool_fixture.pool.try_claim(
+        let r = state.pool_fixture.pool.try_claim(
             &state.sam,
             &vec![&state.fixture.env, 0, 3],
             &state.sam,
         );
+        verify_result(&state.fixture.env, &r);
     }
 }
 

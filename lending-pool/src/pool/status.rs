@@ -21,6 +21,7 @@ pub fn execute_update_pool_status(e: &Env) -> u32 {
 
     if q4w_pct >= 0_5000000 {
         pool_config.status = 2;
+        //TODO: this token check needs to check for k-value of over 200,000 for pool balance LP tokens
     } else if q4w_pct >= 0_2500000 || pool_balance.tokens < 1_000_000_0000000 {
         pool_config.status = 1;
     } else {

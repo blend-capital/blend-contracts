@@ -315,7 +315,7 @@ impl PoolTrait for Pool {
     }
 
     fn bad_debt(e: Env, user: Address) {
-        pool::manage_bad_debt(&e, &user);
+        pool::transfer_bad_debt_to_backstop(&e, &user);
     }
 
     fn update_status(e: Env) -> u32 {

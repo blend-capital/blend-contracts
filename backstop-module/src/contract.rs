@@ -186,8 +186,8 @@ impl BackstopModuleTrait for BackstopModule {
         let to_mint = backstop::execute_deposit(&e, &from, &pool_address, amount);
 
         e.events().publish(
-            (Symbol::new(&e, "deposit"), pool_address),
-            (from, amount, to_mint),
+            (Symbol::new(&e, "deposit"), pool_address, from),
+            (amount, to_mint),
         );
         to_mint
     }
@@ -199,8 +199,8 @@ impl BackstopModuleTrait for BackstopModule {
         let to_queue = backstop::execute_queue_withdrawal(&e, &from, &pool_address, amount);
 
         e.events().publish(
-            (Symbol::new(&e, "queue_withdrawal"), pool_address),
-            (from, amount, to_queue.exp),
+            (Symbol::new(&e, "queue_withdrawal"), pool_address, from),
+            (amount, to_queue.exp),
         );
         to_queue
     }
@@ -212,8 +212,8 @@ impl BackstopModuleTrait for BackstopModule {
         backstop::execute_dequeue_withdrawal(&e, &from, &pool_address, amount);
 
         e.events().publish(
-            (Symbol::new(&e, "dequeue_withdrawal"), pool_address),
-            (from, amount),
+            (Symbol::new(&e, "dequeue_withdrawal"), pool_address, from),
+            (amount),
         );
     }
 
@@ -224,8 +224,8 @@ impl BackstopModuleTrait for BackstopModule {
         let to_withdraw = backstop::execute_withdraw(&e, &from, &pool_address, amount);
 
         e.events().publish(
-            (Symbol::new(&e, "withdraw"), pool_address),
-            (from, amount, to_withdraw),
+            (Symbol::new(&e, "withdraw"), pool_address, from),
+            (amount, to_withdraw),
         );
         to_withdraw
     }
@@ -301,7 +301,7 @@ impl BackstopModuleTrait for BackstopModule {
 
         backstop::execute_donate(&e, &from, &pool_address, amount);
         e.events()
-            .publish((Symbol::new(&e, "donate"), pool_address), (from, amount));
+            .publish((Symbol::new(&e, "donate"), pool_address, from), (amount));
     }
 }
 

@@ -69,7 +69,7 @@ pub fn burn_backstop_bad_debt(e: &Env, backstop: &mut User, pool: &mut Pool) {
 
 #[cfg(test)]
 mod tests {
-    use crate::{auctions::AuctionData, pool::Positions, storage::PoolConfig, testutils};
+    use crate::{pool::Positions, storage::PoolConfig, testutils};
 
     use super::*;
     use soroban_sdk::{
@@ -274,14 +274,12 @@ mod tests {
         let (underlying_0, _) = testutils::create_token_contract(&e, &bombadil);
         let (reserve_config, mut reserve_data) = testutils::default_reserve_meta(&e);
         reserve_data.last_time = 1499995000;
-        let initial_d_supply_0 = reserve_data.d_supply;
         testutils::create_reserve(&e, &pool, &underlying_0, &reserve_config, &reserve_data);
 
         let (underlying_1, _) = testutils::create_token_contract(&e, &bombadil);
         let (mut reserve_config, mut reserve_data) = testutils::default_reserve_meta(&e);
         reserve_config.index = 1;
         reserve_data.last_time = 1499995000;
-        let initial_d_supply_1 = reserve_data.d_supply;
         testutils::create_reserve(&e, &pool, &underlying_1, &reserve_config, &reserve_data);
 
         blnd_client.mint(&backstop, &123);
@@ -308,13 +306,6 @@ mod tests {
             let new_backstop_positions = storage::get_user_positions(&e, &backstop);
             assert_eq!(new_backstop_positions.collateral.len(), 0);
             assert_eq!(new_backstop_positions.liabilities.len(), 0);
-
-            // let reserve_1_data = storage::get_res_data(&e, &underlying_0);
-            // let reserve_2_data = storage::get_res_data(&e, &underlying_1);
-            // assert_eq!(reserve_1_data.last_time, 1500000000);
-            // assert_eq!(reserve_1_data.d_supply, initial_d_supply_0 - 24_0000000);
-            // assert_eq!(reserve_2_data.last_time, 1500000000);
-            // assert_eq!(reserve_2_data.d_supply, initial_d_supply_1 - 25_0000000);
         });
     }
 }

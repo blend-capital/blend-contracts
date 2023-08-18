@@ -85,7 +85,7 @@ pub fn fill_bad_debt_auction(
     // If the backstop still has liabilities and less than 10% of the backstop threshold burn bad debt
     if backstop_state.positions.liabilities.len() > 0
             //TODO: this token check needs to check k-value of pool balance LP tokens
-        && backstop_client.pool_balance(&e.current_contract_address()).tokens < 100_000_0000
+        && backstop_client.pool_balance(&e.current_contract_address()).tokens < 20_000_000_0000
     {
         burn_backstop_bad_debt(e, &mut backstop_state, pool)
     }
@@ -846,9 +846,9 @@ mod tests {
             ],
             supply: map![&e],
         };
-        backstop_token_client.mint(&samwise, &10_095_2000000);
+        backstop_token_client.mint(&samwise, &100_095_2000000);
         backstop_token_client.approve(&samwise, &backstop_address, &i128::MAX, &1000000);
-        backstop_client.deposit(&samwise, &pool_address, &10_095_2000000);
+        backstop_client.deposit(&samwise, &pool_address, &100_095_2000000);
         e.as_contract(&pool_address, || {
             storage::set_auction(
                 &e,
@@ -870,7 +870,7 @@ mod tests {
             fill_bad_debt_auction(&e, &mut pool, &mut auction_data, &mut samwise_state);
             assert_eq!(
                 backstop_token_client.balance(&backstop_address),
-                10_047_6000000
+                100_047_6000000
             );
             assert_eq!(backstop_token_client.balance(&samwise), 47_6000000);
             let samwise_positions = samwise_state.positions;

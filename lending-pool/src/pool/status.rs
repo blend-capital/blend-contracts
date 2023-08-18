@@ -40,7 +40,7 @@ pub fn set_pool_status(e: &Env, pool_status: u32) {
         let backstop_client = BackstopClient::new(e, &backstop_id);
 
         let pool_balance = backstop_client.pool_balance(&e.current_contract_address());
-        if pool_balance.tokens < 1_000_000_0000000 {
+        if pool_balance.tokens < 200_000_000_0000 {
             panic_with_error!(e, PoolError::InvalidPoolStatus);
         }
     }
@@ -121,8 +121,8 @@ mod tests {
             &backstop_token_id,
             &Address::random(&e),
         );
-        backstop_token_client.mint(&samwise, &999_999_9999999);
-        backstop_client.deposit(&samwise, &pool_id, &999_999_9999999);
+        backstop_token_client.mint(&samwise, &199_999_9999999);
+        backstop_client.deposit(&samwise, &pool_id, &199_999_9999999);
 
         let pool_config = PoolConfig {
             oracle: oracle_id,

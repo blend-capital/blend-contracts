@@ -19,6 +19,7 @@ mod submit;
 
 pub use submit::execute_submit;
 
+#[allow(clippy::module_inception)]
 mod pool;
 pub use pool::Pool;
 

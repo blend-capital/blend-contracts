@@ -17,7 +17,7 @@ use super::{user::User, Pool};
 /// If the user does not have bad debt
 pub fn transfer_bad_debt_to_backstop(e: &Env, user: &Address) {
     let user_state = User::load(e, user);
-    if user_state.positions.collateral.len() != 0 || user_state.positions.liabilities.len() == 0 {
+    if !user_state.positions.collateral.is_empty() || user_state.positions.liabilities.is_empty() {
         panic_with_error!(e, PoolError::BadRequest);
     }
 
@@ -40,7 +40,7 @@ pub fn transfer_bad_debt_to_backstop(e: &Env, user: &Address) {
         pool.cache_reserve(reserve, true);
 
         e.events().publish(
-            (Symbol::new(&e, "bad_debt"), user),
+            (Symbol::new(e, "bad_debt"), user),
             (asset, liability_balance),
         );
     }
@@ -59,7 +59,7 @@ pub fn burn_backstop_bad_debt(e: &Env, backstop: &mut User, pool: &mut Pool) {
         rm_liabilities.set(res_asset_address.clone(), liability_balance);
 
         e.events().publish(
-            (Symbol::new(&e, "bad_debt"), backstop.address.clone()),
+            (Symbol::new(e, "bad_debt"), backstop.address.clone()),
             (res_asset_address, liability_balance),
         );
     }

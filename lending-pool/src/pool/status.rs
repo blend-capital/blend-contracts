@@ -3,6 +3,8 @@ use fixed_point_math::FixedPoint;
 use soroban_sdk::{panic_with_error, unwrap::UnwrapOptimized, Env};
 
 /// Update the pool status based on the backstop module
+#[allow(clippy::zero_prefixed_literal)]
+#[allow(clippy::inconsistent_digit_grouping)]
 pub fn execute_update_pool_status(e: &Env) -> u32 {
     let mut pool_config = storage::get_pool_config(e);
     if pool_config.status > 2 {
@@ -33,6 +35,7 @@ pub fn execute_update_pool_status(e: &Env) -> u32 {
 }
 
 /// Update the pool status
+#[allow(clippy::inconsistent_digit_grouping)]
 pub fn set_pool_status(e: &Env, pool_status: u32) {
     if pool_status == 0 {
         // check the pool has met minimum backstop deposits before being turned on

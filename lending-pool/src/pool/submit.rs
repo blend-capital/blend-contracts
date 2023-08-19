@@ -28,7 +28,7 @@ pub fn execute_submit(
     let mut pool = Pool::load(e);
 
     let (actions, new_from_state, check_health) =
-        build_actions_from_request(e, &mut pool, &from, requests);
+        build_actions_from_request(e, &mut pool, from, requests);
 
     if check_health {
         // panics if the new positions set does not meet the health factor requirement
@@ -38,7 +38,7 @@ pub fn execute_submit(
 
     // transfer tokens from sender to pool
     for (address, amount) in actions.spender_transfer.iter() {
-        TokenClient::new(e, &address).transfer(&spender, &e.current_contract_address(), &amount);
+        TokenClient::new(e, &address).transfer(spender, &e.current_contract_address(), &amount);
     }
 
     // store updated info to ledger
@@ -47,7 +47,7 @@ pub fn execute_submit(
 
     // transfer tokens from pool to "to"
     for (address, amount) in actions.pool_transfer.iter() {
-        TokenClient::new(e, &address).transfer(&e.current_contract_address(), &to, &amount);
+        TokenClient::new(e, &address).transfer(&e.current_contract_address(), to, &amount);
     }
 
     new_from_state.positions

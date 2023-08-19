@@ -12,6 +12,7 @@ use super::pool::Pool;
 /// Initialize the pool
 ///
 /// Panics if the pool is already initialized or the arguments are invalid
+#[allow(clippy::too_many_arguments)]
 pub fn execute_initialize(
     e: &Env,
     admin: &Address,
@@ -27,7 +28,7 @@ pub fn execute_initialize(
     }
 
     // ensure backstop is [0,1)
-    if bstop_rate.clone() >= 1_000_000_000 {
+    if *bstop_rate >= 1_000_000_000 {
         panic_with_error!(e, PoolError::InvalidPoolInitArgs);
     }
 
@@ -38,7 +39,7 @@ pub fn execute_initialize(
         e,
         &PoolConfig {
             oracle: oracle.clone(),
-            bstop_rate: bstop_rate.clone(),
+            bstop_rate: *bstop_rate,
             status: 1,
         },
     );
@@ -49,7 +50,7 @@ pub fn execute_initialize(
 /// Update the pool
 pub fn execute_update_pool(e: &Env, backstop_take_rate: u64) {
     // ensure backstop is [0,1)
-    if backstop_take_rate.clone() >= 1_000_000_000 {
+    if backstop_take_rate >= 1_000_000_000 {
         panic_with_error!(e, PoolError::BadRequest);
     }
     let mut pool_config = storage::get_pool_config(e);
@@ -119,6 +120,7 @@ pub fn update_pool_emissions(e: &Env) -> u64 {
     emissions::update_emissions_cycle(e, next_exp, u64(pool_eps).unwrap_optimized())
 }
 
+#[allow(clippy::zero_prefixed_literal)]
 fn require_valid_reserve_metadata(e: &Env, metadata: &ReserveConfig) {
     if metadata.decimals > 18
         || metadata.c_factor > 1_0000000

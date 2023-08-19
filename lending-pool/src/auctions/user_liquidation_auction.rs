@@ -16,7 +16,7 @@ pub fn create_user_liq_auction_data(
     user: &Address,
     percent_liquidated: u64,
 ) -> AuctionData {
-    if storage::has_auction(e, &(AuctionType::UserLiquidation as u32), &user) {
+    if storage::has_auction(e, &(AuctionType::UserLiquidation as u32), user) {
         panic_with_error!(e, PoolError::AuctionInProgress);
     }
     if percent_liquidated > 100 || percent_liquidated == 0 {

@@ -7,20 +7,20 @@ use super::update_emissions;
 
 /// Perform a claim for backstop deposit emissions by a user from the backstop module
 pub fn execute_claim(e: &Env, from: &Address, pool_addresses: &Vec<Address>, to: &Address) -> i128 {
-    if pool_addresses.len() == 0 {
+    if pool_addresses.is_empty() {
         panic_with_error!(e, BackstopError::BadRequest);
     }
 
     let mut claimed: i128 = 0;
     for pool_id in pool_addresses.iter() {
         let pool_balance = storage::get_pool_balance(e, &pool_id);
-        let user_balance = storage::get_user_balance(e, &pool_id, &from);
+        let user_balance = storage::get_user_balance(e, &pool_id, from);
         claimed += update_emissions(e, &pool_id, &pool_balance, from, &user_balance, true);
     }
 
     if claimed > 0 {
         let blnd_token = TokenClient::new(e, &storage::get_blnd_token(e));
-        blnd_token.transfer(&e.current_contract_address(), &to, &claimed);
+        blnd_token.transfer(&e.current_contract_address(), to, &claimed);
     }
 
     claimed

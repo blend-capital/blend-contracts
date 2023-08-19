@@ -87,7 +87,7 @@ impl Reserve {
         // TODO: Is it safe to calculate b_rate from accrual? If any unexpected token loss occurs
         //       the transfer rate will become unrecoverable.
         let pre_update_supply = reserve.total_supply();
-        let token_bal = TokenClient::new(e, &asset).balance(&e.current_contract_address());
+        let token_bal = TokenClient::new(e, asset).balance(&e.current_contract_address());
 
         // credit the backstop underlying from the accrued interest based on the backstop rate
         let accrued_supply =

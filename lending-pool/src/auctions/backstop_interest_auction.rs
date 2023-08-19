@@ -41,7 +41,7 @@ pub fn create_interest_auction_data(e: &Env, backstop: &Address) -> AuctionData 
         panic_with_error!(e, PoolError::InterestTooSmall);
     }
 
-    if auction_data.lot.len() == 0 || interest_value == 0 {
+    if auction_data.lot.is_empty() || interest_value == 0 {
         panic_with_error!(e, PoolError::BadRequest);
     }
 
@@ -76,7 +76,7 @@ pub fn fill_interest_auction(
         reserve.store(e);
         TokenClient::new(e, &res_asset_address).transfer(
             &e.current_contract_address(),
-            &filler,
+            filler,
             &lot_amount,
         );
     }

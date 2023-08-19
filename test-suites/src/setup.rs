@@ -125,7 +125,7 @@ pub fn create_fixture_with_data<'a>(wasm: bool) -> (TestFixture<'a>, Address) {
 
     fixture.jump(60 * 60); // 1 hr
 
-    return (fixture, frodo);
+    (fixture, frodo)
 }
 
 #[cfg(test)]

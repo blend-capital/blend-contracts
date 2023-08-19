@@ -31,10 +31,10 @@ impl MockLendingPoolTrait for MockLendingPool {
         let res_collateral_bit = 1 << (index * 3 + 2);
         if !is_collat {
             // set bit to 1
-            config = config | res_collateral_bit;
+            config |= res_collateral_bit;
         } else {
             // set bit to zero
-            config = config & !res_collateral_bit;
+            config &= !res_collateral_bit;
         }
         storage::write_config(&e, &user, &config);
     }

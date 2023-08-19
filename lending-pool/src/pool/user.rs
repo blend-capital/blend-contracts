@@ -17,9 +17,9 @@ impl Positions {
     /// Create an empty Positions object in the environment
     pub fn env_default(e: &Env) -> Self {
         Positions {
-            liabilities: Map::new(&e),
-            collateral: Map::new(&e),
-            supply: Map::new(&e),
+            liabilities: Map::new(e),
+            collateral: Map::new(e),
+            supply: Map::new(e),
         }
     }
 }
@@ -36,13 +36,13 @@ impl User {
     pub fn load(e: &Env, address: &Address) -> Self {
         User {
             address: address.clone(),
-            positions: storage::get_user_positions(e, &address),
+            positions: storage::get_user_positions(e, address),
         }
     }
 
     /// Store the user's positions to the ledger
     pub fn store(&self, e: &Env) {
-        storage::set_user_positions(&e, &self.address, &self.positions);
+        storage::set_user_positions(e, &self.address, &self.positions);
     }
 
     /// Get the debtToken position for the reserve at the given index

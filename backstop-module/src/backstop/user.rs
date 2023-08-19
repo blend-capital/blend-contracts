@@ -77,6 +77,7 @@ impl UserBalance {
     /// ### Errors
     /// If the user does not have enough shares currently queued to dequeue,
     /// or if they don't have enough queued shares to dequeue
+    #[allow(clippy::comparison_chain)]
     pub fn dequeue_shares_for_withdrawal(
         &mut self,
         e: &Env,

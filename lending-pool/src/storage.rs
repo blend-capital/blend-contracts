@@ -230,6 +230,31 @@ pub fn set_backstop(e: &Env, backstop: &Address) {
         .set::<Symbol, Address>(&Symbol::new(e, "Backstop"), backstop);
 }
 
+/// Fetch the backstop pool ID for the pool
+///
+/// ### Panics
+/// If no backstop pool is set
+pub fn get_backstop_pool(e: &Env) -> Address {
+    // TODO: Change to instance - https://github.com/stellar/rs-soroban-sdk/issues/1040
+    e.storage()
+        .persistent()
+        .bump(&Symbol::new(e, "Backstop_Pool"), SHARED_BUMP_AMOUNT);
+    e.storage()
+        .persistent()
+        .get(&Symbol::new(e, "Backstop_Pool"))
+        .unwrap_optimized()
+}
+
+/// Set a new backstop pool ID
+///
+/// ### Arguments
+/// * `backstop pool` - The address of the backstop
+pub fn set_backstop_pool(e: &Env, backstop_pool: &Address) {
+    e.storage()
+        .persistent()
+        .set::<Symbol, Address>(&Symbol::new(e, "Backstop_Pool"), backstop_pool);
+}
+
 /********** External Token Contracts **********/
 
 /// Fetch the BLND token ID

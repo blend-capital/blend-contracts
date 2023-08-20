@@ -67,7 +67,7 @@ pub fn fill_interest_auction(
     // bid only contains the USDC token
     // TODO: add donate_usdc function to backstop
     // let backstop_client = BackstopClient::new(&e, &backstop_address);
-    // backstop_client.donate(&filler, &e.current_contract_id(), &bid_amount_modified);
+    // backstop_client.donate(&filler, &get_backstop_pool(&e), &bid_amount_modified);
 
     // lot contains underlying tokens, but the backstop credit must be updated on the reserve
     for (res_asset_address, lot_amount) in auction_data.lot.iter() {

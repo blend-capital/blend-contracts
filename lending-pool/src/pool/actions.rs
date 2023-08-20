@@ -1259,6 +1259,7 @@ mod tests {
                 &backstop_address,
                 &auction_data,
             );
+            storage::set_backstop_pool(&e, &pool_address);
 
             let mut pool = Pool::load(&e);
 

@@ -20,6 +20,7 @@ pub fn execute_initialize(
     oracle: &Address,
     bstop_rate: &u64,
     backstop_address: &Address,
+    backstop_pool: &Address,
     blnd_id: &Address,
     usdc_id: &Address,
 ) {
@@ -35,6 +36,7 @@ pub fn execute_initialize(
     storage::set_admin(e, admin);
     storage::set_name(e, name);
     storage::set_backstop(e, backstop_address);
+    storage::set_backstop_pool(e, backstop_pool);
     storage::set_pool_config(
         e,
         &PoolConfig {
@@ -162,6 +164,7 @@ mod tests {
                 &oracle,
                 &bstop_rate,
                 &backstop_address,
+                &pool,
                 &blnd_id,
                 &usdc_id,
             );

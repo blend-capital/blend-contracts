@@ -36,6 +36,7 @@ pub trait PoolTrait {
         oracle: Address,
         bstop_rate: u64,
         backstop_id: Address,
+        backstop_pool_id: Address,
         blnd_id: Address,
         usdc_id: Address,
     );
@@ -230,6 +231,12 @@ pub trait PoolTrait {
     /// ### Panics
     /// If the auction was unable to be created
     fn new_auction(e: Env, auction_type: u32) -> AuctionData;
+
+    /// Fetch the pool admin's address
+    ///
+    /// ### Panics
+    /// If the admin does not exist
+    fn get_admin(e: Env) -> Address;
 }
 
 #[contractimpl]
@@ -242,10 +249,17 @@ impl PoolTrait for Pool {
         oracle: Address,
         bstop_rate: u64,
         backstop_id: Address,
+        backstop_pool_id: Address,
         blnd_id: Address,
         usdc_id: Address,
     ) {
         admin.require_auth();
+
+        // If the pool is being set as a sub-pool of another pool, the admin of that pool must provide auth
+        if backstop_pool_id != e.current_contract_address() {
+            let backstop_pool_admin = PoolClient::new(&e, &backstop_pool_id).get_admin();
+            backstop_pool_admin.require_auth();
+        }
 
         pool::execute_initialize(
             &e,
@@ -254,6 +268,7 @@ impl PoolTrait for Pool {
             &oracle,
             &bstop_rate,
             &backstop_id,
+            &backstop_pool_id,
             &blnd_id,
             &usdc_id,
         );
@@ -342,6 +357,10 @@ impl PoolTrait for Pool {
 
     fn get_pool_config(e: Env) -> PoolConfig {
         storage::get_pool_config(&e)
+    }
+
+    fn get_admin(e: Env) -> Address {
+        storage::get_admin(&e)
     }
 
     /********* Emission Functions **********/

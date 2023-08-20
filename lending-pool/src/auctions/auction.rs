@@ -358,6 +358,7 @@ mod tests {
         };
         e.as_contract(&pool_address, || {
             storage::set_pool_config(&e, &pool_config);
+            storage::set_backstop_pool(&e, &pool_address);
             storage::set_user_positions(&e, &backstop_address, &positions);
 
             create(&e, 1);

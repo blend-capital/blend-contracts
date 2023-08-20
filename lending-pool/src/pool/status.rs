@@ -1,4 +1,9 @@
-use crate::{constants::SCALAR_7, dependencies::BackstopClient, errors::PoolError, storage};
+use crate::{
+    constants::SCALAR_7,
+    dependencies::BackstopClient,
+    errors::PoolError,
+    storage::{self, get_backstop_pool},
+};
 use fixed_point_math::FixedPoint;
 use soroban_sdk::{panic_with_error, unwrap::UnwrapOptimized, Env};
 
@@ -15,7 +20,7 @@ pub fn execute_update_pool_status(e: &Env) -> u32 {
     let backstop_id = storage::get_backstop(e);
     let backstop_client = BackstopClient::new(e, &backstop_id);
 
-    let pool_balance = backstop_client.pool_balance(&e.current_contract_address());
+    let pool_balance = backstop_client.pool_balance(&get_backstop_pool(e));
     let q4w_pct = pool_balance
         .q4w
         .fixed_div_floor(pool_balance.shares, SCALAR_7)
@@ -94,6 +99,7 @@ mod tests {
         e.as_contract(&pool_id, || {
             storage::set_admin(&e, &bombadil);
             storage::set_pool_config(&e, &pool_config);
+            storage::set_backstop_pool(&e, &pool_id);
 
             set_pool_status(&e, 0);
 
@@ -135,6 +141,7 @@ mod tests {
         e.as_contract(&pool_id, || {
             storage::set_admin(&e, &bombadil);
             storage::set_pool_config(&e, &pool_config);
+            storage::set_backstop_pool(&e, &pool_id);
 
             set_pool_status(&e, 0);
         });
@@ -171,6 +178,7 @@ mod tests {
         e.as_contract(&pool_id, || {
             storage::set_admin(&e, &bombadil);
             storage::set_pool_config(&e, &pool_config);
+            storage::set_backstop_pool(&e, &pool_id);
 
             let status = execute_update_pool_status(&e);
 
@@ -211,6 +219,7 @@ mod tests {
         e.as_contract(&pool_id, || {
             storage::set_admin(&e, &bombadil);
             storage::set_pool_config(&e, &pool_config);
+            storage::set_backstop_pool(&e, &pool_id);
 
             let status = execute_update_pool_status(&e);
 
@@ -252,6 +261,7 @@ mod tests {
         e.as_contract(&pool_id, || {
             storage::set_admin(&e, &bombadil);
             storage::set_pool_config(&e, &pool_config);
+            storage::set_backstop_pool(&e, &pool_id);
 
             let status = execute_update_pool_status(&e);
 
@@ -293,6 +303,7 @@ mod tests {
         e.as_contract(&pool_id, || {
             storage::set_admin(&e, &bombadil);
             storage::set_pool_config(&e, &pool_config);
+            storage::set_backstop_pool(&e, &pool_id);
 
             let status = execute_update_pool_status(&e);
 
@@ -335,6 +346,7 @@ mod tests {
         e.as_contract(&pool_id, || {
             storage::set_admin(&e, &bombadil);
             storage::set_pool_config(&e, &pool_config);
+            storage::set_backstop_pool(&e, &pool_id);
 
             execute_update_pool_status(&e);
         });

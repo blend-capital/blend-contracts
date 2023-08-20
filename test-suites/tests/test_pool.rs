@@ -545,6 +545,7 @@ fn test_pool_config() {
         &Address::random(&fixture.env),
         &10000,
         &Address::random(&fixture.env),
+        &pool_fixture.pool.address,
         &Address::random(&fixture.env),
         &Address::random(&fixture.env),
     );

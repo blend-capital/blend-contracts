@@ -3,7 +3,7 @@ use crate::{
     dependencies::BackstopClient,
     errors::PoolError,
     pool::{burn_backstop_bad_debt, Pool, User},
-    storage,
+    storage::{self, get_backstop_pool},
 };
 use cast::i128;
 use fixed_point_math::FixedPoint;
@@ -51,7 +51,7 @@ pub fn create_bad_debt_auction_data(e: &Env, backstop: &Address) -> AuctionData 
         .unwrap_optimized()
         .fixed_div_floor(i128(backstop_token_to_base), SCALAR_7)
         .unwrap_optimized();
-    let pool_balance = backstop_client.pool_balance(&e.current_contract_address());
+    let pool_balance = backstop_client.pool_balance(&get_backstop_pool(e));
     lot_amount = pool_balance.tokens.min(lot_amount);
     // u32::MAX is the key for the backstop token
     auction_data.lot.set(backstop_token, lot_amount);
@@ -77,8 +77,9 @@ pub fn fill_bad_debt_auction(
     let backstop_token_id = backstop_client.backstop_token();
     let lot_amount = auction_data.lot.get(backstop_token_id).unwrap_optimized();
     let backstop_client = BackstopClient::new(e, &backstop_address);
+    let backstop_pool_id = get_backstop_pool(e);
     backstop_client.draw(
-        &e.current_contract_address(),
+        &backstop_pool_id,
         &lot_amount,
         &filler_state.address,
     );
@@ -86,7 +87,7 @@ pub fn fill_bad_debt_auction(
     // If the backstop still has liabilities and less than 10% of the backstop threshold burn bad debt
     if !backstop_state.positions.liabilities.is_empty() 
             //TODO: this token check needs to check k-value of pool balance LP tokens
-        && backstop_client.pool_balance(&e.current_contract_address()).tokens < 20_000_000_0000
+        && backstop_client.pool_balance(&backstop_pool_id).tokens < 20_000_000_0000
     {
         burn_backstop_bad_debt(e, &mut backstop_state, pool)
     }
@@ -248,6 +249,7 @@ mod tests {
         e.as_contract(&pool_address, || {
             storage::set_pool_config(&e, &pool_config);
             storage::set_user_positions(&e, &backstop_address, &positions);
+            storage::set_backstop_pool(&e, &pool_address);
 
             let result = create_bad_debt_auction_data(&e, &backstop_address);
 
@@ -358,7 +360,7 @@ mod tests {
         };
         e.as_contract(&pool_address, || {
             storage::set_pool_config(&e, &pool_config);
-
+            storage::set_backstop_pool(&e, &pool_address);
             storage::set_user_positions(&e, &backstop_address, &positions);
 
             let result = create_bad_debt_auction_data(&e, &backstop_address);
@@ -473,6 +475,7 @@ mod tests {
             storage::set_pool_config(&e, &pool_config);
             storage::set_backstop(&e, &backstop_address);
             storage::set_user_positions(&e, &backstop_address, &positions);
+            storage::set_backstop_pool(&e, &pool_address);
 
             let result = create_bad_debt_auction_data(&e, &backstop_address);
 
@@ -585,6 +588,7 @@ mod tests {
             );
             storage::set_pool_config(&e, &pool_config);
             storage::set_user_positions(&e, &backstop_address, &positions);
+            storage::set_backstop_pool(&e, &pool_address);
 
             backstop_token_client.approve(
                 &pool_address,
@@ -722,6 +726,7 @@ mod tests {
             );
             storage::set_pool_config(&e, &pool_config);
             storage::set_user_positions(&e, &backstop_address, &positions);
+            storage::set_backstop_pool(&e, &pool_address);
 
             backstop_token_client.approve(
                 &pool_address,
@@ -859,6 +864,7 @@ mod tests {
             );
             storage::set_pool_config(&e, &pool_config);
             storage::set_user_positions(&e, &backstop_address, &positions);
+            storage::set_backstop_pool(&e, &pool_address);
 
             backstop_token_client.approve(
                 &pool_address,

@@ -81,7 +81,7 @@ impl PriceFeedTrait for MockOracle {
     }
 
     fn decimals(_e: Env) -> u32 {
-        7 as u32
+        7_u32
     }
 
     fn resolution(_e: Env) -> u32 {

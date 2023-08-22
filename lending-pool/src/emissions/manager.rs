@@ -55,7 +55,7 @@ pub fn get_reserve_emissions(
 /// ### Panics
 /// If the total share of the pool eps from the reserves is over 1
 pub fn set_pool_emissions(e: &Env, res_emission_metadata: Vec<ReserveEmissionMetadata>) {
-    let mut pool_emissions: Map<u32, u64> = map![&e];
+    let mut pool_emissions: Map<u32, u64> = map![e];
     let mut total_share = 0;
 
     let reserve_list = storage::get_res_list(e);
@@ -106,15 +106,15 @@ pub fn update_emissions_cycle(e: &Env, next_exp: u64, pool_eps: u64) -> u64 {
 fn update_reserve_emission_data(e: &Env, asset: &Address, res_token_id: u32) {
     if storage::has_res_emis_data(e, &res_token_id) {
         // data exists - update it with old config
-        let reserve_config = storage::get_res_config(e, &asset);
-        let reserve_data = storage::get_res_data(e, &asset);
+        let reserve_config = storage::get_res_config(e, asset);
+        let reserve_data = storage::get_res_data(e, asset);
         let supply = match res_token_id % 2 {
             0 => reserve_data.d_supply,
             1 => reserve_data.b_supply,
             _ => panic_with_error!(e, PoolError::BadRequest),
         };
         let mut emission_data = distributor::update_emission_data(
-            &e,
+            e,
             res_token_id,
             supply,
             10i128.pow(reserve_config.decimals),
@@ -155,7 +155,7 @@ fn update_reserve_emission_config(
 
     storage::set_res_emis_config(e, &res_token_id, &new_reserve_emis_config);
     e.events().publish(
-        (Symbol::new(&e, "e_config"),),
+        (Symbol::new(e, "e_config"),),
         (res_token_id, new_res_eps, expiration),
     )
 }

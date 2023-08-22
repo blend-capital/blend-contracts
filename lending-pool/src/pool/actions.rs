@@ -75,7 +75,7 @@ pub fn build_actions_from_request(
     for request in requests.iter() {
         // verify the request is allowed
         require_nonnegative(e, &request.amount);
-        pool.require_action_allowed(e, request.request_type.clone());
+        pool.require_action_allowed(e, request.request_type);
         match request.request_type {
             0 => {
                 // supply
@@ -86,7 +86,7 @@ pub fn build_actions_from_request(
                 pool.cache_reserve(reserve, true);
                 e.events().publish(
                     (
-                        Symbol::new(&e, "supply"),
+                        Symbol::new(e, "supply"),
                         request.address.clone(),
                         from.clone(),
                     ),
@@ -108,7 +108,7 @@ pub fn build_actions_from_request(
                 pool.cache_reserve(reserve, true);
                 e.events().publish(
                     (
-                        Symbol::new(&e, "withdraw"),
+                        Symbol::new(e, "withdraw"),
                         request.address.clone(),
                         from.clone(),
                     ),
@@ -124,7 +124,7 @@ pub fn build_actions_from_request(
                 pool.cache_reserve(reserve, true);
                 e.events().publish(
                     (
-                        Symbol::new(&e, "supply_collateral"),
+                        Symbol::new(e, "supply_collateral"),
                         request.address.clone(),
                         from.clone(),
                     ),
@@ -147,7 +147,7 @@ pub fn build_actions_from_request(
                 pool.cache_reserve(reserve, true);
                 e.events().publish(
                     (
-                        Symbol::new(&e, "withdraw_collateral"),
+                        Symbol::new(e, "withdraw_collateral"),
                         request.address.clone(),
                         from.clone(),
                     ),
@@ -165,7 +165,7 @@ pub fn build_actions_from_request(
                 pool.cache_reserve(reserve, true);
                 e.events().publish(
                     (
-                        Symbol::new(&e, "borrow"),
+                        Symbol::new(e, "borrow"),
                         request.address.clone(),
                         from.clone(),
                     ),
@@ -186,7 +186,7 @@ pub fn build_actions_from_request(
                     actions.add_for_pool_transfer(&reserve.asset, amount_to_refund);
                     e.events().publish(
                         (
-                            Symbol::new(&e, "repay"),
+                            Symbol::new(e, "repay"),
                             request.address.clone().clone(),
                             from.clone(),
                         ),
@@ -196,7 +196,7 @@ pub fn build_actions_from_request(
                     from_state.remove_liabilities(e, &mut reserve, d_tokens_burnt);
                     e.events().publish(
                         (
-                            Symbol::new(&e, "repay"),
+                            Symbol::new(e, "repay"),
                             request.address.clone().clone(),
                             from.clone(),
                         ),
@@ -219,9 +219,9 @@ pub fn build_actions_from_request(
 
                 e.events().publish(
                     (
-                        Symbol::new(&e, "fill_auction"),
+                        Symbol::new(e, "fill_auction"),
                         request.address.clone().clone(),
-                        0 as u32,
+                        0_u32,
                     ),
                     (from.clone(), request.amount),
                 );
@@ -241,9 +241,9 @@ pub fn build_actions_from_request(
 
                 e.events().publish(
                     (
-                        Symbol::new(&e, "fill_auction"),
+                        Symbol::new(e, "fill_auction"),
                         request.address.clone().clone(),
-                        1 as u32,
+                        1_u32,
                     ),
                     (from.clone(), request.amount),
                 );
@@ -261,9 +261,9 @@ pub fn build_actions_from_request(
                 );
                 e.events().publish(
                     (
-                        Symbol::new(&e, "fill_auction"),
+                        Symbol::new(e, "fill_auction"),
                         request.address.clone().clone(),
-                        2 as u32,
+                        2_u32,
                     ),
                     (from.clone(), request.amount),
                 );

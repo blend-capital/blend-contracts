@@ -51,7 +51,7 @@ pub fn get_backstop(e: &Env) -> Address {
 pub fn set_backstop(e: &Env, new_backstop_id: &Address) {
     e.storage()
         .persistent()
-        .set::<EmitterDataKey, Address>(&EmitterDataKey::Backstop, &new_backstop_id);
+        .set::<EmitterDataKey, Address>(&EmitterDataKey::Backstop, new_backstop_id);
 }
 
 /// Check if a backstop has been set
@@ -84,7 +84,7 @@ pub fn get_blend_id(e: &Env) -> Address {
 pub fn set_blend_id(e: &Env, blend_id: &Address) {
     e.storage()
         .persistent()
-        .set::<EmitterDataKey, Address>(&EmitterDataKey::BlendId, &blend_id);
+        .set::<EmitterDataKey, Address>(&EmitterDataKey::BlendId, blend_id);
 }
 
 /********** Blend Distributions **********/

@@ -28,6 +28,7 @@ pub trait PoolTrait {
     /// * `backstop_id` - The contract address of the pool's backstop module
     /// * `blnd_id` - The contract ID of the BLND token
     /// * `usdc_id` - The contract ID of the BLND token
+    #[allow(clippy::too_many_arguments)]
     fn initialize(
         e: Env,
         admin: Address,
@@ -233,6 +234,7 @@ pub trait PoolTrait {
 
 #[contractimpl]
 impl PoolTrait for Pool {
+    #[allow(clippy::too_many_arguments)]
     fn initialize(
         e: Env,
         admin: Address,

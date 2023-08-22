@@ -207,7 +207,7 @@ pub fn set_pool_balance(e: &Env, pool: &Address, balance: &PoolBalance) {
     let key = BackstopDataKey::PoolBalance(pool.clone());
     e.storage()
         .persistent()
-        .set::<BackstopDataKey, PoolBalance>(&key, &balance);
+        .set::<BackstopDataKey, PoolBalance>(&key, balance);
 }
 
 /********** Distribution / Reward Zone **********/
@@ -243,7 +243,7 @@ pub fn get_reward_zone(e: &Env) -> Vec<Address> {
     e.storage()
         .persistent()
         .get::<BackstopDataKey, Vec<Address>>(&BackstopDataKey::RewardZone)
-        .unwrap_or(vec![&e])
+        .unwrap_or(vec![e])
 }
 
 /// Set the reward zone

@@ -12,7 +12,7 @@ use soroban_sdk::{map, panic_with_error, unwrap::UnwrapOptimized, Address, Env};
 use super::{AuctionData, AuctionType};
 
 pub fn create_bad_debt_auction_data(e: &Env, backstop: &Address) -> AuctionData {
-    if storage::has_auction(&e, &(AuctionType::BadDebtAuction as u32), backstop) {
+    if storage::has_auction(e, &(AuctionType::BadDebtAuction as u32), backstop) {
         panic_with_error!(e, PoolError::AuctionInProgress);
     }
 
@@ -38,11 +38,11 @@ pub fn create_bad_debt_auction_data(e: &Env, backstop: &Address) -> AuctionData 
             auction_data.bid.set(res_asset_address, liability_balance);
         }
     }
-    if auction_data.bid.len() == 0 || debt_value == 0 {
+    if auction_data.bid.is_empty()  || debt_value == 0 {
         panic_with_error!(e, PoolError::BadRequest);
     }
 
-    let backstop_client = BackstopClient::new(e, &backstop);
+    let backstop_client = BackstopClient::new(e, backstop);
     let backstop_token = backstop_client.backstop_token();
     // TODO: This won't have an oracle entry. Once an LP implementation exists, unwrap base from LP
     let backstop_token_to_base = pool.load_price(e, &backstop_token);
@@ -59,6 +59,7 @@ pub fn create_bad_debt_auction_data(e: &Env, backstop: &Address) -> AuctionData 
     auction_data
 }
 
+#[allow(clippy::inconsistent_digit_grouping)]
 pub fn fill_bad_debt_auction(
     e: &Env,
     pool: &mut Pool,
@@ -72,10 +73,10 @@ pub fn fill_bad_debt_auction(
     backstop_state.rm_positions(e, pool, map![e], auction_data.bid.clone());
     filler_state.add_positions(e, pool, map![e], auction_data.bid.clone());
 
-    let backstop_client = BackstopClient::new(&e, &backstop_address);
+    let backstop_client = BackstopClient::new(e, &backstop_address);
     let backstop_token_id = backstop_client.backstop_token();
     let lot_amount = auction_data.lot.get(backstop_token_id).unwrap_optimized();
-    let backstop_client = BackstopClient::new(&e, &backstop_address);
+    let backstop_client = BackstopClient::new(e, &backstop_address);
     backstop_client.draw(
         &e.current_contract_address(),
         &lot_amount,
@@ -83,7 +84,7 @@ pub fn fill_bad_debt_auction(
     );
 
     // If the backstop still has liabilities and less than 10% of the backstop threshold burn bad debt
-    if backstop_state.positions.liabilities.len() > 0
+    if !backstop_state.positions.liabilities.is_empty() 
             //TODO: this token check needs to check k-value of pool balance LP tokens
         && backstop_client.pool_balance(&e.current_contract_address()).tokens < 20_000_000_0000
     {

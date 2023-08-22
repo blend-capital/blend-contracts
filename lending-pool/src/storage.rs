@@ -331,7 +331,7 @@ pub fn set_res_config(e: &Env, asset: &Address, config: &ReserveConfig) {
 
     e.storage()
         .persistent()
-        .set::<PoolDataKey, ReserveConfig>(&key, &config);
+        .set::<PoolDataKey, ReserveConfig>(&key, config);
 }
 
 /// Checks if a reserve exists for an asset
@@ -414,7 +414,7 @@ pub fn push_res_list(e: &Env, asset: &Address) -> u32 {
 /// ### Arguments
 /// * `res_token_index` - The d/bToken index for the reserve
 pub fn get_res_emis_config(e: &Env, res_token_index: &u32) -> Option<ReserveEmissionsConfig> {
-    let key = PoolDataKey::EmisConfig(res_token_index.clone());
+    let key = PoolDataKey::EmisConfig(*res_token_index);
     e.storage().persistent().bump(&key, SHARED_BUMP_AMOUNT);
     e.storage()
         .persistent()
@@ -431,7 +431,7 @@ pub fn set_res_emis_config(
     res_token_index: &u32,
     res_emis_config: &ReserveEmissionsConfig,
 ) {
-    let key = PoolDataKey::EmisConfig(res_token_index.clone());
+    let key = PoolDataKey::EmisConfig(*res_token_index);
     e.storage()
         .persistent()
         .set::<PoolDataKey, ReserveEmissionsConfig>(&key, res_emis_config);
@@ -442,7 +442,7 @@ pub fn set_res_emis_config(
 /// ### Arguments
 /// * `res_token_index` - The d/bToken index for the reserve
 pub fn get_res_emis_data(e: &Env, res_token_index: &u32) -> Option<ReserveEmissionsData> {
-    let key = PoolDataKey::EmisData(res_token_index.clone());
+    let key = PoolDataKey::EmisData(*res_token_index);
     e.storage().persistent().bump(&key, SHARED_BUMP_AMOUNT);
     e.storage()
         .persistent()
@@ -454,7 +454,7 @@ pub fn get_res_emis_data(e: &Env, res_token_index: &u32) -> Option<ReserveEmissi
 /// ### Arguments
 /// * `res_token_index` - The d/bToken index for the reserve
 pub fn has_res_emis_data(e: &Env, res_token_index: &u32) -> bool {
-    let key = PoolDataKey::EmisData(res_token_index.clone());
+    let key = PoolDataKey::EmisData(*res_token_index);
     e.storage().persistent().has(&key)
 }
 
@@ -464,7 +464,7 @@ pub fn has_res_emis_data(e: &Env, res_token_index: &u32) -> bool {
 /// * `res_token_index` - The d/bToken index for the reserve
 /// * `res_emis_data` - The new emission data for the reserve token
 pub fn set_res_emis_data(e: &Env, res_token_index: &u32, res_emis_data: &ReserveEmissionsData) {
-    let key = PoolDataKey::EmisData(res_token_index.clone());
+    let key = PoolDataKey::EmisData(*res_token_index);
     e.storage()
         .persistent()
         .set::<PoolDataKey, ReserveEmissionsData>(&key, res_emis_data);
@@ -484,7 +484,7 @@ pub fn get_user_emissions(
 ) -> Option<UserEmissionData> {
     let key = PoolDataKey::UserEmis(UserReserveKey {
         user: user.clone(),
-        reserve_id: res_token_index.clone(),
+        reserve_id: *res_token_index,
     });
     e.storage().persistent().bump(&key, USER_BUMP_AMOUNT);
     e.storage()
@@ -501,7 +501,7 @@ pub fn get_user_emissions(
 pub fn set_user_emissions(e: &Env, user: &Address, res_token_index: &u32, data: &UserEmissionData) {
     let key = PoolDataKey::UserEmis(UserReserveKey {
         user: user.clone(),
-        reserve_id: res_token_index.clone(),
+        reserve_id: *res_token_index,
     });
     e.storage()
         .persistent()
@@ -563,7 +563,7 @@ pub fn set_pool_emissions_expiration(e: &Env, expiration: &u64) {
 pub fn get_auction(e: &Env, auction_type: &u32, user: &Address) -> AuctionData {
     let key = PoolDataKey::Auction(AuctionKey {
         user: user.clone(),
-        auct_type: auction_type.clone(),
+        auct_type: *auction_type,
     });
     e.storage()
         .temporary()
@@ -579,7 +579,7 @@ pub fn get_auction(e: &Env, auction_type: &u32, user: &Address) -> AuctionData {
 pub fn has_auction(e: &Env, auction_type: &u32, user: &Address) -> bool {
     let key = PoolDataKey::Auction(AuctionKey {
         user: user.clone(),
-        auct_type: auction_type.clone(),
+        auct_type: *auction_type,
     });
     e.storage().temporary().has(&key)
 }
@@ -593,7 +593,7 @@ pub fn has_auction(e: &Env, auction_type: &u32, user: &Address) -> bool {
 pub fn set_auction(e: &Env, auction_type: &u32, user: &Address, auction_data: &AuctionData) {
     let key = PoolDataKey::Auction(AuctionKey {
         user: user.clone(),
-        auct_type: auction_type.clone(),
+        auct_type: *auction_type,
     });
     e.storage()
         .temporary()
@@ -609,7 +609,7 @@ pub fn set_auction(e: &Env, auction_type: &u32, user: &Address, auction_data: &A
 pub fn del_auction(e: &Env, auction_type: &u32, user: &Address) {
     let key = PoolDataKey::Auction(AuctionKey {
         user: user.clone(),
-        auct_type: auction_type.clone(),
+        auct_type: *auction_type,
     });
     e.storage().temporary().remove(&key);
 }

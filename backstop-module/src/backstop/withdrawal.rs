@@ -18,7 +18,7 @@ pub fn execute_queue_withdrawal(
     user_balance.queue_shares_for_withdrawal(e, amount);
     pool_balance.queue_for_withdraw(amount);
 
-    storage::set_user_balance(e, pool_address, &from, &user_balance);
+    storage::set_user_balance(e, pool_address, from, &user_balance);
     storage::set_pool_balance(e, pool_address, &pool_balance);
 
     user_balance.q4w.last().unwrap_optimized()
@@ -34,7 +34,7 @@ pub fn execute_dequeue_withdrawal(e: &Env, from: &Address, pool_address: &Addres
     user_balance.dequeue_shares_for_withdrawal(e, amount, false);
     pool_balance.dequeue_q4w(e, amount);
 
-    storage::set_user_balance(e, pool_address, &from, &user_balance);
+    storage::set_user_balance(e, pool_address, from, &user_balance);
     storage::set_pool_balance(e, pool_address, &pool_balance);
 }
 
@@ -52,11 +52,11 @@ pub fn execute_withdraw(e: &Env, from: &Address, pool_address: &Address, amount:
     let to_return = pool_balance.convert_to_tokens(amount);
     pool_balance.withdraw(e, to_return, amount);
 
-    storage::set_user_balance(e, pool_address, &from, &user_balance);
+    storage::set_user_balance(e, pool_address, from, &user_balance);
     storage::set_pool_balance(e, pool_address, &pool_balance);
 
     let backstop_token_client = TokenClient::new(e, &storage::get_backstop_token(e));
-    backstop_token_client.transfer(&e.current_contract_address(), &from, &to_return);
+    backstop_token_client.transfer(&e.current_contract_address(), from, &to_return);
 
     to_return
 }

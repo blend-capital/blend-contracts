@@ -14,7 +14,7 @@ pub fn execute_draw(e: &Env, pool_address: &Address, amount: i128, to: &Address)
     storage::set_pool_balance(e, pool_address, &pool_balance);
 
     let backstop_token = TokenClient::new(e, &storage::get_backstop_token(e));
-    backstop_token.transfer(&e.current_contract_address(), &to, &amount);
+    backstop_token.transfer(&e.current_contract_address(), to, &amount);
 }
 
 /// Perform a donation to a pool's backstop
@@ -22,7 +22,7 @@ pub fn execute_donate(e: &Env, from: &Address, pool_address: &Address, amount: i
     require_nonnegative(e, amount);
 
     let backstop_token = TokenClient::new(e, &storage::get_backstop_token(e));
-    backstop_token.transfer(&from, &e.current_contract_address(), &amount);
+    backstop_token.transfer(from, &e.current_contract_address(), &amount);
 
     let mut pool_balance = storage::get_pool_balance(e, pool_address);
     pool_balance.deposit(amount, 0);

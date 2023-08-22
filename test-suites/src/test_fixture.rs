@@ -130,7 +130,7 @@ impl TestFixture<'_> {
             max_entry_expiration: 2000000,
         });
 
-        return TestFixture {
+        TestFixture {
             env: e,
             bombadil,
             emitter: emitter_client,
@@ -145,7 +145,7 @@ impl TestFixture<'_> {
                 xlm_client,
                 backstop_token_client,
             ],
-        };
+        }
     }
 
     pub fn create_pool(&mut self, name: Symbol, backstop_take_rate: u64) {

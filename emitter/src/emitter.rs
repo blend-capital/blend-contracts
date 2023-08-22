@@ -16,7 +16,7 @@ pub fn execute_distribute(e: &Env, backstop: &Address) -> i128 {
 
     let blend_id = storage::get_blend_id(e);
     let blend_client = TokenClient::new(e, &blend_id);
-    blend_client.mint(&backstop, &distribution_amount);
+    blend_client.mint(backstop, &distribution_amount);
 
     distribution_amount
 }
@@ -24,8 +24,8 @@ pub fn execute_distribute(e: &Env, backstop: &Address) -> i128 {
 /// Perform a backstop swap
 pub fn execute_swap_backstop(e: &Env, new_backstop_id: Address) {
     let backstop = storage::get_backstop(e);
-    let backstop_token = BackstopClient::new(&e, &backstop).backstop_token();
-    let backstop_token_client = TokenClient::new(&e, &backstop_token);
+    let backstop_token = BackstopClient::new(e, &backstop).backstop_token();
+    let backstop_token_client = TokenClient::new(e, &backstop_token);
 
     let backstop_balance = backstop_token_client.balance(&backstop);
     let new_backstop_balance = backstop_token_client.balance(&new_backstop_id);
@@ -43,9 +43,9 @@ pub fn execute_drop(e: &Env) -> Map<Address, i128> {
         panic_with_error!(e, EmitterError::BadDrop);
     }
     let backstop = storage::get_backstop(e);
-    let backstop_client = BackstopClient::new(&e, &backstop);
+    let backstop_client = BackstopClient::new(e, &backstop);
     let backstop_token = backstop_client.backstop_token();
-    let backstop_token_client = TokenClient::new(&e, &backstop_token);
+    let backstop_token_client = TokenClient::new(e, &backstop_token);
 
     let drop_list: Map<Address, i128> = backstop_client.drop_list();
     let mut drop_amount = 0;
@@ -60,7 +60,7 @@ pub fn execute_drop(e: &Env) -> Map<Address, i128> {
         backstop_token_client.mint(&addr, &amt);
     }
     storage::set_drop_status(e, true);
-    return drop_list;
+    drop_list
 }
 
 #[cfg(test)]

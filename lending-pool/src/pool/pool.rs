@@ -23,10 +23,10 @@ impl Pool {
         let pool_config = storage::get_pool_config(e);
         Pool {
             config: pool_config,
-            reserves: map![&e],
-            reserves_to_store: vec![&e],
+            reserves: map![e],
+            reserves_to_store: vec![e],
             price_decimals: None,
-            prices: map![&e],
+            prices: map![e],
         }
     }
 
@@ -39,7 +39,7 @@ impl Pool {
         if let Some(reserve) = self.reserves.get(asset.clone()) {
             return reserve;
         }
-        return Reserve::load(e, &self.config, asset);
+        Reserve::load(e, &self.config, asset)
     }
 
     /// Cache the updated reserve in the pool.
@@ -67,12 +67,10 @@ impl Pool {
     /// ### Arguments
     /// * `action_type` - The type of action being performed
     pub fn require_action_allowed(&self, e: &Env, action_type: u32) {
-        // disable borrowing for any non-active pool
-        if self.config.status > 0 && action_type == 4 {
-            panic_with_error!(e, PoolError::InvalidPoolStatus);
-        }
-        // disable supplying for any frozen pool
-        else if self.config.status > 1 && (action_type == 2 || action_type == 0) {
+        // disable borrowing for any non-active pool and disable supplying for any frozen pool
+        if (self.config.status > 0 && action_type == 4)
+            || (self.config.status > 1 && (action_type == 2 || action_type == 0))
+        {
             panic_with_error!(e, PoolError::InvalidPoolStatus);
         }
     }

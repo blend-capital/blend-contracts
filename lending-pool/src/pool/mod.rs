@@ -2,7 +2,7 @@ mod actions;
 pub use actions::Request;
 
 mod bad_debt;
-pub use bad_debt::manage_bad_debt;
+pub use bad_debt::{burn_backstop_bad_debt, transfer_bad_debt_to_backstop};
 
 mod config;
 pub use config::{
@@ -19,6 +19,7 @@ mod submit;
 
 pub use submit::execute_submit;
 
+#[allow(clippy::module_inception)]
 mod pool;
 pub use pool::Pool;
 

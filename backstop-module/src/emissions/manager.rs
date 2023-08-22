@@ -13,7 +13,7 @@ use super::update_emission_data;
 
 /// Add a pool to the reward zone. If the reward zone is full, attempt to swap it with the pool to remove.
 pub fn add_to_reward_zone(e: &Env, to_add: Address, to_remove: Address) {
-    let mut reward_zone = storage::get_reward_zone(&e);
+    let mut reward_zone = storage::get_reward_zone(e);
     let max_rz_len = 10 + (i128(e.ledger().timestamp() - BACKSTOP_EPOCH) >> 23); // bit-shift 23 is ~97 day interval
 
     // ensure an entity in the reward zone cannot be included twice
@@ -28,15 +28,15 @@ pub fn add_to_reward_zone(e: &Env, to_add: Address, to_remove: Address) {
     } else {
         // don't allow rz modifications within 48 hours of the start of an emission cycle
         // if pools don't adopt their emissions within this time frame and get swapped, the tokens will be lost
-        let next_distribution = storage::get_next_emission_cycle(&e);
+        let next_distribution = storage::get_next_emission_cycle(e);
         if next_distribution != 0 && e.ledger().timestamp() < next_distribution - 5 * 24 * 60 * 60 {
             panic_with_error!(e, BackstopError::BadRequest);
         }
 
         // attempt to swap the "to_remove"
         // TODO: Once there is a defined limit of "backstop minimum", ensure it is reached!
-        if storage::get_pool_balance(&e, &to_add).tokens
-            <= storage::get_pool_balance(&e, &to_remove).tokens
+        if storage::get_pool_balance(e, &to_add).tokens
+            <= storage::get_pool_balance(e, &to_remove).tokens
         {
             panic_with_error!(e, BackstopError::InvalidRewardZoneEntry);
         }
@@ -46,27 +46,28 @@ pub fn add_to_reward_zone(e: &Env, to_add: Address, to_remove: Address) {
         match to_remove_index {
             Some(idx) => {
                 reward_zone.set(idx, to_add.clone());
-                storage::set_pool_eps(&e, &to_remove, &0);
+                storage::set_pool_eps(e, &to_remove, &0);
                 // emissions data is not updated. Emissions will be set on the next emission cycle
             }
             None => panic_with_error!(e, BackstopError::InvalidRewardZoneEntry),
         }
     }
 
-    storage::set_reward_zone(&e, &reward_zone);
+    storage::set_reward_zone(e, &reward_zone);
 }
 
 /// Update the backstop for the next emission cycle from the Emitter
+#[allow(clippy::zero_prefixed_literal)]
 pub fn update_emission_cycle(e: &Env) {
-    if e.ledger().timestamp() < storage::get_next_emission_cycle(&e) {
+    if e.ledger().timestamp() < storage::get_next_emission_cycle(e) {
         panic_with_error!(e, BackstopError::BadRequest);
     }
     let next_distribution = e.ledger().timestamp() + 7 * 24 * 60 * 60;
-    storage::set_next_emission_cycle(&e, &next_distribution);
+    storage::set_next_emission_cycle(e, &next_distribution);
 
-    let reward_zone = storage::get_reward_zone(&e);
+    let reward_zone = storage::get_reward_zone(e);
     let rz_len = reward_zone.len();
-    let mut rz_tokens: Vec<i128> = vec![&e];
+    let mut rz_tokens: Vec<i128> = vec![e];
 
     // TODO: Potential to assume optimization of backstop token balances ~= RZ tokens
     //       However, linear iteration over the RZ will still occur
@@ -74,7 +75,7 @@ pub fn update_emission_cycle(e: &Env) {
     let mut total_tokens: i128 = 0;
     for rz_pool_index in 0..rz_len {
         let rz_pool = reward_zone.get(rz_pool_index).unwrap_optimized();
-        let pool_tokens = storage::get_pool_balance(&e, &rz_pool).tokens;
+        let pool_tokens = storage::get_pool_balance(e, &rz_pool).tokens;
         rz_tokens.push_back(pool_tokens);
         total_tokens += i128(pool_tokens);
     }
@@ -101,7 +102,7 @@ pub fn update_emission_cycle(e: &Env) {
             &(current_allowance + new_pool_emissions),
             &(e.ledger().sequence() + 17_280 * 90), // ~90 days
         );
-        storage::set_pool_eps(&e, &rz_pool, &pool_eps);
+        storage::set_pool_eps(e, &rz_pool, &pool_eps);
 
         // distribute backstop depositor emissions
         let pool_backstop_eps = share
@@ -125,7 +126,7 @@ pub fn set_backstop_emission_config(e: &Env, pool_id: &Address, eps: u64, expira
         if emission_data.last_time != e.ledger().timestamp() {
             // force the emission data to be updated to the current timestamp
             emission_data.last_time = e.ledger().timestamp();
-            storage::set_backstop_emis_data(e, &pool_id, &emission_data);
+            storage::set_backstop_emis_data(e, pool_id, &emission_data);
         }
     } else {
         // first time the pool's backstop is receiving emissions - ensure data is written

@@ -21,7 +21,7 @@ pub fn update_emissions(
     to_claim: bool,
 ) -> i128 {
     if let Some(emis_data) = update_emission_data(e, pool_id, pool_balance) {
-        return update_user_emissions(e, &pool_id, &user_id, &emis_data, user_balance, to_claim);
+        return update_user_emissions(e, pool_id, user_id, &emis_data, user_balance, to_claim);
     }
     // no emissions data for the reserve exists - nothing to update
     0
@@ -33,11 +33,11 @@ pub fn update_emission_data(
     pool_id: &Address,
     pool_balance: &PoolBalance,
 ) -> Option<BackstopEmissionsData> {
-    let emis_config = match storage::get_backstop_emis_config(e, &pool_id) {
+    let emis_config = match storage::get_backstop_emis_config(e, pool_id) {
         Some(res) => res,
         None => return None, // no emission exist, no update is required
     };
-    let emis_data = storage::get_backstop_emis_data(e, &pool_id).unwrap_optimized(); // exists if config is written to
+    let emis_data = storage::get_backstop_emis_data(e, pool_id).unwrap_optimized(); // exists if config is written to
 
     if emis_data.last_time >= emis_config.expiration
         || e.ledger().timestamp() == emis_data.last_time
@@ -61,7 +61,7 @@ pub fn update_emission_data(
         index: additional_idx + emis_data.index,
         last_time: e.ledger().timestamp(),
     };
-    storage::set_backstop_emis_data(e, &pool_id, &new_data);
+    storage::set_backstop_emis_data(e, pool_id, &new_data);
     Some(new_data)
 }
 
@@ -73,7 +73,7 @@ fn update_user_emissions(
     user_balance: &UserBalance,
     to_claim: bool,
 ) -> i128 {
-    if let Some(user_data) = storage::get_user_emis_data(e, &pool, &user) {
+    if let Some(user_data) = storage::get_user_emis_data(e, pool, user) {
         if user_data.index != emis_data.index || to_claim {
             let mut accrual = user_data.accrued;
             if user_balance.shares != 0 {
@@ -83,19 +83,19 @@ fn update_user_emissions(
                     .unwrap_optimized();
                 accrual += to_accrue;
             }
-            return set_user_emissions(e, &pool, &user, emis_data.index, accrual, to_claim);
+            return set_user_emissions(e, pool, user, emis_data.index, accrual, to_claim);
         }
-        return 0;
+        0
     } else if user_balance.shares == 0 {
         // first time the user registered an action with the asset since emissions were added
-        return set_user_emissions(e, &pool, &user, emis_data.index, 0, to_claim);
+        return set_user_emissions(e, pool, user, emis_data.index, 0, to_claim);
     } else {
         // user had tokens before emissions began, they are due any historical emissions
         let to_accrue = user_balance
             .shares
             .fixed_mul_floor(emis_data.index, SCALAR_7)
             .unwrap_optimized();
-        return set_user_emissions(e, &pool, &user, emis_data.index, to_accrue, to_claim);
+        return set_user_emissions(e, pool, user, emis_data.index, to_accrue, to_claim);
     }
 }
 
@@ -109,10 +109,10 @@ fn set_user_emissions(
 ) -> i128 {
     if to_claim {
         storage::set_user_emis_data(e, pool_id, user, &UserEmissionData { index, accrued: 0 });
-        return accrued;
+        accrued
     } else {
         storage::set_user_emis_data(e, pool_id, user, &UserEmissionData { index, accrued });
-        return 0;
+        0
     }
 }
 

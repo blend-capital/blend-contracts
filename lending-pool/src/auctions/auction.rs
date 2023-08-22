@@ -64,7 +64,7 @@ pub fn create(e: &Env, auction_type: u32) -> AuctionData {
 
     storage::set_auction(e, &auction_type, &backstop, &auction_data);
 
-    return auction_data;
+    auction_data
 }
 
 /// Create a liquidation auction. Stores the resulting auction to the ledger to begin on the next block
@@ -81,13 +81,13 @@ pub fn create_liquidation(e: &Env, user: &Address, percent_liquidated: u64) -> A
     let auction_data = create_user_liq_auction_data(e, user, percent_liquidated);
 
     storage::set_auction(
-        &e,
+        e,
         &(AuctionType::UserLiquidation as u32),
-        &user,
+        user,
         &auction_data,
     );
 
-    return auction_data;
+    auction_data
 }
 
 /// Delete a liquidation auction if the user being liquidated is no longer eligible for liquidation.
@@ -98,7 +98,7 @@ pub fn create_liquidation(e: &Env, user: &Address, percent_liquidated: u64) -> A
 /// ### Panics
 /// If no auction exists for the user or if the user is still eligible for liquidation.
 pub fn delete_liquidation(e: &Env, user: &Address) {
-    if !storage::has_auction(e, &(AuctionType::UserLiquidation as u32), &user) {
+    if !storage::has_auction(e, &(AuctionType::UserLiquidation as u32), user) {
         panic_with_error!(e, PoolError::BadRequest);
     }
 
@@ -106,7 +106,7 @@ pub fn delete_liquidation(e: &Env, user: &Address) {
     let positions = storage::get_user_positions(e, user);
     let position_data = PositionData::calculate_from_positions(e, &mut pool, &positions);
     position_data.require_healthy(e);
-    storage::del_auction(e, &(AuctionType::UserLiquidation as u32), &user);
+    storage::del_auction(e, &(AuctionType::UserLiquidation as u32), user);
 }
 
 /// Fills the auction from the invoker. The filler is expected to maintain allowances to both
@@ -167,19 +167,20 @@ pub fn fill(
 /// Returns the (Scaled Auction, Remaining Auction) such that:
 /// - Scaled Auction is the auction data scaled
 /// - Remaining Auction is the leftover auction data that will be stored in the ledger, or deleted if None
+#[allow(clippy::zero_prefixed_literal)]
 fn scale_auction(
     e: &Env,
     auction_data: &AuctionData,
     percent_filled: u64,
 ) -> (AuctionData, Option<AuctionData>) {
     let mut to_fill_auction = AuctionData {
-        bid: map![&e],
-        lot: map![&e],
+        bid: map![e],
+        lot: map![e],
         block: auction_data.block,
     };
     let mut remaining_auction = AuctionData {
-        bid: map![&e],
-        lot: map![&e],
+        bid: map![e],
+        lot: map![e],
         block: auction_data.block,
     };
 

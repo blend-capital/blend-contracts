@@ -23,6 +23,7 @@ pub struct PoolBalance {
 }
 
 impl PoolBalance {
+    #[allow(clippy::should_implement_trait)]
     pub fn default() -> PoolBalance {
         PoolBalance {
             shares: 0,

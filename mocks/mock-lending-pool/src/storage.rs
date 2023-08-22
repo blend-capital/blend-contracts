@@ -18,5 +18,5 @@ pub fn write_config(e: &Env, user: &Address, config: &i128) {
     let key = MockPoolDataKey::Config(user.clone());
     e.storage()
         .persistent()
-        .set::<MockPoolDataKey, i128>(&key, &config);
+        .set::<MockPoolDataKey, i128>(&key, config);
 }

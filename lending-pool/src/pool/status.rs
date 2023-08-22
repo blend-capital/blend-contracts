@@ -3,6 +3,8 @@ use fixed_point_math::FixedPoint;
 use soroban_sdk::{panic_with_error, unwrap::UnwrapOptimized, Env};
 
 /// Update the pool status based on the backstop module
+#[allow(clippy::zero_prefixed_literal)]
+#[allow(clippy::inconsistent_digit_grouping)]
 pub fn execute_update_pool_status(e: &Env) -> u32 {
     let mut pool_config = storage::get_pool_config(e);
     if pool_config.status > 2 {
@@ -21,6 +23,7 @@ pub fn execute_update_pool_status(e: &Env) -> u32 {
 
     if q4w_pct >= 0_5000000 {
         pool_config.status = 2;
+        //TODO: this token check needs to check for k-value of over 200,000 for pool balance LP tokens
     } else if q4w_pct >= 0_2500000 || pool_balance.tokens < 1_000_000_0000000 {
         pool_config.status = 1;
     } else {
@@ -32,6 +35,7 @@ pub fn execute_update_pool_status(e: &Env) -> u32 {
 }
 
 /// Update the pool status
+#[allow(clippy::inconsistent_digit_grouping)]
 pub fn set_pool_status(e: &Env, pool_status: u32) {
     if pool_status == 0 {
         // check the pool has met minimum backstop deposits before being turned on
@@ -39,7 +43,7 @@ pub fn set_pool_status(e: &Env, pool_status: u32) {
         let backstop_client = BackstopClient::new(e, &backstop_id);
 
         let pool_balance = backstop_client.pool_balance(&e.current_contract_address());
-        if pool_balance.tokens < 1_000_000_0000000 {
+        if pool_balance.tokens < 200_000_000_0000 {
             panic_with_error!(e, PoolError::InvalidPoolStatus);
         }
     }
@@ -120,8 +124,8 @@ mod tests {
             &backstop_token_id,
             &Address::random(&e),
         );
-        backstop_token_client.mint(&samwise, &999_999_9999999);
-        backstop_client.deposit(&samwise, &pool_id, &999_999_9999999);
+        backstop_token_client.mint(&samwise, &199_999_9999999);
+        backstop_client.deposit(&samwise, &pool_id, &199_999_9999999);
 
         let pool_config = PoolConfig {
             oracle: oracle_id,

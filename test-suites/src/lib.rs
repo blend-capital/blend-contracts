@@ -1,3 +1,4 @@
+#![allow(clippy::all)]
 pub mod backstop;
 pub mod emitter;
 pub mod mock_oracle;

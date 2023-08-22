@@ -33,11 +33,11 @@ pub fn execute_claim(e: &Env, from: &Address, reserve_token_ids: &Vec<u32>, to: 
                     _ => panic_with_error!(e, PoolError::BadRequest),
                 };
                 to_claim += update_emissions(
-                    &e,
+                    e,
                     reserve_token_id,
                     supply,
                     10i128.pow(reserve_config.decimals),
-                    &from,
+                    from,
                     user_balance,
                     true,
                 );
@@ -54,7 +54,7 @@ pub fn execute_claim(e: &Env, from: &Address, reserve_token_ids: &Vec<u32>, to: 
         TokenClient::new(e, &blnd_token).transfer_from(
             &e.current_contract_address(),
             &backstop,
-            &to,
+            to,
             &to_claim,
         );
     }
@@ -158,7 +158,7 @@ fn update_user_emissions(
     balance: i128,
     claim: bool,
 ) -> i128 {
-    if let Some(user_data) = storage::get_user_emissions(e, &user, &res_token_id) {
+    if let Some(user_data) = storage::get_user_emissions(e, user, &res_token_id) {
         if user_data.index != res_emis_data.index || claim {
             let mut accrual = user_data.accrued;
             if balance != 0 {
@@ -167,25 +167,18 @@ fn update_user_emissions(
                     .unwrap_optimized();
                 accrual += to_accrue;
             }
-            return set_user_emissions(e, &user, res_token_id, res_emis_data.index, accrual, claim);
+            return set_user_emissions(e, user, res_token_id, res_emis_data.index, accrual, claim);
         }
-        return 0;
+        0
     } else if balance == 0 {
         // first time the user registered an action with the asset since emissions were added
-        return set_user_emissions(e, &user, res_token_id, res_emis_data.index, 0, claim);
+        return set_user_emissions(e, user, res_token_id, res_emis_data.index, 0, claim);
     } else {
         // user had tokens before emissions began, they are due any historical emissions
         let to_accrue = balance
             .fixed_mul_floor(res_emis_data.index, supply_scalar)
             .unwrap_optimized();
-        return set_user_emissions(
-            e,
-            &user,
-            res_token_id,
-            res_emis_data.index,
-            to_accrue,
-            claim,
-        );
+        return set_user_emissions(e, user, res_token_id, res_emis_data.index, to_accrue, claim);
     }
 }
 
@@ -200,19 +193,14 @@ fn set_user_emissions(
     if claim {
         storage::set_user_emissions(
             e,
-            &user,
+            user,
             &res_token_id,
             &UserEmissionData { index, accrued: 0 },
         );
-        return accrued;
+        accrued
     } else {
-        storage::set_user_emissions(
-            e,
-            &user,
-            &res_token_id,
-            &UserEmissionData { index, accrued },
-        );
-        return 0;
+        storage::set_user_emissions(e, user, &res_token_id, &UserEmissionData { index, accrued });
+        0
     }
 }
 

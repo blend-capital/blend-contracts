@@ -18,6 +18,7 @@ use crate::{
 ///
 /// ### Returns
 /// * (i128, i128) - (accrual amount scaled to 9 decimal places, new interest rate modifier scaled to 9 decimal places)
+#[allow(clippy::zero_prefixed_literal)]
 pub fn calc_accrual(
     e: &Env,
     config: &ReserveConfig,

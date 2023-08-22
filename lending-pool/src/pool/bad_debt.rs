@@ -16,6 +16,11 @@ use super::{user::User, Pool};
 /// ### Panics
 /// If the user does not have bad debt
 pub fn transfer_bad_debt_to_backstop(e: &Env, user: &Address) {
+    let backstop_address = storage::get_backstop(e);
+    if user.clone() == backstop_address {
+        panic_with_error!(e, PoolError::BadRequest);
+    }
+
     let user_state = User::load(e, user);
     if !user_state.positions.collateral.is_empty() || user_state.positions.liabilities.is_empty() {
         panic_with_error!(e, PoolError::BadRequest);
@@ -25,10 +30,6 @@ pub fn transfer_bad_debt_to_backstop(e: &Env, user: &Address) {
     // transfer all of the user's debt to the backstop
     let mut pool = Pool::load(e);
     let reserve_list = storage::get_res_list(e);
-    let backstop_address = storage::get_backstop(e);
-    if user.clone() == backstop_address {
-        panic_with_error!(e, PoolError::BadRequest);
-    }
     let backstop_state = User::load(e, &backstop_address);
     let mut new_user_state = user_state.clone();
     let mut new_backstop_state = backstop_state.clone();
@@ -244,6 +245,120 @@ mod tests {
 
             e.budget().reset_unlimited();
             transfer_bad_debt_to_backstop(&e, &samwise);
+        });
+    }
+
+    #[test]
+    #[should_panic]
+    // #[should_panic(expected = "Status(ContractError(2))")]
+    fn test_transfer_bad_debt_with_backstop_panics() {
+        let e = Env::default();
+        e.mock_all_auths();
+
+        e.ledger().set(LedgerInfo {
+            timestamp: 600,
+            protocol_version: 1,
+            sequence_number: 123,
+            network_id: Default::default(),
+            base_reserve: 10,
+            min_temp_entry_expiration: 10,
+            min_persistent_entry_expiration: 10,
+            max_entry_expiration: 2000000,
+        });
+
+        let pool = Address::random(&e);
+        let backstop = Address::random(&e);
+
+        let samwise = Address::random(&e);
+        let bombadil = Address::random(&e);
+
+        let (underlying_0, _) = testutils::create_token_contract(&e, &bombadil);
+        let (reserve_config, reserve_data) = testutils::default_reserve_meta(&e);
+        testutils::create_reserve(&e, &pool, &underlying_0, &reserve_config, &reserve_data);
+
+        let (underlying_1, _) = testutils::create_token_contract(&e, &bombadil);
+        let (mut reserve_config, reserve_data) = testutils::default_reserve_meta(&e);
+        reserve_config.index = 1;
+        testutils::create_reserve(&e, &pool, &underlying_1, &reserve_config, &reserve_data);
+
+        let pool_config = PoolConfig {
+            oracle: Address::random(&e),
+            bstop_rate: 0_100_000_000,
+            status: 0,
+        };
+        let user_positions = Positions {
+            liabilities: map![&e, (0, 24_0000000), (1, 25_0000000)],
+            collateral: map![&e],
+            supply: map![&e],
+        };
+        e.as_contract(&pool, || {
+            storage::set_pool_config(&e, &pool_config);
+            storage::set_backstop(&e, &backstop);
+            storage::set_user_positions(&e, &samwise, &user_positions);
+
+            e.budget().reset_unlimited();
+            transfer_bad_debt_to_backstop(&e, &backstop);
+        });
+    }
+
+    #[test]
+    fn test_burn_backstop_bad_debt() {
+        let e = Env::default();
+        e.mock_all_auths();
+
+        e.ledger().set(LedgerInfo {
+            timestamp: 1500000000,
+            protocol_version: 1,
+            sequence_number: 123,
+            network_id: Default::default(),
+            base_reserve: 10,
+            min_temp_entry_expiration: 10,
+            min_persistent_entry_expiration: 10,
+            max_entry_expiration: 2000000,
+        });
+
+        let bombadil = Address::random(&e);
+        let pool = Address::random(&e);
+        let backstop = Address::random(&e);
+
+        let (_, blnd_client) = testutils::create_blnd_token(&e, &pool, &bombadil);
+
+        let (underlying_0, _) = testutils::create_token_contract(&e, &bombadil);
+        let (reserve_config, mut reserve_data) = testutils::default_reserve_meta(&e);
+        reserve_data.last_time = 1499995000;
+        testutils::create_reserve(&e, &pool, &underlying_0, &reserve_config, &reserve_data);
+
+        let (underlying_1, _) = testutils::create_token_contract(&e, &bombadil);
+        let (mut reserve_config, mut reserve_data) = testutils::default_reserve_meta(&e);
+        reserve_config.index = 1;
+        reserve_data.last_time = 1499995000;
+        testutils::create_reserve(&e, &pool, &underlying_1, &reserve_config, &reserve_data);
+
+        blnd_client.mint(&backstop, &123);
+
+        let pool_config = PoolConfig {
+            oracle: Address::random(&e),
+            bstop_rate: 0_100_000_000,
+            status: 0,
+        };
+
+        let backstop_positions = Positions {
+            liabilities: map![&e, (0, 24_0000000), (1, 25_0000000)],
+            collateral: map![&e],
+            supply: map![&e],
+        };
+        e.as_contract(&pool, || {
+            storage::set_pool_config(&e, &pool_config);
+            storage::set_backstop(&e, &backstop);
+            storage::set_user_positions(&e, &backstop, &backstop_positions);
+
+            let mut pool_obj = Pool::load(&e);
+            let mut backstop_user = User::load(&e, &backstop);
+            e.budget().reset_unlimited();
+            burn_backstop_bad_debt(&e, &mut backstop_user, &mut pool_obj);
+
+            assert_eq!(backstop_user.positions.collateral.len(), 0);
+            assert_eq!(backstop_user.positions.liabilities.len(), 0);
         });
     }
 }

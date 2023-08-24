@@ -94,6 +94,7 @@ pub(crate) fn setup_backstop(
     mock_pool_factory_client.set_pool(pool_address);
     BackstopModuleClient::new(e, backstop_id).initialize(
         backstop_token,
+        &Address::random(&e),
         blnd_token,
         &pool_factory,
         &map![e, (pool_address.clone(), 50_000_000 * SCALAR_7)],

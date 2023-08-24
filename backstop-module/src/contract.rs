@@ -16,8 +16,9 @@ pub trait BackstopModuleTrait {
     /// Initialize the backstop module
     ///
     /// ### Arguments
-    /// * `backstop_token` - The backstop token ID - generally an LP token where 1 of the tokens is BLND
+    /// * `backstop_token` - The backstop token ID - an LP token with the pair BLND:USDC
     /// * `blnd_token` - The BLND token ID
+    /// * `usdc_token` - The USDC token ID
     /// * `pool_factory` - The pool factory ID
     /// * `drop_list` - The list of addresses to distribute initial BLND to and the percent of the distribution they should receive
     ///
@@ -27,6 +28,7 @@ pub trait BackstopModuleTrait {
         e: Env,
         backstop_token: Address,
         blnd_token: Address,
+        usdc_token: Address,
         pool_factory: Address,
         drop_list: Map<Address, i128>,
     );
@@ -153,6 +155,28 @@ pub trait BackstopModuleTrait {
     /// ### Errors
     /// If the `pool_address` is not valid
     fn donate(e: Env, from: Address, pool_address: Address, amount: i128);
+
+    /// Sends USDC from "from" to a pools backstop to be queued for donation
+    ///
+    /// NOTE: This is not a deposit, and "from" will permanently lose access to the funds
+    ///
+    /// ### Arguments
+    /// * `from` - tge
+    /// * `pool_address` - The address of the pool
+    /// * `amount` - The amount of BLND to add
+    ///
+    /// ### Errors
+    /// If the `pool_address` is not valid
+    fn donate_usdc(e: Env, from: Address, pool_address: Address, amount: i128);
+
+    /// Consume donated USDC for a pool and mint LP tokens into the pool's backstop
+    ///
+    /// ### Arguments
+    /// * `pool_address` - The address of the pool
+    ///
+    /// ### Errors
+    /// If the `pool_address` is not valid
+    fn gulp_usdc(e: Env, pool_address: Address);
 }
 
 /// @dev
@@ -163,6 +187,7 @@ impl BackstopModuleTrait for BackstopModule {
     fn initialize(
         e: Env,
         backstop_token: Address,
+        usdc_token: Address,
         blnd_token: Address,
         pool_factory: Address,
         drop_list: Map<Address, i128>,
@@ -173,6 +198,7 @@ impl BackstopModuleTrait for BackstopModule {
 
         storage::set_backstop_token(&e, &backstop_token);
         storage::set_blnd_token(&e, &blnd_token);
+        storage::set_usdc_token(&e, &usdc_token);
         storage::set_pool_factory(&e, &pool_factory);
         storage::set_drop_list(&e, &drop_list);
     }
@@ -213,7 +239,7 @@ impl BackstopModuleTrait for BackstopModule {
 
         e.events().publish(
             (Symbol::new(&e, "dequeue_withdrawal"), pool_address, from),
-            (amount),
+            amount,
         );
     }
 
@@ -284,8 +310,6 @@ impl BackstopModuleTrait for BackstopModule {
     /********** Fund Management *********/
 
     fn draw(e: Env, pool_address: Address, amount: i128, to: Address) {
-        // TODO: Unit test this once `env.recorded_top_authorizations()`
-        //       can be executed from WASM, or add `test_auth` file
         storage::bump_instance(&e);
         pool_address.require_auth();
 
@@ -301,7 +325,30 @@ impl BackstopModuleTrait for BackstopModule {
 
         backstop::execute_donate(&e, &from, &pool_address, amount);
         e.events()
-            .publish((Symbol::new(&e, "donate"), pool_address, from), (amount));
+            .publish((Symbol::new(&e, "donate"), pool_address, from), amount);
+    }
+
+    fn donate_usdc(e: Env, from: Address, pool_address: Address, amount: i128) {
+        storage::bump_instance(&e);
+        from.require_auth();
+
+        backstop::execute_donate_usdc(&e, &from, &pool_address, amount);
+        e.events()
+            .publish((Symbol::new(&e, "donate_usdc"), pool_address, from), amount);
+    }
+
+    fn gulp_usdc(e: Env, pool_address: Address) {
+        storage::bump_instance(&e);
+
+        backstop::execute_gulp_usdc(&e, &pool_address);
+        e.events().publish(
+            (
+                Symbol::new(&e, "gulp_usdc"),
+                pool_address,
+                e.call_stack().last_unchecked().0,
+            ),
+            (),
+        );
     }
 }
 

@@ -95,6 +95,7 @@ impl TestFixture<'_> {
         let (backstop_token_id, backstop_token_client) = create_token(&e, &bombadil, 7, "BSTOP");
         backstop_client.initialize(
             &backstop_token_id,
+            &usdc_id,
             &blnd_id,
             &pool_factory_id,
             &Map::new(&e),

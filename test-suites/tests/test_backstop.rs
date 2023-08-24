@@ -3,7 +3,7 @@
 use fixed_point_math::FixedPoint;
 use soroban_sdk::{
     testutils::{Address as _, AuthorizedFunction, AuthorizedInvocation, Events},
-    vec, Address, IntoVal, Map, Symbol,
+    vec, Address, IntoVal, Map, Symbol, Val, Vec,
 };
 use test_suites::{
     assertions::assert_approx_eq_abs,
@@ -23,6 +23,7 @@ fn test_backstop() {
 
     // Verify initialization can't be re-run
     let result = fixture.backstop.try_initialize(
+        &Address::random(&fixture.env),
         &Address::random(&fixture.env),
         &Address::random(&fixture.env),
         &Address::random(&fixture.env),
@@ -84,20 +85,24 @@ fn test_backstop() {
         bstop_bstop_token_balance
     );
     let event = vec![&fixture.env, fixture.env.events().all().last_unchecked()];
+    let event_body: Vec<Val> = vec![
+        &fixture.env,
+        amount.into_val(&fixture.env),
+        result.into_val(&fixture.env),
+    ];
     assert_eq!(
         event,
         vec![
             &fixture.env,
             (
                 fixture.backstop.address.clone(),
-                (Symbol::new(&fixture.env, "deposit"), pool.address.clone()).into_val(&fixture.env),
-                vec![
-                    &fixture.env,
-                    sam.to_val(),
-                    amount.into_val(&fixture.env),
-                    result.into_val(&fixture.env)
-                ]
-                .into_val(&fixture.env)
+                (
+                    Symbol::new(&fixture.env, "deposit"),
+                    pool.address.clone(),
+                    sam.clone()
+                )
+                    .into_val(&fixture.env),
+                event_body.into_val(&fixture.env)
             )
         ]
     );
@@ -152,9 +157,13 @@ fn test_backstop() {
             &fixture.env,
             (
                 fixture.backstop.address.clone(),
-                (Symbol::new(&fixture.env, "donate"), pool.address.clone()).into_val(&fixture.env),
-                vec![&fixture.env, frodo.to_val(), amount.into_val(&fixture.env),]
-                    .into_val(&fixture.env)
+                (
+                    Symbol::new(&fixture.env, "donate"),
+                    pool.address.clone(),
+                    frodo.clone()
+                )
+                    .into_val(&fixture.env),
+                amount.into_val(&fixture.env)
             )
         ]
     );
@@ -199,6 +208,11 @@ fn test_backstop() {
         bstop_bstop_token_balance
     );
     let event = vec![&fixture.env, fixture.env.events().all().last_unchecked()];
+    let event_body: Vec<Val> = vec![
+        &fixture.env,
+        amount.into_val(&fixture.env),
+        result.exp.into_val(&fixture.env),
+    ];
     assert_eq!(
         event,
         vec![
@@ -207,16 +221,11 @@ fn test_backstop() {
                 fixture.backstop.address.clone(),
                 (
                     Symbol::new(&fixture.env, "queue_withdrawal"),
-                    pool.address.clone()
+                    pool.address.clone(),
+                    sam.clone()
                 )
                     .into_val(&fixture.env),
-                vec![
-                    &fixture.env,
-                    sam.to_val(),
-                    amount.into_val(&fixture.env),
-                    result.exp.into_val(&fixture.env)
-                ]
-                .into_val(&fixture.env)
+                event_body.into_val(&fixture.env)
             )
         ]
     );
@@ -264,11 +273,11 @@ fn test_backstop() {
                 fixture.backstop.address.clone(),
                 (
                     Symbol::new(&fixture.env, "dequeue_withdrawal"),
-                    pool.address.clone()
+                    pool.address.clone(),
+                    sam.clone()
                 )
                     .into_val(&fixture.env),
-                vec![&fixture.env, sam.to_val(), amount.into_val(&fixture.env),]
-                    .into_val(&fixture.env)
+                amount.into_val(&fixture.env)
             )
         ]
     );
@@ -355,21 +364,24 @@ fn test_backstop() {
         bstop_bstop_token_balance
     );
     let event = vec![&fixture.env, fixture.env.events().all().last_unchecked()];
+    let event_body: Vec<Val> = vec![
+        &fixture.env,
+        amount.into_val(&fixture.env),
+        result.into_val(&fixture.env),
+    ];
     assert_eq!(
         event,
         vec![
             &fixture.env,
             (
                 fixture.backstop.address.clone(),
-                (Symbol::new(&fixture.env, "withdraw"), pool.address.clone())
+                (
+                    Symbol::new(&fixture.env, "withdraw"),
+                    pool.address.clone(),
+                    sam.clone()
+                )
                     .into_val(&fixture.env),
-                vec![
-                    &fixture.env,
-                    sam.to_val(),
-                    amount.into_val(&fixture.env),
-                    result.into_val(&fixture.env)
-                ]
-                .into_val(&fixture.env)
+                event_body.into_val(&fixture.env)
             )
         ]
     );

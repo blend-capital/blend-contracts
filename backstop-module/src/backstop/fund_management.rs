@@ -1,9 +1,11 @@
 use crate::{
+    constants::SCALAR_7,
     contract::require_nonnegative,
     dependencies::{CometClient, TokenClient},
     storage,
 };
-use soroban_sdk::{Address, Env};
+use fixed_point_math::FixedPoint;
+use soroban_sdk::{unwrap::UnwrapOptimized, Address, Env};
 
 use super::require_is_from_pool_factory;
 
@@ -66,6 +68,30 @@ pub fn execute_gulp_usdc(e: &Env, pool_address: &Address) {
         storage::set_pool_balance(e, pool_address, &pool_balance);
         storage::set_pool_usdc(e, pool_address, &0);
     }
+}
+
+/// Perform an update to the Comet LP token underlying value
+pub fn execute_update_comet_token_value(
+    e: &Env,
+    backstop_token: &Address,
+    blnd_token: &Address,
+    usdc_token: &Address,
+) -> (i128, i128) {
+    let total_comet_shares = CometClient::new(e, backstop_token).get_total_supply();
+    let total_blnd = TokenClient::new(e, &blnd_token).balance(backstop_token);
+    let total_usdc = TokenClient::new(e, &usdc_token).balance(backstop_token);
+
+    // underlying per LP token
+    let blnd_per_tkn = total_blnd
+        .fixed_div_floor(total_comet_shares, SCALAR_7)
+        .unwrap_optimized();
+    let usdc_per_tkn = total_usdc
+        .fixed_div_floor(total_comet_shares, SCALAR_7)
+        .unwrap_optimized();
+
+    let lp_token_val = (blnd_per_tkn, usdc_per_tkn);
+    storage::set_lp_token_val(e, &lp_token_val);
+    lp_token_val
 }
 
 #[cfg(test)]
@@ -329,7 +355,6 @@ mod tests {
         let pool_0_id = Address::random(&e);
         let bombadil = Address::random(&e);
         let samwise = Address::random(&e);
-        // let frodo = Address::random(&e);
 
         let (usdc_token, usdc_token_client) = create_usdc_token(&e, &backstop_id, &bombadil);
         usdc_token_client.mint(&samwise, &100_0000000);
@@ -338,10 +363,11 @@ mod tests {
         blnd_token_client.mint(&samwise, &100_0000000);
 
         let (comet_id, comet_client) =
-            create_comet_lp_pool(&e, &backstop_id, &bombadil, &blnd_token, &usdc_token);
+            create_comet_lp_pool(&e, &bombadil, &blnd_token, &usdc_token);
 
         // initialize pool 0 with funds and a donation
         e.as_contract(&backstop_id, || {
+            storage::set_backstop_token(&e, &comet_id);
             execute_deposit(&e, &bombadil, &pool_0_id, 10_0000000);
             execute_donate_usdc(&e, &samwise, &pool_0_id, 5_0000000);
             usdc_token_client.approve(&e.current_contract_address(), &comet_id, &i128::MAX, &500);
@@ -360,6 +386,39 @@ mod tests {
 
             let comet_balance = comet_client.balance(&backstop_id);
             assert_eq!(comet_balance, 13_9904000);
+        });
+    }
+
+    #[test]
+    fn test_execute_update_comet_token_value() {
+        let e = Env::default();
+        e.mock_all_auths();
+        e.budget().reset_unlimited();
+
+        let backstop_id = Address::random(&e);
+        let bombadil = Address::random(&e);
+        let samwise = Address::random(&e);
+
+        let (usdc_token, usdc_token_client) = create_usdc_token(&e, &backstop_id, &bombadil);
+        usdc_token_client.mint(&samwise, &100_0000000);
+
+        let (blnd_token, blnd_token_client) = create_blnd_token(&e, &backstop_id, &bombadil);
+        blnd_token_client.mint(&samwise, &100_0000000);
+
+        let (comet_id, _) = create_comet_lp_pool(&e, &bombadil, &blnd_token, &usdc_token);
+
+        e.as_contract(&backstop_id, || {
+            storage::set_backstop_token(&e, &comet_id);
+
+            let (result_blnd_per_tkn, result_usdc_per_tkn) =
+                execute_update_comet_token_value(&e, &comet_id, &blnd_token, &usdc_token);
+
+            let (blnd_per_tkn, usdc_per_tkn) = storage::get_lp_token_val(&e);
+
+            assert_eq!(result_blnd_per_tkn, blnd_per_tkn);
+            assert_eq!(result_usdc_per_tkn, usdc_per_tkn);
+            assert_eq!(blnd_per_tkn, 10_0000000);
+            assert_eq!(usdc_per_tkn, 0_2500000);
         });
     }
 }

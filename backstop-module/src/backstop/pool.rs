@@ -1,7 +1,42 @@
 use fixed_point_math::FixedPoint;
 use soroban_sdk::{contracttype, panic_with_error, unwrap::UnwrapOptimized, Address, Env};
 
-use crate::{dependencies::PoolFactoryClient, errors::BackstopError, storage};
+use crate::{constants::SCALAR_7, dependencies::PoolFactoryClient, errors::BackstopError, storage};
+
+/// The pool's backstop data
+#[derive(Clone)]
+#[contracttype]
+pub struct PoolBackstopData {
+    pub tokens: i128,  // the number of backstop tokens held in the pool's backstop
+    pub q4w_pct: i128, // the percentage of tokens queued for withdrawal
+    pub blnd: i128,    // the amount of blnd held in the pool's backstop via backstop tokens
+    pub usdc: i128,    // the amount of usdc held in the pool's backstop via backstop tokens
+}
+
+pub fn load_pool_backstop_data(e: &Env, address: &Address) -> PoolBackstopData {
+    let pool_balance = storage::get_pool_balance(e, address);
+    let q4w_pct = pool_balance
+        .q4w
+        .fixed_div_ceil(pool_balance.shares, SCALAR_7)
+        .unwrap_optimized();
+
+    let (blnd_per_tkn, usdc_per_tkn) = storage::get_lp_token_val(e);
+    let blnd = pool_balance
+        .tokens
+        .fixed_mul_floor(blnd_per_tkn, SCALAR_7)
+        .unwrap_optimized();
+    let usdc = pool_balance
+        .tokens
+        .fixed_mul_floor(usdc_per_tkn, SCALAR_7)
+        .unwrap_optimized();
+
+    PoolBackstopData {
+        tokens: pool_balance.tokens,
+        q4w_pct,
+        blnd,
+        usdc,
+    }
+}
 
 /// Verify the pool address was deployed by the Pool Factory
 ///
@@ -111,6 +146,34 @@ mod tests {
     use crate::testutils::create_mock_pool_factory;
 
     use super::*;
+
+    #[test]
+    fn test_load_pool_data() {
+        let e = Env::default();
+
+        let backstop = Address::random(&e);
+        let pool = Address::random(&e);
+
+        e.as_contract(&backstop, || {
+            storage::set_pool_balance(
+                &e,
+                &pool,
+                &PoolBalance {
+                    shares: 150_0000000,
+                    tokens: 250_0000000,
+                    q4w: 50_0000000,
+                },
+            );
+            storage::set_lp_token_val(&e, &(5_0000000, 0_0500000));
+
+            let pool_data = load_pool_backstop_data(&e, &pool);
+
+            assert_eq!(pool_data.tokens, 250_0000000);
+            assert_eq!(pool_data.q4w_pct, 0_3333334); // rounds up
+            assert_eq!(pool_data.blnd, 1_250_0000000);
+            assert_eq!(pool_data.usdc, 12_5000000);
+        });
+    }
 
     /********** require_is_from_pool_factory **********/
 

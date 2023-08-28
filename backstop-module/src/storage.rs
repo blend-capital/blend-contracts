@@ -59,6 +59,7 @@ pub enum BackstopDataKey {
     BLNDTkn,
     USDCTkn,
     DropList,
+    LPTknVal,
 }
 
 /****************************
@@ -433,7 +434,6 @@ pub fn set_user_emis_data(
 /********** Drop Emissions **********/
 
 /// Get the current pool addresses that are in the drop list and the amount of the initial distribution they receive
-///
 pub fn get_drop_list(e: &Env) -> Map<Address, i128> {
     e.storage()
         .persistent()
@@ -452,4 +452,30 @@ pub fn set_drop_list(e: &Env, drop_list: &Map<Address, i128>) {
     e.storage()
         .persistent()
         .set::<BackstopDataKey, Map<Address, i128>>(&BackstopDataKey::DropList, drop_list);
+}
+
+/********** LP Token Value **********/
+
+/// Get the last updated token value for the LP pool
+pub fn get_lp_token_val(e: &Env) -> (i128, i128) {
+    e.storage()
+        .persistent()
+        .bump(&BackstopDataKey::LPTknVal, USER_BUMP_AMOUNT);
+    e.storage()
+        .persistent()
+        .get::<BackstopDataKey, (i128, i128)>(&BackstopDataKey::DropList)
+        .unwrap()
+}
+
+/// Set the reward zone
+///
+/// ### Arguments
+/// * `share_val` - A tuple of (blnd_per_share, usdc_per_share)
+pub fn set_lp_token_val(e: &Env, share_val: &(i128, i128)) {
+    e.storage()
+        .persistent()
+        .set::<BackstopDataKey, (i128, i128)>(&BackstopDataKey::DropList, share_val);
+    e.storage()
+        .persistent()
+        .bump(&BackstopDataKey::LPTknVal, USER_BUMP_AMOUNT);
 }

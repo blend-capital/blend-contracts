@@ -73,9 +73,15 @@ pub(crate) fn create_mock_pool_factory<'a>(
     )
 }
 
+/// Deploy a test Comet LP pool of 80% BLND / 20% USDC and set it as the backstop token.
+///
+/// Initializes the pool with the following settings:
+/// - Swap fee: 0.3%
+/// - BLND: 1,000
+/// - USDC: 25
+/// - Shares: 100
 pub(crate) fn create_comet_lp_pool<'a>(
     e: &Env,
-    backstop: &Address,
     admin: &Address,
     blnd_token: &Address,
     usdc_token: &Address,
@@ -99,10 +105,6 @@ pub(crate) fn create_comet_lp_pool<'a>(
     client.set_swap_fee(&0_0030000, &admin);
     client.finalize();
     client.set_public_swap(&admin, &true);
-
-    e.as_contract(backstop, || {
-        storage::set_backstop_token(e, &contract_address);
-    });
 
     (contract_address, client)
 }

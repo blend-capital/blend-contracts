@@ -258,6 +258,7 @@ mod tests {
     use soroban_sdk::{
         map,
         testutils::{Address as _, Ledger, LedgerInfo},
+        vec,
     };
 
     #[test]
@@ -279,18 +280,34 @@ mod tests {
 
         let bombadil = Address::random(&e);
         let samwise = Address::random(&e);
-
         let pool_address = Address::random(&e);
-        let (backstop_token_id, backstop_token_client) =
-            testutils::create_token_contract(&e, &bombadil);
+
+        let (blnd, blnd_client) = testutils::create_blnd_token(&e, &pool_address, &bombadil);
+        let (usdc, usdc_client) = testutils::create_usdc_token(&e, &pool_address, &bombadil);
+        let (lp_token, lp_token_client) =
+            testutils::create_comet_lp_pool(&e, &bombadil, &blnd, &usdc);
         let (backstop_address, backstop_client) = testutils::create_backstop(&e);
         testutils::setup_backstop(
             &e,
             &pool_address,
             &backstop_address,
-            &backstop_token_id,
-            &Address::random(&e),
+            &lp_token,
+            &usdc,
+            &blnd,
         );
+        // mint lp tokens
+        blnd_client.mint(&samwise, &500_001_0000000);
+        blnd_client.approve(&samwise, &lp_token, &i128::MAX, &99999);
+        usdc_client.mint(&samwise, &12_501_0000000);
+        usdc_client.approve(&samwise, &lp_token, &i128::MAX, &99999);
+        lp_token_client.join_pool(
+            &50_000_0000000,
+            &vec![&e, 500_001_0000000, 12_501_0000000],
+            &samwise,
+        );
+        backstop_client.deposit(&samwise, &pool_address, &50_000_0000000);
+        backstop_client.update_tkn_val();
+
         let (oracle_id, oracle_client) = testutils::create_mock_oracle(&e);
 
         let (underlying_0, _) = testutils::create_token_contract(&e, &bombadil);
@@ -332,14 +349,11 @@ mod tests {
             &reserve_data_2,
         );
 
-        backstop_token_client.mint(&samwise, &200_0000000);
-        backstop_token_client.approve(&samwise, &backstop_address, &i128::MAX, &1000000);
-        backstop_client.deposit(&samwise, &pool_address, &100_0000000);
-
         oracle_client.set_price(&underlying_0, &2_0000000);
         oracle_client.set_price(&underlying_1, &4_0000000);
         oracle_client.set_price(&underlying_2, &100_0000000);
-        oracle_client.set_price(&backstop_token_id, &0_5000000);
+        oracle_client.set_price(&usdc, &1_0000000);
+        oracle_client.set_price(&blnd, &0_1000000);
 
         let positions: Positions = Positions {
             collateral: map![&e],
@@ -391,6 +405,7 @@ mod tests {
             &e,
             &pool_address,
             &backstop_address,
+            &Address::random(&e),
             &Address::random(&e),
             &Address::random(&e),
         );

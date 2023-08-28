@@ -7,7 +7,9 @@ use crate::{
     storage::{self, ReserveConfig, ReserveData},
 };
 use fixed_point_math::FixedPoint;
-use soroban_sdk::{map, testutils::Address as _, unwrap::UnwrapOptimized, Address, Env, IntoVal};
+use soroban_sdk::{
+    map, testutils::Address as _, unwrap::UnwrapOptimized, vec, Address, Env, IntoVal,
+};
 
 use backstop_module::{BackstopModule, BackstopModuleClient};
 use mock_oracle::{MockOracle, MockOracleClient};
@@ -75,6 +77,10 @@ pub(crate) fn create_mock_pool_factory(e: &Env) -> (Address, MockPoolFactoryClie
 
 //***** Backstop ******
 
+mod comet {
+    soroban_sdk::contractimport!(file = "../comet.wasm");
+}
+
 pub(crate) fn create_backstop(e: &Env) -> (Address, BackstopModuleClient) {
     let contract_address = e.register_contract(None, BackstopModule {});
     (
@@ -88,13 +94,14 @@ pub(crate) fn setup_backstop(
     pool_address: &Address,
     backstop_id: &Address,
     backstop_token: &Address,
+    usdc_token: &Address,
     blnd_token: &Address,
 ) {
     let (pool_factory, mock_pool_factory_client) = create_mock_pool_factory(e);
     mock_pool_factory_client.set_pool(pool_address);
     BackstopModuleClient::new(e, backstop_id).initialize(
         backstop_token,
-        &Address::random(&e),
+        usdc_token,
         blnd_token,
         &pool_factory,
         &map![e, (pool_address.clone(), 50_000_000 * SCALAR_7)],
@@ -102,6 +109,42 @@ pub(crate) fn setup_backstop(
     e.as_contract(pool_address, || {
         storage::set_backstop(e, backstop_id);
     });
+}
+
+/// Deploy a test Comet LP pool of 80% BLND / 20% USDC and set it as the backstop token.
+///
+/// Initializes the pool with the following settings:
+/// - Swap fee: 0.3%
+/// - BLND: 1,000
+/// - USDC: 25
+/// - Shares: 100
+pub(crate) fn create_comet_lp_pool<'a>(
+    e: &Env,
+    admin: &Address,
+    blnd_token: &Address,
+    usdc_token: &Address,
+) -> (Address, comet::Client<'a>) {
+    let contract_address = Address::random(e);
+    e.register_contract_wasm(&contract_address, comet::WASM);
+    let client = comet::Client::new(e, &contract_address);
+
+    let blnd_client = TokenClient::new(e, blnd_token);
+    let usdc_client = TokenClient::new(e, usdc_token);
+    blnd_client.mint(&admin, &1_000_0000000);
+    usdc_client.mint(&admin, &25_0000000);
+
+    client.init(&Address::random(e), &admin);
+    client.bundle_bind(
+        &vec![e, blnd_token.clone(), usdc_token.clone()],
+        &vec![e, 1_000_0000000, 25_0000000],
+        &vec![e, 8_0000000, 2_0000000],
+    );
+
+    client.set_swap_fee(&0_0030000, &admin);
+    client.finalize();
+    client.set_public_swap(&admin, &true);
+
+    (contract_address, client)
 }
 
 //************************************************

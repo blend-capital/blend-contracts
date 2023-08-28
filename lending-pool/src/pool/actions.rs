@@ -1198,6 +1198,7 @@ mod tests {
             &backstop_address,
             &backstop_token_id,
             &Address::random(&e),
+            &Address::random(&e),
         );
         let (underlying_0, _) = testutils::create_token_contract(&e, &bombadil);
         let (mut reserve_config_0, mut reserve_data_0) = testutils::default_reserve_meta(&e);
@@ -1310,6 +1311,7 @@ mod tests {
             &pool_address,
             &backstop_address,
             &Address::random(&e),
+            &usdc_id,
             &Address::random(&e),
         );
 
@@ -1328,7 +1330,7 @@ mod tests {
         );
         underlying_0_client.mint(&pool_address, &1_000_0000000);
 
-        let (underlying_1, underlying_client) = testutils::create_token_contract(&e, &bombadil);
+        let (underlying_1, underlying_1_client) = testutils::create_token_contract(&e, &bombadil);
         let (mut reserve_config_1, mut reserve_data_1) = testutils::default_reserve_meta(&e);
         reserve_data_1.b_rate = 1_100_000_000;
         reserve_data_1.last_time = 12345;
@@ -1340,7 +1342,7 @@ mod tests {
             &reserve_config_1,
             &reserve_data_1,
         );
-        underlying_client.mint(&pool_address, &1_000_0000000);
+        underlying_1_client.mint(&pool_address, &1_000_0000000);
 
         let (underlying_2, underlying_2_client) = testutils::create_token_contract(&e, &bombadil);
         let (mut reserve_config_2, mut reserve_data_2) = testutils::default_reserve_meta(&e);
@@ -1370,9 +1372,8 @@ mod tests {
             ],
             block: 51,
         };
-        usdc_client.mint(&samwise, &95_2000000);
-        //samwise increase allowance for pool
-        usdc_client.approve(&samwise, &pool_address, &i128::MAX, &1000000);
+        usdc_client.mint(&samwise, &952_0000000);
+
         e.as_contract(&pool_address, || {
             storage::set_pool_config(&e, &pool_config);
             storage::set_auction(
@@ -1395,6 +1396,11 @@ mod tests {
             let (actions, _, health_check) =
                 build_actions_from_request(&e, &mut pool, &samwise, requests);
 
+            assert_eq!(usdc_client.balance(&samwise), 0);
+            assert_eq!(usdc_client.balance(&backstop_address), 952_0000000);
+            assert_eq!(underlying_0_client.balance(&samwise), 100_0000000);
+            assert_eq!(underlying_1_client.balance(&samwise), 25_0000000);
+            assert_eq!(usdc_client.balance(&samwise), 0);
             assert_eq!(health_check, false);
             assert_eq!(
                 storage::has_auction(

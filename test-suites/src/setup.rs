@@ -14,12 +14,12 @@ pub fn create_fixture_with_data<'a>(wasm: bool) -> (TestFixture<'a>, Address) {
     // create pool
     fixture.create_pool(Symbol::new(&fixture.env, "Teapot"), 0_100_000_000);
 
-    let mut usdc_config = default_reserve_metadata();
-    usdc_config.decimals = 6;
-    usdc_config.c_factor = 0_900_0000;
-    usdc_config.l_factor = 0_950_0000;
-    usdc_config.util = 0_850_0000;
-    fixture.create_pool_reserve(0, TokenIndex::USDC, usdc_config);
+    let mut stable_config = default_reserve_metadata();
+    stable_config.decimals = 6;
+    stable_config.c_factor = 0_900_0000;
+    stable_config.l_factor = 0_950_0000;
+    stable_config.util = 0_850_0000;
+    fixture.create_pool_reserve(0, TokenIndex::STABLE, stable_config);
 
     let mut xlm_config = default_reserve_metadata();
     xlm_config.c_factor = 0_750_0000;
@@ -40,7 +40,7 @@ pub fn create_fixture_with_data<'a>(wasm: bool) -> (TestFixture<'a>, Address) {
     let reserve_emissions: soroban_sdk::Vec<ReserveEmissionMetadata> = soroban_sdk::vec![
         &fixture.env,
         ReserveEmissionMetadata {
-            res_index: 0, // USDC
+            res_index: 0, // STABLE
             res_type: 0,  // d_token
             share: 0_600_0000
         },
@@ -54,15 +54,26 @@ pub fn create_fixture_with_data<'a>(wasm: bool) -> (TestFixture<'a>, Address) {
 
     // mint whale tokens
     let frodo = Address::random(&fixture.env);
-    fixture.tokens[TokenIndex::USDC].mint(&frodo, &(100_000 * 10i128.pow(6)));
+    fixture.tokens[TokenIndex::STABLE].mint(&frodo, &(100_000 * 10i128.pow(6)));
     fixture.tokens[TokenIndex::XLM].mint(&frodo, &(1_000_000 * SCALAR_7));
     fixture.tokens[TokenIndex::WETH].mint(&frodo, &(100 * 10i128.pow(9)));
-    fixture.tokens[TokenIndex::BSTOP].mint(&frodo, &(10_000_000 * SCALAR_7));
+
+    // mint LP tokens with whale
+    fixture.tokens[TokenIndex::BLND].mint(&frodo, &(500_001 * SCALAR_7));
+    fixture.tokens[TokenIndex::BLND].approve(&frodo, &fixture.lp.address, &i128::MAX, &99999);
+    fixture.tokens[TokenIndex::USDC].mint(&frodo, &(12_501 * SCALAR_7));
+    fixture.tokens[TokenIndex::USDC].approve(&frodo, &fixture.lp.address, &i128::MAX, &99999);
+    fixture.lp.join_pool(
+        &(50_000 * SCALAR_7),
+        &vec![&fixture.env, 500_001 * SCALAR_7, 12_501 * SCALAR_7],
+        &frodo,
+    );
 
     // deposit into backstop, add to reward zone
     fixture
         .backstop
-        .deposit(&frodo, &pool_fixture.pool.address, &(2_000_000 * SCALAR_7));
+        .deposit(&frodo, &pool_fixture.pool.address, &(50_000 * SCALAR_7));
+    fixture.backstop.update_tkn_val();
     fixture
         .backstop
         .add_reward(&pool_fixture.pool.address, &Address::random(&fixture.env));
@@ -75,17 +86,17 @@ pub fn create_fixture_with_data<'a>(wasm: bool) -> (TestFixture<'a>, Address) {
 
     fixture.jump(60);
 
-    // supply and borrow USDC for 80% utilization (close to target)
+    // supply and borrow STABLE for 80% utilization (close to target)
     let requests: Vec<Request> = vec![
         &fixture.env,
         Request {
             request_type: 2,
-            address: fixture.tokens[TokenIndex::USDC].address.clone(),
+            address: fixture.tokens[TokenIndex::STABLE].address.clone(),
             amount: 10_000 * 10i128.pow(6),
         },
         Request {
             request_type: 4,
-            address: fixture.tokens[TokenIndex::USDC].address.clone(),
+            address: fixture.tokens[TokenIndex::STABLE].address.clone(),
             amount: 8_000 * 10i128.pow(6),
         },
     ];
@@ -140,14 +151,14 @@ mod tests {
 
         // validate backstop deposit
         assert_eq!(
-            2_000_000 * SCALAR_7,
-            fixture.tokens[TokenIndex::BSTOP].balance(&fixture.backstop.address)
+            50_000 * SCALAR_7,
+            fixture.lp.balance(&fixture.backstop.address)
         );
 
         // validate pool actions
         assert_eq!(
             2_000 * 10i128.pow(6),
-            fixture.tokens[TokenIndex::USDC].balance(&pool_fixture.pool.address)
+            fixture.tokens[TokenIndex::STABLE].balance(&pool_fixture.pool.address)
         );
         assert_eq!(
             35_000 * SCALAR_7,
@@ -160,7 +171,7 @@ mod tests {
 
         assert_eq!(
             98_000 * 10i128.pow(6),
-            fixture.tokens[TokenIndex::USDC].balance(&frodo)
+            fixture.tokens[TokenIndex::STABLE].balance(&frodo)
         );
         assert_eq!(
             965_000 * SCALAR_7,
@@ -181,7 +192,7 @@ mod tests {
         );
         let (emis_config, emis_data) = pool_fixture
             .pool
-            .get_reserve_emissions(&fixture.tokens[TokenIndex::USDC].address, &0)
+            .get_reserve_emissions(&fixture.tokens[TokenIndex::STABLE].address, &0)
             .unwrap();
         assert_eq!(
             emis_data.last_time,
@@ -198,14 +209,14 @@ mod tests {
 
         // validate backstop deposit
         assert_eq!(
-            2_000_000 * SCALAR_7,
-            fixture.tokens[TokenIndex::BSTOP].balance(&fixture.backstop.address)
+            50_000 * SCALAR_7,
+            fixture.lp.balance(&fixture.backstop.address)
         );
 
         // validate pool actions
         assert_eq!(
             2_000 * 10i128.pow(6),
-            fixture.tokens[TokenIndex::USDC].balance(&pool_fixture.pool.address)
+            fixture.tokens[TokenIndex::STABLE].balance(&pool_fixture.pool.address)
         );
         assert_eq!(
             35_000 * SCALAR_7,
@@ -218,7 +229,7 @@ mod tests {
 
         assert_eq!(
             98_000 * 10i128.pow(6),
-            fixture.tokens[TokenIndex::USDC].balance(&frodo)
+            fixture.tokens[TokenIndex::STABLE].balance(&frodo)
         );
         assert_eq!(
             965_000 * SCALAR_7,
@@ -239,7 +250,7 @@ mod tests {
         );
         let (emis_config, emis_data) = pool_fixture
             .pool
-            .get_reserve_emissions(&fixture.tokens[TokenIndex::USDC].address, &0)
+            .get_reserve_emissions(&fixture.tokens[TokenIndex::STABLE].address, &0)
             .unwrap();
         assert_eq!(
             emis_data.last_time,

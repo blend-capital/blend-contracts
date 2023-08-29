@@ -3,6 +3,7 @@ use std::ops::Index;
 
 use crate::backstop::create_backstop;
 use crate::emitter::create_emitter;
+use crate::liquidity_pool::{create_lp_pool, LPClient};
 use crate::mock_oracle::create_mock_oracle;
 use crate::pool::POOL_WASM;
 use crate::pool_factory::create_pool_factory;
@@ -24,7 +25,7 @@ pub enum TokenIndex {
     WETH = 1,
     USDC = 2,
     XLM = 3,
-    BSTOP = 4,
+    STABLE = 4,
 }
 
 pub struct PoolFixture<'a> {
@@ -47,6 +48,7 @@ pub struct TestFixture<'a> {
     pub backstop: BackstopModuleClient<'a>,
     pub pool_factory: PoolFactoryClient<'a>,
     pub oracle: MockOracleClient<'a>,
+    pub lp: LPClient<'a>,
     pub pools: Vec<PoolFixture<'a>>,
     pub tokens: Vec<TokenClient<'a>>,
 }
@@ -75,10 +77,11 @@ impl TestFixture<'_> {
         });
 
         // deploy tokens
-        let (blnd_id, blnd_client) = create_token(&e, &bombadil, 7, "BLND");
+        let (blnd_id, blnd_client) = create_stellar_token(&e, &bombadil);
         let (eth_id, eth_client) = create_token(&e, &bombadil, 9, "wETH");
-        let (usdc_id, usdc_client) = create_token(&e, &bombadil, 6, "USDC");
+        let (usdc_id, usdc_client) = create_stellar_token(&e, &bombadil);
         let (xlm_id, xlm_client) = create_stellar_token(&e, &bombadil); // TODO: make native
+        let (stable_id, stable_client) = create_token(&e, &bombadil, 6, "STABLE");
 
         // deploy Blend Protocol contracts
         let (backstop_id, backstop_client) = create_backstop(&e, wasm);
@@ -92,14 +95,8 @@ impl TestFixture<'_> {
         emitter_client.initialize(&backstop_id, &blnd_id);
 
         // initialize backstop
-        let (backstop_token_id, backstop_token_client) = create_token(&e, &bombadil, 7, "BSTOP");
-        backstop_client.initialize(
-            &backstop_token_id,
-            &usdc_id,
-            &blnd_id,
-            &pool_factory_id,
-            &Map::new(&e),
-        );
+        let (lp, lp_client) = create_lp_pool(&e, &bombadil, &blnd_id, &usdc_id);
+        backstop_client.initialize(&lp, &usdc_id, &blnd_id, &pool_factory_id, &Map::new(&e));
 
         // initialize pool factory
         let pool_hash = e.deployer().upload_contract_wasm(POOL_WASM);
@@ -114,10 +111,10 @@ impl TestFixture<'_> {
 
         // initialize oracle
         mock_oracle_client.set_price(&blnd_id, &(0_0500000));
-        mock_oracle_client.set_price(&backstop_token_id, &0_5000000);
         mock_oracle_client.set_price(&eth_id, &(2000_0000000));
         mock_oracle_client.set_price(&usdc_id, &(1_0000000));
         mock_oracle_client.set_price(&xlm_id, &(0_1000000));
+        mock_oracle_client.set_price(&stable_id, &(1_0000000));
 
         // pass 1 day
         e.ledger().set(LedgerInfo {
@@ -138,13 +135,14 @@ impl TestFixture<'_> {
             backstop: backstop_client,
             pool_factory: pool_factory_client,
             oracle: mock_oracle_client,
+            lp: lp_client,
             pools: vec![],
             tokens: vec![
                 blnd_client,
                 eth_client,
                 usdc_client,
                 xlm_client,
-                backstop_token_client,
+                stable_client,
             ],
         }
     }

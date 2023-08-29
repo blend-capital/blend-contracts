@@ -14,15 +14,15 @@ use test_suites::{
 fn test_wasm_happy_path() {
     let (fixture, frodo) = create_fixture_with_data(true);
     let pool_fixture = &fixture.pools[0];
-    let usdc_pool_index = pool_fixture.reserves[&TokenIndex::USDC];
+    let usdc_pool_index = pool_fixture.reserves[&TokenIndex::STABLE];
     let xlm_pool_index = pool_fixture.reserves[&TokenIndex::XLM];
 
     // Create two new users
-    let sam = Address::random(&fixture.env); // sam will be supplying XLM and borrowing USDC
-    let merry = Address::random(&fixture.env); // merry will be supplying USDC and borrowing XLM
+    let sam = Address::random(&fixture.env); // sam will be supplying XLM and borrowing STABLE
+    let merry = Address::random(&fixture.env); // merry will be supplying STABLE and borrowing XLM
 
     // Mint users tokens
-    let usdc = &fixture.tokens[TokenIndex::USDC];
+    let usdc = &fixture.tokens[TokenIndex::STABLE];
     let xlm = &fixture.tokens[TokenIndex::XLM];
     let mut sam_usdc_balance = 60_000 * 10i128.pow(6);
     let mut sam_xlm_balance = 2_500_000 * SCALAR_7;
@@ -41,7 +41,7 @@ fn test_wasm_happy_path() {
     let mut merry_usdc_btoken_balance = 0;
     let mut merry_xlm_dtoken_balance = 0;
 
-    // Merry supply USDC
+    // Merry supply STABLE
     let amount = 190_000 * 10i128.pow(6);
     let result = pool_fixture.pool.submit(
         &merry,
@@ -99,8 +99,8 @@ fn test_wasm_happy_path() {
         10,
     );
 
-    // Sam borrow USDC
-    let amount = 112_000 * 10i128.pow(6); // Sam max borrow is .75*.95*.1*1_900_000 = 135_375 USDC
+    // Sam borrow STABLE
+    let amount = 112_000 * 10i128.pow(6); // Sam max borrow is .75*.95*.1*1_900_000 = 135_375 STABLE
     let result = pool_fixture.pool.submit(
         &sam,
         &sam,
@@ -158,20 +158,20 @@ fn test_wasm_happy_path() {
     );
 
     // Utilization is now:
-    // * 120_000 / 200_000 = .625 for USDC
+    // * 120_000 / 200_000 = .625 for STABLE
     // * 1_200_000 / 2_000_000 = .625 for XLM
     // This equates to the following rough annual interest rates
     //  * 19.9% for XLM borrowing
     //  * 11.1% for XLM lending
     //  * rate will be dragged up due to rate modifier
-    //  * 4.7% for USDC borrowing
-    //  * 2.6% for USDC lending
+    //  * 4.7% for STABLE borrowing
+    //  * 2.6% for STABLE lending
     //  * rate will be dragged down due to rate modifier
 
     // claim frodo's setup emissions (1h1m passes during setup)
     // - Frodo should receive 60 * 61 * .3 = 1098 BLND from the pool claim
     // - Frodo should receive 60 * 61 * .7 = 2562 BLND from the backstop claim
-    let mut frodo_blnd_balance = 0;
+    let mut frodo_blnd_balance = fixture.tokens[TokenIndex::BLND].balance(&frodo);
     let claim_amount = pool_fixture
         .pool
         .claim(&frodo, &vec![&fixture.env, 0, 3], &frodo);
@@ -220,7 +220,7 @@ fn test_wasm_happy_path() {
         sam_blnd_balance
     );
 
-    // Sam repays some of his USDC loan
+    // Sam repays some of his STABLE loan
     let amount = 55_000 * 10i128.pow(6);
     let result = pool_fixture.pool.submit(
         &sam,
@@ -307,7 +307,7 @@ fn test_wasm_happy_path() {
         10,
     );
 
-    // Merry withdraws some of his USDC
+    // Merry withdraws some of his STABLE
     let amount = 100_000 * 10i128.pow(6);
     let result = pool_fixture.pool.submit(
         &merry,
@@ -420,7 +420,7 @@ fn test_wasm_happy_path() {
         sam_blnd_balance
     );
 
-    // Sam repays his USDC loan
+    // Sam repays his STABLE loan
     let amount = sam_usdc_dtoken_balance
         .fixed_mul_ceil(1_100_000_000, SCALAR_9)
         .unwrap();
@@ -512,7 +512,7 @@ fn test_wasm_happy_path() {
     );
     assert_eq!(result.collateral.get(xlm_pool_index), None);
 
-    // Merry withdraws all of his USDC
+    // Merry withdraws all of his STABLE
     let reserve_data = pool_fixture.pool.get_reserve_data(&usdc.address);
     let amount = merry_usdc_btoken_balance
         .fixed_mul_ceil(reserve_data.b_rate, SCALAR_9)
@@ -542,9 +542,8 @@ fn test_wasm_happy_path() {
 
     // Frodo queues for withdrawal a portion of his backstop deposit
     // Backstop shares are still 1 to 1 with BSTOP tokens - no donation via auction or other means has occurred
-    let mut frodo_bstop_token_balance = fixture.tokens[TokenIndex::BSTOP].balance(&frodo);
-    let mut backstop_bstop_token_balance =
-        fixture.tokens[TokenIndex::BSTOP].balance(&fixture.backstop.address);
+    let mut frodo_bstop_token_balance = fixture.lp.balance(&frodo);
+    let mut backstop_bstop_token_balance = fixture.lp.balance(&fixture.backstop.address);
     let amount = 500 * SCALAR_7;
     let result = fixture
         .backstop
@@ -554,12 +553,9 @@ fn test_wasm_happy_path() {
         result.exp,
         fixture.env.ledger().timestamp() + 60 * 60 * 24 * 30
     );
+    assert_eq!(fixture.lp.balance(&frodo), frodo_bstop_token_balance);
     assert_eq!(
-        fixture.tokens[TokenIndex::BSTOP].balance(&frodo),
-        frodo_bstop_token_balance
-    );
-    assert_eq!(
-        fixture.tokens[TokenIndex::BSTOP].balance(&fixture.backstop.address),
+        fixture.lp.balance(&fixture.backstop.address),
         backstop_bstop_token_balance
     );
 
@@ -571,12 +567,9 @@ fn test_wasm_happy_path() {
     frodo_bstop_token_balance += result;
     backstop_bstop_token_balance -= result;
     assert_eq!(result, amount);
+    assert_eq!(fixture.lp.balance(&frodo), frodo_bstop_token_balance);
     assert_eq!(
-        fixture.tokens[TokenIndex::BSTOP].balance(&frodo),
-        frodo_bstop_token_balance
-    );
-    assert_eq!(
-        fixture.tokens[TokenIndex::BSTOP].balance(&fixture.backstop.address),
+        fixture.lp.balance(&fixture.backstop.address),
         backstop_bstop_token_balance
     );
 }

@@ -18,7 +18,7 @@ fn test_backstop() {
     let (fixture, frodo) = create_fixture_with_data(false);
 
     let pool = &fixture.pools[0].pool;
-    let bstop_token = &fixture.tokens[TokenIndex::BSTOP];
+    let bstop_token = &fixture.lp;
     let sam = Address::random(&fixture.env);
 
     // Verify initialization can't be re-run
@@ -35,15 +35,37 @@ fn test_backstop() {
         bstop_token.address.clone()
     );
 
-    // Mint Sam some backstop tokens
-    // assumes Sam makes up 20% of the backstop after depositing
+    // Mint some backstop tokens
+    // assumes Sam makes up 20% of the backstop after depositing (50k / 0.8 * 0.2 = 12.5k)
+    //  -> mint 12.5k LP tokens to sam
+    fixture.tokens[TokenIndex::BLND].mint(&sam, &(125_001 * SCALAR_7)); // 10 BLND per LP token
+    fixture.tokens[TokenIndex::BLND].approve(&sam, &bstop_token.address, &i128::MAX, &99999);
+    fixture.tokens[TokenIndex::USDC].mint(&sam, &(3_126 * SCALAR_7)); // 0.25 USDC per LP token
+    fixture.tokens[TokenIndex::USDC].approve(&sam, &bstop_token.address, &i128::MAX, &99999);
+    bstop_token.join_pool(
+        &(12_500 * SCALAR_7),
+        &vec![&fixture.env, 125_001 * SCALAR_7, 3_126 * SCALAR_7],
+        &sam,
+    );
+
+    //  -> mint Frodo additional backstop tokens (5k) for donation later
+    fixture.tokens[TokenIndex::BLND].mint(&frodo, &(50_001 * SCALAR_7)); // 10 BLND per LP token
+    fixture.tokens[TokenIndex::BLND].approve(&frodo, &bstop_token.address, &i128::MAX, &99999);
+    fixture.tokens[TokenIndex::USDC].mint(&frodo, &(1_251 * SCALAR_7)); // 0.25 USDC per LP token
+    fixture.tokens[TokenIndex::USDC].approve(&frodo, &bstop_token.address, &i128::MAX, &99999);
+    bstop_token.join_pool(
+        &(5_000 * SCALAR_7),
+        &vec![&fixture.env, 50_001 * SCALAR_7, 1_251 * SCALAR_7],
+        &frodo,
+    );
+
     let mut frodo_bstop_token_balance = bstop_token.balance(&frodo);
     let mut bstop_bstop_token_balance = bstop_token.balance(&fixture.backstop.address);
-    let mut sam_bstop_token_balance = 500_000 * SCALAR_7;
-    bstop_token.mint(&sam, &sam_bstop_token_balance);
+    let mut sam_bstop_token_balance = bstop_token.balance(&sam);
+    assert_eq!(sam_bstop_token_balance, 12_500 * SCALAR_7);
 
-    // Sam deposits 500k backstop tokens
-    let amount = 500_000 * SCALAR_7;
+    // Sam deposits 12.5k backstop tokens
+    let amount = 12_500 * SCALAR_7;
     let result = fixture.backstop.deposit(&sam, &pool.address, &amount);
     sam_bstop_token_balance -= amount;
     bstop_bstop_token_balance += amount;
@@ -173,8 +195,8 @@ fn test_backstop() {
     fixture.backstop.update_emission_cycle();
     assert_eq!(fixture.env.auths().len(), 0);
 
-    // Sam queue for withdrawal
-    let amount = 500_000 * SCALAR_7; // shares
+    // Sam queues 100% of position for withdrawal
+    let amount = 12_500 * SCALAR_7; // shares
     let result = fixture
         .backstop
         .queue_withdrawal(&sam, &pool.address, &amount);
@@ -235,8 +257,8 @@ fn test_backstop() {
     fixture.emitter.distribute();
     fixture.backstop.update_emission_cycle();
 
-    // Sam dequeues some of the withdrawal
-    let amount = 250_000 * SCALAR_7; // shares
+    // Sam dequeues half of the withdrawal
+    let amount = 6_250 * SCALAR_7; // shares
     fixture
         .backstop
         .dequeue_withdrawal(&sam, &pool.address, &amount);
@@ -334,7 +356,7 @@ fn test_backstop() {
     fixture.jump(60 * 60 * 24 * 16 + 1);
 
     // Sam withdraws the queue position
-    let amount = 250_000 * SCALAR_7; // shares
+    let amount = 6_250 * SCALAR_7; // shares
     let result = fixture.backstop.withdraw(&sam, &pool.address, &amount);
     sam_bstop_token_balance += result; // sam caught 20% of 1k profit and is withdrawing half his position
     bstop_bstop_token_balance -= result;

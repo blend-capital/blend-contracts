@@ -15,7 +15,7 @@ use test_suites::{
 fn test_emitter() {
     let (fixture, _) = create_fixture_with_data(false);
 
-    let bstop_token = &fixture.tokens[TokenIndex::BSTOP];
+    let bstop_token = &fixture.lp;
     let blnd_token = &fixture.tokens[TokenIndex::BLND];
 
     let emitter_blnd_balance = blnd_token.balance(&fixture.emitter.address);

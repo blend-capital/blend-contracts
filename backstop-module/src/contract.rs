@@ -213,7 +213,7 @@ impl BackstopModuleTrait for BackstopModule {
 
         e.events().publish(
             (Symbol::new(&e, "dequeue_withdrawal"), pool_address, from),
-            (amount),
+            amount,
         );
     }
 
@@ -301,7 +301,7 @@ impl BackstopModuleTrait for BackstopModule {
 
         backstop::execute_donate(&e, &from, &pool_address, amount);
         e.events()
-            .publish((Symbol::new(&e, "donate"), pool_address, from), (amount));
+            .publish((Symbol::new(&e, "donate"), pool_address, from), amount);
     }
 }
 

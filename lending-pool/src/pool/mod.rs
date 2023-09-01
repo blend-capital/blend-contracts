@@ -30,4 +30,4 @@ mod user;
 pub use user::{Positions, User};
 
 mod status;
-pub use status::{execute_update_pool_status, set_pool_status};
+pub use status::{calc_pool_backstop_threshold, execute_update_pool_status, set_pool_status};

@@ -47,6 +47,7 @@ pub struct PoolUserKey {
 pub enum BackstopDataKey {
     UserBalance(PoolUserKey),
     PoolBalance(Address),
+    PoolUSDC(Address),
     NextEmis,
     RewardZone,
     PoolEPS(Address),
@@ -56,7 +57,9 @@ pub enum BackstopDataKey {
     BckstpTkn,
     PoolFact,
     BLNDTkn,
+    USDCTkn,
     DropList,
+    LPTknVal,
 }
 
 /****************************
@@ -112,6 +115,28 @@ pub fn set_blnd_token(e: &Env, blnd_token_id: &Address) {
     e.storage()
         .persistent()
         .set::<BackstopDataKey, Address>(&BackstopDataKey::BLNDTkn, blnd_token_id);
+}
+
+/// Fetch the USDC token id
+pub fn get_usdc_token(e: &Env) -> Address {
+    // TODO: Change to instance - https://github.com/stellar/rs-soroban-sdk/issues/1040
+    e.storage()
+        .persistent()
+        .bump(&BackstopDataKey::USDCTkn, SHARED_BUMP_AMOUNT);
+    e.storage()
+        .persistent()
+        .get::<BackstopDataKey, Address>(&BackstopDataKey::USDCTkn)
+        .unwrap_optimized()
+}
+
+/// Set the USDC token id
+///
+/// ### Arguments
+/// * `usdc_token_id` - The ID of the new USDC token
+pub fn set_usdc_token(e: &Env, usdc_token_id: &Address) {
+    e.storage()
+        .persistent()
+        .set::<BackstopDataKey, Address>(&BackstopDataKey::USDCTkn, usdc_token_id);
 }
 
 /// Fetch the backstop token id
@@ -208,6 +233,31 @@ pub fn set_pool_balance(e: &Env, pool: &Address, balance: &PoolBalance) {
     e.storage()
         .persistent()
         .set::<BackstopDataKey, PoolBalance>(&key, balance);
+}
+
+/// Fetch the balances for a given pool
+///
+/// ### Arguments
+/// * `pool` - The pool the deposit is associated with
+pub fn get_pool_usdc(e: &Env, pool: &Address) -> i128 {
+    let key = BackstopDataKey::PoolUSDC(pool.clone());
+    e.storage().persistent().bump(&key, USER_BUMP_AMOUNT);
+    e.storage()
+        .persistent()
+        .get::<BackstopDataKey, i128>(&key)
+        .unwrap_or(0)
+}
+
+/// Set the balances for a pool
+///
+/// ### Arguments
+/// * `pool` - The pool the deposit is associated with
+/// * `balance` - The pool balances
+pub fn set_pool_usdc(e: &Env, pool: &Address, balance: &i128) {
+    let key = BackstopDataKey::PoolUSDC(pool.clone());
+    e.storage()
+        .persistent()
+        .set::<BackstopDataKey, i128>(&key, balance);
 }
 
 /********** Distribution / Reward Zone **********/
@@ -384,7 +434,6 @@ pub fn set_user_emis_data(
 /********** Drop Emissions **********/
 
 /// Get the current pool addresses that are in the drop list and the amount of the initial distribution they receive
-///
 pub fn get_drop_list(e: &Env) -> Map<Address, i128> {
     e.storage()
         .persistent()
@@ -403,4 +452,30 @@ pub fn set_drop_list(e: &Env, drop_list: &Map<Address, i128>) {
     e.storage()
         .persistent()
         .set::<BackstopDataKey, Map<Address, i128>>(&BackstopDataKey::DropList, drop_list);
+}
+
+/********** LP Token Value **********/
+
+/// Get the last updated token value for the LP pool
+pub fn get_lp_token_val(e: &Env) -> (i128, i128) {
+    e.storage()
+        .persistent()
+        .bump(&BackstopDataKey::LPTknVal, USER_BUMP_AMOUNT);
+    e.storage()
+        .persistent()
+        .get::<BackstopDataKey, (i128, i128)>(&BackstopDataKey::DropList)
+        .unwrap()
+}
+
+/// Set the reward zone
+///
+/// ### Arguments
+/// * `share_val` - A tuple of (blnd_per_share, usdc_per_share)
+pub fn set_lp_token_val(e: &Env, share_val: &(i128, i128)) {
+    e.storage()
+        .persistent()
+        .set::<BackstopDataKey, (i128, i128)>(&BackstopDataKey::DropList, share_val);
+    e.storage()
+        .persistent()
+        .bump(&BackstopDataKey::LPTknVal, USER_BUMP_AMOUNT);
 }

@@ -1,6 +1,7 @@
 #![allow(clippy::all)]
 pub mod backstop;
 pub mod emitter;
+pub mod liquidity_pool;
 pub mod mock_oracle;
 pub mod pool;
 pub mod pool_factory;

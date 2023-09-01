@@ -1,5 +1,9 @@
 use crate::{
-    constants::SCALAR_7, dependencies::TokenClient, errors::PoolError, pool::Pool, storage,
+    constants::SCALAR_7,
+    dependencies::{BackstopClient, TokenClient},
+    errors::PoolError,
+    pool::Pool,
+    storage,
 };
 use cast::i128;
 use fixed_point_math::FixedPoint;
@@ -65,15 +69,18 @@ pub fn fill_interest_auction(
     filler: &Address,
 ) {
     // bid only contains the USDC token
-    // TODO: add donate_usdc function to backstop
-    // let backstop_client = BackstopClient::new(&e, &backstop_address);
-    // backstop_client.donate(&filler, &e.current_contract_id(), &bid_amount_modified);
+    let backstop = storage::get_backstop(e);
+    let usdc_token = storage::get_usdc_token(e);
+    let usdc_bid_amount = auction_data.bid.get_unchecked(usdc_token);
+
+    let backstop_client = BackstopClient::new(&e, &backstop);
+    backstop_client.donate_usdc(&filler, &e.current_contract_address(), &usdc_bid_amount);
 
     // lot contains underlying tokens, but the backstop credit must be updated on the reserve
     for (res_asset_address, lot_amount) in auction_data.lot.iter() {
         let mut reserve = pool.load_reserve(e, &res_asset_address);
         reserve.backstop_credit -= lot_amount;
-        reserve.store(e);
+        pool.cache_reserve(reserve, true);
         TokenClient::new(e, &res_asset_address).transfer(
             &e.current_contract_address(),
             filler,
@@ -163,6 +170,7 @@ mod tests {
             &pool_address,
             &backstop_address,
             &Address::random(&e),
+            &usdc_id,
             &Address::random(&e),
         );
         let (oracle_id, oracle_client) = testutils::create_mock_oracle(&e);
@@ -263,6 +271,7 @@ mod tests {
             &pool_address,
             &backstop_address,
             &Address::random(&e),
+            &usdc_id,
             &Address::random(&e),
         );
         let (oracle_id, oracle_client) = testutils::create_mock_oracle(&e);
@@ -363,6 +372,7 @@ mod tests {
             &pool_address,
             &backstop_address,
             &Address::random(&e),
+            &usdc_id,
             &Address::random(&e),
         );
         let (oracle_id, oracle_client) = testutils::create_mock_oracle(&e);
@@ -442,12 +452,12 @@ mod tests {
     fn test_fill_interest_auction() {
         let e = Env::default();
         e.mock_all_auths();
-        e.budget().reset_unlimited(); // setup exhausts budget
+        e.budget().reset_unlimited();
 
         e.ledger().set(LedgerInfo {
             timestamp: 12345,
             protocol_version: 1,
-            sequence_number: 301, // 75% bid, 100% lot
+            sequence_number: 301,
             network_id: Default::default(),
             base_reserve: 10,
             min_temp_entry_expiration: 10,
@@ -466,13 +476,17 @@ mod tests {
             &pool_address,
             &backstop_address,
             &Address::random(&e),
+            &usdc_id,
             &Address::random(&e),
         );
 
         let (underlying_0, underlying_0_client) = testutils::create_token_contract(&e, &bombadil);
         let (mut reserve_config_0, mut reserve_data_0) = testutils::default_reserve_meta(&e);
         reserve_data_0.b_rate = 1_100_000_000;
+        reserve_data_0.b_supply = 200_000_0000000;
+        reserve_data_0.d_supply = 100_000_0000000;
         reserve_data_0.last_time = 12345;
+        reserve_data_0.backstop_credit = 100_0000000;
         reserve_config_0.index = 0;
         testutils::create_reserve(
             &e,
@@ -486,7 +500,10 @@ mod tests {
         let (underlying_1, underlying_1_client) = testutils::create_token_contract(&e, &bombadil);
         let (mut reserve_config_1, mut reserve_data_1) = testutils::default_reserve_meta(&e);
         reserve_data_1.b_rate = 1_100_000_000;
+        reserve_data_0.b_supply = 10_000_0000000;
+        reserve_data_0.b_supply = 7_000_0000000;
         reserve_data_1.last_time = 12345;
+        reserve_data_1.backstop_credit = 30_0000000;
         reserve_config_1.index = 1;
         testutils::create_reserve(
             &e,
@@ -497,27 +514,13 @@ mod tests {
         );
         underlying_1_client.mint(&pool_address, &1_000_0000000);
 
-        let (underlying_2, underlying_2_client) = testutils::create_token_contract(&e, &bombadil);
-        let (mut reserve_config_2, mut reserve_data_2) = testutils::default_reserve_meta(&e);
-        reserve_data_2.b_rate = 1_100_000_000;
-        reserve_data_2.last_time = 12345;
-        reserve_config_2.index = 1;
-        testutils::create_reserve(
-            &e,
-            &pool_address,
-            &underlying_2,
-            &reserve_config_2,
-            &reserve_data_2,
-        );
-        underlying_2_client.mint(&pool_address, &1_000_0000000);
-
         let pool_config = PoolConfig {
             oracle: Address::random(&e),
             bstop_rate: 0_100_000_000,
             status: 0,
         };
         let mut auction_data = AuctionData {
-            bid: map![&e, (usdc_id.clone(), 952_0000000)],
+            bid: map![&e, (usdc_id.clone(), 95_0000000)],
             lot: map![
                 &e,
                 (underlying_0.clone(), 100_0000000),
@@ -525,9 +528,7 @@ mod tests {
             ],
             block: 51,
         };
-        usdc_client.mint(&samwise, &95_2000000);
-        //samwise increase allowance for pool
-        usdc_client.approve(&samwise, &pool_address, &i128::MAX, &1000000);
+        usdc_client.mint(&samwise, &100_0000000);
         e.as_contract(&pool_address, || {
             storage::set_auction(
                 &e,
@@ -539,33 +540,19 @@ mod tests {
             storage::set_backstop(&e, &backstop_address);
             storage::set_usdc_token(&e, &usdc_id);
 
-            usdc_client.approve(
-                &pool_address,
-                &backstop_address,
-                &(u64::MAX as i128),
-                &1000000,
-            );
-
             let mut pool = Pool::load(&e);
-            let mut reserve_0 = pool.load_reserve(&e, &underlying_0);
-            reserve_0.backstop_credit += 100_0000000;
-            reserve_0.store(&e);
-            let mut reserve_1 = pool.load_reserve(&e, &underlying_1);
-            reserve_1.backstop_credit += 25_0000000;
-            reserve_1.store(&e);
-
-            e.budget().reset_unlimited();
             fill_interest_auction(&e, &mut pool, &mut auction_data, &samwise);
-            // let result = calc_fill_interest_auction(&e, &auction);
-            //TODO: test that usdc was transferred to backstop once the donate_usdc function is added to backstop
-            // assert_eq!(usdc_client.balance(&samwise), 23_8000000);
-            // assert_eq!(usdc_client.balance(&backstop), 71_4000000);
+            pool.store_cached_reserves(&e);
+
+            assert_eq!(usdc_client.balance(&samwise), 5_0000000);
+            assert_eq!(usdc_client.balance(&backstop_address), 95_0000000);
             assert_eq!(underlying_0_client.balance(&samwise), 100_0000000);
             assert_eq!(underlying_1_client.balance(&samwise), 25_0000000);
-            let reserve_1 = pool.load_reserve(&e, &underlying_1);
-            assert_eq!(reserve_1.backstop_credit, 0);
-            let reserve_0 = pool.load_reserve(&e, &underlying_0);
-            assert_eq!(reserve_0.backstop_credit, 0);
+            // verify only filled backstop credits get deducted from total
+            let reserve_0_data = storage::get_res_data(&e, &underlying_0);
+            assert_eq!(reserve_0_data.backstop_credit, 0);
+            let reserve_1_data = storage::get_res_data(&e, &underlying_1);
+            assert_eq!(reserve_1_data.backstop_credit, 5_0000000);
         });
     }
 }

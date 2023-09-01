@@ -1,5 +1,5 @@
 use crate::{
-    backstop::{self, PoolBalance, UserBalance, Q4W},
+    backstop::{self, load_pool_backstop_data, PoolBackstopData, UserBalance, Q4W},
     emissions,
     errors::BackstopError,
     storage,
@@ -16,8 +16,9 @@ pub trait BackstopModuleTrait {
     /// Initialize the backstop module
     ///
     /// ### Arguments
-    /// * `backstop_token` - The backstop token ID - generally an LP token where 1 of the tokens is BLND
+    /// * `backstop_token` - The backstop token ID - an LP token with the pair BLND:USDC
     /// * `blnd_token` - The BLND token ID
+    /// * `usdc_token` - The USDC token ID
     /// * `pool_factory` - The pool factory ID
     /// * `drop_list` - The list of addresses to distribute initial BLND to and the percent of the distribution they should receive
     ///
@@ -27,6 +28,7 @@ pub trait BackstopModuleTrait {
         e: Env,
         backstop_token: Address,
         blnd_token: Address,
+        usdc_token: Address,
         pool_factory: Address,
         drop_list: Map<Address, i128>,
     );
@@ -78,13 +80,13 @@ pub trait BackstopModuleTrait {
     /// * `user` - The user to fetch the balance for
     fn user_balance(e: Env, pool: Address, user: Address) -> UserBalance;
 
-    /// Fetch the balances for the pool
+    /// Fetch the backstop data for the pool
     ///
-    /// Return (total pool backstop tokens, total pool shares, total pool queued for withdraw)
+    /// Return a summary of the pool's backstop data
     ///
     /// ### Arguments
     /// * `pool_address` - The address of the pool
-    fn pool_balance(e: Env, pool_address: Address) -> PoolBalance;
+    fn pool_data(e: Env, pool: Address) -> PoolBackstopData;
 
     /// Fetch the backstop token for the backstop
     fn backstop_token(e: Env) -> Address;
@@ -153,6 +155,37 @@ pub trait BackstopModuleTrait {
     /// ### Errors
     /// If the `pool_address` is not valid
     fn donate(e: Env, from: Address, pool_address: Address, amount: i128);
+
+    /// Sends USDC from "from" to a pools backstop to be queued for donation
+    ///
+    /// NOTE: This is not a deposit, and "from" will permanently lose access to the funds
+    ///
+    /// ### Arguments
+    /// * `from` - tge
+    /// * `pool_address` - The address of the pool
+    /// * `amount` - The amount of BLND to add
+    ///
+    /// ### Errors
+    /// If the `pool_address` is not valid
+    fn donate_usdc(e: Env, from: Address, pool_address: Address, amount: i128);
+
+    /// Consume donated USDC for a pool and mint LP tokens into the pool's backstop
+    ///
+    /// ### Arguments
+    /// * `pool_address` - The address of the pool
+    ///
+    /// ### Errors
+    /// If the `pool_address` is not valid
+    fn gulp_usdc(e: Env, pool_address: Address);
+
+    /// Updates the underlying value of 1 backstop token
+    ///
+    /// ### Returns
+    /// A tuple of (blnd_per_tkn, usdc_per_tkn) of underlying value per backstop token
+    ///
+    /// ### Errors
+    /// If the underlying value is unable to be computed
+    fn update_tkn_val(e: Env) -> (i128, i128);
 }
 
 /// @dev
@@ -163,6 +196,7 @@ impl BackstopModuleTrait for BackstopModule {
     fn initialize(
         e: Env,
         backstop_token: Address,
+        usdc_token: Address,
         blnd_token: Address,
         pool_factory: Address,
         drop_list: Map<Address, i128>,
@@ -173,6 +207,7 @@ impl BackstopModuleTrait for BackstopModule {
 
         storage::set_backstop_token(&e, &backstop_token);
         storage::set_blnd_token(&e, &blnd_token);
+        storage::set_usdc_token(&e, &usdc_token);
         storage::set_pool_factory(&e, &pool_factory);
         storage::set_drop_list(&e, &drop_list);
     }
@@ -213,7 +248,7 @@ impl BackstopModuleTrait for BackstopModule {
 
         e.events().publish(
             (Symbol::new(&e, "dequeue_withdrawal"), pool_address, from),
-            (amount),
+            amount,
         );
     }
 
@@ -234,8 +269,8 @@ impl BackstopModuleTrait for BackstopModule {
         storage::get_user_balance(&e, &pool, &user)
     }
 
-    fn pool_balance(e: Env, pool: Address) -> PoolBalance {
-        storage::get_pool_balance(&e, &pool)
+    fn pool_data(e: Env, pool: Address) -> PoolBackstopData {
+        load_pool_backstop_data(&e, &pool)
     }
 
     fn backstop_token(e: Env) -> Address {
@@ -284,8 +319,6 @@ impl BackstopModuleTrait for BackstopModule {
     /********** Fund Management *********/
 
     fn draw(e: Env, pool_address: Address, amount: i128, to: Address) {
-        // TODO: Unit test this once `env.recorded_top_authorizations()`
-        //       can be executed from WASM, or add `test_auth` file
         storage::bump_instance(&e);
         pool_address.require_auth();
 
@@ -301,7 +334,40 @@ impl BackstopModuleTrait for BackstopModule {
 
         backstop::execute_donate(&e, &from, &pool_address, amount);
         e.events()
-            .publish((Symbol::new(&e, "donate"), pool_address, from), (amount));
+            .publish((Symbol::new(&e, "donate"), pool_address, from), amount);
+    }
+
+    fn donate_usdc(e: Env, from: Address, pool_address: Address, amount: i128) {
+        storage::bump_instance(&e);
+        from.require_auth();
+
+        backstop::execute_donate_usdc(&e, &from, &pool_address, amount);
+        e.events()
+            .publish((Symbol::new(&e, "donate_usdc"), pool_address, from), amount);
+    }
+
+    fn gulp_usdc(e: Env, pool_address: Address) {
+        storage::bump_instance(&e);
+
+        backstop::execute_gulp_usdc(&e, &pool_address);
+        e.events().publish(
+            (
+                Symbol::new(&e, "gulp_usdc"),
+                pool_address,
+                e.call_stack().last_unchecked().0,
+            ),
+            (),
+        );
+    }
+
+    fn update_tkn_val(e: Env) -> (i128, i128) {
+        storage::bump_instance(&e);
+
+        let backstop_token = storage::get_backstop_token(&e);
+        let blnd_token = storage::get_blnd_token(&e);
+        let usdc_token = storage::get_usdc_token(&e);
+
+        backstop::execute_update_comet_token_value(&e, &backstop_token, &blnd_token, &usdc_token)
     }
 }
 

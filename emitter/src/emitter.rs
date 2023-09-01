@@ -135,6 +135,7 @@ mod tests {
             &backstop_token,
             &Address::random(&e),
             &Address::random(&e),
+            &Address::random(&e),
             &Map::new(&e),
         );
 
@@ -180,6 +181,7 @@ mod tests {
 
         backstop_client.initialize(
             &backstop_token,
+            &Address::random(&e),
             &Address::random(&e),
             &Address::random(&e),
             &Map::new(&e),
@@ -228,6 +230,7 @@ mod tests {
 
         backstop_client.initialize(
             &backstop_token,
+            &Address::random(&e),
             &Address::random(&e),
             &Address::random(&e),
             &drop_list,
@@ -283,6 +286,7 @@ mod tests {
             &backstop_token,
             &Address::random(&e),
             &Address::random(&e),
+            &Address::random(&e),
             &drop_list,
         );
 
@@ -327,6 +331,7 @@ mod tests {
 
         backstop_client.initialize(
             &backstop_token,
+            &Address::random(&e),
             &Address::random(&e),
             &Address::random(&e),
             &drop_list,

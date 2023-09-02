@@ -25,3 +25,30 @@ pub use storage::{
     AuctionKey, PoolConfig, PoolDataKey, PoolEmissionConfig, ReserveConfig, ReserveData,
     ReserveEmissionsConfig, ReserveEmissionsData, UserEmissionData, UserReserveKey,
 };
+
+trait UnwrapOrOverflow {
+    type Output;
+
+    fn unwrap_or_overflow(self, env: &soroban_sdk::Env) -> Self::Output;
+}
+
+impl<T> UnwrapOrOverflow for Option<T> {
+    type Output = T;
+
+    #[inline(always)]
+    fn unwrap_or_overflow(self, env: &soroban_sdk::Env) -> Self::Output {
+        #[soroban_sdk::contracterror]
+        #[derive(Copy, Clone)]
+        #[repr(u32)]
+        enum Error {
+            Overflow = 0xFE,
+        }
+
+        match self {
+            Some(v) => v,
+            None => {
+                soroban_sdk::panic_with_error!(env, Error::Overflow);
+            }
+        }
+    }
+}

@@ -97,7 +97,7 @@ pub fn build_actions_from_request(
                 // withdraw
                 let mut reserve = pool.load_reserve(e, &request.address);
                 let cur_b_tokens = from_state.get_supply(reserve.index);
-                let mut to_burn = reserve.to_b_token_up(request.amount);
+                let mut to_burn = reserve.to_b_token_up(e, request.amount);
                 let mut tokens_out = request.amount;
                 if to_burn > cur_b_tokens {
                     to_burn = cur_b_tokens;
@@ -135,7 +135,7 @@ pub fn build_actions_from_request(
                 // withdraw collateral
                 let mut reserve = pool.load_reserve(e, &request.address);
                 let cur_b_tokens = from_state.get_collateral(reserve.index);
-                let mut to_burn = reserve.to_b_token_up(request.amount);
+                let mut to_burn = reserve.to_b_token_up(e, request.amount);
                 let mut tokens_out = request.amount;
                 if to_burn > cur_b_tokens {
                     to_burn = cur_b_tokens;
@@ -157,7 +157,7 @@ pub fn build_actions_from_request(
             4 => {
                 // borrow
                 let mut reserve = pool.load_reserve(e, &request.address);
-                let d_tokens_minted = reserve.to_d_token_up(request.amount);
+                let d_tokens_minted = reserve.to_d_token_up(e, request.amount);
                 from_state.add_liabilities(e, &mut reserve, d_tokens_minted);
                 reserve.require_utilization_below_max(e);
                 actions.add_for_pool_transfer(&reserve.asset, request.amount);
@@ -176,7 +176,7 @@ pub fn build_actions_from_request(
                 // repay
                 let mut reserve = pool.load_reserve(e, &request.address);
                 let cur_d_tokens = from_state.get_liabilities(reserve.index);
-                let d_tokens_burnt = reserve.to_d_token_down(request.amount);
+                let d_tokens_burnt = reserve.to_d_token_down(e, request.amount);
                 actions.add_for_spender_transfer(&reserve.asset, request.amount);
                 if d_tokens_burnt > cur_d_tokens {
                     let amount_to_refund =

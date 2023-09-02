@@ -7,6 +7,7 @@ use crate::{
     dependencies::TokenClient,
     errors::PoolError,
     storage::{self, PoolConfig, ReserveData},
+    UnwrapOrOverflow,
 };
 
 use super::interest::calc_accrual;
@@ -194,30 +195,30 @@ impl Reserve {
     ///
     /// ### Arguments
     /// * `amount` - The amount of tokens to convert
-    pub fn to_d_token_up(&self, amount: i128) -> i128 {
+    pub fn to_d_token_up(&self, env: &Env, amount: i128) -> i128 {
         amount
             .fixed_div_ceil(self.d_rate, SCALAR_9)
-            .unwrap_optimized()
+            .unwrap_or_overflow(env)
     }
 
     /// Convert asset tokens to the corresponding d token value - rounding down
     ///
     /// ### Arguments
     /// * `amount` - The amount of tokens to convert
-    pub fn to_d_token_down(&self, amount: i128) -> i128 {
+    pub fn to_d_token_down(&self, env: &Env, amount: i128) -> i128 {
         amount
             .fixed_div_floor(self.d_rate, SCALAR_9)
-            .unwrap_optimized()
+            .unwrap_or_overflow(env)
     }
 
     /// Convert asset tokens to the corresponding b token value - round up
     ///
     /// ### Arguments
     /// * `amount` - The amount of tokens to convert
-    pub fn to_b_token_up(&self, amount: i128) -> i128 {
+    pub fn to_b_token_up(&self, env: &Env, amount: i128) -> i128 {
         amount
             .fixed_div_ceil(self.b_rate, SCALAR_9)
-            .unwrap_optimized()
+            .unwrap_or_overflow(env)
     }
 
     /// Convert asset tokens to the corresponding b token value - round down

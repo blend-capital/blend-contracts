@@ -15,10 +15,10 @@ use soroban_sdk::arbitrary::arbitrary::{self, Arbitrary, Unstructured};
 
 #[derive(Arbitrary, Debug)]
 struct Input {
-    sam_usdc_balance: NatI128,
     sam_xlm_balance: NatI128,
-    merry_usdc_balance: NatI128,
+    sam_weth_balance: NatI128,
     merry_xlm_balance: NatI128,
+    merry_weth_balance: NatI128,
     commands: [Command; 10],
 }
 
@@ -32,15 +32,15 @@ struct NatI128(
 enum Command {
     PassTime(PassTime),
 
-    MerrySupplyUsdc(MerrySupplyUsdc),
-    SamSupplyXlm(SamSupplyXlm),
-    MerryWithdrawUsdc(MerryWithdrawUsdc),
-    SamWithdrawXlm(SamWithdrawXlm),
+    MerrySupplyXlm(MerrySupplyXlm),
+    SamSupplyWeth(SamSupplyWeth),
+    MerryWithdrawXlm(MerryWithdrawXlm),
+    SamWithdrawWeth(SamWithdrawWeth),
 
-    MerryBorrowXlm(MerryBorrowXlm),
-    SamBorrowUsdc(SamBorrowUsdc),
-    MerryRepayXlm(MerryRepayXlm),
-    SamRepayUsdc(SamRepayUsdc),
+    MerryBorrowWeth(MerryBorrowWeth),
+    SamBorrowXlm(SamBorrowXlm),
+    MerryRepayWeth(MerryRepayWeth),
+    SamRepayXlm(SamRepayXlm),
 
     FrodoClaimPool(FrodoClaimPool),
     FrodoClaimBackstop(FrodoClaimBackstop),
@@ -54,42 +54,42 @@ struct PassTime {
 }
 
 #[derive(Arbitrary, Debug)]
-struct MerrySupplyUsdc {
+struct MerrySupplyXlm {
     amount: i128,
 }
 
 #[derive(Arbitrary, Debug)]
-struct SamSupplyXlm {
+struct SamSupplyWeth {
     amount: i128,
 }
 
 #[derive(Arbitrary, Debug)]
-struct MerryWithdrawUsdc {
+struct MerryWithdrawXlm {
     amount: i128,
 }
 
 #[derive(Arbitrary, Debug)]
-struct SamWithdrawXlm {
+struct SamWithdrawWeth {
     amount: i128,
 }
 
 #[derive(Arbitrary, Debug)]
-struct MerryBorrowXlm {
+struct MerryBorrowWeth {
     amount: i128,
 }
 
 #[derive(Arbitrary, Debug)]
-struct SamBorrowUsdc {
+struct SamBorrowXlm {
     amount: i128,
 }
 
 #[derive(Arbitrary, Debug)]
-struct MerryRepayXlm {
+struct MerryRepayWeth {
     amount: i128,
 }
 
 #[derive(Arbitrary, Debug)]
-struct SamRepayUsdc {
+struct SamRepayXlm {
     amount: i128,
 }
 
@@ -111,32 +111,32 @@ struct State<'a> {
     frodo: Address,
     sam: Address,
     merry: Address,
-    usdc: &'a TokenClient<'a>,
     xlm: &'a TokenClient<'a>,
+    weth: &'a TokenClient<'a>,
 }
 
 fuzz_target!(|input: Input| {
     let (fixture, frodo) = create_fixture_with_data(false);
     let pool_fixture = &fixture.pools[0];
-    let usdc_pool_index = pool_fixture.reserves[&TokenIndex::USDC];
     let xlm_pool_index = pool_fixture.reserves[&TokenIndex::XLM];
+    let weth_pool_index = pool_fixture.reserves[&TokenIndex::WETH];
 
     // Create two new users
-    let sam = Address::random(&fixture.env); // sam will be supplying XLM and borrowing USDC
-    let merry = Address::random(&fixture.env); // merry will be supplying USDC and borrowing XLM
+    let sam = Address::random(&fixture.env); // sam will be supplying WETH and borrowing XLM
+    let merry = Address::random(&fixture.env); // merry will be supplying XLM and borrowing WETH
 
     // Mint users tokens
-    let usdc = &fixture.tokens[TokenIndex::USDC];
     let xlm = &fixture.tokens[TokenIndex::XLM];
+    let weth = &fixture.tokens[TokenIndex::WETH];
 
-    let mut sam_usdc_balance = input.sam_usdc_balance.0;
     let mut sam_xlm_balance = input.sam_xlm_balance.0;
-    let mut merry_usdc_balance = input.merry_usdc_balance.0;
+    let mut sam_weth_balance = input.sam_weth_balance.0;
     let mut merry_xlm_balance = input.merry_xlm_balance.0;
-    usdc.mint(&sam, &input.sam_usdc_balance.0);
-    usdc.mint(&merry, &input.merry_usdc_balance.0);
+    let mut merry_weth_balance = input.merry_weth_balance.0;
     xlm.mint(&sam, &input.sam_xlm_balance.0);
     xlm.mint(&merry, &input.merry_xlm_balance.0);
+    weth.mint(&sam, &input.sam_weth_balance.0);
+    weth.mint(&merry, &input.merry_weth_balance.0);
 
     let state = State {
         fixture: &fixture,
@@ -144,8 +144,8 @@ fuzz_target!(|input: Input| {
         frodo,
         sam,
         merry,
-        usdc,
         xlm,
+        weth,
     };
 
     for command in &input.commands {
@@ -189,14 +189,14 @@ impl Command {
         use Command::*;
         match self {
             PassTime(cmd) => cmd.run(state),
-            MerrySupplyUsdc(cmd) => cmd.run(state),
-            MerryWithdrawUsdc(cmd) => cmd.run(state),
-            SamSupplyXlm(cmd) => cmd.run(state),
-            SamWithdrawXlm(cmd) => cmd.run(state),
-            MerryBorrowXlm(cmd) => cmd.run(state),
-            MerryRepayXlm(cmd) => cmd.run(state),
-            SamBorrowUsdc(cmd) => cmd.run(state),
-            SamRepayUsdc(cmd) => cmd.run(state),
+            MerrySupplyXlm(cmd) => cmd.run(state),
+            MerryWithdrawXlm(cmd) => cmd.run(state),
+            SamSupplyWeth(cmd) => cmd.run(state),
+            SamWithdrawWeth(cmd) => cmd.run(state),
+            MerryBorrowWeth(cmd) => cmd.run(state),
+            MerryRepayWeth(cmd) => cmd.run(state),
+            SamBorrowXlm(cmd) => cmd.run(state),
+            SamRepayXlm(cmd) => cmd.run(state),
             FrodoClaimPool(cmd) => cmd.run(state),
             FrodoClaimBackstop(cmd) => cmd.run(state),
             MerryClaimPool(cmd) => cmd.run(state),
@@ -211,31 +211,12 @@ impl PassTime {
     }
 }
 
-impl MerrySupplyUsdc {
+impl MerrySupplyXlm {
     fn run(&self, state: &State) {
         let r = state.pool_fixture.pool.try_submit(
             &state.merry,
             &state.merry,
             &state.merry,
-            &vec![
-                &state.fixture.env,
-                Request {
-                    request_type: 2,
-                    address: state.usdc.address.clone(),
-                    amount: self.amount,
-                },
-            ],
-        );
-        verify_result(&state.fixture.env, &r);
-    }
-}
-
-impl SamSupplyXlm {
-    fn run(&self, state: &State) {
-        let r = state.pool_fixture.pool.try_submit(
-            &state.sam,
-            &state.sam,
-            &state.sam,
             &vec![
                 &state.fixture.env,
                 Request {
@@ -249,17 +230,17 @@ impl SamSupplyXlm {
     }
 }
 
-impl MerryWithdrawUsdc {
+impl SamSupplyWeth {
     fn run(&self, state: &State) {
         let r = state.pool_fixture.pool.try_submit(
-            &state.merry,
-            &state.merry,
-            &state.merry,
+            &state.sam,
+            &state.sam,
+            &state.sam,
             &vec![
                 &state.fixture.env,
                 Request {
-                    request_type: 3,
-                    address: state.usdc.address.clone(),
+                    request_type: 2,
+                    address: state.weth.address.clone(),
                     amount: self.amount,
                 },
             ],
@@ -268,12 +249,12 @@ impl MerryWithdrawUsdc {
     }
 }
 
-impl SamWithdrawXlm {
+impl MerryWithdrawXlm {
     fn run(&self, state: &State) {
         let r = state.pool_fixture.pool.try_submit(
-            &state.sam,
-            &state.sam,
-            &state.sam,
+            &state.merry,
+            &state.merry,
+            &state.merry,
             &vec![
                 &state.fixture.env,
                 Request {
@@ -287,12 +268,50 @@ impl SamWithdrawXlm {
     }
 }
 
-impl MerryBorrowXlm {
+impl SamWithdrawWeth {
+    fn run(&self, state: &State) {
+        let r = state.pool_fixture.pool.try_submit(
+            &state.sam,
+            &state.sam,
+            &state.sam,
+            &vec![
+                &state.fixture.env,
+                Request {
+                    request_type: 3,
+                    address: state.weth.address.clone(),
+                    amount: self.amount,
+                },
+            ],
+        );
+        verify_result(&state.fixture.env, &r);
+    }
+}
+
+impl MerryBorrowWeth {
     fn run(&self, state: &State) {
         let r = state.pool_fixture.pool.try_submit(
             &state.merry,
             &state.merry,
             &state.merry,
+            &vec![
+                &state.fixture.env,
+                Request {
+                    request_type: 4,
+                    address: state.weth.address.clone(),
+                    amount: self.amount,
+                },
+            ],
+        );
+        verify_result(&state.fixture.env, &r);
+    }
+}
+
+impl SamBorrowXlm {
+    fn run(&self, state: &State) {
+        let r = state.pool_fixture.pool.try_submit(
+            &state.sam,
+            &state.sam,
+            &state.sam,
             &vec![
                 &state.fixture.env,
                 Request {
@@ -306,26 +325,7 @@ impl MerryBorrowXlm {
     }
 }
 
-impl SamBorrowUsdc {
-    fn run(&self, state: &State) {
-        let r = state.pool_fixture.pool.try_submit(
-            &state.sam,
-            &state.sam,
-            &state.sam,
-            &vec![
-                &state.fixture.env,
-                Request {
-                    request_type: 4,
-                    address: state.usdc.address.clone(),
-                    amount: self.amount,
-                },
-            ],
-        );
-        verify_result(&state.fixture.env, &r);
-    }
-}
-
-impl MerryRepayXlm {
+impl MerryRepayWeth {
     fn run(&self, state: &State) {
         let r = state.pool_fixture.pool.try_submit(
             &state.merry,
@@ -335,7 +335,7 @@ impl MerryRepayXlm {
                 &state.fixture.env,
                 Request {
                     request_type: 5,
-                    address: state.xlm.address.clone(),
+                    address: state.weth.address.clone(),
                     amount: self.amount,
                 },
             ],
@@ -344,7 +344,7 @@ impl MerryRepayXlm {
     }
 }
 
-impl SamRepayUsdc {
+impl SamRepayXlm {
     fn run(&self, state: &State) {
         let r = state.pool_fixture.pool.try_submit(
             &state.sam,
@@ -354,7 +354,7 @@ impl SamRepayUsdc {
                 &state.fixture.env,
                 Request {
                     request_type: 5,
-                    address: state.usdc.address.clone(),
+                    address: state.xlm.address.clone(),
                     amount: self.amount,
                 },
             ],

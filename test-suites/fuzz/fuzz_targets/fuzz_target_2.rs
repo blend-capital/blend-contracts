@@ -164,14 +164,14 @@ type ContractResult<T> = Result<Result<T, soroban_sdk::ConversionError>, Result<
 ///
 /// Other rare types of internal exception can return `InvalidAction`.
 #[track_caller]
-fn verify_result<T>(env: &soroban_sdk::Env, r: &ContractResult<T>) {
+fn verify_contract_result<T>(env: &soroban_sdk::Env, r: &ContractResult<T>) {
     use soroban_sdk::{Error, ConversionError};
     use soroban_sdk::xdr::{ScErrorType, ScErrorCode};
     use soroban_sdk::testutils::Events;
     match r {
         Err(Ok(e)) => {
             if e.is_type(ScErrorType::WasmVm) && e.is_code(ScErrorCode::InvalidAction) {
-                let msg = "contract failed with InvalidAction - panic?";
+                let msg = "contract failed with InvalidAction - unexpected panic?";
                 eprintln!("{msg}");
                 eprintln!("recent events (10):");
                 for (i, event) in env.events().all().iter().rev().take(10).enumerate() {
@@ -226,7 +226,7 @@ impl MerrySupplyXlm {
                 },
             ],
         );
-        verify_result(&state.fixture.env, &r);
+        verify_contract_result(&state.fixture.env, &r);
     }
 }
 
@@ -245,7 +245,7 @@ impl SamSupplyWeth {
                 },
             ],
         );
-        verify_result(&state.fixture.env, &r);
+        verify_contract_result(&state.fixture.env, &r);
     }
 }
 
@@ -264,7 +264,7 @@ impl MerryWithdrawXlm {
                 },
             ],
         );
-        verify_result(&state.fixture.env, &r);
+        verify_contract_result(&state.fixture.env, &r);
     }
 }
 
@@ -283,7 +283,7 @@ impl SamWithdrawWeth {
                 },
             ],
         );
-        verify_result(&state.fixture.env, &r);
+        verify_contract_result(&state.fixture.env, &r);
     }
 }
 
@@ -302,7 +302,7 @@ impl MerryBorrowWeth {
                 },
             ],
         );
-        verify_result(&state.fixture.env, &r);
+        verify_contract_result(&state.fixture.env, &r);
     }
 }
 
@@ -321,7 +321,7 @@ impl SamBorrowXlm {
                 },
             ],
         );
-        verify_result(&state.fixture.env, &r);
+        verify_contract_result(&state.fixture.env, &r);
     }
 }
 
@@ -340,7 +340,7 @@ impl MerryRepayWeth {
                 },
             ],
         );
-        verify_result(&state.fixture.env, &r);
+        verify_contract_result(&state.fixture.env, &r);
     }
 }
 
@@ -359,7 +359,7 @@ impl SamRepayXlm {
                 },
             ],
         );
-        verify_result(&state.fixture.env, &r);
+        verify_contract_result(&state.fixture.env, &r);
     }
 }
 
@@ -370,7 +370,7 @@ impl FrodoClaimPool {
             &vec![&state.fixture.env, 0, 3],
             &state.frodo,
         );
-        verify_result(&state.fixture.env, &r);
+        verify_contract_result(&state.fixture.env, &r);
     }
 }
 
@@ -381,7 +381,7 @@ impl FrodoClaimBackstop {
             &vec![&state.fixture.env, state.pool_fixture.pool.address.clone()],
             &state.frodo,                  
         );
-        verify_result(&state.fixture.env, &r);
+        verify_contract_result(&state.fixture.env, &r);
     }
 }
 
@@ -392,7 +392,7 @@ impl MerryClaimPool {
             &vec![&state.fixture.env, 0, 3],
             &state.merry,
         );
-        verify_result(&state.fixture.env, &r);
+        verify_contract_result(&state.fixture.env, &r);
     }
 }
 
@@ -403,7 +403,7 @@ impl SamClaimPool {
             &vec![&state.fixture.env, 0, 3],
             &state.sam,
         );
-        verify_result(&state.fixture.env, &r);
+        verify_contract_result(&state.fixture.env, &r);
     }
 }
 

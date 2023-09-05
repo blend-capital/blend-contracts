@@ -2,10 +2,11 @@ use soroban_sdk::{contracttype, unwrap::UnwrapOptimized, vec, Address, Env, Map,
 
 use crate::backstop::{PoolBalance, UserBalance};
 
-pub(crate) const INSTANCE_BUMP_AMOUNT: u32 = 34560; // 2 days
-pub(crate) const SHARED_BUMP_AMOUNT: u32 = 69120; // 4 days
-pub(crate) const CYCLE_BUMP_AMOUNT: u32 = 69120; // 10 days - use for shared data accessed on the 7-day cycle window
-pub(crate) const USER_BUMP_AMOUNT: u32 = 518400; // 30 days
+pub(crate) const LEDGER_THRESHOLD_SHARED: u32 = 172800; // ~ 10 days
+pub(crate) const LEDGER_BUMP_SHARED: u32 = 241920; // ~ 14 days
+
+pub(crate) const LEDGER_THRESHOLD_USER: u32 = 725760; // ~ 42 days - 6 weeks
+pub(crate) const LEDGER_BUMP_USER: u32 = 967680; // ~ 56 days - 8 weeks
 
 /********** Storage Types **********/
 
@@ -68,7 +69,9 @@ pub enum BackstopDataKey {
 
 /// Bump the instance rent for the contract
 pub fn bump_instance(e: &Env) {
-    e.storage().instance().bump(INSTANCE_BUMP_AMOUNT);
+    e.storage()
+        .instance()
+        .bump(LEDGER_THRESHOLD_SHARED, LEDGER_BUMP_SHARED);
 }
 
 /********** External Contracts **********/
@@ -76,9 +79,11 @@ pub fn bump_instance(e: &Env) {
 /// Fetch the pool factory id
 pub fn get_pool_factory(e: &Env) -> Address {
     // TODO: Change to instance - https://github.com/stellar/rs-soroban-sdk/issues/1040
-    e.storage()
-        .persistent()
-        .bump(&BackstopDataKey::PoolFact, SHARED_BUMP_AMOUNT);
+    e.storage().persistent().bump(
+        &BackstopDataKey::PoolFact,
+        LEDGER_THRESHOLD_SHARED,
+        LEDGER_BUMP_SHARED,
+    );
     e.storage()
         .persistent()
         .get::<BackstopDataKey, Address>(&BackstopDataKey::PoolFact)
@@ -98,9 +103,11 @@ pub fn set_pool_factory(e: &Env, pool_factory_id: &Address) {
 /// Fetch the BLND token id
 pub fn get_blnd_token(e: &Env) -> Address {
     // TODO: Change to instance - https://github.com/stellar/rs-soroban-sdk/issues/1040
-    e.storage()
-        .persistent()
-        .bump(&BackstopDataKey::BLNDTkn, SHARED_BUMP_AMOUNT);
+    e.storage().persistent().bump(
+        &BackstopDataKey::BLNDTkn,
+        LEDGER_THRESHOLD_SHARED,
+        LEDGER_BUMP_SHARED,
+    );
     e.storage()
         .persistent()
         .get::<BackstopDataKey, Address>(&BackstopDataKey::BLNDTkn)
@@ -120,9 +127,11 @@ pub fn set_blnd_token(e: &Env, blnd_token_id: &Address) {
 /// Fetch the USDC token id
 pub fn get_usdc_token(e: &Env) -> Address {
     // TODO: Change to instance - https://github.com/stellar/rs-soroban-sdk/issues/1040
-    e.storage()
-        .persistent()
-        .bump(&BackstopDataKey::USDCTkn, SHARED_BUMP_AMOUNT);
+    e.storage().persistent().bump(
+        &BackstopDataKey::USDCTkn,
+        LEDGER_THRESHOLD_SHARED,
+        LEDGER_BUMP_SHARED,
+    );
     e.storage()
         .persistent()
         .get::<BackstopDataKey, Address>(&BackstopDataKey::USDCTkn)
@@ -142,9 +151,11 @@ pub fn set_usdc_token(e: &Env, usdc_token_id: &Address) {
 /// Fetch the backstop token id
 pub fn get_backstop_token(e: &Env) -> Address {
     // TODO: Change to instance - https://github.com/stellar/rs-soroban-sdk/issues/1040
-    e.storage()
-        .persistent()
-        .bump(&BackstopDataKey::BckstpTkn, SHARED_BUMP_AMOUNT);
+    e.storage().persistent().bump(
+        &BackstopDataKey::BckstpTkn,
+        LEDGER_THRESHOLD_SHARED,
+        LEDGER_BUMP_SHARED,
+    );
     e.storage()
         .persistent()
         .get::<BackstopDataKey, Address>(&BackstopDataKey::BckstpTkn)
@@ -178,7 +189,9 @@ pub fn get_user_balance(e: &Env, pool: &Address, user: &Address) -> UserBalance 
         pool: pool.clone(),
         user: user.clone(),
     });
-    e.storage().persistent().bump(&key, USER_BUMP_AMOUNT);
+    e.storage()
+        .persistent()
+        .bump(&key, LEDGER_THRESHOLD_SHARED, LEDGER_BUMP_SHARED);
     e.storage()
         .persistent()
         .get::<BackstopDataKey, UserBalance>(&key)
@@ -212,7 +225,9 @@ pub fn set_user_balance(e: &Env, pool: &Address, user: &Address, balance: &UserB
 /// * `pool` - The pool the deposit is associated with
 pub fn get_pool_balance(e: &Env, pool: &Address) -> PoolBalance {
     let key = BackstopDataKey::PoolBalance(pool.clone());
-    e.storage().persistent().bump(&key, SHARED_BUMP_AMOUNT);
+    e.storage()
+        .persistent()
+        .bump(&key, LEDGER_THRESHOLD_SHARED, LEDGER_BUMP_SHARED);
     e.storage()
         .persistent()
         .get::<BackstopDataKey, PoolBalance>(&key)
@@ -241,7 +256,9 @@ pub fn set_pool_balance(e: &Env, pool: &Address, balance: &PoolBalance) {
 /// * `pool` - The pool the deposit is associated with
 pub fn get_pool_usdc(e: &Env, pool: &Address) -> i128 {
     let key = BackstopDataKey::PoolUSDC(pool.clone());
-    e.storage().persistent().bump(&key, USER_BUMP_AMOUNT);
+    e.storage()
+        .persistent()
+        .bump(&key, LEDGER_THRESHOLD_SHARED, LEDGER_BUMP_SHARED);
     e.storage()
         .persistent()
         .get::<BackstopDataKey, i128>(&key)
@@ -264,9 +281,11 @@ pub fn set_pool_usdc(e: &Env, pool: &Address, balance: &i128) {
 
 /// Get the timestamp of when the next emission cycle begins
 pub fn get_next_emission_cycle(e: &Env) -> u64 {
-    e.storage()
-        .persistent()
-        .bump(&BackstopDataKey::NextEmis, CYCLE_BUMP_AMOUNT);
+    e.storage().persistent().bump(
+        &BackstopDataKey::NextEmis,
+        LEDGER_THRESHOLD_SHARED,
+        LEDGER_BUMP_SHARED,
+    );
     e.storage()
         .persistent()
         .get::<BackstopDataKey, u64>(&BackstopDataKey::NextEmis)
@@ -287,9 +306,11 @@ pub fn set_next_emission_cycle(e: &Env, timestamp: &u64) {
 ///
 // @dev - TODO: Once data access costs are available, find the breakeven point for splitting this up
 pub fn get_reward_zone(e: &Env) -> Vec<Address> {
-    e.storage()
-        .persistent()
-        .bump(&BackstopDataKey::RewardZone, CYCLE_BUMP_AMOUNT);
+    e.storage().persistent().bump(
+        &BackstopDataKey::RewardZone,
+        LEDGER_THRESHOLD_SHARED,
+        LEDGER_BUMP_SHARED,
+    );
     e.storage()
         .persistent()
         .get::<BackstopDataKey, Vec<Address>>(&BackstopDataKey::RewardZone)
@@ -312,7 +333,9 @@ pub fn set_reward_zone(e: &Env, reward_zone: &Vec<Address>) {
 /// * `pool` - The pool
 pub fn get_pool_eps(e: &Env, pool: &Address) -> i128 {
     let key = BackstopDataKey::PoolEPS(pool.clone());
-    e.storage().persistent().bump(&key, CYCLE_BUMP_AMOUNT);
+    e.storage()
+        .persistent()
+        .bump(&key, LEDGER_THRESHOLD_SHARED, LEDGER_BUMP_SHARED);
     e.storage()
         .persistent()
         .get::<BackstopDataKey, i128>(&key)
@@ -339,7 +362,9 @@ pub fn set_pool_eps(e: &Env, pool: &Address, eps: &i128) {
 /// * `pool` - The pool
 pub fn get_backstop_emis_config(e: &Env, pool: &Address) -> Option<BackstopEmissionConfig> {
     let key = BackstopDataKey::BEmisCfg(pool.clone());
-    e.storage().persistent().bump(&key, SHARED_BUMP_AMOUNT);
+    e.storage()
+        .persistent()
+        .bump(&key, LEDGER_THRESHOLD_SHARED, LEDGER_BUMP_SHARED);
     e.storage()
         .persistent()
         .get::<BackstopDataKey, BackstopEmissionConfig>(&key)
@@ -376,7 +401,9 @@ pub fn set_backstop_emis_config(
 /// * `pool` - The pool
 pub fn get_backstop_emis_data(e: &Env, pool: &Address) -> Option<BackstopEmissionsData> {
     let key = BackstopDataKey::BEmisData(pool.clone());
-    e.storage().persistent().bump(&key, SHARED_BUMP_AMOUNT);
+    e.storage()
+        .persistent()
+        .bump(&key, LEDGER_THRESHOLD_SHARED, LEDGER_BUMP_SHARED);
     e.storage()
         .persistent()
         .get::<BackstopDataKey, BackstopEmissionsData>(&key)
@@ -404,7 +431,9 @@ pub fn get_user_emis_data(e: &Env, pool: &Address, user: &Address) -> Option<Use
         pool: pool.clone(),
         user: user.clone(),
     });
-    e.storage().persistent().bump(&key, USER_BUMP_AMOUNT);
+    e.storage()
+        .persistent()
+        .bump(&key, LEDGER_THRESHOLD_USER, LEDGER_BUMP_USER);
     e.storage()
         .persistent()
         .get::<BackstopDataKey, UserEmissionData>(&key)
@@ -435,9 +464,11 @@ pub fn set_user_emis_data(
 
 /// Get the current pool addresses that are in the drop list and the amount of the initial distribution they receive
 pub fn get_drop_list(e: &Env) -> Map<Address, i128> {
-    e.storage()
-        .persistent()
-        .bump(&BackstopDataKey::DropList, INSTANCE_BUMP_AMOUNT);
+    e.storage().persistent().bump(
+        &BackstopDataKey::DropList,
+        LEDGER_THRESHOLD_SHARED,
+        LEDGER_BUMP_SHARED,
+    );
     e.storage()
         .persistent()
         .get::<BackstopDataKey, Map<Address, i128>>(&BackstopDataKey::DropList)
@@ -458,9 +489,11 @@ pub fn set_drop_list(e: &Env, drop_list: &Map<Address, i128>) {
 
 /// Get the last updated token value for the LP pool
 pub fn get_lp_token_val(e: &Env) -> (i128, i128) {
-    e.storage()
-        .persistent()
-        .bump(&BackstopDataKey::LPTknVal, USER_BUMP_AMOUNT);
+    e.storage().persistent().bump(
+        &BackstopDataKey::LPTknVal,
+        LEDGER_THRESHOLD_USER,
+        LEDGER_BUMP_USER,
+    );
     e.storage()
         .persistent()
         .get::<BackstopDataKey, (i128, i128)>(&BackstopDataKey::DropList)
@@ -475,7 +508,9 @@ pub fn set_lp_token_val(e: &Env, share_val: &(i128, i128)) {
     e.storage()
         .persistent()
         .set::<BackstopDataKey, (i128, i128)>(&BackstopDataKey::DropList, share_val);
-    e.storage()
-        .persistent()
-        .bump(&BackstopDataKey::LPTknVal, USER_BUMP_AMOUNT);
+    e.storage().persistent().bump(
+        &BackstopDataKey::LPTknVal,
+        LEDGER_THRESHOLD_USER,
+        LEDGER_BUMP_USER,
+    );
 }

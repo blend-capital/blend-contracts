@@ -2,7 +2,8 @@ use soroban_sdk::{contract, contracterror, contractimpl, contracttype, Address, 
 
 use oracle::{PriceData, PriceFeedTrait};
 
-pub(crate) const BUMP_AMOUNT: u32 = 518400; // 30 days
+pub(crate) const LEDGER_THRESHOLD_SHARED: u32 = 172800; // ~ 10 days
+pub(crate) const LEDGER_BUMP_SHARED: u32 = 241920; // ~ 14 days
 
 #[derive(Clone)]
 #[contracttype]
@@ -58,7 +59,9 @@ impl MockOraclePrice for MockOracle {
                 timestamp: 0,
             },
         );
-        e.storage().temporary().bump(&key, BUMP_AMOUNT);
+        e.storage()
+            .temporary()
+            .bump(&key, LEDGER_THRESHOLD_SHARED, LEDGER_BUMP_SHARED);
     }
 
     fn set_price_timestamp(e: Env, asset: Address, price: i128, timestamp: u64) {
@@ -66,7 +69,9 @@ impl MockOraclePrice for MockOracle {
         e.storage()
             .temporary()
             .set::<MockOracleDataKey, PriceData>(&key, &PriceData { price, timestamp });
-        e.storage().temporary().bump(&key, BUMP_AMOUNT);
+        e.storage()
+            .temporary()
+            .bump(&key, LEDGER_THRESHOLD_SHARED, LEDGER_BUMP_SHARED);
     }
 }
 
@@ -97,7 +102,9 @@ impl PriceFeedTrait for MockOracle {
     }
 
     fn lastprice(e: Env, asset: Address) -> Option<PriceData> {
-        e.storage().instance().bump(BUMP_AMOUNT);
+        e.storage()
+            .instance()
+            .bump(LEDGER_THRESHOLD_SHARED, LEDGER_BUMP_SHARED);
         let key = MockOracleDataKey::Prices(asset);
         let mut price = e
             .storage()
@@ -110,7 +117,9 @@ impl PriceFeedTrait for MockOracle {
         if price.timestamp == 0 {
             price.timestamp = e.ledger().timestamp();
         }
-        e.storage().temporary().bump(&key, BUMP_AMOUNT);
+        e.storage()
+            .temporary()
+            .bump(&key, LEDGER_THRESHOLD_SHARED, LEDGER_BUMP_SHARED);
         Some(price)
     }
 }

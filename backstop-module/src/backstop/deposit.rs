@@ -26,7 +26,10 @@ pub fn execute_deposit(e: &Env, from: &Address, pool_address: &Address, amount: 
 mod tests {
     use soroban_sdk::{testutils::Address as _, Address};
 
-    use crate::{backstop::execute_donate, testutils::create_backstop_token};
+    use crate::{
+        backstop::execute_donate,
+        testutils::{create_backstop, create_backstop_token},
+    };
 
     use super::*;
 
@@ -34,14 +37,14 @@ mod tests {
     fn test_execute_deposit() {
         let e = Env::default();
         e.budget().reset_unlimited();
-        e.mock_all_auths();
+        e.mock_all_auths_allowing_non_root_auth();
 
-        let backstop_address = Address::random(&e);
-        let pool_0_id = Address::random(&e);
-        let pool_1_id = Address::random(&e);
+        let backstop_address = create_backstop(&e);
         let bombadil = Address::random(&e);
         let samwise = Address::random(&e);
         let frodo = Address::random(&e);
+        let pool_0_id = Address::random(&e);
+        let pool_1_id = Address::random(&e);
 
         let (_, backstop_token_client) = create_backstop_token(&e, &backstop_address, &bombadil);
         backstop_token_client.mint(&samwise, &100_0000000);
@@ -84,12 +87,12 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
+    #[should_panic(expected = "Error(WasmVm, InvalidAction)")]
     fn test_execute_deposit_too_many_tokens() {
         let e = Env::default();
-        e.mock_all_auths();
+        e.mock_all_auths_allowing_non_root_auth();
 
-        let backstop_address = Address::random(&e);
+        let backstop_address = create_backstop(&e);
         let pool_0_id = Address::random(&e);
         let bombadil = Address::random(&e);
         let samwise = Address::random(&e);
@@ -106,13 +109,12 @@ mod tests {
     }
 
     #[test]
-    // #[should_panic(expected = "ContractError(11)")]
-    #[should_panic]
+    #[should_panic(expected = "Error(Contract, #11)")]
     fn test_execute_deposit_negative_tokens() {
         let e = Env::default();
-        e.mock_all_auths();
+        e.mock_all_auths_allowing_non_root_auth();
 
-        let backstop_address = Address::random(&e);
+        let backstop_address = create_backstop(&e);
         let pool_0_id = Address::random(&e);
         let bombadil = Address::random(&e);
         let samwise = Address::random(&e);

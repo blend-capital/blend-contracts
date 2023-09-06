@@ -228,8 +228,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
-    //#[should_panic(expected = "ContractError(2)")]
+    #[should_panic(expected = "Error(Contract, #2)")]
     fn test_q4w_over_shares_panics() {
         let e = Env::default();
 
@@ -261,8 +260,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
-    //#[should_panic(expected = "ContractError(2)")]
+    #[should_panic(expected = "Error(Contract, #2)")]
     fn test_withdraw_shares_no_q4w_panics() {
         let e = Env::default();
 
@@ -415,8 +413,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
-    //#[should_panic(expected = "HostError\nValue: Status(ContractError(3))")]
+    #[should_panic(expected = "Error(Contract, #3)")]
     fn test_withdraw_shares_multiple_entries_not_exp() {
         let e = Env::default();
 
@@ -510,8 +507,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
-    //#[should_panic(expected = "ContractError(3)")]
+    #[should_panic(expected = "Error(Contract, #3)")]
     fn test_try_dequeue_shares_require_expired_expect_panic() {
         let e = Env::default();
 
@@ -551,8 +547,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
-    //#[should_panic(expected = "ContractError(2)")]
+    #[should_panic(expected = "Error(Contract, #2)")]
     fn test_try_withdraw_shares_over_total() {
         let e = Env::default();
 

@@ -101,7 +101,7 @@ mod tests {
     use crate::{
         backstop::execute_deposit,
         testutils::{
-            create_backstop_token, create_blnd_token, create_comet_lp_pool,
+            create_backstop, create_backstop_token, create_blnd_token, create_comet_lp_pool,
             create_mock_pool_factory, create_usdc_token,
         },
     };
@@ -111,10 +111,10 @@ mod tests {
     #[test]
     fn test_execute_donate() {
         let e = Env::default();
-        e.mock_all_auths();
+        e.mock_all_auths_allowing_non_root_auth();
         e.budget().reset_unlimited();
 
-        let backstop_id = Address::random(&e);
+        let backstop_id = create_backstop(&e);
         let pool_0_id = Address::random(&e);
         let bombadil = Address::random(&e);
         let samwise = Address::random(&e);
@@ -139,14 +139,13 @@ mod tests {
     }
 
     #[test]
-    // #[should_panic(expected = "ContractError(11)")]
-    #[should_panic]
+    #[should_panic(expected = "Error(Contract, #11)")]
     fn test_execute_donate_negative_amount() {
         let e = Env::default();
-        e.mock_all_auths();
+        e.mock_all_auths_allowing_non_root_auth();
         e.budget().reset_unlimited();
 
-        let backstop_id = Address::random(&e);
+        let backstop_id = create_backstop(&e);
         let pool_0_id = Address::random(&e);
         let bombadil = Address::random(&e);
         let samwise = Address::random(&e);
@@ -169,10 +168,10 @@ mod tests {
     #[test]
     fn test_execute_draw() {
         let e = Env::default();
-        e.mock_all_auths();
+        e.mock_all_auths_allowing_non_root_auth();
         e.budget().reset_unlimited();
 
-        let backstop_address = Address::random(&e);
+        let backstop_address = create_backstop(&e);
         let pool_0_id = Address::random(&e);
         let bombadil = Address::random(&e);
         let samwise = Address::random(&e);
@@ -201,14 +200,13 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
-    // #[should_panic(expected = "ContractError(10)")]
+    #[should_panic(expected = "Error(Contract, #10)")]
     fn test_execute_draw_requires_pool_factory_verification() {
         let e = Env::default();
-        e.mock_all_auths();
+        e.mock_all_auths_allowing_non_root_auth();
         e.budget().reset_unlimited();
 
-        let backstop_id = Address::random(&e);
+        let backstop_id = create_backstop(&e);
         let pool_0_id = Address::random(&e);
         let pool_bad_id = Address::random(&e);
         let bombadil = Address::random(&e);
@@ -232,14 +230,13 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
-    //#[should_panic(expected = "HostError\nValue: Status(ContractError(6))")]
+    #[should_panic(expected = "Error(Contract, #6)")]
     fn test_execute_draw_only_can_take_from_pool() {
         let e = Env::default();
-        e.mock_all_auths();
+        e.mock_all_auths_allowing_non_root_auth();
         e.budget().reset_unlimited();
 
-        let backstop_id = Address::random(&e);
+        let backstop_id = create_backstop(&e);
         let pool_0_id = Address::random(&e);
         let pool_1_id = Address::random(&e);
         let bombadil = Address::random(&e);
@@ -264,14 +261,13 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
-    // #[should_panic(expected = "ContractError(11)")]
+    #[should_panic(expected = "Error(Contract, #11)")]
     fn test_execute_draw_negative_amount() {
         let e = Env::default();
-        e.mock_all_auths();
+        e.mock_all_auths_allowing_non_root_auth();
         e.budget().reset_unlimited();
 
-        let backstop_id = Address::random(&e);
+        let backstop_id = create_backstop(&e);
         let pool_0_id = Address::random(&e);
         let bombadil = Address::random(&e);
         let samwise = Address::random(&e);
@@ -296,10 +292,10 @@ mod tests {
     #[test]
     fn test_execute_donate_usdc() {
         let e = Env::default();
-        e.mock_all_auths();
+        e.mock_all_auths_allowing_non_root_auth();
         e.budget().reset_unlimited();
 
-        let backstop_id = Address::random(&e);
+        let backstop_id = create_backstop(&e);
         let pool_0_id = Address::random(&e);
         let bombadil = Address::random(&e);
         let samwise = Address::random(&e);
@@ -325,14 +321,13 @@ mod tests {
     }
 
     #[test]
-    // #[should_panic(expected = "ContractError(11)")]
-    #[should_panic]
+    #[should_panic(expected = "Error(Contract, #11)")]
     fn test_execute_donate_usdc_negative_amount() {
         let e = Env::default();
-        e.mock_all_auths();
+        e.mock_all_auths_allowing_non_root_auth();
         e.budget().reset_unlimited();
 
-        let backstop_id = Address::random(&e);
+        let backstop_id = create_backstop(&e);
         let pool_0_id = Address::random(&e);
         let bombadil = Address::random(&e);
         let samwise = Address::random(&e);
@@ -348,10 +343,10 @@ mod tests {
     #[test]
     fn test_execute_gulp_usdc() {
         let e = Env::default();
-        e.mock_all_auths();
+        e.mock_all_auths_allowing_non_root_auth();
         e.budget().reset_unlimited();
 
-        let backstop_id = Address::random(&e);
+        let backstop_id = create_backstop(&e);
         let pool_0_id = Address::random(&e);
         let bombadil = Address::random(&e);
         let samwise = Address::random(&e);
@@ -392,10 +387,10 @@ mod tests {
     #[test]
     fn test_execute_update_comet_token_value() {
         let e = Env::default();
-        e.mock_all_auths();
+        e.mock_all_auths_allowing_non_root_auth();
         e.budget().reset_unlimited();
 
-        let backstop_id = Address::random(&e);
+        let backstop_id = create_backstop(&e);
         let bombadil = Address::random(&e);
         let samwise = Address::random(&e);
 

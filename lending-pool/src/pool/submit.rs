@@ -66,17 +66,30 @@ mod tests {
         vec,
     };
 
+    ///! FAILING
+    // TODO: mock_all_auths_allowing_non_root_auth not working for `transfer` from spender to pool
     #[test]
     fn test_submit() {
         let e = Env::default();
         e.budget().reset_unlimited();
-        e.mock_all_auths();
+        e.mock_all_auths_allowing_non_root_auth();
+
+        e.ledger().set(LedgerInfo {
+            timestamp: 600,
+            protocol_version: 1,
+            sequence_number: 1234,
+            network_id: Default::default(),
+            base_reserve: 10,
+            min_temp_entry_expiration: 10,
+            min_persistent_entry_expiration: 10,
+            max_entry_expiration: 2000000,
+        });
 
         let bombadil = Address::random(&e);
         let samwise = Address::random(&e);
         let frodo = Address::random(&e);
         let merry = Address::random(&e);
-        let pool = Address::random(&e);
+        let pool = testutils::create_pool(&e);
         let (oracle, oracle_client) = testutils::create_mock_oracle(&e);
 
         let (underlying_0, underlying_0_client) = testutils::create_token_contract(&e, &bombadil);
@@ -92,16 +105,6 @@ mod tests {
         oracle_client.set_price(&underlying_0, &1_0000000);
         oracle_client.set_price(&underlying_1, &5_0000000);
 
-        e.ledger().set(LedgerInfo {
-            timestamp: 600,
-            protocol_version: 1,
-            sequence_number: 1234,
-            network_id: Default::default(),
-            base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
-        });
         let pool_config = PoolConfig {
             oracle,
             bstop_rate: 0_100_000_000,
@@ -149,8 +152,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
-    //#[should_panic(expected = "ContractError(10)")]
+    #[should_panic(expected = "Error(Contract, #10)")]
     fn test_submit_requires_healhty() {
         let e = Env::default();
         e.mock_all_auths();
@@ -159,7 +161,7 @@ mod tests {
         let samwise = Address::random(&e);
         let frodo = Address::random(&e);
         let merry = Address::random(&e);
-        let pool = Address::random(&e);
+        let pool = testutils::create_pool(&e);
         let (oracle, oracle_client) = testutils::create_mock_oracle(&e);
 
         let (underlying_0, underlying_0_client) = testutils::create_token_contract(&e, &bombadil);

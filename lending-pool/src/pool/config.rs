@@ -144,7 +144,7 @@ mod tests {
     #[test]
     fn test_execute_initialize() {
         let e = Env::default();
-        let pool = Address::random(&e);
+        let pool = testutils::create_pool(&e);
 
         let admin = Address::random(&e);
         let name = Symbol::new(&e, "pool_name");
@@ -180,7 +180,7 @@ mod tests {
     #[test]
     fn test_execute_update_pool() {
         let e = Env::default();
-        let pool = Address::random(&e);
+        let pool = testutils::create_pool(&e);
 
         let pool_config = PoolConfig {
             oracle: Address::random(&e),
@@ -200,11 +200,10 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
-    //#[should_panic(expected = "Status(ContractError(2))")]
+    #[should_panic(expected = "Error(Contract, #2)")]
     fn test_execute_update_pool_validates() {
         let e = Env::default();
-        let pool = Address::random(&e);
+        let pool = testutils::create_pool(&e);
 
         let pool_config = PoolConfig {
             oracle: Address::random(&e),
@@ -221,7 +220,7 @@ mod tests {
     #[test]
     fn test_initialize_reserve() {
         let e = Env::default();
-        let pool = Address::random(&e);
+        let pool = testutils::create_pool(&e);
         let bombadil = Address::random(&e);
 
         let (asset_id_0, _) = testutils::create_token_contract(&e, &bombadil);
@@ -260,11 +259,10 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
-    //#[should_panic(expected = "Status(ContractError(3))")]
+    #[should_panic(expected = "Error(Contract, #3)")]
     fn test_initialize_reserve_blocks_duplicates() {
         let e = Env::default();
-        let pool = Address::random(&e);
+        let pool = testutils::create_pool(&e);
         let bombadil = Address::random(&e);
         let (asset_id, _) = testutils::create_token_contract(&e, &bombadil);
 
@@ -289,11 +287,10 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
-    //#[should_panic(expected = "Status(ContractError(6))")]
+    #[should_panic(expected = "Error(Contract, #6)")]
     fn test_initialize_reserve_validates_metadata() {
         let e = Env::default();
-        let pool = Address::random(&e);
+        let pool = testutils::create_pool(&e);
         let bombadil = Address::random(&e);
         let (asset_id, _) = testutils::create_token_contract(&e, &bombadil);
 
@@ -332,7 +329,7 @@ mod tests {
             max_entry_expiration: 2000000,
         });
 
-        let pool = Address::random(&e);
+        let pool = testutils::create_pool(&e);
         let bombadil = Address::random(&e);
 
         let (underlying, _) = testutils::create_token_contract(&e, &bombadil);
@@ -395,8 +392,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
-    //#[should_panic(expected = "Status(ContractError(6))")]
+    #[should_panic(expected = "Error(Contract, #6)")]
     fn test_execute_update_reserve_validates_metadata() {
         let e = Env::default();
         e.mock_all_auths();
@@ -411,7 +407,7 @@ mod tests {
             max_entry_expiration: 2000000,
         });
 
-        let pool = Address::random(&e);
+        let pool = testutils::create_pool(&e);
         let bombadil = Address::random(&e);
 
         let (underlying, _) = testutils::create_token_contract(&e, &bombadil);
@@ -466,8 +462,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
-    //#[should_panic(expected = "Status(ContractError(6))")]
+    #[should_panic(expected = "Error(Contract, #6)")]
     fn test_validate_reserve_metadata_validates_decimals() {
         let e = Env::default();
 
@@ -487,8 +482,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
-    //#[should_panic(expected = "Status(ContractError(6))")]
+    #[should_panic(expected = "Error(Contract, #6)")]
     fn test_validate_reserve_metadata_validates_c_factor() {
         let e = Env::default();
 
@@ -508,8 +502,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
-    //#[should_panic(expected = "Status(ContractError(6))")]
+    #[should_panic(expected = "Error(Contract, #6)")]
     fn test_validate_reserve_metadata_validates_l_factor() {
         let e = Env::default();
 
@@ -529,8 +522,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
-    //#[should_panic(expected = "Status(ContractError(6))")]
+    #[should_panic(expected = "Error(Contract, #6)")]
     fn test_validate_reserve_metadata_validates_util() {
         let e = Env::default();
 
@@ -550,8 +542,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
-    //#[should_panic(expected = "Status(ContractError(6))")]
+    #[should_panic(expected = "Error(Contract, #6)")]
     fn test_validate_reserve_metadata_validates_max_util() {
         let e = Env::default();
 
@@ -571,8 +562,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
-    //#[should_panic(expected = "Status(ContractError(6))")]
+    #[should_panic(expected = "Error(Contract, #6)")]
     fn test_validate_reserve_metadata_validates_r_order() {
         let e = Env::default();
 
@@ -592,8 +582,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
-    //#[should_panic(expected = "Status(ContractError(6))")]
+    #[should_panic(expected = "Error(Contract, #6)")]
     fn test_validate_reserve_metadata_validates_reactivity() {
         let e = Env::default();
 

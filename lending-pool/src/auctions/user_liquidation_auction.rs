@@ -138,20 +138,19 @@ mod tests {
         auctions::auction::AuctionType,
         pool::Positions,
         storage::{self, PoolConfig},
-        testutils,
+        testutils::{self, create_pool},
     };
 
     use super::*;
     use soroban_sdk::testutils::{Address as AddressTestTrait, Ledger, LedgerInfo};
 
     #[test]
-    #[should_panic]
-    //#[should_panic(expected = "ContractError(103)")]
+    #[should_panic(expected = "Error(Contract, #103)")]
     fn test_create_interest_auction_already_in_progress() {
         let e = Env::default();
         e.mock_all_auths();
 
-        let pool_address = Address::random(&e);
+        let pool_address = create_pool(&e);
         let (oracle, _) = testutils::create_mock_oracle(&e);
 
         let samwise = Address::random(&e);
@@ -210,7 +209,7 @@ mod tests {
         let bombadil = Address::random(&e);
         let samwise = Address::random(&e);
 
-        let pool_address = Address::random(&e);
+        let pool_address = create_pool(&e);
         let (oracle_address, oracle_client) = testutils::create_mock_oracle(&e);
 
         // creating reserves for a pool exhausts the budget
@@ -293,8 +292,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
-    //#[should_panic(expected = "ContractError(105)")]
+    #[should_panic(expected = "Error(Contract, #105)")]
     fn test_create_user_liquidation_auction_bad_full_liq() {
         let e = Env::default();
 
@@ -313,7 +311,7 @@ mod tests {
         let bombadil = Address::random(&e);
         let samwise = Address::random(&e);
 
-        let pool_address = Address::random(&e);
+        let pool_address = create_pool(&e);
 
         let (oracle_address, oracle_client) = testutils::create_mock_oracle(&e);
 
@@ -391,8 +389,7 @@ mod tests {
         });
     }
     #[test]
-    #[should_panic]
-    //#[should_panic(expected = "ContractError(105)")]
+    #[should_panic(expected = "Error(Contract, #105)")]
     fn test_create_user_liquidation_auction_too_large() {
         let e = Env::default();
 
@@ -411,7 +408,7 @@ mod tests {
         let bombadil = Address::random(&e);
         let samwise = Address::random(&e);
 
-        let pool_address = Address::random(&e);
+        let pool_address = create_pool(&e);
 
         let (oracle_address, oracle_client) = testutils::create_mock_oracle(&e);
 
@@ -490,8 +487,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
-    // #[should_panic(expected = "ContractError(106)")]
+    #[should_panic(expected = "Error(Contract, #106)")]
     fn test_create_user_liquidation_auction_too_small() {
         let e = Env::default();
 
@@ -510,7 +506,7 @@ mod tests {
         let bombadil = Address::random(&e);
         let samwise = Address::random(&e);
 
-        let pool_address = Address::random(&e);
+        let pool_address = create_pool(&e);
 
         let (oracle_address, oracle_client) = testutils::create_mock_oracle(&e);
 
@@ -608,7 +604,7 @@ mod tests {
         let samwise = Address::random(&e);
         let frodo = Address::random(&e);
 
-        let pool_address = Address::random(&e);
+        let pool_address = create_pool(&e);
 
         let (oracle_address, oracle_client) = testutils::create_mock_oracle(&e);
 
@@ -752,8 +748,9 @@ mod tests {
             );
         });
     }
+
     #[test]
-    fn test_create_fill_user_liquidation_auction_hits_target() {
+    fn test_fill_user_liquidation_auction_hits_target() {
         let e = Env::default();
 
         e.mock_all_auths();
@@ -772,7 +769,7 @@ mod tests {
         let samwise = Address::random(&e);
         let frodo = Address::random(&e);
 
-        let pool_address = Address::random(&e);
+        let pool_address = create_pool(&e);
 
         let (oracle_address, oracle_client) = testutils::create_mock_oracle(&e);
 
@@ -870,7 +867,6 @@ mod tests {
             let mut pool = Pool::load(&e);
             let mut frodo_state = User::load(&e, &frodo);
             fill_user_liq_auction(&e, &mut pool, &mut auction_data, &samwise, &mut frodo_state);
-            let mut pool = Pool::load(&e);
             let samwise_positions = storage::get_user_positions(&e, &samwise);
             let samwise_hf =
                 PositionData::calculate_from_positions(&e, &mut pool, &samwise_positions)

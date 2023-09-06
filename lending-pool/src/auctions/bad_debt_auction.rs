@@ -112,7 +112,12 @@ pub fn fill_bad_debt_auction(
 #[cfg(test)]
 mod tests {
 
-    use crate::{auctions::auction::AuctionType, pool::Positions, storage::PoolConfig, testutils};
+    use crate::{
+        auctions::auction::AuctionType,
+        pool::Positions,
+        storage::PoolConfig,
+        testutils::{self, create_pool},
+    };
 
     use super::*;
     use soroban_sdk::{
@@ -122,13 +127,13 @@ mod tests {
     };
 
     #[test]
-    #[should_panic]
-    //#[should_panic(expected = "ContractError(103)")]
+    #[should_panic(expected = "Error(Contract, #103)")]
     fn test_create_bad_debt_auction_already_in_progress() {
         let e = Env::default();
+        e.mock_all_auths_allowing_non_root_auth();
         e.budget().reset_unlimited(); // setup exhausts budget
 
-        let pool_address = Address::random(&e);
+        let pool_address = create_pool(&e);
         let bombadil = Address::random(&e);
         let samwise = Address::random(&e);
 
@@ -189,7 +194,7 @@ mod tests {
     #[test]
     fn test_create_bad_debt_auction() {
         let e = Env::default();
-        e.mock_all_auths();
+        e.mock_all_auths_allowing_non_root_auth();
         e.budget().reset_unlimited(); // setup exhausts budget
 
         e.ledger().set(LedgerInfo {
@@ -205,7 +210,7 @@ mod tests {
 
         let bombadil = Address::random(&e);
         let samwise = Address::random(&e);
-        let pool_address = Address::random(&e);
+        let pool_address = create_pool(&e);
 
         let (blnd, blnd_client) = testutils::create_blnd_token(&e, &pool_address, &bombadil);
         let (usdc, usdc_client) = testutils::create_usdc_token(&e, &pool_address, &bombadil);
@@ -313,7 +318,7 @@ mod tests {
     #[test]
     fn test_create_bad_debt_auction_max_balance() {
         let e = Env::default();
-        e.mock_all_auths();
+        e.mock_all_auths_allowing_non_root_auth();
         e.budget().reset_unlimited(); // setup exhausts budget
 
         e.ledger().set(LedgerInfo {
@@ -330,7 +335,7 @@ mod tests {
         let bombadil = Address::random(&e);
         let samwise = Address::random(&e);
 
-        let pool_address = Address::random(&e);
+        let pool_address = create_pool(&e);
         let (blnd, blnd_client) = testutils::create_blnd_token(&e, &pool_address, &bombadil);
         let (usdc, usdc_client) = testutils::create_usdc_token(&e, &pool_address, &bombadil);
         let (lp_token, lp_token_client) =
@@ -438,7 +443,7 @@ mod tests {
     #[test]
     fn test_create_bad_debt_auction_applies_interest() {
         let e = Env::default();
-        e.mock_all_auths();
+        e.mock_all_auths_allowing_non_root_auth();
         e.budget().reset_unlimited(); // setup exhausts budget
 
         e.ledger().set(LedgerInfo {
@@ -454,7 +459,7 @@ mod tests {
 
         let bombadil = Address::random(&e);
         let samwise = Address::random(&e);
-        let pool_address = Address::random(&e);
+        let pool_address = create_pool(&e);
 
         let (blnd, blnd_client) = testutils::create_blnd_token(&e, &pool_address, &bombadil);
         let (usdc, usdc_client) = testutils::create_usdc_token(&e, &pool_address, &bombadil);
@@ -563,7 +568,7 @@ mod tests {
     #[test]
     fn test_fill_bad_debt_auction() {
         let e = Env::default();
-        e.mock_all_auths();
+        e.mock_all_auths_allowing_non_root_auth();
         e.budget().reset_unlimited(); // setup exhausts budget
 
         e.ledger().set(LedgerInfo {
@@ -580,7 +585,7 @@ mod tests {
         let bombadil = Address::random(&e);
         let samwise = Address::random(&e);
 
-        let pool_address = Address::random(&e);
+        let pool_address = create_pool(&e);
 
         let (blnd, blnd_client) = testutils::create_blnd_token(&e, &pool_address, &bombadil);
         let (usdc, usdc_client) = testutils::create_usdc_token(&e, &pool_address, &bombadil);
@@ -707,7 +712,7 @@ mod tests {
     #[test]
     fn test_fill_bad_debt_auction_leftover_debt_small_backstop_burns() {
         let e = Env::default();
-        e.mock_all_auths();
+        e.mock_all_auths_allowing_non_root_auth();
         e.budget().reset_unlimited(); // setup exhausts budget
 
         e.ledger().set(LedgerInfo {
@@ -723,7 +728,7 @@ mod tests {
 
         let bombadil = Address::random(&e);
         let samwise = Address::random(&e);
-        let pool_address = Address::random(&e);
+        let pool_address = create_pool(&e);
 
         let (blnd, blnd_client) = testutils::create_blnd_token(&e, &pool_address, &bombadil);
         let (usdc, usdc_client) = testutils::create_usdc_token(&e, &pool_address, &bombadil);
@@ -857,7 +862,7 @@ mod tests {
     #[test]
     fn test_fill_bad_debt_auction_leftover_debt_sufficient_balance() {
         let e = Env::default();
-        e.mock_all_auths();
+        e.mock_all_auths_allowing_non_root_auth();
         e.budget().reset_unlimited(); // setup exhausts budget
 
         e.ledger().set(LedgerInfo {
@@ -873,7 +878,7 @@ mod tests {
 
         let bombadil = Address::random(&e);
         let samwise = Address::random(&e);
-        let pool_address = Address::random(&e);
+        let pool_address = create_pool(&e);
 
         let (blnd, blnd_client) = testutils::create_blnd_token(&e, &pool_address, &bombadil);
         let (usdc, usdc_client) = testutils::create_usdc_token(&e, &pool_address, &bombadil);

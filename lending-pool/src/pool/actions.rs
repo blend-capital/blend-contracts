@@ -279,7 +279,8 @@ mod tests {
 
     use crate::{
         storage::{self, PoolConfig},
-        testutils, AuctionData, AuctionType, Positions,
+        testutils::{self, create_pool},
+        AuctionData, AuctionType, Positions,
     };
 
     use super::*;
@@ -301,7 +302,7 @@ mod tests {
 
         let bombadil = Address::random(&e);
         let samwise = Address::random(&e);
-        let pool = Address::random(&e);
+        let pool = testutils::create_pool(&e);
 
         let (underlying, _) = testutils::create_token_contract(&e, &bombadil);
         let (reserve_config, reserve_data) = testutils::default_reserve_meta(&e);
@@ -369,7 +370,7 @@ mod tests {
 
         let bombadil = Address::random(&e);
         let samwise = Address::random(&e);
-        let pool = Address::random(&e);
+        let pool = testutils::create_pool(&e);
 
         let (underlying, _) = testutils::create_token_contract(&e, &bombadil);
         let (reserve_config, reserve_data) = testutils::default_reserve_meta(&e);
@@ -442,7 +443,7 @@ mod tests {
 
         let bombadil = Address::random(&e);
         let samwise = Address::random(&e);
-        let pool = Address::random(&e);
+        let pool = testutils::create_pool(&e);
 
         let (underlying, _) = testutils::create_token_contract(&e, &bombadil);
         let (reserve_config, reserve_data) = testutils::default_reserve_meta(&e);
@@ -512,7 +513,7 @@ mod tests {
 
         let bombadil = Address::random(&e);
         let samwise = Address::random(&e);
-        let pool = Address::random(&e);
+        let pool = testutils::create_pool(&e);
 
         let (underlying, _) = testutils::create_token_contract(&e, &bombadil);
         let (reserve_config, reserve_data) = testutils::default_reserve_meta(&e);
@@ -583,7 +584,7 @@ mod tests {
 
         let bombadil = Address::random(&e);
         let samwise = Address::random(&e);
-        let pool = Address::random(&e);
+        let pool = testutils::create_pool(&e);
 
         let (underlying, _) = testutils::create_token_contract(&e, &bombadil);
         let (reserve_config, reserve_data) = testutils::default_reserve_meta(&e);
@@ -655,7 +656,7 @@ mod tests {
 
         let bombadil = Address::random(&e);
         let samwise = Address::random(&e);
-        let pool = Address::random(&e);
+        let pool = testutils::create_pool(&e);
 
         let (underlying, _) = testutils::create_token_contract(&e, &bombadil);
         let (reserve_config, reserve_data) = testutils::default_reserve_meta(&e);
@@ -725,7 +726,7 @@ mod tests {
 
         let bombadil = Address::random(&e);
         let samwise = Address::random(&e);
-        let pool = Address::random(&e);
+        let pool = testutils::create_pool(&e);
 
         let (underlying, _) = testutils::create_token_contract(&e, &bombadil);
         let (reserve_config, reserve_data) = testutils::default_reserve_meta(&e);
@@ -788,7 +789,7 @@ mod tests {
 
         let bombadil = Address::random(&e);
         let samwise = Address::random(&e);
-        let pool = Address::random(&e);
+        let pool = testutils::create_pool(&e);
 
         let (underlying, _) = testutils::create_token_contract(&e, &bombadil);
         let (reserve_config, reserve_data) = testutils::default_reserve_meta(&e);
@@ -861,7 +862,7 @@ mod tests {
 
         let bombadil = Address::random(&e);
         let samwise = Address::random(&e);
-        let pool = Address::random(&e);
+        let pool = testutils::create_pool(&e);
 
         let (underlying, _) = testutils::create_token_contract(&e, &bombadil);
         let (reserve_config, reserve_data) = testutils::default_reserve_meta(&e);
@@ -933,7 +934,7 @@ mod tests {
 
         let bombadil = Address::random(&e);
         let samwise = Address::random(&e);
-        let pool = Address::random(&e);
+        let pool = testutils::create_pool(&e);
 
         let (underlying, _) = testutils::create_token_contract(&e, &bombadil);
         let (reserve_config, mut reserve_data) = testutils::default_reserve_meta(&e);
@@ -1048,7 +1049,7 @@ mod tests {
         let samwise = Address::random(&e);
         let frodo = Address::random(&e);
 
-        let pool_address = Address::random(&e);
+        let pool_address = create_pool(&e);
 
         let (oracle_address, _) = testutils::create_mock_oracle(&e);
 
@@ -1183,7 +1184,7 @@ mod tests {
         let samwise = Address::random(&e);
         let frodo = Address::random(&e);
 
-        let pool_address = Address::random(&e);
+        let pool_address = create_pool(&e);
 
         let (oracle_address, _) = testutils::create_mock_oracle(&e);
 
@@ -1284,11 +1285,13 @@ mod tests {
         });
     }
 
+    ///! FAILING
+    // TODO: mock_all_auths_allowing_non_root_auth not working for `donate_usdc` call to `transfer` in the backstop
     #[test]
     fn test_fill_interest_auction() {
         let e = Env::default();
 
-        e.mock_all_auths();
+        e.mock_all_auths_allowing_non_root_auth();
         e.ledger().set(LedgerInfo {
             timestamp: 12345,
             protocol_version: 1,
@@ -1303,7 +1306,7 @@ mod tests {
         let bombadil = Address::random(&e);
         let samwise = Address::random(&e);
 
-        let pool_address = Address::random(&e);
+        let pool_address = create_pool(&e);
         let (usdc_id, usdc_client) = testutils::create_usdc_token(&e, &pool_address, &bombadil);
         let (backstop_address, _backstop_client) = testutils::create_backstop(&e);
         testutils::setup_backstop(

@@ -122,7 +122,7 @@ mod tests {
         e.mock_all_auths();
 
         let bombadil = Address::random(&e);
-        let pool = Address::random(&e);
+        let pool = testutils::create_pool(&e);
         let (oracle, oracle_client) = testutils::create_mock_oracle(&e);
 
         let (underlying_0, _) = testutils::create_token_contract(&e, &bombadil);
@@ -223,8 +223,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
-    //#[should_panic(expected = "Status(ContractError(10))")]
+    #[should_panic(expected = "Error(Contract, #10)")]
     fn test_require_healthy_panics() {
         let e = Env::default();
 

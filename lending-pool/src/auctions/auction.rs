@@ -252,7 +252,11 @@ fn scale_auction(
 #[cfg(test)]
 mod tests {
 
-    use crate::{pool::Positions, storage::PoolConfig, testutils};
+    use crate::{
+        pool::Positions,
+        storage::PoolConfig,
+        testutils::{self, create_pool},
+    };
 
     use super::*;
     use soroban_sdk::{
@@ -264,7 +268,7 @@ mod tests {
     #[test]
     fn test_create_bad_debt_auction() {
         let e = Env::default();
-        e.mock_all_auths();
+        e.mock_all_auths_allowing_non_root_auth();
         e.budget().reset_unlimited(); // setup exhausts budget
 
         e.ledger().set(LedgerInfo {
@@ -280,7 +284,7 @@ mod tests {
 
         let bombadil = Address::random(&e);
         let samwise = Address::random(&e);
-        let pool_address = Address::random(&e);
+        let pool_address = create_pool(&e);
 
         let (blnd, blnd_client) = testutils::create_blnd_token(&e, &pool_address, &bombadil);
         let (usdc, usdc_client) = testutils::create_usdc_token(&e, &pool_address, &bombadil);
@@ -398,7 +402,7 @@ mod tests {
 
         let bombadil = Address::random(&e);
 
-        let pool_address = Address::random(&e);
+        let pool_address = create_pool(&e);
         let (usdc_id, _) = testutils::create_usdc_token(&e, &pool_address, &bombadil);
         let (backstop_address, _backstop_client) = testutils::create_backstop(&e);
         testutils::setup_backstop(
@@ -493,7 +497,7 @@ mod tests {
         let bombadil = Address::random(&e);
         let samwise = Address::random(&e);
 
-        let pool_address = Address::random(&e);
+        let pool_address = create_pool(&e);
         let (oracle_address, oracle_client) = testutils::create_mock_oracle(&e);
 
         // creating reserves for a pool exhausts the budget
@@ -569,12 +573,12 @@ mod tests {
             assert!(storage::has_auction(&e, &0, &samwise));
         });
     }
+
     #[test]
-    #[should_panic]
-    //#[should_panic(expected = "ContractError(2)")]
+    #[should_panic(expected = "Error(Contract, #2)")]
     fn test_create_user_liquidation_errors() {
         let e = Env::default();
-        let pool_id = Address::random(&e);
+        let pool_id = create_pool(&e);
         let backstop_id = Address::random(&e);
 
         e.as_contract(&pool_id, || {
@@ -588,7 +592,7 @@ mod tests {
     fn test_delete_user_liquidation() {
         let e = Env::default();
         e.mock_all_auths();
-        let pool_id = Address::random(&e);
+        let pool_id = create_pool(&e);
 
         let bombadil = Address::random(&e);
         let samwise = Address::random(&e);
@@ -655,12 +659,11 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
-    //#[should_panic(expected = "ContractError(10)")]
+    #[should_panic(expected = "Error(Contract, #10)")]
     fn test_delete_user_liquidation_invalid_hf() {
         let e = Env::default();
         e.mock_all_auths();
-        let pool_id = Address::random(&e);
+        let pool_id = create_pool(&e);
 
         let bombadil = Address::random(&e);
         let samwise = Address::random(&e);
@@ -754,7 +757,7 @@ mod tests {
         let samwise = Address::random(&e);
         let frodo = Address::random(&e);
 
-        let pool_address = Address::random(&e);
+        let pool_address = create_pool(&e);
 
         let (oracle_address, _) = testutils::create_mock_oracle(&e);
 
@@ -861,7 +864,7 @@ mod tests {
         let samwise = Address::random(&e);
         let frodo = Address::random(&e);
 
-        let pool_address = Address::random(&e);
+        let pool_address = create_pool(&e);
 
         let (oracle_address, _) = testutils::create_mock_oracle(&e);
 
@@ -981,7 +984,7 @@ mod tests {
         let samwise = Address::random(&e);
         let frodo = Address::random(&e);
 
-        let pool_address = Address::random(&e);
+        let pool_address = create_pool(&e);
 
         let (oracle_address, _) = testutils::create_mock_oracle(&e);
 
@@ -1150,8 +1153,7 @@ mod tests {
     }
 
     #[test]
-    // #[should_panic(expected = "ContractError(2)")]
-    #[should_panic]
+    #[should_panic(expected = "Error(Contract, #2)")]
     fn test_fill_fails_pct_too_large() {
         let e = Env::default();
 
@@ -1171,7 +1173,7 @@ mod tests {
         let samwise = Address::random(&e);
         let frodo = Address::random(&e);
 
-        let pool_address = Address::random(&e);
+        let pool_address = create_pool(&e);
 
         let (oracle_address, _) = testutils::create_mock_oracle(&e);
 
@@ -1270,8 +1272,7 @@ mod tests {
     }
 
     #[test]
-    // #[should_panic(expected = "ContractError(2)")]
-    #[should_panic]
+    #[should_panic(expected = "Error(Contract, #2)")]
     fn test_fill_fails_pct_too_small() {
         let e = Env::default();
 
@@ -1291,7 +1292,7 @@ mod tests {
         let samwise = Address::random(&e);
         let frodo = Address::random(&e);
 
-        let pool_address = Address::random(&e);
+        let pool_address = create_pool(&e);
 
         let (oracle_address, _) = testutils::create_mock_oracle(&e);
 

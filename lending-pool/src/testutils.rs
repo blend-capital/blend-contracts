@@ -5,6 +5,7 @@ use crate::{
     dependencies::{TokenClient, TOKEN_WASM},
     pool::Reserve,
     storage::{self, ReserveConfig, ReserveData},
+    Pool,
 };
 use fixed_point_math::FixedPoint;
 use soroban_sdk::{
@@ -14,6 +15,10 @@ use soroban_sdk::{
 use backstop_module::{BackstopModule, BackstopModuleClient};
 use mock_oracle::{MockOracle, MockOracleClient};
 use mock_pool_factory::{MockPoolFactory, MockPoolFactoryClient};
+
+pub(crate) fn create_pool(e: &Env) -> Address {
+    e.register_contract(None, Pool {})
+}
 
 //************************************************
 //           External Contract Helpers

@@ -243,18 +243,6 @@ mod tests {
         let e = Env::default();
         e.mock_all_auths();
 
-        let bombadil = Address::random(&e);
-        let pool = Address::random(&e);
-        let oracle = Address::random(&e);
-
-        let (underlying, _) = testutils::create_token_contract(&e, &bombadil);
-        let (reserve_config, mut reserve_data) = testutils::default_reserve_meta(&e);
-        reserve_data.d_rate = 1_345_678_123;
-        reserve_data.b_rate = 1_123_456_789;
-        reserve_data.d_supply = 65_0000000;
-        reserve_data.b_supply = 99_0000000;
-        testutils::create_reserve(&e, &pool, &underlying, &reserve_config, &reserve_data);
-
         e.ledger().set(LedgerInfo {
             timestamp: 123456 * 5,
             protocol_version: 1,
@@ -265,6 +253,19 @@ mod tests {
             min_persistent_entry_expiration: 10,
             max_entry_expiration: 2000000,
         });
+
+        let bombadil = Address::random(&e);
+        let pool = testutils::create_pool(&e);
+        let oracle = Address::random(&e);
+
+        let (underlying, _) = testutils::create_token_contract(&e, &bombadil);
+        let (reserve_config, mut reserve_data) = testutils::default_reserve_meta(&e);
+        reserve_data.d_rate = 1_345_678_123;
+        reserve_data.b_rate = 1_123_456_789;
+        reserve_data.d_supply = 65_0000000;
+        reserve_data.b_supply = 99_0000000;
+        testutils::create_reserve(&e, &pool, &underlying, &reserve_config, &reserve_data);
+
         let pool_config = PoolConfig {
             oracle,
             bstop_rate: 0_200_000_000,
@@ -290,18 +291,6 @@ mod tests {
         let e = Env::default();
         e.mock_all_auths();
 
-        let bombadil = Address::random(&e);
-        let pool = Address::random(&e);
-        let oracle = Address::random(&e);
-
-        let (underlying, _) = testutils::create_token_contract(&e, &bombadil);
-        let (reserve_config, mut reserve_data) = testutils::default_reserve_meta(&e);
-        reserve_data.d_rate = 0;
-        reserve_data.b_rate = 0;
-        reserve_data.d_supply = 0;
-        reserve_data.b_supply = 0;
-        testutils::create_reserve(&e, &pool, &underlying, &reserve_config, &reserve_data);
-
         e.ledger().set(LedgerInfo {
             timestamp: 123456 * 5,
             protocol_version: 1,
@@ -312,6 +301,19 @@ mod tests {
             min_persistent_entry_expiration: 10,
             max_entry_expiration: 2000000,
         });
+
+        let bombadil = Address::random(&e);
+        let pool = testutils::create_pool(&e);
+        let oracle = Address::random(&e);
+
+        let (underlying, _) = testutils::create_token_contract(&e, &bombadil);
+        let (reserve_config, mut reserve_data) = testutils::default_reserve_meta(&e);
+        reserve_data.d_rate = 0;
+        reserve_data.b_rate = 0;
+        reserve_data.d_supply = 0;
+        reserve_data.b_supply = 0;
+        testutils::create_reserve(&e, &pool, &underlying, &reserve_config, &reserve_data);
+
         let pool_config = PoolConfig {
             oracle,
             bstop_rate: 0_200_000_000,
@@ -337,18 +339,6 @@ mod tests {
         let e = Env::default();
         e.mock_all_auths();
 
-        let bombadil = Address::random(&e);
-        let pool = Address::random(&e);
-        let oracle = Address::random(&e);
-
-        let (underlying, _) = testutils::create_token_contract(&e, &bombadil);
-        let (reserve_config, mut reserve_data) = testutils::default_reserve_meta(&e);
-        reserve_data.d_rate = 1_345_678_123;
-        reserve_data.b_rate = 1_123_456_789;
-        reserve_data.d_supply = 65_0000000;
-        reserve_data.b_supply = 99_0000000;
-        testutils::create_reserve(&e, &pool, &underlying, &reserve_config, &reserve_data);
-
         e.ledger().set(LedgerInfo {
             timestamp: 123456 * 5,
             protocol_version: 1,
@@ -359,6 +349,19 @@ mod tests {
             min_persistent_entry_expiration: 10,
             max_entry_expiration: 2000000,
         });
+
+        let bombadil = Address::random(&e);
+        let pool = testutils::create_pool(&e);
+        let oracle = Address::random(&e);
+
+        let (underlying, _) = testutils::create_token_contract(&e, &bombadil);
+        let (reserve_config, mut reserve_data) = testutils::default_reserve_meta(&e);
+        reserve_data.d_rate = 1_345_678_123;
+        reserve_data.b_rate = 1_123_456_789;
+        reserve_data.d_supply = 65_0000000;
+        reserve_data.b_supply = 99_0000000;
+        testutils::create_reserve(&e, &pool, &underlying, &reserve_config, &reserve_data);
+
         let pool_config = PoolConfig {
             oracle,
             bstop_rate: 0_200_000_000,
@@ -411,8 +414,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
-    //#[should_panic(expected = "Status(ContractError(12))")]
+    #[should_panic(expected = "Error(Contract, #12)")]
     fn test_require_utilization_under_max_panic() {
         let e = Env::default();
 

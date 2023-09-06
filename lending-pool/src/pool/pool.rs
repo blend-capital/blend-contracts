@@ -121,14 +121,6 @@ mod tests {
         let e = Env::default();
         e.mock_all_auths();
 
-        let bombadil = Address::random(&e);
-        let pool = Address::random(&e);
-        let oracle = Address::random(&e);
-
-        let (underlying, _) = testutils::create_token_contract(&e, &bombadil);
-        let (reserve_config, reserve_data) = testutils::default_reserve_meta(&e);
-        testutils::create_reserve(&e, &pool, &underlying, &reserve_config, &reserve_data);
-
         e.ledger().set(LedgerInfo {
             timestamp: 123456 * 5,
             protocol_version: 1,
@@ -139,6 +131,15 @@ mod tests {
             min_persistent_entry_expiration: 10,
             max_entry_expiration: 2000000,
         });
+
+        let bombadil = Address::random(&e);
+        let pool = testutils::create_pool(&e);
+        let oracle = Address::random(&e);
+
+        let (underlying, _) = testutils::create_token_contract(&e, &bombadil);
+        let (reserve_config, reserve_data) = testutils::default_reserve_meta(&e);
+        testutils::create_reserve(&e, &pool, &underlying, &reserve_config, &reserve_data);
+
         let pool_config = PoolConfig {
             oracle,
             bstop_rate: 0_200_000_000,
@@ -180,8 +181,19 @@ mod tests {
         let e = Env::default();
         e.mock_all_auths();
 
+        e.ledger().set(LedgerInfo {
+            timestamp: 123456 * 5,
+            protocol_version: 1,
+            sequence_number: 123456,
+            network_id: Default::default(),
+            base_reserve: 10,
+            min_temp_entry_expiration: 10,
+            min_persistent_entry_expiration: 10,
+            max_entry_expiration: 2000000,
+        });
+
         let bombadil = Address::random(&e);
-        let pool = Address::random(&e);
+        let pool = testutils::create_pool(&e);
         let oracle = Address::random(&e);
 
         let (underlying, _) = testutils::create_token_contract(&e, &bombadil);
@@ -193,16 +205,6 @@ mod tests {
         let mut reserve_2 = testutils::default_reserve(&e);
         reserve_2.index = 2;
 
-        e.ledger().set(LedgerInfo {
-            timestamp: 123456 * 5,
-            protocol_version: 1,
-            sequence_number: 123456,
-            network_id: Default::default(),
-            base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
-        });
         let pool_config = PoolConfig {
             oracle,
             bstop_rate: 0_200_000_000,
@@ -251,12 +253,11 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
-    //#[should_panic(expected = "Status(ContractError(11))")]
+    #[should_panic(expected = "Error(Contract, #11)")]
     fn test_require_action_allowed_borrow_while_on_ice_panics() {
         let e = Env::default();
 
-        let pool = Address::random(&e);
+        let pool = testutils::create_pool(&e);
         let oracle = Address::random(&e);
         let pool_config = PoolConfig {
             oracle,
@@ -275,7 +276,7 @@ mod tests {
     fn test_require_action_allowed_borrow_while_active() {
         let e = Env::default();
 
-        let pool = Address::random(&e);
+        let pool = testutils::create_pool(&e);
         let oracle = Address::random(&e);
         let pool_config = PoolConfig {
             oracle,
@@ -291,12 +292,11 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
-    //#[should_panic(expected = "Status(ContractError(11))")]
+    #[should_panic(expected = "Error(Contract, #11)")]
     fn test_require_action_allowed_supply_while_frozen() {
         let e = Env::default();
 
-        let pool = Address::random(&e);
+        let pool = testutils::create_pool(&e);
         let oracle = Address::random(&e);
         let pool_config = PoolConfig {
             oracle,
@@ -312,12 +312,11 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
-    //#[should_panic(expected = "Status(ContractError(11))")]
+    #[should_panic(expected = "Error(Contract, #11)")]
     fn test_require_action_allowed_supply_collateral_while_frozen() {
         let e = Env::default();
 
-        let pool = Address::random(&e);
+        let pool = testutils::create_pool(&e);
         let oracle = Address::random(&e);
         let pool_config = PoolConfig {
             oracle,
@@ -336,7 +335,7 @@ mod tests {
     fn test_require_action_allowed_can_withdrawal_and_repay_while_frozen() {
         let e = Env::default();
 
-        let pool = Address::random(&e);
+        let pool = testutils::create_pool(&e);
         let oracle = Address::random(&e);
         let pool_config = PoolConfig {
             oracle,
@@ -359,7 +358,7 @@ mod tests {
     fn test_load_price_decimals() {
         let e = Env::default();
 
-        let pool = Address::random(&e);
+        let pool = testutils::create_pool(&e);
         let (oracle, _) = testutils::create_mock_oracle(&e);
         let pool_config = PoolConfig {
             oracle,
@@ -379,7 +378,7 @@ mod tests {
     fn test_load_price() {
         let e = Env::default();
 
-        let pool = Address::random(&e);
+        let pool = testutils::create_pool(&e);
         let asset_0 = Address::random(&e);
         let asset_1 = Address::random(&e);
         let (oracle, oracle_client) = testutils::create_mock_oracle(&e);
@@ -408,7 +407,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
+    #[should_panic(expected = "Error(Contract, #30)")]
     fn test_load_price_panics_if_stale() {
         let e = Env::default();
 
@@ -423,7 +422,7 @@ mod tests {
             max_entry_expiration: 2000000,
         });
 
-        let pool = Address::random(&e);
+        let pool = testutils::create_pool(&e);
         let asset = Address::random(&e);
         let (oracle, oracle_client) = testutils::create_mock_oracle(&e);
         oracle_client.set_price_timestamp(&asset, &123, &1000);

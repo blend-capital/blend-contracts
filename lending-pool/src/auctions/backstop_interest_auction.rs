@@ -95,7 +95,7 @@ mod tests {
     use crate::{
         auctions::auction::AuctionType,
         storage::{self, PoolConfig},
-        testutils,
+        testutils::{self, create_pool},
     };
 
     use super::*;
@@ -105,12 +105,11 @@ mod tests {
     };
 
     #[test]
-    #[should_panic]
-    //#[should_panic(expected = "ContractError(103)")]
+    #[should_panic(expected = "Error(Contract, #103)")]
     fn test_create_interest_auction_already_in_progress() {
         let e = Env::default();
 
-        let pool_address = Address::random(&e);
+        let pool_address = create_pool(&e);
         let backstop_address = Address::random(&e);
 
         e.ledger().set(LedgerInfo {
@@ -142,8 +141,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
-    // #[should_panic(expected = "ContractError(109)")]
+    #[should_panic(expected = "Error(Contract, #107)")]
     fn test_create_interest_auction_under_threshold() {
         let e = Env::default();
         e.mock_all_auths();
@@ -162,7 +160,7 @@ mod tests {
 
         let bombadil = Address::random(&e);
 
-        let pool_address = Address::random(&e);
+        let pool_address = create_pool(&e);
         let (usdc_id, _) = testutils::create_usdc_token(&e, &pool_address, &bombadil);
         let (backstop_address, _backstop_client) = testutils::create_backstop(&e);
         testutils::setup_backstop(
@@ -263,7 +261,7 @@ mod tests {
 
         let bombadil = Address::random(&e);
 
-        let pool_address = Address::random(&e);
+        let pool_address = create_pool(&e);
         let (usdc_id, _) = testutils::create_usdc_token(&e, &pool_address, &bombadil);
         let (backstop_address, _backstop_client) = testutils::create_backstop(&e);
         testutils::setup_backstop(
@@ -364,7 +362,7 @@ mod tests {
 
         let bombadil = Address::random(&e);
 
-        let pool_address = Address::random(&e);
+        let pool_address = create_pool(&e);
         let (usdc_id, _) = testutils::create_usdc_token(&e, &pool_address, &bombadil);
         let (backstop_address, _backstop_client) = testutils::create_backstop(&e);
         testutils::setup_backstop(
@@ -448,10 +446,12 @@ mod tests {
         });
     }
 
+    ///! FAILING
+    // TODO: mock_all_auths_allowing_non_root_auth not working for `donate_usdc` call to `transfer` in the backstop
     #[test]
     fn test_fill_interest_auction() {
         let e = Env::default();
-        e.mock_all_auths();
+        e.mock_all_auths_allowing_non_root_auth();
         e.budget().reset_unlimited();
 
         e.ledger().set(LedgerInfo {
@@ -468,7 +468,8 @@ mod tests {
         let bombadil = Address::random(&e);
         let samwise = Address::random(&e);
 
-        let pool_address = Address::random(&e);
+        let pool_address = create_pool(&e);
+
         let (usdc_id, usdc_client) = testutils::create_usdc_token(&e, &pool_address, &bombadil);
         let (backstop_address, _backstop_client) = testutils::create_backstop(&e);
         testutils::setup_backstop(

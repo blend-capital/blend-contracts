@@ -188,7 +188,7 @@ mod tests {
             max_entry_expiration: 2000000,
         });
 
-        let pool = Address::random(&e);
+        let pool = testutils::create_pool(&e);
         let bombadil = Address::random(&e);
 
         let next_exp = 1500604800;
@@ -230,7 +230,7 @@ mod tests {
             max_entry_expiration: 2000000,
         });
 
-        let pool = Address::random(&e);
+        let pool = testutils::create_pool(&e);
         let bombadil = Address::random(&e);
 
         let next_exp = 1500604800;
@@ -284,7 +284,7 @@ mod tests {
         let e = Env::default();
         e.mock_all_auths();
 
-        let pool = Address::random(&e);
+        let pool = testutils::create_pool(&e);
         let bombadil = Address::random(&e);
 
         e.ledger().set(LedgerInfo {
@@ -372,7 +372,7 @@ mod tests {
         let e = Env::default();
         e.mock_all_auths();
 
-        let pool = Address::random(&e);
+        let pool = testutils::create_pool(&e);
         let bombadil = Address::random(&e);
 
         e.ledger().set(LedgerInfo {
@@ -457,8 +457,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
-    //#[should_panic(expected = "ContractError(2)")]
+    #[should_panic(expected = "Error(Contract, #2)")]
     fn test_update_emissions_cycle_panics_if_already_updated() {
         let e = Env::default();
         e.mock_all_auths();
@@ -473,7 +472,7 @@ mod tests {
             max_entry_expiration: 2000000,
         });
 
-        let pool = Address::random(&e);
+        let pool = testutils::create_pool(&e);
         let bombadil = Address::random(&e);
 
         let next_exp = 1500604800;
@@ -517,7 +516,7 @@ mod tests {
             max_entry_expiration: 2000000,
         });
 
-        let pool = Address::random(&e);
+        let pool = testutils::create_pool(&e);
         let bombadil = Address::random(&e);
 
         let (reserve_config, reserve_data) = testutils::default_reserve_meta(&e);
@@ -558,8 +557,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
-    //#[should_panic(expected = "ContractError(2)")]
+    #[should_panic(expected = "Error(Contract, #2)")]
     fn test_set_pool_emissions_panics_if_over_100() {
         let e = Env::default();
         e.ledger().set(LedgerInfo {
@@ -573,7 +571,7 @@ mod tests {
             max_entry_expiration: 2000000,
         });
 
-        let pool = Address::random(&e);
+        let pool = testutils::create_pool(&e);
         let bombadil = Address::random(&e);
 
         let (reserve_config, reserve_data) = testutils::default_reserve_meta(&e);
@@ -625,7 +623,7 @@ mod tests {
             max_entry_expiration: 2000000,
         });
 
-        let pool = Address::random(&e);
+        let pool = testutils::create_pool(&e);
         let bombadil = Address::random(&e);
 
         let (reserve_config, reserve_data) = testutils::default_reserve_meta(&e);

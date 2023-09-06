@@ -1,8 +1,9 @@
 use soroban_sdk::{
-    contracttype, map, unwrap::UnwrapOptimized, vec, Address, Env, Map, Symbol, Vec,
+    contracttype, map, panic_with_error, unwrap::UnwrapOptimized, vec, Address, Env, IntoVal, Map,
+    Symbol, TryFromVal, Val, Vec,
 };
 
-use crate::{auctions::AuctionData, pool::Positions};
+use crate::{auctions::AuctionData, pool::Positions, PoolError};
 
 pub(crate) const LEDGER_THRESHOLD_SHARED: u32 = 172800; // ~ 10 days
 pub(crate) const LEDGER_BUMP_SHARED: u32 = 241920; // ~ 14 days
@@ -131,6 +132,24 @@ pub fn bump_instance(e: &Env) {
         .bump(LEDGER_THRESHOLD_SHARED, LEDGER_BUMP_SHARED);
 }
 
+/// Fetch an entry in persistent storage that has a default value if it doesn't exist
+fn get_persistent_default<K: IntoVal<Env, Val>, V: TryFromVal<Env, Val>>(
+    e: &Env,
+    key: &K,
+    default: V,
+    bump_threshold: u32,
+    bump_amount: u32,
+) -> V {
+    if let Some(result) = e.storage().persistent().get::<K, V>(key) {
+        e.storage()
+            .persistent()
+            .bump(key, bump_threshold, bump_amount);
+        result
+    } else {
+        default
+    }
+}
+
 /********** User **********/
 
 /// Fetch the user's positions or return an empty Positions struct
@@ -139,13 +158,13 @@ pub fn bump_instance(e: &Env) {
 /// * `user` - The address of the user
 pub fn get_user_positions(e: &Env, user: &Address) -> Positions {
     let key = PoolDataKey::Positions(user.clone());
-    e.storage()
-        .persistent()
-        .bump(&key, LEDGER_THRESHOLD_USER, LEDGER_BUMP_USER);
-    e.storage()
-        .persistent()
-        .get::<PoolDataKey, Positions>(&key)
-        .unwrap_or(Positions::env_default(e))
+    get_persistent_default(
+        e,
+        &key,
+        Positions::env_default(e),
+        LEDGER_THRESHOLD_USER,
+        LEDGER_BUMP_USER,
+    )
 }
 
 /// Set the user's positions
@@ -158,6 +177,9 @@ pub fn set_user_positions(e: &Env, user: &Address, positions: &Positions) {
     e.storage()
         .persistent()
         .set::<PoolDataKey, Positions>(&key, positions);
+    e.storage()
+        .persistent()
+        .bump(&key, LEDGER_THRESHOLD_USER, LEDGER_BUMP_USER);
 }
 
 /********** Admin **********/
@@ -167,14 +189,8 @@ pub fn set_user_positions(e: &Env, user: &Address, positions: &Positions) {
 /// ### Panics
 /// If the admin does not exist
 pub fn get_admin(e: &Env) -> Address {
-    // TODO: Change to instance - https://github.com/stellar/rs-soroban-sdk/issues/1040
-    e.storage().persistent().bump(
-        &Symbol::new(e, "Admin"),
-        LEDGER_THRESHOLD_SHARED,
-        LEDGER_BUMP_SHARED,
-    );
     e.storage()
-        .persistent()
+        .instance()
         .get(&Symbol::new(e, "Admin"))
         .unwrap_optimized()
 }
@@ -185,13 +201,13 @@ pub fn get_admin(e: &Env) -> Address {
 /// * `new_admin` - The Address for the admin
 pub fn set_admin(e: &Env, new_admin: &Address) {
     e.storage()
-        .persistent()
+        .instance()
         .set::<Symbol, Address>(&Symbol::new(e, "Admin"), new_admin);
 }
 
 /// Checks if an admin is set
 pub fn has_admin(e: &Env) -> bool {
-    e.storage().persistent().has(&Symbol::new(e, "Admin"))
+    e.storage().instance().has(&Symbol::new(e, "Admin"))
 }
 
 /********** Metadata **********/
@@ -201,14 +217,8 @@ pub fn has_admin(e: &Env) -> bool {
 /// ### Arguments
 /// * `name` - The Name of the pool
 pub fn set_name(e: &Env, name: &Symbol) {
-    // TODO: Change to instance - https://github.com/stellar/rs-soroban-sdk/issues/1040
-    e.storage().persistent().bump(
-        &Symbol::new(e, "Name"),
-        LEDGER_THRESHOLD_USER,
-        LEDGER_BUMP_USER * 10,
-    ); // 300 days - this can't be updated again
     e.storage()
-        .persistent()
+        .instance()
         .set::<Symbol, Symbol>(&Symbol::new(e, "Name"), name);
 }
 
@@ -219,14 +229,8 @@ pub fn set_name(e: &Env, name: &Symbol) {
 /// ### Panics
 /// If no backstop is set
 pub fn get_backstop(e: &Env) -> Address {
-    // TODO: Change to instance - https://github.com/stellar/rs-soroban-sdk/issues/1040
-    e.storage().persistent().bump(
-        &Symbol::new(e, "Backstop"),
-        LEDGER_THRESHOLD_SHARED,
-        LEDGER_BUMP_SHARED,
-    );
     e.storage()
-        .persistent()
+        .instance()
         .get(&Symbol::new(e, "Backstop"))
         .unwrap_optimized()
 }
@@ -237,7 +241,7 @@ pub fn get_backstop(e: &Env) -> Address {
 /// * `backstop` - The address of the backstop
 pub fn set_backstop(e: &Env, backstop: &Address) {
     e.storage()
-        .persistent()
+        .instance()
         .set::<Symbol, Address>(&Symbol::new(e, "Backstop"), backstop);
 }
 
@@ -245,14 +249,8 @@ pub fn set_backstop(e: &Env, backstop: &Address) {
 
 /// Fetch the BLND token ID
 pub fn get_blnd_token(e: &Env) -> Address {
-    // TODO: Change to instance - https://github.com/stellar/rs-soroban-sdk/issues/1040
-    e.storage().persistent().bump(
-        &Symbol::new(e, "BLNDTkn"),
-        LEDGER_THRESHOLD_SHARED,
-        LEDGER_BUMP_SHARED,
-    );
     e.storage()
-        .persistent()
+        .instance()
         .get(&Symbol::new(e, "BLNDTkn"))
         .unwrap_optimized()
 }
@@ -263,20 +261,14 @@ pub fn get_blnd_token(e: &Env) -> Address {
 /// * `blnd_token_id` - The ID of the BLND token
 pub fn set_blnd_token(e: &Env, blnd_token_id: &Address) {
     e.storage()
-        .persistent()
+        .instance()
         .set::<Symbol, Address>(&Symbol::new(e, "BLNDTkn"), blnd_token_id);
 }
 
 /// Fetch the USDC token ID
 pub fn get_usdc_token(e: &Env) -> Address {
-    // TODO: Change to instance - https://github.com/stellar/rs-soroban-sdk/issues/1040
-    e.storage().persistent().bump(
-        &Symbol::new(e, "USDCTkn"),
-        LEDGER_THRESHOLD_SHARED,
-        LEDGER_BUMP_SHARED,
-    );
     e.storage()
-        .persistent()
+        .instance()
         .get(&Symbol::new(e, "USDCTkn"))
         .unwrap_optimized()
 }
@@ -287,7 +279,7 @@ pub fn get_usdc_token(e: &Env) -> Address {
 /// * `usdc_token_id` - The ID of the USDC token
 pub fn set_usdc_token(e: &Env, usdc_token_id: &Address) {
     e.storage()
-        .persistent()
+        .instance()
         .set::<Symbol, Address>(&Symbol::new(e, "USDCTkn"), usdc_token_id);
 }
 
@@ -298,14 +290,8 @@ pub fn set_usdc_token(e: &Env, usdc_token_id: &Address) {
 /// ### Panics
 /// If the pool's config is not set
 pub fn get_pool_config(e: &Env) -> PoolConfig {
-    // TODO: Change to instance - https://github.com/stellar/rs-soroban-sdk/issues/1040
-    e.storage().persistent().bump(
-        &Symbol::new(e, "PoolConfig"),
-        LEDGER_THRESHOLD_SHARED,
-        LEDGER_BUMP_SHARED,
-    );
     e.storage()
-        .persistent()
+        .instance()
         .get(&Symbol::new(e, "PoolConfig"))
         .unwrap_optimized()
 }
@@ -316,7 +302,7 @@ pub fn get_pool_config(e: &Env) -> PoolConfig {
 /// * `config` - The contract address of the oracle
 pub fn set_pool_config(e: &Env, config: &PoolConfig) {
     e.storage()
-        .persistent()
+        .instance()
         .set::<Symbol, PoolConfig>(&Symbol::new(e, "PoolConfig"), config);
 }
 
@@ -347,7 +333,6 @@ pub fn get_res_config(e: &Env, asset: &Address) -> ReserveConfig {
 /// * `config` - The reserve configuration for the asset
 pub fn set_res_config(e: &Env, asset: &Address, config: &ReserveConfig) {
     let key = PoolDataKey::ResConfig(asset.clone());
-
     e.storage()
         .persistent()
         .set::<PoolDataKey, ReserveConfig>(&key, config);
@@ -405,13 +390,13 @@ pub fn set_res_data(e: &Env, asset: &Address, data: &ReserveData) {
 /// Fetch the list of reserves
 pub fn get_res_list(e: &Env) -> Vec<Address> {
     let key = Symbol::new(e, "ResList");
-    e.storage()
-        .persistent()
-        .bump(&key, LEDGER_THRESHOLD_SHARED, LEDGER_BUMP_SHARED);
-    e.storage()
-        .persistent()
-        .get::<Symbol, Vec<Address>>(&key)
-        .unwrap_or(vec![e]) // empty vec if nothing exists
+    get_persistent_default(
+        e,
+        &key,
+        vec![e],
+        LEDGER_THRESHOLD_SHARED,
+        LEDGER_BUMP_SHARED,
+    )
 }
 
 /// Add a reserve to the back of the list and returns the index
@@ -426,13 +411,17 @@ pub fn get_res_list(e: &Env) -> Vec<Address> {
 pub fn push_res_list(e: &Env, asset: &Address) -> u32 {
     let mut res_list = get_res_list(e);
     if res_list.len() == 32 {
-        panic!("too many reserves")
+        panic_with_error!(e, PoolError::BadRequest)
     }
     res_list.push_back(asset.clone());
     let new_index = res_list.len() - 1;
+    let key = Symbol::new(e, "ResList");
     e.storage()
         .persistent()
-        .set::<Symbol, Vec<Address>>(&Symbol::new(e, "ResList"), &res_list);
+        .set::<Symbol, Vec<Address>>(&key, &res_list);
+    e.storage()
+        .persistent()
+        .bump(&key, LEDGER_THRESHOLD_SHARED, LEDGER_BUMP_SHARED);
     new_index
 }
 
@@ -444,12 +433,13 @@ pub fn push_res_list(e: &Env, asset: &Address) -> u32 {
 /// * `res_token_index` - The d/bToken index for the reserve
 pub fn get_res_emis_config(e: &Env, res_token_index: &u32) -> Option<ReserveEmissionsConfig> {
     let key = PoolDataKey::EmisConfig(*res_token_index);
-    e.storage()
-        .persistent()
-        .bump(&key, LEDGER_THRESHOLD_SHARED, LEDGER_BUMP_SHARED);
-    e.storage()
-        .persistent()
-        .get::<PoolDataKey, ReserveEmissionsConfig>(&key)
+    get_persistent_default::<PoolDataKey, Option<ReserveEmissionsConfig>>(
+        e,
+        &key,
+        None,
+        LEDGER_THRESHOLD_SHARED,
+        LEDGER_BUMP_SHARED,
+    )
 }
 
 /// Set the emission config for the reserve b or d token
@@ -477,12 +467,13 @@ pub fn set_res_emis_config(
 /// * `res_token_index` - The d/bToken index for the reserve
 pub fn get_res_emis_data(e: &Env, res_token_index: &u32) -> Option<ReserveEmissionsData> {
     let key = PoolDataKey::EmisData(*res_token_index);
-    e.storage()
-        .persistent()
-        .bump(&key, LEDGER_THRESHOLD_SHARED, LEDGER_BUMP_SHARED);
-    e.storage()
-        .persistent()
-        .get::<PoolDataKey, ReserveEmissionsData>(&key)
+    get_persistent_default::<PoolDataKey, Option<ReserveEmissionsData>>(
+        e,
+        &key,
+        None,
+        LEDGER_THRESHOLD_SHARED,
+        LEDGER_BUMP_SHARED,
+    )
 }
 
 /// Checks if the reserve token has emissions data
@@ -525,12 +516,13 @@ pub fn get_user_emissions(
         user: user.clone(),
         reserve_id: *res_token_index,
     });
-    e.storage()
-        .persistent()
-        .bump(&key, LEDGER_THRESHOLD_USER, LEDGER_BUMP_USER);
-    e.storage()
-        .persistent()
-        .get::<PoolDataKey, UserEmissionData>(&key)
+    get_persistent_default::<PoolDataKey, Option<UserEmissionData>>(
+        e,
+        &key,
+        None,
+        LEDGER_THRESHOLD_USER,
+        LEDGER_BUMP_USER,
+    )
 }
 
 /// Set the users emission data for a reserve's d or d token
@@ -554,13 +546,13 @@ pub fn set_user_emissions(e: &Env, user: &Address, res_token_index: &u32, data: 
 /// Fetch the pool reserve emissions
 pub fn get_pool_emissions(e: &Env) -> Map<u32, u64> {
     let key = Symbol::new(e, "PoolEmis");
-    e.storage()
-        .persistent()
-        .bump(&key, LEDGER_THRESHOLD_SHARED, LEDGER_BUMP_SHARED);
-    e.storage()
-        .persistent()
-        .get::<Symbol, Map<u32, u64>>(&key)
-        .unwrap_or(map![e])
+    get_persistent_default::<Symbol, Map<u32, u64>>(
+        e,
+        &key,
+        map![e],
+        LEDGER_THRESHOLD_SHARED,
+        LEDGER_BUMP_SHARED,
+    )
 }
 
 /// Set the pool reserve emissions
@@ -568,21 +560,19 @@ pub fn get_pool_emissions(e: &Env) -> Map<u32, u64> {
 /// ### Arguments
 /// * `emissions` - The map of emissions by reserve token id to EPS
 pub fn set_pool_emissions(e: &Env, emissions: &Map<u32, u64>) {
+    let key = Symbol::new(e, "PoolEmis");
     e.storage()
         .persistent()
-        .set::<Symbol, Map<u32, u64>>(&Symbol::new(e, "PoolEmis"), emissions);
+        .set::<Symbol, Map<u32, u64>>(&key, emissions);
+    e.storage()
+        .persistent()
+        .bump(&key, LEDGER_THRESHOLD_SHARED, LEDGER_BUMP_SHARED);
 }
 
 /// Fetch the pool emission expiration timestamps
 pub fn get_pool_emissions_expiration(e: &Env) -> u64 {
     let key = Symbol::new(e, "EmisExp");
-    e.storage()
-        .persistent()
-        .bump(&key, LEDGER_THRESHOLD_SHARED, LEDGER_BUMP_SHARED);
-    e.storage()
-        .temporary()
-        .get::<Symbol, u64>(&key)
-        .unwrap_or(0)
+    get_persistent_default(e, &key, 0u64, LEDGER_THRESHOLD_SHARED, LEDGER_BUMP_SHARED)
 }
 
 /// Set the pool emission configuration
@@ -590,9 +580,13 @@ pub fn get_pool_emissions_expiration(e: &Env) -> u64 {
 /// ### Arguments
 /// * `expiration` - The pool's emission configuration
 pub fn set_pool_emissions_expiration(e: &Env, expiration: &u64) {
+    let key = Symbol::new(e, "EmisExp");
     e.storage()
-        .temporary()
-        .set::<Symbol, u64>(&Symbol::new(e, "EmisExp"), expiration);
+        .persistent()
+        .set::<Symbol, u64>(&key, expiration);
+    e.storage()
+        .persistent()
+        .bump(&key, LEDGER_THRESHOLD_SHARED, LEDGER_BUMP_SHARED);
 }
 
 /********** Auctions ***********/

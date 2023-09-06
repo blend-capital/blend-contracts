@@ -222,7 +222,7 @@ mod tests {
         let e = Env::default();
         e.mock_all_auths();
 
-        let pool = Address::random(&e);
+        let pool = testutils::create_pool(&e);
         let samwise = Address::random(&e);
 
         e.ledger().set(LedgerInfo {
@@ -286,7 +286,7 @@ mod tests {
         let e = Env::default();
         e.mock_all_auths();
 
-        let pool = Address::random(&e);
+        let pool = testutils::create_pool(&e);
         let samwise = Address::random(&e);
 
         e.ledger().set(LedgerInfo {
@@ -331,7 +331,7 @@ mod tests {
         let e = Env::default();
         e.mock_all_auths();
 
-        let pool = Address::random(&e);
+        let pool = testutils::create_pool(&e);
 
         e.ledger().set(LedgerInfo {
             timestamp: 1501000000, // 10^6 seconds have passed
@@ -370,7 +370,7 @@ mod tests {
         let e = Env::default();
         e.mock_all_auths();
 
-        let pool = Address::random(&e);
+        let pool = testutils::create_pool(&e);
 
         e.ledger().set(LedgerInfo {
             timestamp: 1601000000,
@@ -421,7 +421,7 @@ mod tests {
         let e = Env::default();
         e.mock_all_auths();
 
-        let pool = Address::random(&e);
+        let pool = testutils::create_pool(&e);
 
         e.ledger().set(LedgerInfo {
             timestamp: 1501000000,
@@ -472,7 +472,7 @@ mod tests {
         let e = Env::default();
         e.mock_all_auths();
 
-        let pool = Address::random(&e);
+        let pool = testutils::create_pool(&e);
 
         e.ledger().set(LedgerInfo {
             timestamp: 1501000000,
@@ -523,7 +523,7 @@ mod tests {
         let e = Env::default();
         e.mock_all_auths();
 
-        let pool = Address::random(&e);
+        let pool = testutils::create_pool(&e);
 
         e.ledger().set(LedgerInfo {
             timestamp: 1501000000,
@@ -574,7 +574,7 @@ mod tests {
         let e = Env::default();
         e.mock_all_auths();
 
-        let pool = Address::random(&e);
+        let pool = testutils::create_pool(&e);
 
         e.ledger().set(LedgerInfo {
             timestamp: 1700000000,
@@ -622,7 +622,7 @@ mod tests {
         let e = Env::default();
         e.mock_all_auths();
 
-        let pool = Address::random(&e);
+        let pool = testutils::create_pool(&e);
 
         e.ledger().set(LedgerInfo {
             timestamp: 1500000005,
@@ -672,7 +672,7 @@ mod tests {
         let e = Env::default();
         e.mock_all_auths();
 
-        let pool = Address::random(&e);
+        let pool = testutils::create_pool(&e);
         let samwise = Address::random(&e);
 
         e.ledger().set(LedgerInfo {
@@ -718,7 +718,7 @@ mod tests {
         let e = Env::default();
         e.mock_all_auths();
 
-        let pool = Address::random(&e);
+        let pool = testutils::create_pool(&e);
         let samwise = Address::random(&e);
 
         e.ledger().set(LedgerInfo {
@@ -763,7 +763,7 @@ mod tests {
     fn test_update_user_emissions_no_bal_no_accrual() {
         let e = Env::default();
         e.mock_all_auths();
-        let pool = Address::random(&e);
+        let pool = testutils::create_pool(&e);
 
         let samwise = Address::random(&e);
 
@@ -816,7 +816,7 @@ mod tests {
         let e = Env::default();
         e.mock_all_auths();
 
-        let pool = Address::random(&e);
+        let pool = testutils::create_pool(&e);
 
         let samwise = Address::random(&e);
 
@@ -869,7 +869,7 @@ mod tests {
         let e = Env::default();
         e.mock_all_auths();
 
-        let pool = Address::random(&e);
+        let pool = testutils::create_pool(&e);
         let samwise = Address::random(&e);
 
         e.ledger().set(LedgerInfo {
@@ -921,7 +921,7 @@ mod tests {
         let e = Env::default();
         e.mock_all_auths();
 
-        let pool = Address::random(&e);
+        let pool = testutils::create_pool(&e);
 
         let samwise = Address::random(&e);
 
@@ -975,7 +975,7 @@ mod tests {
         let e = Env::default();
         e.mock_all_auths();
 
-        let pool = Address::random(&e);
+        let pool = testutils::create_pool(&e);
 
         let samwise = Address::random(&e);
 
@@ -1022,16 +1022,16 @@ mod tests {
     #[test]
     fn test_execute_claim() {
         let e = Env::default();
-        e.mock_all_auths();
+        e.mock_all_auths_allowing_non_root_auth();
         e.budget().reset_unlimited();
 
-        let pool = Address::random(&e);
+        let pool = testutils::create_pool(&e);
         let bombadil = Address::random(&e);
         let samwise = Address::random(&e);
         let merry = Address::random(&e);
 
         let (_, blnd_token_client) = testutils::create_blnd_token(&e, &pool, &bombadil);
-        let backstop = Address::random(&e);
+        let (backstop, _) = testutils::create_backstop(&e);
         // mock backstop having emissions for pool
         e.as_contract(&backstop, || {
             blnd_token_client.approve(&backstop, &pool, &100_000_0000000_i128, &1000000);
@@ -1145,18 +1145,17 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
-    //#[should_panic(expected = "ContractError(2)")]
+    #[should_panic(expected = "Error(Contract, #2)")]
     fn test_calc_claim_with_invalid_reserve_panics() {
         let e = Env::default();
-        e.mock_all_auths();
+        e.mock_all_auths_allowing_non_root_auth();
         e.budget().reset_unlimited();
 
-        let pool = Address::random(&e);
+        let pool = testutils::create_pool(&e);
         let bombadil = Address::random(&e);
         let samwise = Address::random(&e);
         let merry = Address::random(&e);
-        let backstop = Address::random(&e);
+        let (backstop, _) = testutils::create_backstop(&e);
 
         let (_, blnd_token_client) = testutils::create_blnd_token(&e, &pool, &bombadil);
 

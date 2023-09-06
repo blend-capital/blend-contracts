@@ -51,6 +51,9 @@ trait MockOraclePrice {
 #[contractimpl]
 impl MockOraclePrice for MockOracle {
     fn set_price(e: Env, asset: Address, price: i128) {
+        e.storage()
+            .instance()
+            .bump(LEDGER_THRESHOLD_SHARED, LEDGER_BUMP_SHARED);
         let key = MockOracleDataKey::Prices(asset);
         e.storage().temporary().set::<MockOracleDataKey, PriceData>(
             &key,
@@ -117,9 +120,9 @@ impl PriceFeedTrait for MockOracle {
         if price.timestamp == 0 {
             price.timestamp = e.ledger().timestamp();
         }
-        e.storage()
-            .temporary()
-            .bump(&key, LEDGER_THRESHOLD_SHARED, LEDGER_BUMP_SHARED);
+        if price.price != 0 {
+            return Some(price);
+        }
         Some(price)
     }
 }

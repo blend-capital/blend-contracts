@@ -62,14 +62,20 @@ pub fn has_pool_init_meta(e: &Env) -> bool {
 /// * `contract_id` - The contract_id to check
 pub fn is_deployed(e: &Env, contract_id: &Address) -> bool {
     let key = PoolFactoryDataKey::Contracts(contract_id.clone());
-    e.storage()
-        .persistent()
-        .bump(&key, LEDGER_THRESHOLD, LEDGER_BUMP);
-    e.storage()
+    if let Some(result) = e
+        .storage()
         .persistent()
         .get::<PoolFactoryDataKey, bool>(&key)
-        .unwrap_or(false)
+    {
+        e.storage()
+            .persistent()
+            .bump(&key, LEDGER_THRESHOLD, LEDGER_BUMP);
+        result
+    } else {
+        false
+    }
 }
+
 /// Set a contract_id as having been deployed by the factory
 ///
 /// ### Arguments
@@ -79,4 +85,7 @@ pub fn set_deployed(e: &Env, contract_id: &Address) {
     e.storage()
         .persistent()
         .set::<PoolFactoryDataKey, bool>(&key, &true);
+    e.storage()
+        .persistent()
+        .bump(&key, LEDGER_THRESHOLD, LEDGER_BUMP);
 }

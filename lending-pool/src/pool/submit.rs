@@ -93,11 +93,11 @@ mod tests {
         let (oracle, oracle_client) = testutils::create_mock_oracle(&e);
 
         let (underlying_0, underlying_0_client) = testutils::create_token_contract(&e, &bombadil);
-        let (reserve_config, reserve_data) = testutils::default_reserve_meta(&e);
+        let (reserve_config, reserve_data) = testutils::default_reserve_meta();
         testutils::create_reserve(&e, &pool, &underlying_0, &reserve_config, &reserve_data);
 
         let (underlying_1, underlying_1_client) = testutils::create_token_contract(&e, &bombadil);
-        let (reserve_config, reserve_data) = testutils::default_reserve_meta(&e);
+        let (reserve_config, reserve_data) = testutils::default_reserve_meta();
         testutils::create_reserve(&e, &pool, &underlying_1, &reserve_config, &reserve_data);
 
         underlying_0_client.mint(&frodo, &16_0000000);
@@ -165,11 +165,11 @@ mod tests {
         let (oracle, oracle_client) = testutils::create_mock_oracle(&e);
 
         let (underlying_0, underlying_0_client) = testutils::create_token_contract(&e, &bombadil);
-        let (reserve_config, reserve_data) = testutils::default_reserve_meta(&e);
+        let (reserve_config, reserve_data) = testutils::default_reserve_meta();
         testutils::create_reserve(&e, &pool, &underlying_0, &reserve_config, &reserve_data);
 
         let (underlying_1, _) = testutils::create_token_contract(&e, &bombadil);
-        let (reserve_config, reserve_data) = testutils::default_reserve_meta(&e);
+        let (reserve_config, reserve_data) = testutils::default_reserve_meta();
         testutils::create_reserve(&e, &pool, &underlying_1, &reserve_config, &reserve_data);
 
         underlying_0_client.mint(&frodo, &16_0000000);

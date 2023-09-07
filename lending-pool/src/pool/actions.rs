@@ -305,7 +305,7 @@ mod tests {
         let pool = testutils::create_pool(&e);
 
         let (underlying, _) = testutils::create_token_contract(&e, &bombadil);
-        let (reserve_config, reserve_data) = testutils::default_reserve_meta(&e);
+        let (reserve_config, reserve_data) = testutils::default_reserve_meta();
         testutils::create_reserve(&e, &pool, &underlying, &reserve_config, &reserve_data);
 
         e.ledger().set(LedgerInfo {
@@ -373,7 +373,7 @@ mod tests {
         let pool = testutils::create_pool(&e);
 
         let (underlying, _) = testutils::create_token_contract(&e, &bombadil);
-        let (reserve_config, reserve_data) = testutils::default_reserve_meta(&e);
+        let (reserve_config, reserve_data) = testutils::default_reserve_meta();
         testutils::create_reserve(&e, &pool, &underlying, &reserve_config, &reserve_data);
 
         e.ledger().set(LedgerInfo {
@@ -446,7 +446,7 @@ mod tests {
         let pool = testutils::create_pool(&e);
 
         let (underlying, _) = testutils::create_token_contract(&e, &bombadil);
-        let (reserve_config, reserve_data) = testutils::default_reserve_meta(&e);
+        let (reserve_config, reserve_data) = testutils::default_reserve_meta();
         testutils::create_reserve(&e, &pool, &underlying, &reserve_config, &reserve_data);
 
         e.ledger().set(LedgerInfo {
@@ -516,7 +516,7 @@ mod tests {
         let pool = testutils::create_pool(&e);
 
         let (underlying, _) = testutils::create_token_contract(&e, &bombadil);
-        let (reserve_config, reserve_data) = testutils::default_reserve_meta(&e);
+        let (reserve_config, reserve_data) = testutils::default_reserve_meta();
         testutils::create_reserve(&e, &pool, &underlying, &reserve_config, &reserve_data);
 
         e.ledger().set(LedgerInfo {
@@ -587,7 +587,7 @@ mod tests {
         let pool = testutils::create_pool(&e);
 
         let (underlying, _) = testutils::create_token_contract(&e, &bombadil);
-        let (reserve_config, reserve_data) = testutils::default_reserve_meta(&e);
+        let (reserve_config, reserve_data) = testutils::default_reserve_meta();
         testutils::create_reserve(&e, &pool, &underlying, &reserve_config, &reserve_data);
 
         e.ledger().set(LedgerInfo {
@@ -659,7 +659,7 @@ mod tests {
         let pool = testutils::create_pool(&e);
 
         let (underlying, _) = testutils::create_token_contract(&e, &bombadil);
-        let (reserve_config, reserve_data) = testutils::default_reserve_meta(&e);
+        let (reserve_config, reserve_data) = testutils::default_reserve_meta();
         testutils::create_reserve(&e, &pool, &underlying, &reserve_config, &reserve_data);
 
         e.ledger().set(LedgerInfo {
@@ -729,7 +729,7 @@ mod tests {
         let pool = testutils::create_pool(&e);
 
         let (underlying, _) = testutils::create_token_contract(&e, &bombadil);
-        let (reserve_config, reserve_data) = testutils::default_reserve_meta(&e);
+        let (reserve_config, reserve_data) = testutils::default_reserve_meta();
         testutils::create_reserve(&e, &pool, &underlying, &reserve_config, &reserve_data);
         e.ledger().set(LedgerInfo {
             timestamp: 600,
@@ -792,7 +792,7 @@ mod tests {
         let pool = testutils::create_pool(&e);
 
         let (underlying, _) = testutils::create_token_contract(&e, &bombadil);
-        let (reserve_config, reserve_data) = testutils::default_reserve_meta(&e);
+        let (reserve_config, reserve_data) = testutils::default_reserve_meta();
         testutils::create_reserve(&e, &pool, &underlying, &reserve_config, &reserve_data);
 
         e.ledger().set(LedgerInfo {
@@ -865,7 +865,7 @@ mod tests {
         let pool = testutils::create_pool(&e);
 
         let (underlying, _) = testutils::create_token_contract(&e, &bombadil);
-        let (reserve_config, reserve_data) = testutils::default_reserve_meta(&e);
+        let (reserve_config, reserve_data) = testutils::default_reserve_meta();
         testutils::create_reserve(&e, &pool, &underlying, &reserve_config, &reserve_data);
 
         e.ledger().set(LedgerInfo {
@@ -937,7 +937,7 @@ mod tests {
         let pool = testutils::create_pool(&e);
 
         let (underlying, _) = testutils::create_token_contract(&e, &bombadil);
-        let (reserve_config, mut reserve_data) = testutils::default_reserve_meta(&e);
+        let (reserve_config, mut reserve_data) = testutils::default_reserve_meta();
         reserve_data.last_time = 600;
         testutils::create_reserve(
             &e,
@@ -1056,7 +1056,7 @@ mod tests {
         // creating reserves for a pool exhausts the budget
         e.budget().reset_unlimited();
         let (underlying_0, _) = testutils::create_token_contract(&e, &bombadil);
-        let (mut reserve_config_0, mut reserve_data_0) = testutils::default_reserve_meta(&e);
+        let (mut reserve_config_0, mut reserve_data_0) = testutils::default_reserve_meta();
         reserve_data_0.last_time = 12345;
         reserve_data_0.b_rate = 1_100_000_000;
         reserve_config_0.c_factor = 0_8500000;
@@ -1071,7 +1071,7 @@ mod tests {
         );
 
         let (underlying_1, _) = testutils::create_token_contract(&e, &bombadil);
-        let (mut reserve_config_1, mut reserve_data_1) = testutils::default_reserve_meta(&e);
+        let (mut reserve_config_1, mut reserve_data_1) = testutils::default_reserve_meta();
         reserve_data_1.b_rate = 1_200_000_000;
         reserve_config_1.c_factor = 0_7500000;
         reserve_config_1.l_factor = 0_7500000;
@@ -1086,7 +1086,7 @@ mod tests {
         );
 
         let (underlying_2, _) = testutils::create_token_contract(&e, &bombadil);
-        let (mut reserve_config_2, reserve_data_2) = testutils::default_reserve_meta(&e);
+        let (mut reserve_config_2, reserve_data_2) = testutils::default_reserve_meta();
         reserve_config_2.c_factor = 0_0000000;
         reserve_config_2.l_factor = 0_7000000;
         reserve_config_2.index = 2;
@@ -1202,7 +1202,7 @@ mod tests {
             &Address::random(&e),
         );
         let (underlying_0, _) = testutils::create_token_contract(&e, &bombadil);
-        let (mut reserve_config_0, mut reserve_data_0) = testutils::default_reserve_meta(&e);
+        let (mut reserve_config_0, mut reserve_data_0) = testutils::default_reserve_meta();
         reserve_data_0.last_time = 12345;
         reserve_data_0.b_rate = 1_100_000_000;
         reserve_config_0.c_factor = 0_8500000;
@@ -1217,7 +1217,7 @@ mod tests {
         );
 
         let (underlying_1, _) = testutils::create_token_contract(&e, &bombadil);
-        let (mut reserve_config_1, mut reserve_data_1) = testutils::default_reserve_meta(&e);
+        let (mut reserve_config_1, mut reserve_data_1) = testutils::default_reserve_meta();
         reserve_data_1.b_rate = 1_200_000_000;
         reserve_config_1.c_factor = 0_7500000;
         reserve_config_1.l_factor = 0_7500000;
@@ -1320,7 +1320,7 @@ mod tests {
 
         e.budget().reset_unlimited();
         let (underlying_0, underlying_0_client) = testutils::create_token_contract(&e, &bombadil);
-        let (mut reserve_config_0, mut reserve_data_0) = testutils::default_reserve_meta(&e);
+        let (mut reserve_config_0, mut reserve_data_0) = testutils::default_reserve_meta();
         reserve_data_0.b_rate = 1_100_000_000;
         reserve_data_0.last_time = 12345;
         reserve_config_0.index = 0;
@@ -1334,7 +1334,7 @@ mod tests {
         underlying_0_client.mint(&pool_address, &1_000_0000000);
 
         let (underlying_1, underlying_1_client) = testutils::create_token_contract(&e, &bombadil);
-        let (mut reserve_config_1, mut reserve_data_1) = testutils::default_reserve_meta(&e);
+        let (mut reserve_config_1, mut reserve_data_1) = testutils::default_reserve_meta();
         reserve_data_1.b_rate = 1_100_000_000;
         reserve_data_1.last_time = 12345;
         reserve_config_1.index = 1;
@@ -1348,7 +1348,7 @@ mod tests {
         underlying_1_client.mint(&pool_address, &1_000_0000000);
 
         let (underlying_2, underlying_2_client) = testutils::create_token_contract(&e, &bombadil);
-        let (mut reserve_config_2, mut reserve_data_2) = testutils::default_reserve_meta(&e);
+        let (mut reserve_config_2, mut reserve_data_2) = testutils::default_reserve_meta();
         reserve_data_2.b_rate = 1_100_000_000;
         reserve_data_2.last_time = 12345;
         reserve_config_2.index = 1;

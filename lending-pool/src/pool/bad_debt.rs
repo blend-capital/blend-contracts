@@ -104,11 +104,11 @@ mod tests {
         let bombadil = Address::random(&e);
 
         let (underlying_0, _) = testutils::create_token_contract(&e, &bombadil);
-        let (reserve_config, reserve_data) = testutils::default_reserve_meta(&e);
+        let (reserve_config, reserve_data) = testutils::default_reserve_meta();
         testutils::create_reserve(&e, &pool, &underlying_0, &reserve_config, &reserve_data);
 
         let (underlying_1, _) = testutils::create_token_contract(&e, &bombadil);
-        let (mut reserve_config, reserve_data) = testutils::default_reserve_meta(&e);
+        let (mut reserve_config, reserve_data) = testutils::default_reserve_meta();
         reserve_config.index = 1;
         testutils::create_reserve(&e, &pool, &underlying_1, &reserve_config, &reserve_data);
 
@@ -170,11 +170,11 @@ mod tests {
         let bombadil = Address::random(&e);
 
         let (underlying_0, _) = testutils::create_token_contract(&e, &bombadil);
-        let (reserve_config, reserve_data) = testutils::default_reserve_meta(&e);
+        let (reserve_config, reserve_data) = testutils::default_reserve_meta();
         testutils::create_reserve(&e, &pool, &underlying_0, &reserve_config, &reserve_data);
 
         let (underlying_1, _) = testutils::create_token_contract(&e, &bombadil);
-        let (mut reserve_config, reserve_data) = testutils::default_reserve_meta(&e);
+        let (mut reserve_config, reserve_data) = testutils::default_reserve_meta();
         reserve_config.index = 1;
         testutils::create_reserve(&e, &pool, &underlying_1, &reserve_config, &reserve_data);
 
@@ -222,11 +222,11 @@ mod tests {
         let bombadil = Address::random(&e);
 
         let (underlying_1, _) = testutils::create_token_contract(&e, &bombadil);
-        let (reserve_config, reserve_data) = testutils::default_reserve_meta(&e);
+        let (reserve_config, reserve_data) = testutils::default_reserve_meta();
         testutils::create_reserve(&e, &pool, &underlying_1, &reserve_config, &reserve_data);
 
         let (underlying_2, _) = testutils::create_token_contract(&e, &bombadil);
-        let (mut reserve_config, reserve_data) = testutils::default_reserve_meta(&e);
+        let (mut reserve_config, reserve_data) = testutils::default_reserve_meta();
         reserve_config.index = 1;
         testutils::create_reserve(&e, &pool, &underlying_2, &reserve_config, &reserve_data);
 
@@ -270,11 +270,11 @@ mod tests {
         let bombadil = Address::random(&e);
 
         let (underlying_0, _) = testutils::create_token_contract(&e, &bombadil);
-        let (reserve_config, reserve_data) = testutils::default_reserve_meta(&e);
+        let (reserve_config, reserve_data) = testutils::default_reserve_meta();
         testutils::create_reserve(&e, &pool, &underlying_0, &reserve_config, &reserve_data);
 
         let (underlying_1, _) = testutils::create_token_contract(&e, &bombadil);
-        let (mut reserve_config, reserve_data) = testutils::default_reserve_meta(&e);
+        let (mut reserve_config, reserve_data) = testutils::default_reserve_meta();
         reserve_config.index = 1;
         testutils::create_reserve(&e, &pool, &underlying_1, &reserve_config, &reserve_data);
 
@@ -321,12 +321,12 @@ mod tests {
         let (_, blnd_client) = testutils::create_blnd_token(&e, &pool, &bombadil);
 
         let (underlying_0, _) = testutils::create_token_contract(&e, &bombadil);
-        let (reserve_config, mut reserve_data) = testutils::default_reserve_meta(&e);
+        let (reserve_config, mut reserve_data) = testutils::default_reserve_meta();
         reserve_data.last_time = 1499995000;
         testutils::create_reserve(&e, &pool, &underlying_0, &reserve_config, &reserve_data);
 
         let (underlying_1, _) = testutils::create_token_contract(&e, &bombadil);
-        let (mut reserve_config, mut reserve_data) = testutils::default_reserve_meta(&e);
+        let (mut reserve_config, mut reserve_data) = testutils::default_reserve_meta();
         reserve_config.index = 1;
         reserve_data.last_time = 1499995000;
         testutils::create_reserve(&e, &pool, &underlying_1, &reserve_config, &reserve_data);

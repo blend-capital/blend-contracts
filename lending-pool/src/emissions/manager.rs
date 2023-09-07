@@ -195,7 +195,7 @@ mod tests {
         let pool_eps = 0_5000000;
         let pool_emissions: Map<u32, u64> = map![&e];
 
-        let (reserve_config, reserve_data) = testutils::default_reserve_meta(&e);
+        let (reserve_config, reserve_data) = testutils::default_reserve_meta();
         let (underlying_0, _) = testutils::create_token_contract(&e, &bombadil);
         testutils::create_reserve(&e, &pool, &underlying_0, &reserve_config, &reserve_data);
         let (underlying_1, _) = testutils::create_token_contract(&e, &bombadil);
@@ -241,7 +241,7 @@ mod tests {
             (3, 0_2500000)  // reserve_1 supply
         ];
 
-        let (reserve_config, mut reserve_data) = testutils::default_reserve_meta(&e);
+        let (reserve_config, mut reserve_data) = testutils::default_reserve_meta();
         reserve_data.last_time = 1499900000;
         let (underlying_0, _) = testutils::create_token_contract(&e, &bombadil);
         testutils::create_reserve(&e, &pool, &underlying_0, &reserve_config, &reserve_data);
@@ -323,7 +323,7 @@ mod tests {
             last_time: 1499980000,
         };
 
-        let (reserve_config, mut reserve_data) = testutils::default_reserve_meta(&e);
+        let (reserve_config, mut reserve_data) = testutils::default_reserve_meta();
         reserve_data.last_time = 1499900000;
         let (underlying_0, _) = testutils::create_token_contract(&e, &bombadil);
         testutils::create_reserve(&e, &pool, &underlying_0, &reserve_config, &reserve_data);
@@ -411,7 +411,7 @@ mod tests {
             last_time: 1500000100,
         };
 
-        let (reserve_config, mut reserve_data) = testutils::default_reserve_meta(&e);
+        let (reserve_config, mut reserve_data) = testutils::default_reserve_meta();
         reserve_data.last_time = 1499900000;
         let (underlying_0, _) = testutils::create_token_contract(&e, &bombadil);
         testutils::create_reserve(&e, &pool, &underlying_0, &reserve_config, &reserve_data);
@@ -479,7 +479,7 @@ mod tests {
         let pool_eps = 0_5000000;
         let pool_emissions: Map<u32, u64> = map![&e, (2, 0_7500000), (3, 0_2500000)];
 
-        let (reserve_config, mut reserve_data) = testutils::default_reserve_meta(&e);
+        let (reserve_config, mut reserve_data) = testutils::default_reserve_meta();
         reserve_data.last_time = 1499900000;
         let (underlying_0, _) = testutils::create_token_contract(&e, &bombadil);
         testutils::create_reserve(&e, &pool, &underlying_0, &reserve_config, &reserve_data);
@@ -519,7 +519,7 @@ mod tests {
         let pool = testutils::create_pool(&e);
         let bombadil = Address::random(&e);
 
-        let (reserve_config, reserve_data) = testutils::default_reserve_meta(&e);
+        let (reserve_config, reserve_data) = testutils::default_reserve_meta();
         let (underlying_0, _) = testutils::create_token_contract(&e, &bombadil);
         testutils::create_reserve(&e, &pool, &underlying_0, &reserve_config, &reserve_data);
         let (underlying_1, _) = testutils::create_token_contract(&e, &bombadil);
@@ -574,7 +574,7 @@ mod tests {
         let pool = testutils::create_pool(&e);
         let bombadil = Address::random(&e);
 
-        let (reserve_config, reserve_data) = testutils::default_reserve_meta(&e);
+        let (reserve_config, reserve_data) = testutils::default_reserve_meta();
         let (underlying_0, _) = testutils::create_token_contract(&e, &bombadil);
         testutils::create_reserve(&e, &pool, &underlying_0, &reserve_config, &reserve_data);
         let (underlying_1, _) = testutils::create_token_contract(&e, &bombadil);
@@ -626,7 +626,7 @@ mod tests {
         let pool = testutils::create_pool(&e);
         let bombadil = Address::random(&e);
 
-        let (reserve_config, reserve_data) = testutils::default_reserve_meta(&e);
+        let (reserve_config, reserve_data) = testutils::default_reserve_meta();
         let (underlying_0, _) = testutils::create_token_contract(&e, &bombadil);
         testutils::create_reserve(&e, &pool, &underlying_0, &reserve_config, &reserve_data);
         let (underlying_1, _) = testutils::create_token_contract(&e, &bombadil);

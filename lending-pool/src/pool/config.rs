@@ -333,7 +333,7 @@ mod tests {
         let bombadil = Address::random(&e);
 
         let (underlying, _) = testutils::create_token_contract(&e, &bombadil);
-        let (reserve_config, reserve_data) = testutils::default_reserve_meta(&e);
+        let (reserve_config, reserve_data) = testutils::default_reserve_meta();
         testutils::create_reserve(&e, &pool, &underlying, &reserve_config, &reserve_data);
 
         let new_metadata = ReserveConfig {
@@ -411,7 +411,7 @@ mod tests {
         let bombadil = Address::random(&e);
 
         let (underlying, _) = testutils::create_token_contract(&e, &bombadil);
-        let (reserve_config, reserve_data) = testutils::default_reserve_meta(&e);
+        let (reserve_config, reserve_data) = testutils::default_reserve_meta();
         testutils::create_reserve(&e, &pool, &underlying, &reserve_config, &reserve_data);
 
         let new_metadata = ReserveConfig {

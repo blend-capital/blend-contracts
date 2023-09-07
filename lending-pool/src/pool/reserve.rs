@@ -259,7 +259,7 @@ mod tests {
         let oracle = Address::random(&e);
 
         let (underlying, _) = testutils::create_token_contract(&e, &bombadil);
-        let (reserve_config, mut reserve_data) = testutils::default_reserve_meta(&e);
+        let (reserve_config, mut reserve_data) = testutils::default_reserve_meta();
         reserve_data.d_rate = 1_345_678_123;
         reserve_data.b_rate = 1_123_456_789;
         reserve_data.d_supply = 65_0000000;
@@ -307,7 +307,7 @@ mod tests {
         let oracle = Address::random(&e);
 
         let (underlying, _) = testutils::create_token_contract(&e, &bombadil);
-        let (reserve_config, mut reserve_data) = testutils::default_reserve_meta(&e);
+        let (reserve_config, mut reserve_data) = testutils::default_reserve_meta();
         reserve_data.d_rate = 0;
         reserve_data.b_rate = 0;
         reserve_data.d_supply = 0;
@@ -355,7 +355,7 @@ mod tests {
         let oracle = Address::random(&e);
 
         let (underlying, _) = testutils::create_token_contract(&e, &bombadil);
-        let (reserve_config, mut reserve_data) = testutils::default_reserve_meta(&e);
+        let (reserve_config, mut reserve_data) = testutils::default_reserve_meta();
         reserve_data.d_rate = 1_345_678_123;
         reserve_data.b_rate = 1_123_456_789;
         reserve_data.d_supply = 65_0000000;

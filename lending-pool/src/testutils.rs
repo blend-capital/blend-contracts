@@ -176,7 +176,7 @@ pub(crate) fn default_reserve(e: &Env) -> Reserve {
     }
 }
 
-pub(crate) fn default_reserve_meta(e: &Env) -> (ReserveConfig, ReserveData) {
+pub(crate) fn default_reserve_meta() -> (ReserveConfig, ReserveData) {
     (
         ReserveConfig {
             decimals: 7,

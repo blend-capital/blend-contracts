@@ -126,11 +126,11 @@ mod tests {
         let (oracle, oracle_client) = testutils::create_mock_oracle(&e);
 
         let (underlying_0, _) = testutils::create_token_contract(&e, &bombadil);
-        let (reserve_config, reserve_data) = testutils::default_reserve_meta(&e);
+        let (reserve_config, reserve_data) = testutils::default_reserve_meta();
         testutils::create_reserve(&e, &pool, &underlying_0, &reserve_config, &reserve_data);
 
         let (underlying_1, _) = testutils::create_token_contract(&e, &bombadil);
-        let (mut reserve_config, mut reserve_data) = testutils::default_reserve_meta(&e);
+        let (mut reserve_config, mut reserve_data) = testutils::default_reserve_meta();
         reserve_config.decimals = 9;
         reserve_config.c_factor = 0_8500000;
         reserve_config.l_factor = 0_8000000;
@@ -142,7 +142,7 @@ mod tests {
         testutils::create_reserve(&e, &pool, &underlying_1, &reserve_config, &reserve_data);
 
         let (underlying_2, _) = testutils::create_token_contract(&e, &bombadil);
-        let (mut reserve_config, mut reserve_data) = testutils::default_reserve_meta(&e);
+        let (mut reserve_config, mut reserve_data) = testutils::default_reserve_meta();
         reserve_config.decimals = 6;
         reserve_config.index = 2;
         reserve_data.b_supply = 10_000_000;

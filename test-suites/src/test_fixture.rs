@@ -56,11 +56,11 @@ pub struct TestFixture<'a> {
 impl TestFixture<'_> {
     /// Create a new TestFixture for the Blend Protocol
     ///
-    /// Deploys BLND (0), wETH (1), USDC (2), and XLM (3) test tokens, alongside all required
-    /// Blend Protocol contracts, including the backstop token (4).
+    /// Deploys BLND (0), wETH (1), USDC (2), XLM (3), and STABLE (4) test tokens, alongside all required
+    /// Blend Protocol contracts, including a BLND-USDC LP.
     pub fn create<'a>(wasm: bool) -> TestFixture<'a> {
         let e = Env::default();
-        e.mock_all_auths();
+        e.mock_all_auths_allowing_non_root_auth();
         e.budget().reset_unlimited();
 
         let bombadil = Address::random(&e);
@@ -71,9 +71,9 @@ impl TestFixture<'_> {
             sequence_number: 100,
             network_id: Default::default(),
             base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
+            min_temp_entry_expiration: 999999,
+            min_persistent_entry_expiration: 999999,
+            max_entry_expiration: u32::MAX,
         });
 
         // deploy tokens
@@ -123,9 +123,9 @@ impl TestFixture<'_> {
             sequence_number: 150,
             network_id: Default::default(),
             base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
+            min_temp_entry_expiration: 999999,
+            min_persistent_entry_expiration: 999999,
+            max_entry_expiration: u32::MAX,
         });
 
         TestFixture {
@@ -180,6 +180,19 @@ impl TestFixture<'_> {
     /********** Chain Helpers ***********/
 
     pub fn jump(&self, time: u64) {
+        self.env.ledger().set(LedgerInfo {
+            timestamp: self.env.ledger().timestamp() + time,
+            protocol_version: 1,
+            sequence_number: self.env.ledger().sequence(),
+            network_id: Default::default(),
+            base_reserve: 10,
+            min_temp_entry_expiration: 999999,
+            min_persistent_entry_expiration: 999999,
+            max_entry_expiration: u32::MAX,
+        });
+    }
+
+    pub fn jump_with_sequence(&self, time: u64) {
         let blocks = time / 5;
         self.env.ledger().set(LedgerInfo {
             timestamp: self.env.ledger().timestamp() + time,
@@ -187,9 +200,9 @@ impl TestFixture<'_> {
             sequence_number: self.env.ledger().sequence() + (blocks as u32),
             network_id: Default::default(),
             base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
+            min_temp_entry_expiration: 999999,
+            min_persistent_entry_expiration: 999999,
+            max_entry_expiration: u32::MAX,
         });
     }
 }

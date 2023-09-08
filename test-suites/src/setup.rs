@@ -9,8 +9,7 @@ use crate::{
 /// Create a test fixture with a pool and a whale depositing and borrowing all assets
 pub fn create_fixture_with_data<'a>(wasm: bool) -> (TestFixture<'a>, Address) {
     let mut fixture = TestFixture::create(wasm);
-    fixture.env.mock_all_auths();
-    fixture.env.budget().reset_unlimited();
+
     // create pool
     fixture.create_pool(Symbol::new(&fixture.env, "Teapot"), 0_100_000_000);
 
@@ -136,6 +135,7 @@ pub fn create_fixture_with_data<'a>(wasm: bool) -> (TestFixture<'a>, Address) {
 
     fixture.jump(60 * 60); // 1 hr
 
+    fixture.env.budget().reset_unlimited();
     (fixture, frodo)
 }
 

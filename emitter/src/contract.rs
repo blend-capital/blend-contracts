@@ -49,6 +49,7 @@ pub trait EmitterTrait {
 #[contractimpl]
 impl EmitterTrait for Emitter {
     fn initialize(e: Env, backstop: Address, blnd_token_id: Address) {
+        storage::bump_instance(&e);
         if storage::has_backstop(&e) {
             panic_with_error!(&e, EmitterError::AlreadyInitialized)
         }

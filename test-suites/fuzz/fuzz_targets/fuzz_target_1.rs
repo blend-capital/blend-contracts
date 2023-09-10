@@ -6,26 +6,20 @@ use fixed_point_math::FixedPoint;
 use lending_pool::{Request, PoolState, PositionData};
 use soroban_sdk::{testutils::Address as _, vec, Address};
 use test_suites::{
+    token::{TokenClient},
     assertions::assert_approx_eq_abs,
     create_fixture_with_data,
-    test_fixture::{TokenIndex, SCALAR_7, SCALAR_9, TestFixture},
+    test_fixture::{TokenIndex, SCALAR_7, SCALAR_9, TestFixture, PoolFixture},
 };
 use soroban_sdk::arbitrary::arbitrary::{self, Arbitrary, Unstructured};
 
 #[derive(Arbitrary, Debug)]
 struct Input {
-    sam_usdc_balance: NatI128,
     sam_xlm_balance: NatI128,
-    merry_usdc_balance: NatI128,
+    sam_weth_balance: NatI128,
     merry_xlm_balance: NatI128,
-    merry_supply_usdc_amount: i128, //NatI128,
-    sam_supply_xlm_amount: i128, //NatI128,
-    sam_borrow_usdc_amount: i128, //NatI128,
-    merry_borrow_xlm_amount: i128, //NatI128,
-    sam_repay_usdc_amount: i128,
-    merry_repay_xlm_amount: i128,
-    sam_withdraw_xlm_amount: i128,
-    merry_withdraw_usdc_amount: i128,
+    merry_weth_balance: NatI128,
+    commands: [Command; 10],
 }
 
 #[derive(Arbitrary, Debug)]
@@ -34,418 +28,385 @@ struct NatI128(
     pub i128,
 );
 
+#[derive(Arbitrary, Debug)]
+enum Command {
+    PassTime(PassTime),
+
+    MerrySupplyXlm(MerrySupplyXlm),
+    SamSupplyWeth(SamSupplyWeth),
+    MerryWithdrawXlm(MerryWithdrawXlm),
+    SamWithdrawWeth(SamWithdrawWeth),
+
+    MerryBorrowWeth(MerryBorrowWeth),
+    SamBorrowXlm(SamBorrowXlm),
+    MerryRepayWeth(MerryRepayWeth),
+    SamRepayXlm(SamRepayXlm),
+
+    FrodoClaimPool(FrodoClaimPool),
+    FrodoClaimBackstop(FrodoClaimBackstop),
+    MerryClaimPool(MerryClaimPool),
+    SamClaimPool(SamClaimPool),
+}
+
+#[derive(Arbitrary, Debug)]
+struct PassTime {
+    amount: u64,
+}
+
+#[derive(Arbitrary, Debug)]
+struct MerrySupplyXlm {
+    amount: i128,
+}
+
+#[derive(Arbitrary, Debug)]
+struct SamSupplyWeth {
+    amount: i128,
+}
+
+#[derive(Arbitrary, Debug)]
+struct MerryWithdrawXlm {
+    amount: i128,
+}
+
+#[derive(Arbitrary, Debug)]
+struct SamWithdrawWeth {
+    amount: i128,
+}
+
+#[derive(Arbitrary, Debug)]
+struct MerryBorrowWeth {
+    amount: i128,
+}
+
+#[derive(Arbitrary, Debug)]
+struct SamBorrowXlm {
+    amount: i128,
+}
+
+#[derive(Arbitrary, Debug)]
+struct MerryRepayWeth {
+    amount: i128,
+}
+
+#[derive(Arbitrary, Debug)]
+struct SamRepayXlm {
+    amount: i128,
+}
+
+#[derive(Arbitrary, Debug)]
+struct FrodoClaimPool;
+
+#[derive(Arbitrary, Debug)]
+struct FrodoClaimBackstop;
+
+#[derive(Arbitrary, Debug)]
+struct MerryClaimPool;
+
+#[derive(Arbitrary, Debug)]
+struct SamClaimPool;
+
+struct State<'a> {
+    fixture: &'a TestFixture<'a>,
+    pool_fixture: &'a PoolFixture<'a>,
+    frodo: Address,
+    sam: Address,
+    merry: Address,
+    xlm: &'a TokenClient<'a>,
+    weth: &'a TokenClient<'a>,
+}
+
 fuzz_target!(|input: Input| {
     let (fixture, frodo) = create_fixture_with_data(false);
     let pool_fixture = &fixture.pools[0];
-    let usdc_pool_index = pool_fixture.reserves[&TokenIndex::USDC];
     let xlm_pool_index = pool_fixture.reserves[&TokenIndex::XLM];
+    let weth_pool_index = pool_fixture.reserves[&TokenIndex::WETH];
 
     // Create two new users
-    let sam = Address::random(&fixture.env); // sam will be supplying XLM and borrowing USDC
-    let merry = Address::random(&fixture.env); // merry will be supplying USDC and borrowing XLM
+    let sam = Address::random(&fixture.env); // sam will be supplying WETH and borrowing XLM
+    let merry = Address::random(&fixture.env); // merry will be supplying XLM and borrowing WETH
 
     // Mint users tokens
-    let usdc = &fixture.tokens[TokenIndex::USDC];
     let xlm = &fixture.tokens[TokenIndex::XLM];
-    let mut sam_usdc_balance = input.sam_usdc_balance.0;
+    let weth = &fixture.tokens[TokenIndex::WETH];
+
     let mut sam_xlm_balance = input.sam_xlm_balance.0;
-    let mut merry_usdc_balance = input.merry_usdc_balance.0;
+    let mut sam_weth_balance = input.sam_weth_balance.0;
     let mut merry_xlm_balance = input.merry_xlm_balance.0;
-    usdc.mint(&sam, &input.sam_usdc_balance.0);
-    usdc.mint(&merry, &input.merry_usdc_balance.0);
+    let mut merry_weth_balance = input.merry_weth_balance.0;
     xlm.mint(&sam, &input.sam_xlm_balance.0);
     xlm.mint(&merry, &input.merry_xlm_balance.0);
+    weth.mint(&sam, &input.sam_weth_balance.0);
+    weth.mint(&merry, &input.merry_weth_balance.0);
 
-    let mut pool_usdc_balance = usdc.balance(&pool_fixture.pool.address);
-    let mut pool_xlm_balance = xlm.balance(&pool_fixture.pool.address);
+    let state = State {
+        fixture: &fixture,
+        pool_fixture,
+        frodo,
+        sam,
+        merry,
+        xlm,
+        weth,
+    };
 
-    let mut sam_xlm_btoken_balance = 0;
-    let mut sam_usdc_dtoken_balance = 0;
-    let mut merry_usdc_btoken_balance = 0;
-    let mut merry_xlm_dtoken_balance = 0;
-
-    {
-        // Merry supply USDC
-        let amount = input.merry_supply_usdc_amount;
-        let result = pool_fixture.pool.try_submit(
-            &merry,
-            &merry,
-            &merry,
-            &vec![
-                &fixture.env,
-                Request {
-                    request_type: 2,
-                    address: usdc.address.clone(),
-                    amount,
-                },
-            ],
-        );
-
-        let reserve_data = pool_fixture.pool.get_reserve_data(&usdc.address);
-
-        if let Ok(Ok(result)) = result {
-            pool_usdc_balance += amount;
-            merry_usdc_balance -= amount;
-            assert_eq!(usdc.balance(&merry), merry_usdc_balance);
-            assert_eq!(usdc.balance(&pool_fixture.pool.address), pool_usdc_balance);
-            merry_usdc_btoken_balance += amount
-                .fixed_div_floor(reserve_data.b_rate, SCALAR_9)
-                .unwrap();
-            assert_approx_eq_abs(
-                result.collateral.get_unchecked(usdc_pool_index),
-                merry_usdc_btoken_balance,
-                10,
-            );
-        }
-
+    for command in &input.commands {
+        command.run(&state);
         fixture.assert_invariants();
     }
-
-    {
-        // Sam supply XLM
-        let amount = input.sam_supply_xlm_amount;
-        let result = pool_fixture.pool.try_submit(
-            &sam,
-            &sam,
-            &sam,
-            &vec![
-                &fixture.env,
-                Request {
-                    request_type: 2,
-                    address: xlm.address.clone(),
-                    amount,
-                },
-            ],
-        );
-
-        let reserve_data = pool_fixture.pool.get_reserve_data(&xlm.address);
-
-        if let Ok(Ok(result)) = result {
-            pool_xlm_balance += amount;
-            sam_xlm_balance -= amount;
-            assert_eq!(xlm.balance(&sam), sam_xlm_balance);
-            assert_eq!(xlm.balance(&pool_fixture.pool.address), pool_xlm_balance);
-            sam_xlm_btoken_balance += amount
-                .fixed_div_floor(reserve_data.b_rate, SCALAR_9)
-                .unwrap();
-            assert_approx_eq_abs(
-                result.collateral.get_unchecked(xlm_pool_index),
-                sam_xlm_btoken_balance,
-                10,
-            );
-        }
-
-        fixture.assert_invariants();
-    }
-
-    {
-        // Sam borrow USDC
-        let amount = input.sam_borrow_usdc_amount;
-        let result = pool_fixture.pool.try_submit(
-            &sam,
-            &sam,
-            &sam,
-            &vec![
-                &fixture.env,
-                Request {
-                    request_type: 4,
-                    address: usdc.address.clone(),
-                    amount,
-                },
-            ],
-        );
-
-        // todo assert sam max borrow
-        // Sam max borrow is .75*.95*.1*1_900_000 = 135_375 USDC
-
-        let reserve_data = pool_fixture.pool.get_reserve_data(&usdc.address);
-
-        if let Ok(Ok(result)) = result {
-            pool_usdc_balance -= amount;
-            sam_usdc_balance += amount;
-            assert_eq!(usdc.balance(&sam), sam_usdc_balance);
-            assert_eq!(usdc.balance(&pool_fixture.pool.address), pool_usdc_balance);
-            sam_usdc_dtoken_balance += amount
-                .fixed_div_floor(reserve_data.d_rate, SCALAR_9)
-                .unwrap();
-            assert_approx_eq_abs(
-                result.liabilities.get_unchecked(usdc_pool_index),
-                sam_usdc_dtoken_balance,
-                10,
-            );
-        }
-
-        fixture.assert_invariants();
-    }
-
-    {
-        // Merry borrow XLM
-        let amount = input.merry_borrow_xlm_amount;
-        let result = pool_fixture.pool.try_submit(
-            &merry,
-            &merry,
-            &merry,
-            &vec![
-                &fixture.env,
-                Request {
-                    request_type: 4,
-                    address: xlm.address.clone(),
-                    amount,
-                },
-            ],
-        );
-
-        // todo assert merry max borrow
-        // Merry max borrow is .75*.9*190_000/.1 = 1_282_5000 XLM
-
-        let reserve_data = pool_fixture.pool.get_reserve_data(&xlm.address);
-
-        if let Ok(Ok(result)) = result {
-            pool_xlm_balance -= amount;
-            merry_xlm_balance += amount;
-            assert_eq!(xlm.balance(&merry), merry_xlm_balance);
-            assert_eq!(xlm.balance(&pool_fixture.pool.address), pool_xlm_balance);
-            merry_xlm_dtoken_balance += amount
-                .fixed_div_floor(reserve_data.d_rate, SCALAR_9)
-                .unwrap();
-            assert_approx_eq_abs(
-                result.liabilities.get_unchecked(xlm_pool_index),
-                merry_xlm_dtoken_balance,
-                10,
-            );
-        }
-
-        fixture.assert_invariants();
-    }
-
-    {
-        // todo fix assertions
-        // claim frodo's setup emissions (1h1m passes during setup)
-        // - Frodo should receive 60 * 61 * .3 = 1098 BLND from the pool claim
-        // - Frodo should receive 60 * 61 * .7 = 2562 BLND from the backstop claim
-        let mut frodo_blnd_balance = 0;
-        let claim_amount = pool_fixture
-            .pool
-            .claim(&frodo, &vec![&fixture.env, 0, 3], &frodo);
-        frodo_blnd_balance += claim_amount;
-        // todo assert_eq!(claim_amount, 1098_0000000);
-        assert_eq!(
-            fixture.tokens[TokenIndex::BLND].balance(&frodo),
-            frodo_blnd_balance
-        );
-        fixture.backstop.claim(
-            &frodo,
-            &vec![&fixture.env, pool_fixture.pool.address.clone()],
-            &frodo,
-        );
-        // frodo_blnd_balance += 2562_0000000;
-        //assert_eq!(
-        //    fixture.tokens[TokenIndex::BLND].balance(&frodo),
-        //    frodo_blnd_balance
-        //);
-
-        fixture.assert_invariants();
-    }
-
-    // Let three days pass
-    fixture.jump(60 * 60 * 24 * 3);
-
-    {
-        // todo fix assertions
-        // Claim frodo's three day pool emissions
-        let claim_amount = pool_fixture
-            .pool
-            .claim(&frodo, &vec![&fixture.env, 0, 3], &frodo);
-        //frodo_blnd_balance += claim_amount;
-        //assert_eq!(claim_amount, 4665_6384000);
-        //assert_eq!(
-        //    fixture.tokens[TokenIndex::BLND].balance(&frodo),
-        //    frodo_blnd_balance
-        //);
-
-        fixture.assert_invariants();
-    }
-
-    {
-        // todo fix assertions
-        // Claim sam's three day pool emissions
-        let mut sam_blnd_balance = 0;
-        let claim_amount = pool_fixture
-            .pool
-            .claim(&sam, &vec![&fixture.env, 0, 3], &sam);
-        sam_blnd_balance += claim_amount;
-        //assert_eq!(claim_amount, 730943066650);
-        //assert_eq!(
-        //    fixture.tokens[TokenIndex::BLND].balance(&sam),
-        //    sam_blnd_balance
-        //);
-
-        fixture.assert_invariants();
-    }
-
-    {
-        // Sam repays some of his USDC loan
-        let amount = input.sam_repay_usdc_amount;
-        let result = pool_fixture.pool.try_submit(
-            &sam,
-            &sam,
-            &sam,
-            &vec![
-                &fixture.env,
-                Request {
-                    request_type: 5,
-                    address: usdc.address.clone(),
-                    amount,
-                },
-            ],
-        );
-
-        let reserve_data = pool_fixture.pool.get_reserve_data(&usdc.address);
-
-        // fixme below assertions don't always hold
-        pool_usdc_balance = usdc.balance(&pool_fixture.pool.address);
-        sam_usdc_balance = usdc.balance(&merry);
-        /*if let Ok(Ok(result)) = result {
-            pool_usdc_balance += amount;
-            sam_usdc_balance -= amount;
-            assert_eq!(usdc.balance(&sam), sam_usdc_balance);
-            assert_eq!(usdc.balance(&pool_fixture.pool.address), pool_usdc_balance);
-            sam_usdc_dtoken_balance -= amount
-                .fixed_div_floor(reserve_data.d_rate, SCALAR_9)
-                .unwrap();
-            assert_approx_eq_abs(
-                result.liabilities.get_unchecked(usdc_pool_index),
-                sam_usdc_dtoken_balance,
-                10,
-            );
-        }*/
-
-        fixture.assert_invariants();
-    }
-
-    {
-        // Merry repays some of his XLM loan
-        let amount = input.merry_repay_xlm_amount;
-        let result = pool_fixture.pool.try_submit(
-            &merry,
-            &merry,
-            &merry,
-            &vec![
-                &fixture.env,
-                Request {
-                    request_type: 5,
-                    address: xlm.address.clone(),
-                    amount,
-                },
-            ],
-        );
-
-        let reserve_data = pool_fixture.pool.get_reserve_data(&xlm.address);
-
-        // fixme below assertions don't always hold
-        pool_xlm_balance = xlm.balance(&pool_fixture.pool.address);
-        merry_xlm_balance = xlm.balance(&merry);
-        /*if let Ok(Ok(result)) = result {
-            pool_xlm_balance += amount;
-            merry_xlm_balance -= amount;
-            assert_eq!(xlm.balance(&merry), merry_xlm_balance);
-            assert_eq!(xlm.balance(&pool_fixture.pool.address), pool_xlm_balance);
-            merry_xlm_dtoken_balance -= amount
-                .fixed_div_floor(reserve_data.d_rate, SCALAR_9)
-                .unwrap();
-            assert_approx_eq_abs(
-                result.liabilities.get_unchecked(xlm_pool_index),
-                merry_xlm_dtoken_balance,
-                10,
-            );
-        }*/
-
-        fixture.assert_invariants();
-    }
-
-    {
-        // Sam withdraws some of his XLM
-        let amount = input.sam_withdraw_xlm_amount;
-        let result = pool_fixture.pool.try_submit(
-            &sam,
-            &sam,
-            &sam,
-            &vec![
-                &fixture.env,
-                Request {
-                    request_type: 3,
-                    address: xlm.address.clone(),
-                    amount,
-                },
-            ],
-        );
-
-        let reserve_data = pool_fixture.pool.get_reserve_data(&xlm.address);
-
-        // fixme below assertions don't always hold
-        pool_xlm_balance = xlm.balance(&pool_fixture.pool.address);
-        sam_xlm_balance = xlm.balance(&sam);
-        /*if let Ok(Ok(result)) = result {
-            pool_xlm_balance -= amount;
-            sam_xlm_balance += amount;
-            sam_xlm_balance = xlm.balance(&sam);
-            assert_eq!(xlm.balance(&sam), sam_xlm_balance);
-            assert_eq!(xlm.balance(&pool_fixture.pool.address), pool_xlm_balance);
-            sam_xlm_btoken_balance -= amount
-                .fixed_div_floor(reserve_data.b_rate, SCALAR_9)
-                .unwrap();
-            assert_approx_eq_abs(
-                result.collateral.get_unchecked(xlm_pool_index),
-                sam_xlm_btoken_balance,
-                10,
-            );
-        }*/
-
-        fixture.assert_invariants();
-    }
-
-    {
-        // Merry withdraws some of his USDC
-        let amount = input.merry_withdraw_usdc_amount;
-        let result = pool_fixture.pool.try_submit(
-            &merry,
-            &merry,
-            &merry,
-            &vec![
-                &fixture.env,
-                Request {
-                    request_type: 3,
-                    address: usdc.address.clone(),
-                    amount,
-                },
-            ],
-        );
-
-        let reserve_data = pool_fixture.pool.get_reserve_data(&usdc.address);
-
-        // fixme below assertions don't always hold
-        pool_usdc_balance = usdc.balance(&pool_fixture.pool.address);
-        merry_usdc_balance = usdc.balance(&sam);
-        /*if let Ok(Ok(result)) = result {
-            pool_usdc_balance -= amount;
-            merry_usdc_balance += amount;
-            assert_eq!(usdc.balance(&merry), merry_usdc_balance);
-            assert_eq!(usdc.balance(&pool_fixture.pool.address), pool_usdc_balance);
-            merry_usdc_btoken_balance -= amount
-                .fixed_div_floor(reserve_data.b_rate, SCALAR_9)
-                .unwrap();
-            assert_approx_eq_abs(
-                result.collateral.get_unchecked(usdc_pool_index),
-                merry_usdc_btoken_balance,
-                10,
-            );
-        }*/
-
-        fixture.assert_invariants();
-    }
-
-    // todo
 });
+
+type ContractResult<T> = Result<Result<T, soroban_sdk::ConversionError>, Result<soroban_sdk::Error, core::convert::Infallible>>;
+
+/// Panic if a contract call result might have been the result of an unexpected panic.
+///
+/// Calls that return an error with type `ScErrorType::WasmVm` and code `ScErrorCode::InvalidAction`
+/// are assumed to be unintended errors. These are the codes that result from plain `panic!` invocations,
+/// thus contracts should never simply call `panic!`, but instead use `panic_with_error!`.
+///
+/// Other rare types of internal exception can return `InvalidAction`.
+#[track_caller]
+fn verify_contract_result<T>(env: &soroban_sdk::Env, r: &ContractResult<T>) {
+    use soroban_sdk::{Error, ConversionError};
+    use soroban_sdk::xdr::{ScErrorType, ScErrorCode};
+    use soroban_sdk::testutils::Events;
+    match r {
+        Err(Ok(e)) => {
+            if e.is_type(ScErrorType::WasmVm) && e.is_code(ScErrorCode::InvalidAction) {
+                let msg = "contract failed with InvalidAction - unexpected panic?";
+                eprintln!("{msg}");
+                eprintln!("recent events (10):");
+                for (i, event) in env.events().all().iter().rev().take(10).enumerate() {
+                    eprintln!("{i}: {event:?}");
+                }
+                panic!("{msg}");
+            }
+        }
+        _ => { }
+    }
+}
+
+impl Command {
+    fn run(&self, state: &State) {
+        use Command::*;
+        match self {
+            PassTime(cmd) => cmd.run(state),
+            MerrySupplyXlm(cmd) => cmd.run(state),
+            MerryWithdrawXlm(cmd) => cmd.run(state),
+            SamSupplyWeth(cmd) => cmd.run(state),
+            SamWithdrawWeth(cmd) => cmd.run(state),
+            MerryBorrowWeth(cmd) => cmd.run(state),
+            MerryRepayWeth(cmd) => cmd.run(state),
+            SamBorrowXlm(cmd) => cmd.run(state),
+            SamRepayXlm(cmd) => cmd.run(state),
+            FrodoClaimPool(cmd) => cmd.run(state),
+            FrodoClaimBackstop(cmd) => cmd.run(state),
+            MerryClaimPool(cmd) => cmd.run(state),
+            SamClaimPool(cmd) => cmd.run(state),
+        }
+    }
+}
+
+impl PassTime {
+    fn run(&self, state: &State) {
+        state.fixture.jump(self.amount);
+    }
+}
+
+impl MerrySupplyXlm {
+    fn run(&self, state: &State) {
+        let r = state.pool_fixture.pool.try_submit(
+            &state.merry,
+            &state.merry,
+            &state.merry,
+            &vec![
+                &state.fixture.env,
+                Request {
+                    request_type: 2,
+                    address: state.xlm.address.clone(),
+                    amount: self.amount,
+                },
+            ],
+        );
+        verify_contract_result(&state.fixture.env, &r);
+    }
+}
+
+impl SamSupplyWeth {
+    fn run(&self, state: &State) {
+        let r = state.pool_fixture.pool.try_submit(
+            &state.sam,
+            &state.sam,
+            &state.sam,
+            &vec![
+                &state.fixture.env,
+                Request {
+                    request_type: 2,
+                    address: state.weth.address.clone(),
+                    amount: self.amount,
+                },
+            ],
+        );
+        verify_contract_result(&state.fixture.env, &r);
+    }
+}
+
+impl MerryWithdrawXlm {
+    fn run(&self, state: &State) {
+        let r = state.pool_fixture.pool.try_submit(
+            &state.merry,
+            &state.merry,
+            &state.merry,
+            &vec![
+                &state.fixture.env,
+                Request {
+                    request_type: 3,
+                    address: state.xlm.address.clone(),
+                    amount: self.amount,
+                },
+            ],
+        );
+        verify_contract_result(&state.fixture.env, &r);
+    }
+}
+
+impl SamWithdrawWeth {
+    fn run(&self, state: &State) {
+        let r = state.pool_fixture.pool.try_submit(
+            &state.sam,
+            &state.sam,
+            &state.sam,
+            &vec![
+                &state.fixture.env,
+                Request {
+                    request_type: 3,
+                    address: state.weth.address.clone(),
+                    amount: self.amount,
+                },
+            ],
+        );
+        verify_contract_result(&state.fixture.env, &r);
+    }
+}
+
+impl MerryBorrowWeth {
+    fn run(&self, state: &State) {
+        let r = state.pool_fixture.pool.try_submit(
+            &state.merry,
+            &state.merry,
+            &state.merry,
+            &vec![
+                &state.fixture.env,
+                Request {
+                    request_type: 4,
+                    address: state.weth.address.clone(),
+                    amount: self.amount,
+                },
+            ],
+        );
+        verify_contract_result(&state.fixture.env, &r);
+    }
+}
+
+impl SamBorrowXlm {
+    fn run(&self, state: &State) {
+        let r = state.pool_fixture.pool.try_submit(
+            &state.sam,
+            &state.sam,
+            &state.sam,
+            &vec![
+                &state.fixture.env,
+                Request {
+                    request_type: 4,
+                    address: state.xlm.address.clone(),
+                    amount: self.amount,
+                },
+            ],
+        );
+        verify_contract_result(&state.fixture.env, &r);
+    }
+}
+
+impl MerryRepayWeth {
+    fn run(&self, state: &State) {
+        let r = state.pool_fixture.pool.try_submit(
+            &state.merry,
+            &state.merry,
+            &state.merry,
+            &vec![
+                &state.fixture.env,
+                Request {
+                    request_type: 5,
+                    address: state.weth.address.clone(),
+                    amount: self.amount,
+                },
+            ],
+        );
+        verify_contract_result(&state.fixture.env, &r);
+    }
+}
+
+impl SamRepayXlm {
+    fn run(&self, state: &State) {
+        let r = state.pool_fixture.pool.try_submit(
+            &state.sam,
+            &state.sam,
+            &state.sam,
+            &vec![
+                &state.fixture.env,
+                Request {
+                    request_type: 5,
+                    address: state.xlm.address.clone(),
+                    amount: self.amount,
+                },
+            ],
+        );
+        verify_contract_result(&state.fixture.env, &r);
+    }
+}
+
+impl FrodoClaimPool {
+    fn run(&self, state: &State) {
+        let r = state.pool_fixture.pool.try_claim(
+            &state.frodo,
+            &vec![&state.fixture.env, 0, 3],
+            &state.frodo,
+        );
+        verify_contract_result(&state.fixture.env, &r);
+    }
+}
+
+impl FrodoClaimBackstop {
+    fn run(&self, state: &State) {
+        let r = state.fixture.backstop.try_claim(
+            &state.frodo,
+            &vec![&state.fixture.env, state.pool_fixture.pool.address.clone()],
+            &state.frodo,                  
+        );
+        verify_contract_result(&state.fixture.env, &r);
+    }
+}
+
+impl MerryClaimPool {
+    fn run(&self, state: &State) {
+        let r = state.pool_fixture.pool.try_claim(
+            &state.merry,
+            &vec![&state.fixture.env, 0, 3],
+            &state.merry,
+        );
+        verify_contract_result(&state.fixture.env, &r);
+    }
+}
+
+impl SamClaimPool {
+    fn run(&self, state: &State) {
+        let r = state.pool_fixture.pool.try_claim(
+            &state.sam,
+            &vec![&state.fixture.env, 0, 3],
+            &state.sam,
+        );
+        verify_contract_result(&state.fixture.env, &r);
+    }
+}
+
 
 #[extension_trait::extension_trait]
 impl Asserts for TestFixture<'_> {

@@ -1285,13 +1285,12 @@ mod tests {
         });
     }
 
-    ///! FAILING
-    // TODO: mock_all_auths_allowing_non_root_auth not working for `donate_usdc` call to `transfer` in the backstop
-    // #[test]
+    #[test]
     fn test_fill_interest_auction() {
         let e = Env::default();
-
+        e.budget().reset_unlimited();
         e.mock_all_auths_allowing_non_root_auth();
+
         e.ledger().set(LedgerInfo {
             timestamp: 12345,
             protocol_version: 1,
@@ -1318,7 +1317,6 @@ mod tests {
             &Address::random(&e),
         );
 
-        e.budget().reset_unlimited();
         let (underlying_0, underlying_0_client) = testutils::create_token_contract(&e, &bombadil);
         let (mut reserve_config_0, mut reserve_data_0) = testutils::default_reserve_meta();
         reserve_data_0.b_rate = 1_100_000_000;
@@ -1378,6 +1376,7 @@ mod tests {
         usdc_client.mint(&samwise, &952_0000000);
 
         e.as_contract(&pool_address, || {
+            e.mock_all_auths_allowing_non_root_auth();
             storage::set_pool_config(&e, &pool_config);
             storage::set_auction(
                 &e,

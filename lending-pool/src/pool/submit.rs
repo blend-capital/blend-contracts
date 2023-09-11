@@ -66,9 +66,7 @@ mod tests {
         vec,
     };
 
-    ///! FAILING
-    // TODO: mock_all_auths_allowing_non_root_auth not working for `transfer` from spender to pool
-    // #[test]
+    #[test]
     fn test_submit() {
         let e = Env::default();
         e.budget().reset_unlimited();
@@ -111,6 +109,7 @@ mod tests {
             status: 0,
         };
         e.as_contract(&pool, || {
+            e.mock_all_auths_allowing_non_root_auth();
             storage::set_pool_config(&e, &pool_config);
 
             let pre_pool_balance_0 = underlying_0_client.balance(&pool);

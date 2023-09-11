@@ -446,9 +446,7 @@ mod tests {
         });
     }
 
-    ///! FAILING
-    // TODO: mock_all_auths_allowing_non_root_auth not working for `donate_usdc` call to `transfer` in the backstop
-    // #[test]
+    #[test]
     fn test_fill_interest_auction() {
         let e = Env::default();
         e.mock_all_auths_allowing_non_root_auth();
@@ -531,6 +529,7 @@ mod tests {
         };
         usdc_client.mint(&samwise, &100_0000000);
         e.as_contract(&pool_address, || {
+            e.mock_all_auths_allowing_non_root_auth();
             storage::set_auction(
                 &e,
                 &(AuctionType::InterestAuction as u32),

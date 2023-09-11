@@ -195,9 +195,9 @@ impl TestFixture<'_> {
     pub fn jump_with_sequence(&self, time: u64) {
         let blocks = time / 5;
         self.env.ledger().set(LedgerInfo {
-            timestamp: self.env.ledger().timestamp() + time,
+            timestamp: self.env.ledger().timestamp().saturating_add(time),
             protocol_version: 1,
-            sequence_number: self.env.ledger().sequence() + (blocks as u32),
+            sequence_number: self.env.ledger().sequence().saturating_add(blocks as u32),
             network_id: Default::default(),
             base_reserve: 10,
             min_temp_entry_expiration: 999999,

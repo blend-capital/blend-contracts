@@ -97,12 +97,11 @@ impl Reserve {
                 .fixed_mul_floor(i128(pool_config.bstop_rate), SCALAR_9)
                 .unwrap_optimized();
             reserve.backstop_credit += new_backstop_credit;
-            // update b_rate with new backstop_credit
-            reserve.b_rate = (reserve.total_liabilities() + token_bal - reserve.backstop_credit)
-                .fixed_div_floor(reserve.b_supply, SCALAR_9)
-                .unwrap_optimized();
         }
 
+        reserve.b_rate = (reserve.total_liabilities() + token_bal - reserve.backstop_credit)
+            .fixed_div_floor(reserve.b_supply, SCALAR_9)
+            .unwrap_optimized();
         reserve.last_time = e.ledger().timestamp();
         reserve
     }
@@ -329,6 +328,53 @@ mod tests {
             assert_eq!(reserve.ir_mod, 1_000_000_000);
             assert_eq!(reserve.d_supply, 0);
             assert_eq!(reserve.b_supply, 0);
+            assert_eq!(reserve.backstop_credit, 0);
+            assert_eq!(reserve.last_time, 617280);
+        });
+    }
+
+    #[test]
+    fn test_load_reserve_zero_bstop_rate() {
+        let e = Env::default();
+        e.mock_all_auths();
+
+        let bombadil = Address::random(&e);
+        let pool = Address::random(&e);
+        let oracle = Address::random(&e);
+
+        let (underlying, _) = testutils::create_token_contract(&e, &bombadil);
+        let (reserve_config, mut reserve_data) = testutils::default_reserve_meta(&e);
+        reserve_data.d_rate = 1_345_678_123;
+        reserve_data.b_rate = 1_123_456_789;
+        reserve_data.d_supply = 65_0000000;
+        reserve_data.b_supply = 99_0000000;
+        testutils::create_reserve(&e, &pool, &underlying, &reserve_config, &reserve_data);
+
+        e.ledger().set(LedgerInfo {
+            timestamp: 123456 * 5,
+            protocol_version: 1,
+            sequence_number: 123456,
+            network_id: Default::default(),
+            base_reserve: 10,
+            min_temp_entry_expiration: 10,
+            min_persistent_entry_expiration: 10,
+            max_entry_expiration: 2000000,
+        });
+        let pool_config = PoolConfig {
+            oracle,
+            bstop_rate: 0,
+            status: 0,
+        };
+        e.as_contract(&pool, || {
+            storage::set_pool_config(&e, &pool_config);
+            let reserve = Reserve::load(&e, &pool_config, &underlying);
+
+            // (accrual: 1_002_957_369, util: .7864352)
+            assert_eq!(reserve.d_rate, 1_349_657_792);
+            assert_eq!(reserve.b_rate, 1_126_069_704);
+            assert_eq!(reserve.ir_mod, 1_044_981_440);
+            assert_eq!(reserve.d_supply, 65_0000000);
+            assert_eq!(reserve.b_supply, 99_0000000);
             assert_eq!(reserve.backstop_credit, 0);
             assert_eq!(reserve.last_time, 617280);
         });

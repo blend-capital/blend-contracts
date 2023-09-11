@@ -1,19 +1,14 @@
 use soroban_sdk::{testutils::Address as _, Address, Env};
 
 mod backstop_contract_wasm {
-    soroban_sdk::contractimport!(
-        file = "../target/wasm32-unknown-unknown/release/backstop_module.wasm"
-    );
+    soroban_sdk::contractimport!(file = "./wasm/backstop_module.wasm");
 }
-use backstop_module::{BackstopModule, BackstopModuleClient};
+pub use backstop_contract_wasm::{Client as BackstopModuleClient, Contract as BackstopModule};
 
 pub fn create_backstop<'a>(e: &Env, wasm: bool) -> (Address, BackstopModuleClient<'a>) {
     let contract_id = Address::random(e);
-    if wasm {
-        e.register_contract_wasm(&contract_id, backstop_contract_wasm::WASM);
-    } else {
-        e.register_contract(&contract_id, BackstopModule {});
-    }
+    e.register_contract_wasm(&contract_id, backstop_contract_wasm::WASM);
+
     (
         contract_id.clone(),
         BackstopModuleClient::new(e, &contract_id),

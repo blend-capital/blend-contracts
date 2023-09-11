@@ -1,7 +1,5 @@
 mod pool_contract {
-    soroban_sdk::contractimport!(
-        file = "../target/wasm32-unknown-unknown/release/lending_pool.wasm"
-    );
+    soroban_sdk::contractimport!(file = "../test-suites/wasm/lending_pool.wasm");
 }
 pub use pool_contract::WASM as POOL_WASM;
 
@@ -13,7 +11,7 @@ pub fn default_reserve_metadata() -> ReserveConfig {
         c_factor: 0_7500000,
         l_factor: 0_7500000,
         util: 0_7500000,
-        max_util: 0_9500000,
+        max_util: 1_0000000,
         r_one: 0_0500000,
         r_two: 0_5000000,
         r_three: 1_5000000,

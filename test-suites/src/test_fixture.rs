@@ -1,14 +1,13 @@
 use std::collections::HashMap;
 use std::ops::Index;
 
-use crate::backstop::create_backstop;
+use crate::backstop::{create_backstop, BackstopModule, BackstopModuleClient};
 use crate::emitter::create_emitter;
 use crate::liquidity_pool::{create_lp_pool, LPClient};
 use crate::mock_oracle::create_mock_oracle;
 use crate::pool::POOL_WASM;
 use crate::pool_factory::create_pool_factory;
 use crate::token::{create_stellar_token, create_token, TokenClient};
-use backstop_module::BackstopModuleClient;
 use emitter::EmitterClient;
 use lending_pool::{PoolClient, ReserveConfig};
 use mock_oracle::MockOracleClient;
@@ -48,7 +47,7 @@ pub struct TestFixture<'a> {
     pub backstop: BackstopModuleClient<'a>,
     pub pool_factory: PoolFactoryClient<'a>,
     pub oracle: MockOracleClient<'a>,
-    pub lp: LPClient<'a>,
+    pub lp: TokenClient<'a>,
     pub pools: Vec<PoolFixture<'a>>,
     pub tokens: Vec<TokenClient<'a>>,
 }
@@ -95,8 +94,9 @@ impl TestFixture<'_> {
         emitter_client.initialize(&backstop_id, &blnd_id);
 
         // initialize backstop
-        let (lp, lp_client) = create_lp_pool(&e, &bombadil, &blnd_id, &usdc_id);
-        backstop_client.initialize(&lp, &usdc_id, &blnd_id, &pool_factory_id, &Map::new(&e));
+        let (lp, lp_client) = create_token(&e, &bombadil, 7, "lp");
+        // let (lp, lp_client) = create_lp_pool(&e, &bombadil, &blnd_id, &usdc_id);
+        backstop_client.initialize(&lp, &blnd_id, &pool_factory_id, &Map::new(&e));
 
         // initialize pool factory
         let pool_hash = e.deployer().upload_contract_wasm(POOL_WASM);

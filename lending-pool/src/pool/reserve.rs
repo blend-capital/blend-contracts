@@ -97,12 +97,11 @@ impl Reserve {
                 .fixed_mul_floor(i128(pool_config.bstop_rate), SCALAR_9)
                 .unwrap_optimized();
             reserve.backstop_credit += new_backstop_credit;
-            // update b_rate with new backstop_credit
-            reserve.b_rate = (reserve.total_liabilities() + token_bal - reserve.backstop_credit)
-                .fixed_div_floor(reserve.b_supply, SCALAR_9)
-                .unwrap_optimized();
         }
-
+        // update b_rate with new backstop_credit
+        reserve.b_rate = (reserve.total_liabilities() + token_bal - reserve.backstop_credit)
+            .fixed_div_floor(reserve.b_supply, SCALAR_9)
+            .unwrap_optimized();
         reserve.last_time = e.ledger().timestamp();
         reserve
     }

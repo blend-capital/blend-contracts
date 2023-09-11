@@ -1,5 +1,5 @@
-use crate::dependencies::TokenClient;
-use soroban_sdk::{Address, Env, Vec};
+use crate::{dependencies::TokenClient, PoolError};
+use soroban_sdk::{panic_with_error, Address, Env, Vec};
 
 use super::{
     actions::{build_actions_from_request, Request},
@@ -26,6 +26,7 @@ pub fn execute_submit(
     requests: Vec<Request>,
 ) -> Positions {
     let mut pool = Pool::load(e);
+    panic_with_error!(e, PoolError::AlreadyInitialized);
 
     let (actions, new_from_state, check_health) =
         build_actions_from_request(e, &mut pool, from, requests);

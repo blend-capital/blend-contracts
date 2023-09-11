@@ -855,6 +855,80 @@ mod tests {
     }
 
     #[test]
+    fn test_build_actions_from_request_repay_no_liabilities() {
+        let e = Env::default();
+        e.mock_all_auths();
+
+        let bombadil = Address::random(&e);
+        let samwise = Address::random(&e);
+        let pool = Address::random(&e);
+
+        let (underlying, _) = testutils::create_token_contract(&e, &bombadil);
+        let (reserve_config, reserve_data) = testutils::default_reserve_meta(&e);
+        testutils::create_reserve(&e, &pool, &underlying, &reserve_config, &reserve_data);
+
+        e.ledger().set(LedgerInfo {
+            timestamp: 600,
+            protocol_version: 1,
+            sequence_number: 1234,
+            network_id: Default::default(),
+            base_reserve: 10,
+            min_temp_entry_expiration: 10,
+            min_persistent_entry_expiration: 10,
+            max_entry_expiration: 2000000,
+        });
+        let pool_config = PoolConfig {
+            oracle: Address::random(&e),
+            bstop_rate: 0_200_000_000,
+            status: 0,
+        };
+        let user_positions = Positions {
+            liabilities: map![&e],
+            collateral: map![&e],
+            supply: map![&e],
+        };
+        e.as_contract(&pool, || {
+            storage::set_pool_config(&e, &pool_config);
+            storage::set_user_positions(&e, &samwise, &user_positions);
+
+            let mut pool = Pool::load(&e);
+
+            let requests = vec![
+                &e,
+                Request {
+                    request_type: 5,
+                    address: underlying.clone(),
+                    amount: 10_1234567,
+                },
+            ];
+            let (actions, user, health_check) =
+                build_actions_from_request(&e, &mut pool, &samwise, requests);
+
+            assert_eq!(health_check, false);
+
+            assert_eq!(health_check, false);
+
+            let spender_transfer = actions.spender_transfer;
+            let pool_transfer = actions.pool_transfer;
+            assert_eq!(spender_transfer.len(), 1);
+            assert_eq!(
+                spender_transfer.get_unchecked(underlying.clone()),
+                10_1234567
+            );
+            assert_eq!(pool_transfer.len(), 1);
+            assert_eq!(pool_transfer.get_unchecked(underlying.clone()), 10_1234567);
+
+            let positions = user.positions.clone();
+            assert_eq!(positions.liabilities.len(), 0);
+            assert_eq!(positions.collateral.len(), 0);
+            assert_eq!(positions.supply.len(), 0);
+
+            let reserve = pool.load_reserve(&e, &underlying);
+            assert_eq!(reserve.d_supply, reserve_data.d_supply);
+        });
+    }
+
+    #[test]
     fn test_build_actions_from_request_repay_over_balance() {
         let e = Env::default();
         e.mock_all_auths();

@@ -101,8 +101,8 @@ pub fn fill_bad_debt_auction(
     if !backstop_state.positions.liabilities.is_empty() {
         let pool_backstop_data = backstop_client.pool_data(&e.current_contract_address());
         let threshold = calc_pool_backstop_threshold(&pool_backstop_data);
-        if threshold < 0_0000100 {
-            // ~10% of threshold
+        if threshold < 0_0000500 {
+            // ~5% of threshold
             burn_backstop_bad_debt(e, &mut backstop_state, pool);
         }
     }

@@ -106,6 +106,11 @@ pub fn set_last_distro_time(e: &Env, last_distro: &u64) {
     e.storage()
         .persistent()
         .set::<EmitterDataKey, u64>(&EmitterDataKey::LastDistro, last_distro);
+    e.storage().persistent().bump(
+        &EmitterDataKey::LastDistro,
+        LEDGER_THRESHOLD_SHARED,
+        LEDGER_BUMP_SHARED,
+    );
 }
 
 /// Get whether the emitter has performed the drop distribution or not for the current backstop

@@ -1,4 +1,4 @@
-use soroban_sdk::{contracttype, unwrap::UnwrapOptimized, Address, BytesN, Env};
+use soroban_sdk::{contracttype, unwrap::UnwrapOptimized, Address, BytesN, Env, Symbol};
 
 // @dev: This contract is not expected to be used often, so we can use a higher bump amount
 pub(crate) const LEDGER_THRESHOLD: u32 = 725760; // ~ 42 days - 6 weeks
@@ -8,7 +8,6 @@ pub(crate) const LEDGER_BUMP: u32 = 967680; // ~ 56 days - 8 weeks
 #[contracttype]
 pub enum PoolFactoryDataKey {
     Contracts(Address),
-    PoolInitMeta,
 }
 
 #[derive(Clone)]
@@ -27,15 +26,9 @@ pub fn bump_instance(e: &Env) {
 
 /// Fetch the pool initialization metadata
 pub fn get_pool_init_meta(e: &Env) -> PoolInitMeta {
-    // TODO: Change to instance - https://github.com/stellar/rs-soroban-sdk/issues/1040
-    e.storage().persistent().bump(
-        &PoolFactoryDataKey::PoolInitMeta,
-        LEDGER_THRESHOLD,
-        LEDGER_BUMP,
-    );
     e.storage()
-        .persistent()
-        .get::<PoolFactoryDataKey, PoolInitMeta>(&PoolFactoryDataKey::PoolInitMeta)
+        .instance()
+        .get::<Symbol, PoolInitMeta>(&Symbol::new(e, "PoolMeta"))
         .unwrap_optimized()
 }
 
@@ -45,15 +38,15 @@ pub fn get_pool_init_meta(e: &Env) -> PoolInitMeta {
 /// * `pool_init_meta` - The metadata to initialize pools
 pub fn set_pool_init_meta(e: &Env, pool_init_meta: &PoolInitMeta) {
     e.storage()
-        .persistent()
-        .set::<PoolFactoryDataKey, PoolInitMeta>(&PoolFactoryDataKey::PoolInitMeta, pool_init_meta)
+        .instance()
+        .set::<Symbol, PoolInitMeta>(&Symbol::new(e, "PoolMeta"), pool_init_meta)
 }
 
 /// Check if the factory has a WASM hash set
 pub fn has_pool_init_meta(e: &Env) -> bool {
     e.storage()
-        .persistent()
-        .has(&PoolFactoryDataKey::PoolInitMeta)
+        .instance()
+        .has(&Symbol::new(e, "PoolMeta"))
 }
 
 /// Check if a given contract_id was deployed by the factory

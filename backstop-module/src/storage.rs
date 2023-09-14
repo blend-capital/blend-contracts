@@ -1,5 +1,5 @@
 use soroban_sdk::{
-    contracttype, unwrap::UnwrapOptimized, vec, Address, Env, Map, TryFromVal, Val, Vec,
+    contracttype, unwrap::UnwrapOptimized, vec, Address, Env, Map, TryFromVal, Val, Vec, Symbol,
 };
 
 use crate::backstop::{PoolBalance, UserBalance};
@@ -57,10 +57,6 @@ pub enum BackstopDataKey {
     BEmisCfg(Address),
     BEmisData(Address),
     UEmisData(PoolUserKey),
-    BckstpTkn,
-    PoolFact,
-    BLNDTkn,
-    USDCTkn,
     DropList,
     LPTknVal,
 }
@@ -100,7 +96,7 @@ fn get_persistent_default<V: TryFromVal<Env, Val>>(
 pub fn get_pool_factory(e: &Env) -> Address {
     e.storage()
         .instance()
-        .get::<BackstopDataKey, Address>(&BackstopDataKey::PoolFact)
+        .get::<Symbol, Address>(&Symbol::new(e, "PoolFact"))
         .unwrap_optimized()
 }
 
@@ -111,14 +107,14 @@ pub fn get_pool_factory(e: &Env) -> Address {
 pub fn set_pool_factory(e: &Env, pool_factory_id: &Address) {
     e.storage()
         .instance()
-        .set::<BackstopDataKey, Address>(&BackstopDataKey::PoolFact, pool_factory_id);
+        .set::<Symbol, Address>(&Symbol::new(e, "PoolFact"), pool_factory_id);
 }
 
 /// Fetch the BLND token id
 pub fn get_blnd_token(e: &Env) -> Address {
     e.storage()
         .instance()
-        .get::<BackstopDataKey, Address>(&BackstopDataKey::BLNDTkn)
+        .get::<Symbol, Address>(&Symbol::new(e, "BLNDTkn"))
         .unwrap_optimized()
 }
 
@@ -129,14 +125,14 @@ pub fn get_blnd_token(e: &Env) -> Address {
 pub fn set_blnd_token(e: &Env, blnd_token_id: &Address) {
     e.storage()
         .instance()
-        .set::<BackstopDataKey, Address>(&BackstopDataKey::BLNDTkn, blnd_token_id);
+        .set::<Symbol, Address>(&Symbol::new(e, "BLNDTkn"), blnd_token_id);
 }
 
 /// Fetch the USDC token id
 pub fn get_usdc_token(e: &Env) -> Address {
     e.storage()
         .instance()
-        .get::<BackstopDataKey, Address>(&BackstopDataKey::USDCTkn)
+        .get::<Symbol, Address>(&Symbol::new(e, "USDCTkn"))
         .unwrap_optimized()
 }
 
@@ -147,20 +143,20 @@ pub fn get_usdc_token(e: &Env) -> Address {
 pub fn set_usdc_token(e: &Env, usdc_token_id: &Address) {
     e.storage()
         .instance()
-        .set::<BackstopDataKey, Address>(&BackstopDataKey::USDCTkn, usdc_token_id);
+        .set::<Symbol, Address>(&Symbol::new(e, "USDCTkn"), usdc_token_id);
 }
 
 /// Fetch the backstop token id
 pub fn get_backstop_token(e: &Env) -> Address {
     e.storage()
         .instance()
-        .get::<BackstopDataKey, Address>(&BackstopDataKey::BckstpTkn)
+        .get::<Symbol, Address>(&Symbol::new(e, "BckstpTkn"))
         .unwrap_optimized()
 }
 
 /// Checks if a backstop token is set for the backstop
 pub fn has_backstop_token(e: &Env) -> bool {
-    e.storage().instance().has(&BackstopDataKey::BckstpTkn)
+    e.storage().instance().has(&Symbol::new(e, "BckstpTkn"))
 }
 
 /// Set the backstop token id
@@ -170,7 +166,7 @@ pub fn has_backstop_token(e: &Env) -> bool {
 pub fn set_backstop_token(e: &Env, backstop_token_id: &Address) {
     e.storage()
         .instance()
-        .set::<BackstopDataKey, Address>(&BackstopDataKey::BckstpTkn, backstop_token_id);
+        .set::<Symbol, Address>(&Symbol::new(e, "BckstpTkn"), backstop_token_id);
 }
 
 /********** User Shares **********/
@@ -244,6 +240,9 @@ pub fn set_pool_balance(e: &Env, pool: &Address, balance: &PoolBalance) {
     e.storage()
         .persistent()
         .set::<BackstopDataKey, PoolBalance>(&key, balance);
+    e.storage()
+        .persistent()
+        .bump(&key, LEDGER_THRESHOLD_SHARED, LEDGER_BUMP_SHARED);
 }
 
 /// Fetch the balances for a given pool
@@ -265,6 +264,9 @@ pub fn set_pool_usdc(e: &Env, pool: &Address, balance: &i128) {
     e.storage()
         .persistent()
         .set::<BackstopDataKey, i128>(&key, balance);
+    e.storage()
+        .persistent()
+        .bump(&key, LEDGER_THRESHOLD_SHARED, LEDGER_BUMP_SHARED);
 }
 
 /********** Distribution / Reward Zone **********/
@@ -288,6 +290,9 @@ pub fn set_next_emission_cycle(e: &Env, timestamp: &u64) {
     e.storage()
         .persistent()
         .set::<BackstopDataKey, u64>(&BackstopDataKey::NextEmis, timestamp);
+    e.storage()
+        .persistent()
+        .bump(&BackstopDataKey::NextEmis, LEDGER_THRESHOLD_SHARED, LEDGER_BUMP_SHARED);
 }
 
 /// Get the current pool addresses that are in the reward zone
@@ -311,6 +316,9 @@ pub fn set_reward_zone(e: &Env, reward_zone: &Vec<Address>) {
     e.storage()
         .persistent()
         .set::<BackstopDataKey, Vec<Address>>(&BackstopDataKey::RewardZone, reward_zone);
+    e.storage()
+        .persistent()
+        .bump(&BackstopDataKey::RewardZone, LEDGER_THRESHOLD_SHARED, LEDGER_BUMP_SHARED);
 }
 
 /// Get current emissions EPS the backstop is distributing to the pool
@@ -332,6 +340,9 @@ pub fn set_pool_eps(e: &Env, pool: &Address, eps: &i128) {
     e.storage()
         .persistent()
         .set::<BackstopDataKey, i128>(&key, eps);
+    e.storage()
+        .persistent()
+        .bump(&key, LEDGER_THRESHOLD_SHARED, LEDGER_BUMP_SHARED);
 }
 
 /********** Backstop Depositor Emissions **********/

@@ -10,8 +10,7 @@ cargo-fuzz = true
 [dependencies]
 libfuzzer-sys = "0.4"
 fixed-point-math = "0.0.2"
-soroban-sdk.git = "https://github.com/stellar/rs-soroban-sdk"
-soroban-sdk.rev = "18b8fa1a358aa84afd196e2f6d44942798c8f335"
+soroban-sdk.version = "20.0.0-rc1"
 soroban-sdk.features = ["testutils"]
 extension-trait = "1"
 

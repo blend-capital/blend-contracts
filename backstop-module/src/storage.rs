@@ -1,5 +1,5 @@
 use soroban_sdk::{
-    contracttype, unwrap::UnwrapOptimized, vec, Address, Env, Map, TryFromVal, Val, Vec, Symbol,
+    contracttype, unwrap::UnwrapOptimized, vec, Address, Env, Map, Symbol, TryFromVal, Val, Vec,
 };
 
 use crate::backstop::{PoolBalance, UserBalance};
@@ -290,9 +290,11 @@ pub fn set_next_emission_cycle(e: &Env, timestamp: &u64) {
     e.storage()
         .persistent()
         .set::<BackstopDataKey, u64>(&BackstopDataKey::NextEmis, timestamp);
-    e.storage()
-        .persistent()
-        .bump(&BackstopDataKey::NextEmis, LEDGER_THRESHOLD_SHARED, LEDGER_BUMP_SHARED);
+    e.storage().persistent().bump(
+        &BackstopDataKey::NextEmis,
+        LEDGER_THRESHOLD_SHARED,
+        LEDGER_BUMP_SHARED,
+    );
 }
 
 /// Get the current pool addresses that are in the reward zone
@@ -316,9 +318,11 @@ pub fn set_reward_zone(e: &Env, reward_zone: &Vec<Address>) {
     e.storage()
         .persistent()
         .set::<BackstopDataKey, Vec<Address>>(&BackstopDataKey::RewardZone, reward_zone);
-    e.storage()
-        .persistent()
-        .bump(&BackstopDataKey::RewardZone, LEDGER_THRESHOLD_SHARED, LEDGER_BUMP_SHARED);
+    e.storage().persistent().bump(
+        &BackstopDataKey::RewardZone,
+        LEDGER_THRESHOLD_SHARED,
+        LEDGER_BUMP_SHARED,
+    );
 }
 
 /// Get current emissions EPS the backstop is distributing to the pool

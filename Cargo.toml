@@ -28,8 +28,7 @@ codegen-units = 1
 lto = true
 
 [workspace.dependencies.soroban-sdk]
-git = "https://github.com/stellar/rs-soroban-sdk"
-rev = "18b8fa1a358aa84afd196e2f6d44942798c8f335"
+version = "20.0.0-rc1"
 
 [workspace.dependencies.fixed-point-math]
 version = "0.0.2"

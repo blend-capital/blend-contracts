@@ -74,7 +74,7 @@ mod tests {
 
         e.ledger().set(LedgerInfo {
             timestamp: 600,
-            protocol_version: 1,
+            protocol_version: 20,
             sequence_number: 1234,
             network_id: Default::default(),
             base_reserve: 10,
@@ -178,7 +178,7 @@ mod tests {
 
         e.ledger().set(LedgerInfo {
             timestamp: 600,
-            protocol_version: 1,
+            protocol_version: 20,
             sequence_number: 1234,
             network_id: Default::default(),
             base_reserve: 10,

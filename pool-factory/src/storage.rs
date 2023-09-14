@@ -44,9 +44,7 @@ pub fn set_pool_init_meta(e: &Env, pool_init_meta: &PoolInitMeta) {
 
 /// Check if the factory has a WASM hash set
 pub fn has_pool_init_meta(e: &Env) -> bool {
-    e.storage()
-        .instance()
-        .has(&Symbol::new(e, "PoolMeta"))
+    e.storage().instance().has(&Symbol::new(e, "PoolMeta"))
 }
 
 /// Check if a given contract_id was deployed by the factory

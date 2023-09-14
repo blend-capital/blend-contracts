@@ -67,7 +67,7 @@ impl TestFixture<'_> {
 
         e.ledger().set(LedgerInfo {
             timestamp: 1441065600, // Sept 1st, 2015 (backstop epoch)
-            protocol_version: 1,
+            protocol_version: 20,
             sequence_number: 100,
             network_id: Default::default(),
             base_reserve: 10,
@@ -119,7 +119,7 @@ impl TestFixture<'_> {
         // pass 1 day
         e.ledger().set(LedgerInfo {
             timestamp: 1441152000,
-            protocol_version: 1,
+            protocol_version: 20,
             sequence_number: 150,
             network_id: Default::default(),
             base_reserve: 10,
@@ -182,7 +182,7 @@ impl TestFixture<'_> {
     pub fn jump(&self, time: u64) {
         self.env.ledger().set(LedgerInfo {
             timestamp: self.env.ledger().timestamp().saturating_add(time),
-            protocol_version: 1,
+            protocol_version: 20,
             sequence_number: self.env.ledger().sequence(),
             network_id: Default::default(),
             base_reserve: 10,
@@ -196,7 +196,7 @@ impl TestFixture<'_> {
         let blocks = time / 5;
         self.env.ledger().set(LedgerInfo {
             timestamp: self.env.ledger().timestamp().saturating_add(time),
-            protocol_version: 1,
+            protocol_version: 20,
             sequence_number: self.env.ledger().sequence().saturating_add(blocks as u32),
             network_id: Default::default(),
             base_reserve: 10,

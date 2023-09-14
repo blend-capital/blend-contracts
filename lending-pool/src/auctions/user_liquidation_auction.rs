@@ -157,7 +157,7 @@ mod tests {
 
         e.ledger().set(LedgerInfo {
             timestamp: 12345,
-            protocol_version: 1,
+            protocol_version: 20,
             sequence_number: 100,
             network_id: Default::default(),
             base_reserve: 10,
@@ -197,7 +197,7 @@ mod tests {
         e.mock_all_auths();
         e.ledger().set(LedgerInfo {
             timestamp: 12345,
-            protocol_version: 1,
+            protocol_version: 20,
             sequence_number: 50,
             network_id: Default::default(),
             base_reserve: 10,
@@ -299,7 +299,7 @@ mod tests {
         e.mock_all_auths();
         e.ledger().set(LedgerInfo {
             timestamp: 12345,
-            protocol_version: 1,
+            protocol_version: 20,
             sequence_number: 50,
             network_id: Default::default(),
             base_reserve: 10,
@@ -396,7 +396,7 @@ mod tests {
         e.mock_all_auths();
         e.ledger().set(LedgerInfo {
             timestamp: 12345,
-            protocol_version: 1,
+            protocol_version: 20,
             sequence_number: 50,
             network_id: Default::default(),
             base_reserve: 10,
@@ -494,7 +494,7 @@ mod tests {
         e.mock_all_auths();
         e.ledger().set(LedgerInfo {
             timestamp: 12345,
-            protocol_version: 1,
+            protocol_version: 20,
             sequence_number: 50,
             network_id: Default::default(),
             base_reserve: 10,
@@ -591,7 +591,7 @@ mod tests {
         e.mock_all_auths();
         e.ledger().set(LedgerInfo {
             timestamp: 12345,
-            protocol_version: 1,
+            protocol_version: 20,
             sequence_number: 175,
             network_id: Default::default(),
             base_reserve: 10,
@@ -690,7 +690,7 @@ mod tests {
 
             e.ledger().set(LedgerInfo {
                 timestamp: 12345 + 200 * 5,
-                protocol_version: 1,
+                protocol_version: 20,
                 sequence_number: 176 + 200,
                 network_id: Default::default(),
                 base_reserve: 10,
@@ -756,7 +756,7 @@ mod tests {
         e.mock_all_auths();
         e.ledger().set(LedgerInfo {
             timestamp: 12345,
-            protocol_version: 1,
+            protocol_version: 20,
             sequence_number: 175,
             network_id: Default::default(),
             base_reserve: 10,
@@ -855,7 +855,7 @@ mod tests {
             //scale up modifiers
             e.ledger().set(LedgerInfo {
                 timestamp: 12345 + 200 * 5,
-                protocol_version: 1,
+                protocol_version: 20,
                 sequence_number: 176 + 200,
                 network_id: Default::default(),
                 base_reserve: 10,

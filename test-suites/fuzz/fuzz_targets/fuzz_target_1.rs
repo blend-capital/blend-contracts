@@ -1,17 +1,17 @@
 #![allow(unused)]
 #![no_main]
 
-use libfuzzer_sys::fuzz_target;
 use fixed_point_math::FixedPoint;
-use lending_pool::{Request, PoolState, PositionData};
+use lending_pool::{PoolState, PositionData, Request};
+use libfuzzer_sys::fuzz_target;
+use soroban_sdk::arbitrary::arbitrary::{self, Arbitrary, Unstructured};
 use soroban_sdk::{testutils::Address as _, vec, Address};
 use test_suites::{
-    token::{TokenClient},
     assertions::assert_approx_eq_abs,
     create_fixture_with_data,
-    test_fixture::{TokenIndex, SCALAR_7, SCALAR_9, TestFixture, PoolFixture},
+    test_fixture::{PoolFixture, TestFixture, TokenIndex, SCALAR_7, SCALAR_9},
+    token::TokenClient,
 };
-use soroban_sdk::arbitrary::arbitrary::{self, Arbitrary, Unstructured};
 
 #[derive(Arbitrary, Debug)]
 struct Input {
@@ -23,10 +23,7 @@ struct Input {
 }
 
 #[derive(Arbitrary, Debug)]
-struct NatI128(
-    #[arbitrary(with = |u: &mut Unstructured| u.int_in_range(0..=i128::MAX))]
-    pub i128,
-);
+struct NatI128(#[arbitrary(with = |u: &mut Unstructured| u.int_in_range(0..=i128::MAX))] pub i128);
 
 #[derive(Arbitrary, Debug)]
 enum Command {
@@ -154,7 +151,7 @@ fuzz_target!(|input: Input| {
     }
 });
 
-type ContractResult<T> = Result<Result<T, soroban_sdk::ConversionError>, Result<soroban_sdk::Error, core::convert::Infallible>>;
+type ContractResult<T> = Result<T, Result<soroban_sdk::Error, core::convert::Infallible>>;
 
 /// Panic if a contract call result might have been the result of an unexpected panic.
 ///
@@ -165,9 +162,9 @@ type ContractResult<T> = Result<Result<T, soroban_sdk::ConversionError>, Result<
 /// Other rare types of internal exception can return `InvalidAction`.
 #[track_caller]
 fn verify_contract_result<T>(env: &soroban_sdk::Env, r: &ContractResult<T>) {
-    use soroban_sdk::{Error, ConversionError};
-    use soroban_sdk::xdr::{ScErrorType, ScErrorCode};
     use soroban_sdk::testutils::Events;
+    use soroban_sdk::xdr::{ScErrorCode, ScErrorType};
+    use soroban_sdk::{ConversionError, Error};
     match r {
         Err(Ok(e)) => {
             if e.is_type(ScErrorType::WasmVm) && e.is_code(ScErrorCode::InvalidAction) {
@@ -180,7 +177,7 @@ fn verify_contract_result<T>(env: &soroban_sdk::Env, r: &ContractResult<T>) {
                 panic!("{msg}");
             }
         }
-        _ => { }
+        _ => {}
     }
 }
 
@@ -379,7 +376,7 @@ impl FrodoClaimBackstop {
         let r = state.fixture.backstop.try_claim(
             &state.frodo,
             &vec![&state.fixture.env, state.pool_fixture.pool.address.clone()],
-            &state.frodo,                  
+            &state.frodo,
         );
         verify_contract_result(&state.fixture.env, &r);
     }
@@ -407,13 +404,12 @@ impl SamClaimPool {
     }
 }
 
-
 #[extension_trait::extension_trait]
 impl Asserts for TestFixture<'_> {
     /// Assert the pool has not lent out more funds than it has
     fn assert_invariants(&self) {
         let pool_fixture = &self.pools[0];
-        
+
         let mut supply: i128 = 0;
         let mut liabilities: i128 = 0;
         self.env.as_contract(&pool_fixture.pool.address, || {
@@ -422,8 +418,15 @@ impl Asserts for TestFixture<'_> {
                 let asset = &self.tokens[token_index.clone()];
                 let reserve = pool_state.load_reserve(&self.env, &asset.address);
                 let asset_to_base = pool_state.load_price(&self.env, &reserve.asset);
-                supply += asset_to_base.fixed_mul_floor(reserve.total_supply() + reserve.backstop_credit, reserve.scalar).unwrap();
-                liabilities += asset_to_base.fixed_mul_ceil(reserve.total_liabilities(), reserve.scalar).unwrap();
+                supply += asset_to_base
+                    .fixed_mul_floor(
+                        reserve.total_supply() + reserve.backstop_credit,
+                        reserve.scalar,
+                    )
+                    .unwrap();
+                liabilities += asset_to_base
+                    .fixed_mul_ceil(reserve.total_liabilities(), reserve.scalar)
+                    .unwrap();
             }
         });
 
@@ -437,7 +440,8 @@ impl Asserts for TestFixture<'_> {
         let positions = pool_fixture.pool.get_positions(&user);
         self.env.as_contract(&pool_fixture.pool.address, || {
             let mut pool_state = PoolState::load(&self.env);
-            let data = PositionData::calculate_from_positions(&self.env, &mut pool_state, &positions);
+            let data =
+                PositionData::calculate_from_positions(&self.env, &mut pool_state, &positions);
             assert!(data.as_health_factor() > data.scalar);
         });
     }

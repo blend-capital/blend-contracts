@@ -4,6 +4,7 @@ use crate::{
     backstop::Q4W,
     dependencies::{CometClient, TokenClient, COMET_WASM, TOKEN_WASM},
     storage::{self},
+    BackstopModule,
 };
 
 use soroban_sdk::{
@@ -11,6 +12,10 @@ use soroban_sdk::{
 };
 
 use mock_pool_factory::{MockPoolFactory, MockPoolFactoryClient};
+
+pub(crate) fn create_backstop(e: &Env) -> Address {
+    e.register_contract(None, BackstopModule {})
+}
 
 pub(crate) fn create_token<'a>(e: &Env, admin: &Address) -> (Address, TokenClient<'a>) {
     let contract_address = Address::random(e);

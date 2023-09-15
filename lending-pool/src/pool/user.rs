@@ -221,7 +221,7 @@ mod tests {
     fn test_load_and_store() {
         let e = Env::default();
         let samwise = Address::random(&e);
-        let pool = Address::random(&e);
+        let pool = testutils::create_pool(&e);
 
         let user = User {
             address: samwise.clone(),
@@ -246,7 +246,7 @@ mod tests {
     fn test_liabilities() {
         let e = Env::default();
         let samwise = Address::random(&e);
-        let pool = Address::random(&e);
+        let pool = testutils::create_pool(&e);
 
         let mut reserve_0 = testutils::default_reserve(&e);
         let starting_d_supply_0 = reserve_0.d_supply;
@@ -286,10 +286,10 @@ mod tests {
     fn test_add_liabilities_accrues_emissions() {
         let e = Env::default();
         let samwise = Address::random(&e);
-        let pool = Address::random(&e);
+        let pool = testutils::create_pool(&e);
 
         e.ledger().set(LedgerInfo {
-            protocol_version: 1,
+            protocol_version: 20,
             sequence_number: 1,
             timestamp: 10001000,
             network_id: Default::default(),
@@ -355,10 +355,10 @@ mod tests {
     fn test_remove_liabilities_accrues_emissions() {
         let e = Env::default();
         let samwise = Address::random(&e);
-        let pool = Address::random(&e);
+        let pool = testutils::create_pool(&e);
 
         e.ledger().set(LedgerInfo {
-            protocol_version: 1,
+            protocol_version: 20,
             sequence_number: 1,
             timestamp: 10001000,
             network_id: Default::default(),
@@ -419,12 +419,11 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
-    //#[should_panic(expected = "Status(ContractError(4))")]
+    #[should_panic(expected = "Error(Contract, #4)")]
     fn test_remove_liabilities_over_balance_panics() {
         let e = Env::default();
         let samwise = Address::random(&e);
-        let pool = Address::random(&e);
+        let pool = testutils::create_pool(&e);
 
         let mut reserve_0 = testutils::default_reserve(&e);
         let mut user = User {
@@ -443,7 +442,7 @@ mod tests {
     fn test_collateral() {
         let e = Env::default();
         let samwise = Address::random(&e);
-        let pool = Address::random(&e);
+        let pool = testutils::create_pool(&e);
 
         let mut reserve_0 = testutils::default_reserve(&e);
         let starting_b_supply_0 = reserve_0.b_supply;
@@ -483,10 +482,10 @@ mod tests {
     fn test_add_collateral_accrues_emissions() {
         let e = Env::default();
         let samwise = Address::random(&e);
-        let pool = Address::random(&e);
+        let pool = testutils::create_pool(&e);
 
         e.ledger().set(LedgerInfo {
-            protocol_version: 1,
+            protocol_version: 20,
             sequence_number: 1,
             timestamp: 10001000,
             network_id: Default::default(),
@@ -551,10 +550,10 @@ mod tests {
     fn test_remove_collateral_accrues_emissions() {
         let e = Env::default();
         let samwise = Address::random(&e);
-        let pool = Address::random(&e);
+        let pool = testutils::create_pool(&e);
 
         e.ledger().set(LedgerInfo {
-            protocol_version: 1,
+            protocol_version: 20,
             sequence_number: 1,
             timestamp: 10001000,
             network_id: Default::default(),
@@ -616,12 +615,11 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
-    //#[should_panic(expected = "Status(ContractError(4))")]
+    #[should_panic(expected = "Error(Contract, #4)")]
     fn test_remove_collateral_over_balance_panics() {
         let e = Env::default();
         let samwise = Address::random(&e);
-        let pool = Address::random(&e);
+        let pool = testutils::create_pool(&e);
 
         let mut reserve_0 = testutils::default_reserve(&e);
 
@@ -641,7 +639,7 @@ mod tests {
     fn test_supply() {
         let e = Env::default();
         let samwise = Address::random(&e);
-        let pool = Address::random(&e);
+        let pool = testutils::create_pool(&e);
 
         let mut reserve_0 = testutils::default_reserve(&e);
         let starting_b_supply_0 = reserve_0.b_supply;
@@ -681,10 +679,10 @@ mod tests {
     fn test_add_supply_accrues_emissions() {
         let e = Env::default();
         let samwise = Address::random(&e);
-        let pool = Address::random(&e);
+        let pool = testutils::create_pool(&e);
 
         e.ledger().set(LedgerInfo {
-            protocol_version: 1,
+            protocol_version: 20,
             sequence_number: 1,
             timestamp: 10001000,
             network_id: Default::default(),
@@ -749,10 +747,10 @@ mod tests {
     fn test_remove_supply_accrues_emissions() {
         let e = Env::default();
         let samwise = Address::random(&e);
-        let pool = Address::random(&e);
+        let pool = testutils::create_pool(&e);
 
         e.ledger().set(LedgerInfo {
-            protocol_version: 1,
+            protocol_version: 20,
             sequence_number: 1,
             timestamp: 10001000,
             network_id: Default::default(),
@@ -814,12 +812,11 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
-    //#[should_panic(expected = "Status(ContractError(4))")]
+    #[should_panic(expected = "Error(Contract, #4)")]
     fn test_remove_supply_over_balance_panics() {
         let e = Env::default();
         let samwise = Address::random(&e);
-        let pool = Address::random(&e);
+        let pool = testutils::create_pool(&e);
 
         let mut reserve_0 = testutils::default_reserve(&e);
 
@@ -839,7 +836,7 @@ mod tests {
     fn test_total_supply() {
         let e = Env::default();
         let samwise = Address::random(&e);
-        let pool = Address::random(&e);
+        let pool = testutils::create_pool(&e);
 
         let mut reserve_0 = testutils::default_reserve(&e);
 

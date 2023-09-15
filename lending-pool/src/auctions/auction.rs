@@ -252,7 +252,11 @@ fn scale_auction(
 #[cfg(test)]
 mod tests {
 
-    use crate::{pool::Positions, storage::PoolConfig, testutils};
+    use crate::{
+        pool::Positions,
+        storage::PoolConfig,
+        testutils::{self, create_pool},
+    };
 
     use super::*;
     use soroban_sdk::{
@@ -264,12 +268,12 @@ mod tests {
     #[test]
     fn test_create_bad_debt_auction() {
         let e = Env::default();
-        e.mock_all_auths();
+        e.mock_all_auths_allowing_non_root_auth();
         e.budget().reset_unlimited(); // setup exhausts budget
 
         e.ledger().set(LedgerInfo {
             timestamp: 12345,
-            protocol_version: 1,
+            protocol_version: 20,
             sequence_number: 50,
             network_id: Default::default(),
             base_reserve: 10,
@@ -280,7 +284,7 @@ mod tests {
 
         let bombadil = Address::random(&e);
         let samwise = Address::random(&e);
-        let pool_address = Address::random(&e);
+        let pool_address = create_pool(&e);
 
         let (blnd, blnd_client) = testutils::create_blnd_token(&e, &pool_address, &bombadil);
         let (usdc, usdc_client) = testutils::create_usdc_token(&e, &pool_address, &bombadil);
@@ -311,7 +315,7 @@ mod tests {
         let (oracle_id, oracle_client) = testutils::create_mock_oracle(&e);
 
         let (underlying_0, _) = testutils::create_token_contract(&e, &bombadil);
-        let (mut reserve_config_0, mut reserve_data_0) = testutils::default_reserve_meta(&e);
+        let (mut reserve_config_0, mut reserve_data_0) = testutils::default_reserve_meta();
         reserve_data_0.d_rate = 1_100_000_000;
         reserve_data_0.last_time = 12345;
         reserve_config_0.index = 0;
@@ -324,7 +328,7 @@ mod tests {
         );
 
         let (underlying_1, _) = testutils::create_token_contract(&e, &bombadil);
-        let (mut reserve_config_1, mut reserve_data_1) = testutils::default_reserve_meta(&e);
+        let (mut reserve_config_1, mut reserve_data_1) = testutils::default_reserve_meta();
         reserve_data_1.d_rate = 1_200_000_000;
         reserve_data_1.last_time = 12345;
         reserve_config_1.index = 1;
@@ -337,7 +341,7 @@ mod tests {
         );
 
         let (underlying_2, _) = testutils::create_token_contract(&e, &bombadil);
-        let (mut reserve_config_2, mut reserve_data_2) = testutils::default_reserve_meta(&e);
+        let (mut reserve_config_2, mut reserve_data_2) = testutils::default_reserve_meta();
         reserve_data_2.b_rate = 1_100_000_000;
         reserve_data_2.last_time = 12345;
         reserve_config_2.index = 1;
@@ -387,7 +391,7 @@ mod tests {
 
         e.ledger().set(LedgerInfo {
             timestamp: 12345,
-            protocol_version: 1,
+            protocol_version: 20,
             sequence_number: 50,
             network_id: Default::default(),
             base_reserve: 10,
@@ -398,7 +402,7 @@ mod tests {
 
         let bombadil = Address::random(&e);
 
-        let pool_address = Address::random(&e);
+        let pool_address = create_pool(&e);
         let (usdc_id, _) = testutils::create_usdc_token(&e, &pool_address, &bombadil);
         let (backstop_address, _backstop_client) = testutils::create_backstop(&e);
         testutils::setup_backstop(
@@ -412,7 +416,7 @@ mod tests {
         let (oracle_id, oracle_client) = testutils::create_mock_oracle(&e);
 
         let (underlying_0, _) = testutils::create_token_contract(&e, &bombadil);
-        let (mut reserve_config_0, mut reserve_data_0) = testutils::default_reserve_meta(&e);
+        let (mut reserve_config_0, mut reserve_data_0) = testutils::default_reserve_meta();
         reserve_data_0.b_rate = 1_100_000_000;
         reserve_data_0.last_time = 12345;
         reserve_config_0.index = 0;
@@ -425,7 +429,7 @@ mod tests {
         );
 
         let (underlying_1, _) = testutils::create_token_contract(&e, &bombadil);
-        let (mut reserve_config_1, mut reserve_data_1) = testutils::default_reserve_meta(&e);
+        let (mut reserve_config_1, mut reserve_data_1) = testutils::default_reserve_meta();
         reserve_data_1.b_rate = 1_100_000_000;
         reserve_data_1.last_time = 12345;
         reserve_config_1.index = 1;
@@ -438,7 +442,7 @@ mod tests {
         );
 
         let (underlying_2, _) = testutils::create_token_contract(&e, &bombadil);
-        let (mut reserve_config_2, mut reserve_data_2) = testutils::default_reserve_meta(&e);
+        let (mut reserve_config_2, mut reserve_data_2) = testutils::default_reserve_meta();
         reserve_data_2.b_rate = 1_100_000_000;
         reserve_data_2.last_time = 12345;
         reserve_config_2.index = 1;
@@ -481,7 +485,7 @@ mod tests {
         e.mock_all_auths();
         e.ledger().set(LedgerInfo {
             timestamp: 12345,
-            protocol_version: 1,
+            protocol_version: 20,
             sequence_number: 50,
             network_id: Default::default(),
             base_reserve: 10,
@@ -493,13 +497,13 @@ mod tests {
         let bombadil = Address::random(&e);
         let samwise = Address::random(&e);
 
-        let pool_address = Address::random(&e);
+        let pool_address = create_pool(&e);
         let (oracle_address, oracle_client) = testutils::create_mock_oracle(&e);
 
         // creating reserves for a pool exhausts the budget
         e.budget().reset_unlimited();
         let (underlying_0, _) = testutils::create_token_contract(&e, &bombadil);
-        let (mut reserve_config_0, mut reserve_data_0) = testutils::default_reserve_meta(&e);
+        let (mut reserve_config_0, mut reserve_data_0) = testutils::default_reserve_meta();
         reserve_data_0.last_time = 12345;
         reserve_data_0.b_rate = 1_100_000_000;
         reserve_config_0.c_factor = 0_8500000;
@@ -514,7 +518,7 @@ mod tests {
         );
 
         let (underlying_1, _) = testutils::create_token_contract(&e, &bombadil);
-        let (mut reserve_config_1, mut reserve_data_1) = testutils::default_reserve_meta(&e);
+        let (mut reserve_config_1, mut reserve_data_1) = testutils::default_reserve_meta();
         reserve_data_1.b_rate = 1_200_000_000;
         reserve_config_1.c_factor = 0_7500000;
         reserve_config_1.l_factor = 0_7500000;
@@ -529,7 +533,7 @@ mod tests {
         );
 
         let (underlying_2, _) = testutils::create_token_contract(&e, &bombadil);
-        let (mut reserve_config_2, reserve_data_2) = testutils::default_reserve_meta(&e);
+        let (mut reserve_config_2, reserve_data_2) = testutils::default_reserve_meta();
         reserve_config_2.c_factor = 0_0000000;
         reserve_config_2.l_factor = 0_7000000;
         reserve_config_2.index = 2;
@@ -569,12 +573,12 @@ mod tests {
             assert!(storage::has_auction(&e, &0, &samwise));
         });
     }
+
     #[test]
-    #[should_panic]
-    //#[should_panic(expected = "ContractError(2)")]
+    #[should_panic(expected = "Error(Contract, #2)")]
     fn test_create_user_liquidation_errors() {
         let e = Env::default();
-        let pool_id = Address::random(&e);
+        let pool_id = create_pool(&e);
         let backstop_id = Address::random(&e);
 
         e.as_contract(&pool_id, || {
@@ -588,12 +592,12 @@ mod tests {
     fn test_delete_user_liquidation() {
         let e = Env::default();
         e.mock_all_auths();
-        let pool_id = Address::random(&e);
+        let pool_id = create_pool(&e);
 
         let bombadil = Address::random(&e);
         let samwise = Address::random(&e);
         let (underlying_0, _) = testutils::create_token_contract(&e, &bombadil);
-        let (reserve_config_0, reserve_data_0) = testutils::default_reserve_meta(&e);
+        let (reserve_config_0, reserve_data_0) = testutils::default_reserve_meta();
         testutils::create_reserve(
             &e,
             &pool_id,
@@ -603,7 +607,7 @@ mod tests {
         );
 
         let (underlying_1, _) = testutils::create_token_contract(&e, &bombadil);
-        let (mut reserve_config_1, reserve_data_1) = testutils::default_reserve_meta(&e);
+        let (mut reserve_config_1, reserve_data_1) = testutils::default_reserve_meta();
         reserve_config_1.index = 1;
         testutils::create_reserve(
             &e,
@@ -655,18 +659,17 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
-    //#[should_panic(expected = "ContractError(10)")]
+    #[should_panic(expected = "Error(Contract, #10)")]
     fn test_delete_user_liquidation_invalid_hf() {
         let e = Env::default();
         e.mock_all_auths();
-        let pool_id = Address::random(&e);
+        let pool_id = create_pool(&e);
 
         let bombadil = Address::random(&e);
         let samwise = Address::random(&e);
 
         let (underlying_0, _) = testutils::create_token_contract(&e, &bombadil);
-        let (reserve_config_0, reserve_data_0) = testutils::default_reserve_meta(&e);
+        let (reserve_config_0, reserve_data_0) = testutils::default_reserve_meta();
         testutils::create_reserve(
             &e,
             &pool_id,
@@ -676,7 +679,7 @@ mod tests {
         );
 
         let (underlying_1, _) = testutils::create_token_contract(&e, &bombadil);
-        let (mut reserve_config_1, reserve_data_1) = testutils::default_reserve_meta(&e);
+        let (mut reserve_config_1, reserve_data_1) = testutils::default_reserve_meta();
         reserve_config_1.index = 1;
         testutils::create_reserve(
             &e,
@@ -741,7 +744,7 @@ mod tests {
         e.mock_all_auths();
         e.ledger().set(LedgerInfo {
             timestamp: 12345,
-            protocol_version: 1,
+            protocol_version: 20,
             sequence_number: 175,
             network_id: Default::default(),
             base_reserve: 10,
@@ -754,14 +757,14 @@ mod tests {
         let samwise = Address::random(&e);
         let frodo = Address::random(&e);
 
-        let pool_address = Address::random(&e);
+        let pool_address = create_pool(&e);
 
         let (oracle_address, _) = testutils::create_mock_oracle(&e);
 
         // creating reserves for a pool exhausts the budget
         e.budget().reset_unlimited();
         let (underlying_0, _) = testutils::create_token_contract(&e, &bombadil);
-        let (mut reserve_config_0, reserve_data_0) = testutils::default_reserve_meta(&e);
+        let (mut reserve_config_0, reserve_data_0) = testutils::default_reserve_meta();
         reserve_config_0.index = 0;
         testutils::create_reserve(
             &e,
@@ -772,7 +775,7 @@ mod tests {
         );
 
         let (underlying_1, _) = testutils::create_token_contract(&e, &bombadil);
-        let (mut reserve_config_1, reserve_data_1) = testutils::default_reserve_meta(&e);
+        let (mut reserve_config_1, reserve_data_1) = testutils::default_reserve_meta();
         reserve_config_1.index = 1;
         testutils::create_reserve(
             &e,
@@ -783,7 +786,7 @@ mod tests {
         );
 
         let (underlying_2, _) = testutils::create_token_contract(&e, &bombadil);
-        let (mut reserve_config_2, reserve_data_2) = testutils::default_reserve_meta(&e);
+        let (mut reserve_config_2, reserve_data_2) = testutils::default_reserve_meta();
         reserve_config_2.index = 2;
         testutils::create_reserve(
             &e,
@@ -824,7 +827,7 @@ mod tests {
 
             e.ledger().set(LedgerInfo {
                 timestamp: 12345 + 200 * 5,
-                protocol_version: 1,
+                protocol_version: 20,
                 sequence_number: 176 + 200,
                 network_id: Default::default(),
                 base_reserve: 10,
@@ -848,7 +851,7 @@ mod tests {
         e.mock_all_auths();
         e.ledger().set(LedgerInfo {
             timestamp: 12345,
-            protocol_version: 1,
+            protocol_version: 20,
             sequence_number: 175,
             network_id: Default::default(),
             base_reserve: 10,
@@ -861,14 +864,14 @@ mod tests {
         let samwise = Address::random(&e);
         let frodo = Address::random(&e);
 
-        let pool_address = Address::random(&e);
+        let pool_address = create_pool(&e);
 
         let (oracle_address, _) = testutils::create_mock_oracle(&e);
 
         // creating reserves for a pool exhausts the budget
         e.budget().reset_unlimited();
         let (underlying_0, _) = testutils::create_token_contract(&e, &bombadil);
-        let (mut reserve_config_0, reserve_data_0) = testutils::default_reserve_meta(&e);
+        let (mut reserve_config_0, reserve_data_0) = testutils::default_reserve_meta();
         reserve_config_0.index = 0;
         testutils::create_reserve(
             &e,
@@ -879,7 +882,7 @@ mod tests {
         );
 
         let (underlying_1, _) = testutils::create_token_contract(&e, &bombadil);
-        let (mut reserve_config_1, reserve_data_1) = testutils::default_reserve_meta(&e);
+        let (mut reserve_config_1, reserve_data_1) = testutils::default_reserve_meta();
         reserve_config_1.index = 1;
         testutils::create_reserve(
             &e,
@@ -890,7 +893,7 @@ mod tests {
         );
 
         let (underlying_2, _) = testutils::create_token_contract(&e, &bombadil);
-        let (mut reserve_config_2, reserve_data_2) = testutils::default_reserve_meta(&e);
+        let (mut reserve_config_2, reserve_data_2) = testutils::default_reserve_meta();
         reserve_config_2.index = 2;
         testutils::create_reserve(
             &e,
@@ -931,7 +934,7 @@ mod tests {
 
             e.ledger().set(LedgerInfo {
                 timestamp: 12345 + 200 * 5,
-                protocol_version: 1,
+                protocol_version: 20,
                 sequence_number: 176 + 200,
                 network_id: Default::default(),
                 base_reserve: 10,
@@ -968,7 +971,7 @@ mod tests {
 
         e.ledger().set(LedgerInfo {
             timestamp: 12345,
-            protocol_version: 1,
+            protocol_version: 20,
             sequence_number: 175,
             network_id: Default::default(),
             base_reserve: 10,
@@ -981,12 +984,12 @@ mod tests {
         let samwise = Address::random(&e);
         let frodo = Address::random(&e);
 
-        let pool_address = Address::random(&e);
+        let pool_address = create_pool(&e);
 
         let (oracle_address, _) = testutils::create_mock_oracle(&e);
 
         let (underlying_0, _) = testutils::create_token_contract(&e, &bombadil);
-        let (mut reserve_config_0, reserve_data_0) = testutils::default_reserve_meta(&e);
+        let (mut reserve_config_0, reserve_data_0) = testutils::default_reserve_meta();
 
         reserve_config_0.index = 0;
         testutils::create_reserve(
@@ -998,7 +1001,7 @@ mod tests {
         );
 
         let (underlying_1, _) = testutils::create_token_contract(&e, &bombadil);
-        let (mut reserve_config_1, reserve_data_1) = testutils::default_reserve_meta(&e);
+        let (mut reserve_config_1, reserve_data_1) = testutils::default_reserve_meta();
 
         reserve_config_1.index = 1;
         testutils::create_reserve(
@@ -1010,7 +1013,7 @@ mod tests {
         );
 
         let (underlying_2, _) = testutils::create_token_contract(&e, &bombadil);
-        let (mut reserve_config_2, reserve_data_2) = testutils::default_reserve_meta(&e);
+        let (mut reserve_config_2, reserve_data_2) = testutils::default_reserve_meta();
 
         reserve_config_2.index = 2;
         testutils::create_reserve(
@@ -1052,7 +1055,7 @@ mod tests {
             // Partial fill 1 - 25% @ 50% lot mod
             e.ledger().set(LedgerInfo {
                 timestamp: 12345 + 100 * 5,
-                protocol_version: 1,
+                protocol_version: 20,
                 sequence_number: 176 + 100,
                 network_id: Default::default(),
                 base_reserve: 10,
@@ -1082,7 +1085,7 @@ mod tests {
 
             e.ledger().set(LedgerInfo {
                 timestamp: 12345 + 200 * 5,
-                protocol_version: 1,
+                protocol_version: 20,
                 sequence_number: 176 + 200,
                 network_id: Default::default(),
                 base_reserve: 10,
@@ -1111,7 +1114,7 @@ mod tests {
             // full fill at 50% bid mod
             e.ledger().set(LedgerInfo {
                 timestamp: 12345 + 300 * 5,
-                protocol_version: 1,
+                protocol_version: 20,
                 sequence_number: 176 + 300,
                 network_id: Default::default(),
                 base_reserve: 10,
@@ -1150,15 +1153,14 @@ mod tests {
     }
 
     #[test]
-    // #[should_panic(expected = "ContractError(2)")]
-    #[should_panic]
+    #[should_panic(expected = "Error(Contract, #2)")]
     fn test_fill_fails_pct_too_large() {
         let e = Env::default();
 
         e.mock_all_auths();
         e.ledger().set(LedgerInfo {
             timestamp: 12345,
-            protocol_version: 1,
+            protocol_version: 20,
             sequence_number: 175,
             network_id: Default::default(),
             base_reserve: 10,
@@ -1171,14 +1173,14 @@ mod tests {
         let samwise = Address::random(&e);
         let frodo = Address::random(&e);
 
-        let pool_address = Address::random(&e);
+        let pool_address = create_pool(&e);
 
         let (oracle_address, _) = testutils::create_mock_oracle(&e);
 
         // creating reserves for a pool exhausts the budget
         e.budget().reset_unlimited();
         let (underlying_0, _) = testutils::create_token_contract(&e, &bombadil);
-        let (mut reserve_config_0, reserve_data_0) = testutils::default_reserve_meta(&e);
+        let (mut reserve_config_0, reserve_data_0) = testutils::default_reserve_meta();
         reserve_config_0.index = 0;
         testutils::create_reserve(
             &e,
@@ -1189,7 +1191,7 @@ mod tests {
         );
 
         let (underlying_1, _) = testutils::create_token_contract(&e, &bombadil);
-        let (mut reserve_config_1, reserve_data_1) = testutils::default_reserve_meta(&e);
+        let (mut reserve_config_1, reserve_data_1) = testutils::default_reserve_meta();
         reserve_config_1.index = 1;
         testutils::create_reserve(
             &e,
@@ -1200,7 +1202,7 @@ mod tests {
         );
 
         let (underlying_2, _) = testutils::create_token_contract(&e, &bombadil);
-        let (mut reserve_config_2, reserve_data_2) = testutils::default_reserve_meta(&e);
+        let (mut reserve_config_2, reserve_data_2) = testutils::default_reserve_meta();
         reserve_config_2.index = 2;
         testutils::create_reserve(
             &e,
@@ -1240,7 +1242,7 @@ mod tests {
 
             e.ledger().set(LedgerInfo {
                 timestamp: 12345 + 200 * 5,
-                protocol_version: 1,
+                protocol_version: 20,
                 sequence_number: 176 + 200,
                 network_id: Default::default(),
                 base_reserve: 10,
@@ -1270,15 +1272,14 @@ mod tests {
     }
 
     #[test]
-    // #[should_panic(expected = "ContractError(2)")]
-    #[should_panic]
+    #[should_panic(expected = "Error(Contract, #2)")]
     fn test_fill_fails_pct_too_small() {
         let e = Env::default();
 
         e.mock_all_auths();
         e.ledger().set(LedgerInfo {
             timestamp: 12345,
-            protocol_version: 1,
+            protocol_version: 20,
             sequence_number: 175,
             network_id: Default::default(),
             base_reserve: 10,
@@ -1291,14 +1292,14 @@ mod tests {
         let samwise = Address::random(&e);
         let frodo = Address::random(&e);
 
-        let pool_address = Address::random(&e);
+        let pool_address = create_pool(&e);
 
         let (oracle_address, _) = testutils::create_mock_oracle(&e);
 
         // creating reserves for a pool exhausts the budget
         e.budget().reset_unlimited();
         let (underlying_0, _) = testutils::create_token_contract(&e, &bombadil);
-        let (mut reserve_config_0, reserve_data_0) = testutils::default_reserve_meta(&e);
+        let (mut reserve_config_0, reserve_data_0) = testutils::default_reserve_meta();
         reserve_config_0.index = 0;
         testutils::create_reserve(
             &e,
@@ -1309,7 +1310,7 @@ mod tests {
         );
 
         let (underlying_1, _) = testutils::create_token_contract(&e, &bombadil);
-        let (mut reserve_config_1, reserve_data_1) = testutils::default_reserve_meta(&e);
+        let (mut reserve_config_1, reserve_data_1) = testutils::default_reserve_meta();
 
         reserve_config_1.index = 1;
         testutils::create_reserve(
@@ -1321,7 +1322,7 @@ mod tests {
         );
 
         let (underlying_2, _) = testutils::create_token_contract(&e, &bombadil);
-        let (mut reserve_config_2, reserve_data_2) = testutils::default_reserve_meta(&e);
+        let (mut reserve_config_2, reserve_data_2) = testutils::default_reserve_meta();
 
         reserve_config_2.index = 2;
         testutils::create_reserve(
@@ -1362,7 +1363,7 @@ mod tests {
 
             e.ledger().set(LedgerInfo {
                 timestamp: 12345 + 200 * 5,
-                protocol_version: 1,
+                protocol_version: 20,
                 sequence_number: 176 + 200,
                 network_id: Default::default(),
                 base_reserve: 10,
@@ -1407,7 +1408,7 @@ mod tests {
         // 0 blocks
         e.ledger().set(LedgerInfo {
             timestamp: 12345,
-            protocol_version: 1,
+            protocol_version: 20,
             sequence_number: 1000,
             network_id: Default::default(),
             base_reserve: 10,
@@ -1426,7 +1427,7 @@ mod tests {
         // 100 blocks
         e.ledger().set(LedgerInfo {
             timestamp: 12345,
-            protocol_version: 1,
+            protocol_version: 20,
             sequence_number: 1100,
             network_id: Default::default(),
             base_reserve: 10,
@@ -1448,7 +1449,7 @@ mod tests {
         // 200 blocks
         e.ledger().set(LedgerInfo {
             timestamp: 12345,
-            protocol_version: 1,
+            protocol_version: 20,
             sequence_number: 1200,
             network_id: Default::default(),
             base_reserve: 10,
@@ -1470,7 +1471,7 @@ mod tests {
         // 300 blocks
         e.ledger().set(LedgerInfo {
             timestamp: 12345,
-            protocol_version: 1,
+            protocol_version: 20,
             sequence_number: 1300,
             network_id: Default::default(),
             base_reserve: 10,
@@ -1492,7 +1493,7 @@ mod tests {
         // 400 blocks
         e.ledger().set(LedgerInfo {
             timestamp: 12345,
-            protocol_version: 1,
+            protocol_version: 20,
             sequence_number: 1400,
             network_id: Default::default(),
             base_reserve: 10,
@@ -1526,7 +1527,7 @@ mod tests {
         // 0 blocks
         e.ledger().set(LedgerInfo {
             timestamp: 12345,
-            protocol_version: 1,
+            protocol_version: 20,
             sequence_number: 1000,
             network_id: Default::default(),
             base_reserve: 10,
@@ -1553,7 +1554,7 @@ mod tests {
         // 100 blocks
         e.ledger().set(LedgerInfo {
             timestamp: 12345,
-            protocol_version: 1,
+            protocol_version: 20,
             sequence_number: 1100,
             network_id: Default::default(),
             base_reserve: 10,
@@ -1584,7 +1585,7 @@ mod tests {
         // 300 blocks
         e.ledger().set(LedgerInfo {
             timestamp: 12345,
-            protocol_version: 1,
+            protocol_version: 20,
             sequence_number: 1300,
             network_id: Default::default(),
             base_reserve: 10,
@@ -1615,7 +1616,7 @@ mod tests {
         // 400 blocks
         e.ledger().set(LedgerInfo {
             timestamp: 12345,
-            protocol_version: 1,
+            protocol_version: 20,
             sequence_number: 1400,
             network_id: Default::default(),
             base_reserve: 10,

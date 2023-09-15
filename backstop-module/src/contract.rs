@@ -201,6 +201,7 @@ impl BackstopModuleTrait for BackstopModule {
         pool_factory: Address,
         drop_list: Map<Address, i128>,
     ) {
+        storage::bump_instance(&e);
         if storage::has_backstop_token(&e) {
             panic_with_error!(e, BackstopError::AlreadyInitialized);
         }

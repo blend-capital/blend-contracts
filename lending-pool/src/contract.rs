@@ -252,6 +252,7 @@ impl PoolTrait for Pool {
         usdc_id: Address,
     ) {
         admin.require_auth();
+        storage::bump_instance(&e);
 
         pool::execute_initialize(
             &e,

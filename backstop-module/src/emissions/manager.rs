@@ -152,7 +152,11 @@ mod tests {
         vec, BytesN, Vec,
     };
 
-    use crate::{backstop::PoolBalance, storage::BackstopEmissionConfig, testutils};
+    use crate::{
+        backstop::PoolBalance,
+        storage::BackstopEmissionConfig,
+        testutils::{self, create_backstop},
+    };
 
     /********** update_emission_cycle **********/
 
@@ -163,7 +167,7 @@ mod tests {
 
         e.ledger().set(LedgerInfo {
             timestamp: BACKSTOP_EPOCH,
-            protocol_version: 1,
+            protocol_version: 20,
             sequence_number: 0,
             network_id: Default::default(),
             base_reserve: 10,
@@ -173,7 +177,7 @@ mod tests {
         });
 
         let bombadil = Address::random(&e);
-        let backstop = Address::random(&e);
+        let backstop = create_backstop(&e);
         let (_, blnd_token_client) = testutils::create_blnd_token(&e, &backstop, &bombadil);
         let pool_1 = Address::random(&e);
         let pool_2 = Address::random(&e);
@@ -290,13 +294,12 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
-    //#[should_panic(expected = "ContractError(1)")]
+    #[should_panic(expected = "Error(Contract, #1)")]
     fn test_update_emission_cycle_too_early() {
         let e = Env::default();
         e.ledger().set(LedgerInfo {
             timestamp: BACKSTOP_EPOCH,
-            protocol_version: 1,
+            protocol_version: 20,
             sequence_number: 0,
             network_id: Default::default(),
             base_reserve: 10,
@@ -305,13 +308,13 @@ mod tests {
             max_entry_expiration: 2000000,
         });
 
-        let backstop_addr = Address::random(&e);
+        let backstop_id = create_backstop(&e);
         let pool_1 = Address::random(&e);
         let pool_2 = Address::random(&e);
         let pool_3 = Address::random(&e);
         let reward_zone: Vec<Address> = vec![&e, pool_1.clone(), pool_2.clone(), pool_3.clone()];
 
-        e.as_contract(&backstop_addr, || {
+        e.as_contract(&backstop_id, || {
             storage::set_next_emission_cycle(&e, &(BACKSTOP_EPOCH + 1));
             storage::set_reward_zone(&e, &reward_zone);
             storage::set_pool_balance(
@@ -353,7 +356,7 @@ mod tests {
         let e = Env::default();
         e.ledger().set(LedgerInfo {
             timestamp: BACKSTOP_EPOCH,
-            protocol_version: 1,
+            protocol_version: 20,
             sequence_number: 0,
             base_reserve: 10,
             network_id: Default::default(),
@@ -362,10 +365,10 @@ mod tests {
             max_entry_expiration: 2000000,
         });
 
-        let backstop_addr = Address::random(&e);
+        let backstop_id = create_backstop(&e);
         let to_add = Address::random(&e);
 
-        e.as_contract(&backstop_addr, || {
+        e.as_contract(&backstop_id, || {
             add_to_reward_zone(
                 &e,
                 to_add.clone(),
@@ -382,7 +385,7 @@ mod tests {
         let e = Env::default();
         e.ledger().set(LedgerInfo {
             timestamp: BACKSTOP_EPOCH + (1 << 23),
-            protocol_version: 1,
+            protocol_version: 20,
             sequence_number: 0,
             network_id: Default::default(),
             base_reserve: 10,
@@ -391,7 +394,7 @@ mod tests {
             max_entry_expiration: 2000000,
         });
 
-        let backstop_addr = Address::random(&e);
+        let backstop_id = create_backstop(&e);
         let to_add = Address::random(&e);
         let mut reward_zone: Vec<Address> = vec![
             &e,
@@ -407,7 +410,7 @@ mod tests {
             Address::random(&e),
         ];
 
-        e.as_contract(&backstop_addr, || {
+        e.as_contract(&backstop_id, || {
             storage::set_reward_zone(&e, &reward_zone);
             add_to_reward_zone(
                 &e,
@@ -420,13 +423,12 @@ mod tests {
         });
     }
     #[test]
-    #[should_panic]
-    //#[should_panic(expected = "HostError\nValue: Status(ContractError(4))")]
+    #[should_panic(expected = "Error(Contract, #4)")]
     fn test_add_to_rz_takes_floor_for_size() {
         let e = Env::default();
         e.ledger().set(LedgerInfo {
             timestamp: BACKSTOP_EPOCH + (1 << 23) - 1,
-            protocol_version: 1,
+            protocol_version: 20,
             sequence_number: 0,
             network_id: Default::default(),
             base_reserve: 10,
@@ -435,7 +437,7 @@ mod tests {
             max_entry_expiration: 2000000,
         });
 
-        let backstop_addr = Address::random(&e);
+        let backstop_id = create_backstop(&e);
         let to_add = Address::random(&e);
         let reward_zone: Vec<Address> = vec![
             &e,
@@ -451,7 +453,7 @@ mod tests {
             Address::random(&e),
         ];
 
-        e.as_contract(&backstop_addr, || {
+        e.as_contract(&backstop_id, || {
             storage::set_reward_zone(&e, &reward_zone);
             add_to_reward_zone(
                 &e,
@@ -466,7 +468,7 @@ mod tests {
         let e = Env::default();
         e.ledger().set(LedgerInfo {
             timestamp: BACKSTOP_EPOCH,
-            protocol_version: 1,
+            protocol_version: 20,
             sequence_number: 0,
             network_id: Default::default(),
             base_reserve: 10,
@@ -475,7 +477,7 @@ mod tests {
             max_entry_expiration: 2000000,
         });
 
-        let backstop_addr = Address::random(&e);
+        let backstop_id = create_backstop(&e);
         let to_add = Address::random(&e);
         let to_remove = Address::random(&e);
         let mut reward_zone: Vec<Address> = vec![
@@ -492,7 +494,7 @@ mod tests {
             Address::random(&e),
         ];
 
-        e.as_contract(&backstop_addr, || {
+        e.as_contract(&backstop_id, || {
             storage::set_reward_zone(&e, &reward_zone);
             storage::set_next_emission_cycle(&e, &(BACKSTOP_EPOCH + 5 * 24 * 60 * 60));
             storage::set_pool_eps(&e, &to_remove, &1);
@@ -527,13 +529,12 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
-    //#[should_panic(expected = "ContractError(4)")]
+    #[should_panic(expected = "Error(Contract, #4)")]
     fn test_add_to_rz_swap_not_enough_tokens() {
         let e = Env::default();
         e.ledger().set(LedgerInfo {
             timestamp: BACKSTOP_EPOCH,
-            protocol_version: 1,
+            protocol_version: 20,
             sequence_number: 0,
             network_id: Default::default(),
             base_reserve: 10,
@@ -542,7 +543,7 @@ mod tests {
             max_entry_expiration: 2000000,
         });
 
-        let backstop_addr = Address::random(&e);
+        let backstop_id = create_backstop(&e);
         let to_add = Address::random(&e);
         let to_remove = Address::random(&e);
         let reward_zone: Vec<Address> = vec![
@@ -559,7 +560,7 @@ mod tests {
             Address::random(&e),
         ];
 
-        e.as_contract(&backstop_addr, || {
+        e.as_contract(&backstop_id, || {
             storage::set_reward_zone(&e, &reward_zone.clone());
             storage::set_next_emission_cycle(&e, &(BACKSTOP_EPOCH + 24 * 60 * 60));
             storage::set_pool_eps(&e, &to_remove, &1);
@@ -587,13 +588,12 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
-    //#[should_panic(expected = "ContractError(4)")]
+    #[should_panic(expected = "Error(Contract, #4)")]
     fn test_add_to_rz_to_remove_not_in_rz() {
         let e = Env::default();
         e.ledger().set(LedgerInfo {
             timestamp: BACKSTOP_EPOCH,
-            protocol_version: 1,
+            protocol_version: 20,
             sequence_number: 0,
             network_id: Default::default(),
             base_reserve: 10,
@@ -602,7 +602,7 @@ mod tests {
             max_entry_expiration: 2000000,
         });
 
-        let backstop_addr = Address::random(&e);
+        let backstop_id = create_backstop(&e);
         let to_add = Address::random(&e);
         let to_remove = Address::random(&e);
         let reward_zone: Vec<Address> = vec![
@@ -619,7 +619,7 @@ mod tests {
             Address::random(&e),
         ];
 
-        e.as_contract(&backstop_addr, || {
+        e.as_contract(&backstop_id, || {
             storage::set_reward_zone(&e, &reward_zone);
             storage::set_next_emission_cycle(&e, &(BACKSTOP_EPOCH + 24 * 60 * 60));
             storage::set_pool_eps(&e, &to_remove, &1);
@@ -647,13 +647,12 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
-    //#[should_panic(expected = "ContractError(1)")]
+    #[should_panic(expected = "Error(Contract, #1)")]
     fn test_add_to_rz_swap_too_soon_to_distribution() {
         let e = Env::default();
         e.ledger().set(LedgerInfo {
             timestamp: BACKSTOP_EPOCH,
-            protocol_version: 1,
+            protocol_version: 20,
             sequence_number: 0,
             network_id: Default::default(),
             base_reserve: 10,
@@ -662,7 +661,7 @@ mod tests {
             max_entry_expiration: 2000000,
         });
 
-        let backstop_addr = Address::random(&e);
+        let backstop_id = create_backstop(&e);
         let to_add = Address::random(&e);
         let to_remove = Address::random(&e);
         let reward_zone: Vec<Address> = vec![
@@ -679,7 +678,7 @@ mod tests {
             Address::random(&e),
         ];
 
-        e.as_contract(&backstop_addr, || {
+        e.as_contract(&backstop_id, || {
             storage::set_reward_zone(&e, &reward_zone);
             storage::set_next_emission_cycle(&e, &(BACKSTOP_EPOCH + 5 * 24 * 60 * 60 + 1));
             storage::set_pool_eps(&e, &to_remove, &1);
@@ -707,13 +706,12 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
-    //#[should_panic(expected = "ContractError(1)")]
+    #[should_panic(expected = "Error(Contract, #1)")]
     fn test_add_to_rz_already_exists_panics() {
         let e = Env::default();
         e.ledger().set(LedgerInfo {
             timestamp: BACKSTOP_EPOCH,
-            protocol_version: 1,
+            protocol_version: 20,
             sequence_number: 0,
             network_id: Default::default(),
             base_reserve: 10,
@@ -722,7 +720,7 @@ mod tests {
             max_entry_expiration: 2000000,
         });
 
-        let backstop_addr = Address::random(&e);
+        let backstop_id = create_backstop(&e);
         let to_add = Address::random(&e);
         let to_remove = Address::random(&e);
         let reward_zone: Vec<Address> = vec![
@@ -739,7 +737,7 @@ mod tests {
             Address::random(&e),
         ];
 
-        e.as_contract(&backstop_addr, || {
+        e.as_contract(&backstop_id, || {
             storage::set_reward_zone(&e, &reward_zone);
             storage::set_next_emission_cycle(&e, &(BACKSTOP_EPOCH + 5 * 24 * 60 * 60));
             storage::set_pool_eps(&e, &to_remove, &1);

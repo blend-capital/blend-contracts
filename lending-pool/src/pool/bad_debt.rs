@@ -88,7 +88,7 @@ mod tests {
 
         e.ledger().set(LedgerInfo {
             timestamp: 600,
-            protocol_version: 1,
+            protocol_version: 20,
             sequence_number: 123,
             network_id: Default::default(),
             base_reserve: 10,
@@ -97,18 +97,18 @@ mod tests {
             max_entry_expiration: 2000000,
         });
 
-        let pool = Address::random(&e);
+        let pool = testutils::create_pool(&e);
         let backstop = Address::random(&e);
 
         let samwise = Address::random(&e);
         let bombadil = Address::random(&e);
 
         let (underlying_0, _) = testutils::create_token_contract(&e, &bombadil);
-        let (reserve_config, reserve_data) = testutils::default_reserve_meta(&e);
+        let (reserve_config, reserve_data) = testutils::default_reserve_meta();
         testutils::create_reserve(&e, &pool, &underlying_0, &reserve_config, &reserve_data);
 
         let (underlying_1, _) = testutils::create_token_contract(&e, &bombadil);
-        let (mut reserve_config, reserve_data) = testutils::default_reserve_meta(&e);
+        let (mut reserve_config, reserve_data) = testutils::default_reserve_meta();
         reserve_config.index = 1;
         testutils::create_reserve(&e, &pool, &underlying_1, &reserve_config, &reserve_data);
 
@@ -146,8 +146,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
-    // #[should_panic(expected = "Status(ContractError(2))")]
+    #[should_panic(expected = "Error(Contract, #2)")]
     fn test_transfer_bad_debt_with_collateral_panics() {
         let e = Env::default();
         e.budget().reset_unlimited();
@@ -155,7 +154,7 @@ mod tests {
 
         e.ledger().set(LedgerInfo {
             timestamp: 600,
-            protocol_version: 1,
+            protocol_version: 20,
             sequence_number: 123,
             network_id: Default::default(),
             base_reserve: 10,
@@ -164,18 +163,18 @@ mod tests {
             max_entry_expiration: 2000000,
         });
 
-        let pool = Address::random(&e);
+        let pool = testutils::create_pool(&e);
         let backstop = Address::random(&e);
 
         let samwise = Address::random(&e);
         let bombadil = Address::random(&e);
 
         let (underlying_0, _) = testutils::create_token_contract(&e, &bombadil);
-        let (reserve_config, reserve_data) = testutils::default_reserve_meta(&e);
+        let (reserve_config, reserve_data) = testutils::default_reserve_meta();
         testutils::create_reserve(&e, &pool, &underlying_0, &reserve_config, &reserve_data);
 
         let (underlying_1, _) = testutils::create_token_contract(&e, &bombadil);
-        let (mut reserve_config, reserve_data) = testutils::default_reserve_meta(&e);
+        let (mut reserve_config, reserve_data) = testutils::default_reserve_meta();
         reserve_config.index = 1;
         testutils::create_reserve(&e, &pool, &underlying_1, &reserve_config, &reserve_data);
 
@@ -199,8 +198,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
-    // #[should_panic(expected = "Status(ContractError(2))")]
+    #[should_panic(expected = "Error(Contract, #2)")]
     fn test_transfer_bad_debt_without_liabilities_panics() {
         let e = Env::default();
         e.budget().reset_unlimited();
@@ -208,7 +206,7 @@ mod tests {
 
         e.ledger().set(LedgerInfo {
             timestamp: 600,
-            protocol_version: 1,
+            protocol_version: 20,
             sequence_number: 123,
             network_id: Default::default(),
             base_reserve: 10,
@@ -217,18 +215,18 @@ mod tests {
             max_entry_expiration: 2000000,
         });
 
-        let pool = Address::random(&e);
+        let pool = testutils::create_pool(&e);
         let backstop = Address::random(&e);
 
         let samwise = Address::random(&e);
         let bombadil = Address::random(&e);
 
         let (underlying_1, _) = testutils::create_token_contract(&e, &bombadil);
-        let (reserve_config, reserve_data) = testutils::default_reserve_meta(&e);
+        let (reserve_config, reserve_data) = testutils::default_reserve_meta();
         testutils::create_reserve(&e, &pool, &underlying_1, &reserve_config, &reserve_data);
 
         let (underlying_2, _) = testutils::create_token_contract(&e, &bombadil);
-        let (mut reserve_config, reserve_data) = testutils::default_reserve_meta(&e);
+        let (mut reserve_config, reserve_data) = testutils::default_reserve_meta();
         reserve_config.index = 1;
         testutils::create_reserve(&e, &pool, &underlying_2, &reserve_config, &reserve_data);
 
@@ -249,15 +247,14 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
-    // #[should_panic(expected = "Status(ContractError(2))")]
+    #[should_panic(expected = "Error(Contract, #2)")]
     fn test_transfer_bad_debt_with_backstop_panics() {
         let e = Env::default();
         e.mock_all_auths();
 
         e.ledger().set(LedgerInfo {
             timestamp: 600,
-            protocol_version: 1,
+            protocol_version: 20,
             sequence_number: 123,
             network_id: Default::default(),
             base_reserve: 10,
@@ -266,18 +263,18 @@ mod tests {
             max_entry_expiration: 2000000,
         });
 
-        let pool = Address::random(&e);
+        let pool = testutils::create_pool(&e);
         let backstop = Address::random(&e);
 
         let samwise = Address::random(&e);
         let bombadil = Address::random(&e);
 
         let (underlying_0, _) = testutils::create_token_contract(&e, &bombadil);
-        let (reserve_config, reserve_data) = testutils::default_reserve_meta(&e);
+        let (reserve_config, reserve_data) = testutils::default_reserve_meta();
         testutils::create_reserve(&e, &pool, &underlying_0, &reserve_config, &reserve_data);
 
         let (underlying_1, _) = testutils::create_token_contract(&e, &bombadil);
-        let (mut reserve_config, reserve_data) = testutils::default_reserve_meta(&e);
+        let (mut reserve_config, reserve_data) = testutils::default_reserve_meta();
         reserve_config.index = 1;
         testutils::create_reserve(&e, &pool, &underlying_1, &reserve_config, &reserve_data);
 
@@ -308,7 +305,7 @@ mod tests {
 
         e.ledger().set(LedgerInfo {
             timestamp: 1500000000,
-            protocol_version: 1,
+            protocol_version: 20,
             sequence_number: 123,
             network_id: Default::default(),
             base_reserve: 10,
@@ -318,18 +315,18 @@ mod tests {
         });
 
         let bombadil = Address::random(&e);
-        let pool = Address::random(&e);
+        let pool = testutils::create_pool(&e);
         let backstop = Address::random(&e);
 
         let (_, blnd_client) = testutils::create_blnd_token(&e, &pool, &bombadil);
 
         let (underlying_0, _) = testutils::create_token_contract(&e, &bombadil);
-        let (reserve_config, mut reserve_data) = testutils::default_reserve_meta(&e);
+        let (reserve_config, mut reserve_data) = testutils::default_reserve_meta();
         reserve_data.last_time = 1499995000;
         testutils::create_reserve(&e, &pool, &underlying_0, &reserve_config, &reserve_data);
 
         let (underlying_1, _) = testutils::create_token_contract(&e, &bombadil);
-        let (mut reserve_config, mut reserve_data) = testutils::default_reserve_meta(&e);
+        let (mut reserve_config, mut reserve_data) = testutils::default_reserve_meta();
         reserve_config.index = 1;
         reserve_data.last_time = 1499995000;
         testutils::create_reserve(&e, &pool, &underlying_1, &reserve_config, &reserve_data);

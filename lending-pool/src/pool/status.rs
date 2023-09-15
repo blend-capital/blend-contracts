@@ -88,7 +88,10 @@ pub fn calc_pool_backstop_threshold(pool_backstop_data: &PoolBackstopData) -> i1
 mod tests {
     use crate::{
         storage::PoolConfig,
-        testutils::{create_backstop, create_comet_lp_pool, create_token_contract, setup_backstop},
+        testutils::{
+            create_backstop, create_comet_lp_pool, create_pool, create_token_contract,
+            setup_backstop,
+        },
     };
 
     use super::*;
@@ -98,8 +101,8 @@ mod tests {
     fn test_set_pool_status() {
         let e = Env::default();
         e.budget().reset_unlimited();
-        e.mock_all_auths();
-        let pool_id = Address::random(&e);
+        e.mock_all_auths_allowing_non_root_auth();
+        let pool_id = create_pool(&e);
         let oracle_id = Address::random(&e);
 
         let bombadil = Address::random(&e);
@@ -141,13 +144,12 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
-    //#[should_panic(expected = "Status(ContractError(11))")]
+    #[should_panic(expected = "Error(Contract, #11)")]
     fn test_set_pool_status_blocks_without_backstop_minimum() {
         let e = Env::default();
         e.budget().reset_unlimited();
-        e.mock_all_auths();
-        let pool_id = Address::random(&e);
+        e.mock_all_auths_allowing_non_root_auth();
+        let pool_id = create_pool(&e);
         let oracle_id = Address::random(&e);
 
         let bombadil = Address::random(&e);
@@ -189,8 +191,8 @@ mod tests {
     fn test_update_pool_status_active() {
         let e = Env::default();
         e.budget().reset_unlimited();
-        e.mock_all_auths();
-        let pool_id = Address::random(&e);
+        e.mock_all_auths_allowing_non_root_auth();
+        let pool_id = create_pool(&e);
         let oracle_id = Address::random(&e);
 
         let bombadil = Address::random(&e);
@@ -236,8 +238,8 @@ mod tests {
     fn test_update_pool_status_on_ice_tokens() {
         let e = Env::default();
         e.budget().reset_unlimited();
-        e.mock_all_auths();
-        let pool_id = Address::random(&e);
+        e.mock_all_auths_allowing_non_root_auth();
+        let pool_id = create_pool(&e);
         let oracle_id = Address::random(&e);
 
         let bombadil = Address::random(&e);
@@ -283,8 +285,8 @@ mod tests {
     fn test_update_pool_status_on_ice_q4w() {
         let e = Env::default();
         e.budget().reset_unlimited();
-        e.mock_all_auths();
-        let pool_id = Address::random(&e);
+        e.mock_all_auths_allowing_non_root_auth();
+        let pool_id = create_pool(&e);
         let oracle_id = Address::random(&e);
 
         let bombadil = Address::random(&e);
@@ -331,8 +333,8 @@ mod tests {
     fn test_update_pool_status_frozen() {
         let e = Env::default();
         e.budget().reset_unlimited();
-        e.mock_all_auths();
-        let pool_id = Address::random(&e);
+        e.mock_all_auths_allowing_non_root_auth();
+        let pool_id = create_pool(&e);
         let oracle_id = Address::random(&e);
 
         let bombadil = Address::random(&e);
@@ -376,13 +378,12 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
-    //#[should_panic(expected = "Status(ContractError(11))")]
+    #[should_panic(expected = "Error(Contract, #11)")]
     fn test_update_pool_status_admin_frozen() {
         let e = Env::default();
         e.budget().reset_unlimited();
-        e.mock_all_auths();
-        let pool_id = Address::random(&e);
+        e.mock_all_auths_allowing_non_root_auth();
+        let pool_id = create_pool(&e);
         let oracle_id = Address::random(&e);
 
         let bombadil = Address::random(&e);

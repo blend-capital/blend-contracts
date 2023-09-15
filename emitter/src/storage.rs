@@ -1,7 +1,7 @@
 use soroban_sdk::{contracttype, unwrap::UnwrapOptimized, Address, Env};
 
-pub(crate) const SHARED_BUMP_AMOUNT: u32 = 69120; // 4 days
-pub(crate) const CYCLE_BUMP_AMOUNT: u32 = 69120; // 10 days - use for shared data accessed on the 7-day cycle window
+pub(crate) const LEDGER_THRESHOLD_SHARED: u32 = 172800; // ~ 10 days
+pub(crate) const LEDGER_BUMP_SHARED: u32 = 241920; // ~ 14 days
 
 /********** Storage **********/
 
@@ -25,7 +25,9 @@ pub enum EmitterDataKey {
 
 /// Bump the instance rent for the contract. Bumps for 10 days due to the 7-day cycle window of this contract
 pub fn bump_instance(e: &Env) {
-    e.storage().instance().bump(CYCLE_BUMP_AMOUNT);
+    e.storage()
+        .instance()
+        .bump(LEDGER_THRESHOLD_SHARED, LEDGER_BUMP_SHARED);
 }
 
 /********** Backstop **********/
@@ -34,12 +36,8 @@ pub fn bump_instance(e: &Env) {
 ///
 /// Returns current backstop module contract address
 pub fn get_backstop(e: &Env) -> Address {
-    // TODO: Change to instance - https://github.com/stellar/rs-soroban-sdk/issues/1040
     e.storage()
-        .persistent()
-        .bump(&EmitterDataKey::Backstop, SHARED_BUMP_AMOUNT);
-    e.storage()
-        .persistent()
+        .instance()
         .get(&EmitterDataKey::Backstop)
         .unwrap_optimized()
 }
@@ -50,7 +48,7 @@ pub fn get_backstop(e: &Env) -> Address {
 /// * `new_backstop_id` - The id for the new backstop
 pub fn set_backstop(e: &Env, new_backstop_id: &Address) {
     e.storage()
-        .persistent()
+        .instance()
         .set::<EmitterDataKey, Address>(&EmitterDataKey::Backstop, new_backstop_id);
 }
 
@@ -58,7 +56,7 @@ pub fn set_backstop(e: &Env, new_backstop_id: &Address) {
 ///
 /// Returns true if a backstop has been set
 pub fn has_backstop(e: &Env) -> bool {
-    e.storage().persistent().has(&EmitterDataKey::Backstop)
+    e.storage().instance().has(&EmitterDataKey::Backstop)
 }
 
 /********** Blend **********/
@@ -67,12 +65,8 @@ pub fn has_backstop(e: &Env) -> bool {
 ///
 /// Returns blend token address
 pub fn get_blend_id(e: &Env) -> Address {
-    // TODO: Change to instance - https://github.com/stellar/rs-soroban-sdk/issues/1040
     e.storage()
-        .persistent()
-        .bump(&EmitterDataKey::BlendId, SHARED_BUMP_AMOUNT);
-    e.storage()
-        .persistent()
+        .instance()
         .get(&EmitterDataKey::BlendId)
         .unwrap_optimized()
 }
@@ -83,7 +77,7 @@ pub fn get_blend_id(e: &Env) -> Address {
 /// * `blend_id` - The blend token address
 pub fn set_blend_id(e: &Env, blend_id: &Address) {
     e.storage()
-        .persistent()
+        .instance()
         .set::<EmitterDataKey, Address>(&EmitterDataKey::BlendId, blend_id);
 }
 
@@ -93,10 +87,11 @@ pub fn set_blend_id(e: &Env, blend_id: &Address) {
 ///
 /// Returns the last timestamp distribution was ran on
 pub fn get_last_distro_time(e: &Env) -> u64 {
-    // TODO: Change to instance - https://github.com/stellar/rs-soroban-sdk/issues/1040
-    e.storage()
-        .persistent()
-        .bump(&EmitterDataKey::LastDistro, CYCLE_BUMP_AMOUNT);
+    e.storage().persistent().bump(
+        &EmitterDataKey::LastDistro,
+        LEDGER_THRESHOLD_SHARED,
+        LEDGER_BUMP_SHARED,
+    );
     e.storage()
         .persistent()
         .get(&EmitterDataKey::LastDistro)
@@ -111,16 +106,22 @@ pub fn set_last_distro_time(e: &Env, last_distro: &u64) {
     e.storage()
         .persistent()
         .set::<EmitterDataKey, u64>(&EmitterDataKey::LastDistro, last_distro);
+    e.storage().persistent().bump(
+        &EmitterDataKey::LastDistro,
+        LEDGER_THRESHOLD_SHARED,
+        LEDGER_BUMP_SHARED,
+    );
 }
 
 /// Get whether the emitter has performed the drop distribution or not for the current backstop
 ///
 /// Returns true if the emitter has dropped
 pub fn get_drop_status(e: &Env) -> bool {
-    // TODO: Change to instance - https://github.com/stellar/rs-soroban-sdk/issues/1040
-    e.storage()
-        .persistent()
-        .bump(&EmitterDataKey::DropStatus, SHARED_BUMP_AMOUNT);
+    e.storage().persistent().bump(
+        &EmitterDataKey::DropStatus,
+        LEDGER_THRESHOLD_SHARED,
+        LEDGER_BUMP_SHARED,
+    );
     e.storage()
         .persistent()
         .get(&EmitterDataKey::DropStatus)
@@ -135,4 +136,9 @@ pub fn set_drop_status(e: &Env, new_status: bool) {
     e.storage()
         .persistent()
         .set::<EmitterDataKey, bool>(&EmitterDataKey::DropStatus, &new_status);
+    e.storage().persistent().bump(
+        &EmitterDataKey::DropStatus,
+        LEDGER_THRESHOLD_SHARED,
+        LEDGER_BUMP_SHARED,
+    );
 }

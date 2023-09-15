@@ -22,7 +22,7 @@ fn create_pool_factory(e: &Env) -> (Address, PoolFactoryClient) {
 fn test_pool_factory() {
     let e = Env::default();
     e.budget().reset_unlimited();
-    e.mock_all_auths();
+    e.mock_all_auths_allowing_non_root_auth();
     let (pool_factory_address, pool_factory_client) = create_pool_factory(&e);
 
     let wasm_hash = e.deployer().upload_contract_wasm(lending_pool::WASM);
@@ -74,21 +74,21 @@ fn test_pool_factory() {
     e.as_contract(&deployed_pool_address_1, || {
         assert_eq!(
             e.storage()
-                .persistent()
+                .instance()
                 .get::<_, Address>(&Symbol::new(&e, "Admin"))
                 .unwrap(),
             bombadil.clone()
         );
         assert_eq!(
             e.storage()
-                .persistent()
+                .instance()
                 .get::<_, Address>(&Symbol::new(&e, "Backstop"))
                 .unwrap(),
             backstop_id.clone()
         );
         assert_eq!(
             e.storage()
-                .persistent()
+                .instance()
                 .get::<_, lending_pool::PoolConfig>(&Symbol::new(&e, "PoolConfig"))
                 .unwrap(),
             lending_pool::PoolConfig {
@@ -99,14 +99,14 @@ fn test_pool_factory() {
         );
         assert_eq!(
             e.storage()
-                .persistent()
+                .instance()
                 .get::<_, Address>(&Symbol::new(&e, "BLNDTkn"))
                 .unwrap(),
             blnd_id.clone()
         );
         assert_eq!(
             e.storage()
-                .persistent()
+                .instance()
                 .get::<_, Address>(&Symbol::new(&e, "USDCTkn"))
                 .unwrap(),
             usdc_id.clone()

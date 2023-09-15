@@ -167,7 +167,7 @@ mod tests {
         };
 
         e.ledger().set(LedgerInfo {
-            protocol_version: 1,
+            protocol_version: 20,
             sequence_number: 1,
             timestamp: 10000,
             network_id: Default::default(),
@@ -208,7 +208,7 @@ mod tests {
         };
 
         e.ledger().set(LedgerInfo {
-            protocol_version: 1,
+            protocol_version: 20,
             sequence_number: 1,
             timestamp: 11000000,
             network_id: Default::default(),
@@ -228,8 +228,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
-    //#[should_panic(expected = "ContractError(2)")]
+    #[should_panic(expected = "Error(Contract, #2)")]
     fn test_q4w_over_shares_panics() {
         let e = Env::default();
 
@@ -246,7 +245,7 @@ mod tests {
         };
 
         e.ledger().set(LedgerInfo {
-            protocol_version: 1,
+            protocol_version: 20,
             sequence_number: 1,
             timestamp: 11000000,
             network_id: Default::default(),
@@ -261,8 +260,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
-    //#[should_panic(expected = "ContractError(2)")]
+    #[should_panic(expected = "Error(Contract, #2)")]
     fn test_withdraw_shares_no_q4w_panics() {
         let e = Env::default();
 
@@ -272,7 +270,7 @@ mod tests {
         };
 
         e.ledger().set(LedgerInfo {
-            protocol_version: 1,
+            protocol_version: 20,
             sequence_number: 1,
             timestamp: 11000000,
             network_id: Default::default(),
@@ -303,7 +301,7 @@ mod tests {
         };
 
         e.ledger().set(LedgerInfo {
-            protocol_version: 1,
+            protocol_version: 20,
             sequence_number: 1,
             timestamp: 12592000,
             network_id: Default::default(),
@@ -337,7 +335,7 @@ mod tests {
         };
 
         e.ledger().set(LedgerInfo {
-            protocol_version: 1,
+            protocol_version: 20,
             sequence_number: 1,
             timestamp: 12592000,
             network_id: Default::default(),
@@ -386,7 +384,7 @@ mod tests {
         };
 
         e.ledger().set(LedgerInfo {
-            protocol_version: 1,
+            protocol_version: 20,
             sequence_number: 1,
             timestamp: 22592000,
             network_id: Default::default(),
@@ -415,8 +413,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
-    //#[should_panic(expected = "HostError\nValue: Status(ContractError(3))")]
+    #[should_panic(expected = "Error(Contract, #3)")]
     fn test_withdraw_shares_multiple_entries_not_exp() {
         let e = Env::default();
 
@@ -441,7 +438,7 @@ mod tests {
         };
 
         e.ledger().set(LedgerInfo {
-            protocol_version: 1,
+            protocol_version: 20,
             sequence_number: 1,
             timestamp: 11192000,
             network_id: Default::default(),
@@ -480,7 +477,7 @@ mod tests {
         };
 
         e.ledger().set(LedgerInfo {
-            protocol_version: 1,
+            protocol_version: 20,
             sequence_number: 1,
             timestamp: 11192000,
             network_id: Default::default(),
@@ -510,8 +507,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
-    //#[should_panic(expected = "ContractError(3)")]
+    #[should_panic(expected = "Error(Contract, #3)")]
     fn test_try_dequeue_shares_require_expired_expect_panic() {
         let e = Env::default();
 
@@ -536,7 +532,7 @@ mod tests {
         };
 
         e.ledger().set(LedgerInfo {
-            protocol_version: 1,
+            protocol_version: 20,
             sequence_number: 1,
             timestamp: 11192000,
             network_id: Default::default(),
@@ -551,8 +547,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
-    //#[should_panic(expected = "ContractError(2)")]
+    #[should_panic(expected = "Error(Contract, #2)")]
     fn test_try_withdraw_shares_over_total() {
         let e = Env::default();
 
@@ -577,7 +572,7 @@ mod tests {
         };
 
         e.ledger().set(LedgerInfo {
-            protocol_version: 1,
+            protocol_version: 20,
             sequence_number: 1,
             timestamp: 11192000,
             network_id: Default::default(),

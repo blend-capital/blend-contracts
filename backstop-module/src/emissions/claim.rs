@@ -31,7 +31,7 @@ mod tests {
     use crate::{
         backstop::{PoolBalance, UserBalance},
         storage::{BackstopEmissionConfig, BackstopEmissionsData, UserEmissionData},
-        testutils::create_blnd_token,
+        testutils::{create_backstop, create_blnd_token},
     };
 
     use super::*;
@@ -50,7 +50,7 @@ mod tests {
         let block_timestamp = 1500000000 + 12345;
         e.ledger().set(LedgerInfo {
             timestamp: block_timestamp,
-            protocol_version: 1,
+            protocol_version: 20,
             sequence_number: 0,
             network_id: Default::default(),
             base_reserve: 10,
@@ -59,7 +59,7 @@ mod tests {
             max_entry_expiration: 2000000,
         });
 
-        let backstop_address = Address::random(&e);
+        let backstop_address = create_backstop(&e);
         let pool_1_id = Address::random(&e);
         let pool_2_id = Address::random(&e);
         let bombadil = Address::random(&e);
@@ -181,7 +181,7 @@ mod tests {
         let block_timestamp = 1500000000 + 12345;
         e.ledger().set(LedgerInfo {
             timestamp: block_timestamp,
-            protocol_version: 1,
+            protocol_version: 20,
             sequence_number: 0,
             network_id: Default::default(),
             base_reserve: 10,
@@ -190,7 +190,7 @@ mod tests {
             max_entry_expiration: 2000000,
         });
 
-        let backstop_address = Address::random(&e);
+        let backstop_address = create_backstop(&e);
         let pool_1_id = Address::random(&e);
         let pool_2_id = Address::random(&e);
         let bombadil = Address::random(&e);
@@ -304,7 +304,7 @@ mod tests {
             let block_timestamp_1 = 1500000000 + 12345 + 12345;
             e.ledger().set(LedgerInfo {
                 timestamp: block_timestamp_1,
-                protocol_version: 1,
+                protocol_version: 20,
                 sequence_number: 0,
                 network_id: Default::default(),
                 base_reserve: 10,
@@ -355,7 +355,7 @@ mod tests {
         let block_timestamp = 1500000000 + 12345;
         e.ledger().set(LedgerInfo {
             timestamp: block_timestamp,
-            protocol_version: 1,
+            protocol_version: 20,
             sequence_number: 0,
             network_id: Default::default(),
             base_reserve: 10,
@@ -364,7 +364,7 @@ mod tests {
             max_entry_expiration: 2000000,
         });
 
-        let backstop_address = Address::random(&e);
+        let backstop_address = create_backstop(&e);
         let pool_1_id = Address::random(&e);
         let pool_2_id = Address::random(&e);
         let bombadil = Address::random(&e);

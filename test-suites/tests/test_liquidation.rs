@@ -128,7 +128,7 @@ fn test_liquidations() {
         .get_unchecked(fixture.tokens[TokenIndex::USDC].address.clone());
     //NOTE: bid STABLE amount is seven decimals whereas reserve(and lot) STABLE has 6 decomals
     assert_approx_eq_abs(usdc_donate_bid_amount, 392_1769961, SCALAR_7);
-    assert_eq!(auction_data.block, 1452403);
+    assert_eq!(auction_data.block, 151);
     let liq_pct = 30;
     let events = fixture.env.events().all();
     let event = vec![&fixture.env, events.get_unchecked(events.len() - 1)];
@@ -201,7 +201,7 @@ fn test_liquidations() {
     );
 
     //let 100 blocks pass to scale up the modifier
-    fixture.jump(101 * 5);
+    fixture.jump_with_sequence(101 * 5);
     //fill user and interest liquidation
     let auct_type_1: u32 = 0;
     let auct_type_2: u32 = 2;
@@ -407,7 +407,7 @@ fn test_liquidations() {
     assert_approx_eq_abs(weth_lot_amount, 14_869584990, 100000000);
 
     //allow 250 blocks to pass
-    fixture.jump(251 * 5);
+    fixture.jump_with_sequence(251 * 5);
     //fill user liquidation
     let frodo_stable_balance = fixture.tokens[TokenIndex::STABLE].balance(&frodo);
     let frodo_xlm_balance = fixture.tokens[TokenIndex::XLM].balance(&frodo);
@@ -536,7 +536,7 @@ fn test_liquidations() {
         ]
     );
     // allow 100 blocks to pass
-    fixture.jump(101 * 5);
+    fixture.jump_with_sequence(101 * 5);
     // fill bad debt auction
     let frodo_bstop_pre_fill = fixture.lp.balance(&frodo);
     let backstop_bstop_pre_fill = fixture.lp.balance(&fixture.backstop.address);
@@ -645,7 +645,7 @@ fn test_liquidations() {
         ]
     );
     // allow another 50 blocks to pass (150 total)
-    fixture.jump(50 * 5);
+    fixture.jump_with_sequence(50 * 5);
     // fill bad debt auction
     let frodo_bstop_pre_fill = fixture.lp.balance(&frodo);
     let backstop_bstop_pre_fill = fixture.lp.balance(&fixture.backstop.address);
@@ -789,7 +789,7 @@ fn test_liquidations() {
         ]
     );
     //jump 400 blocks
-    fixture.jump(401 * 5);
+    fixture.jump_with_sequence(401 * 5);
     //fill liq
     let bad_debt_fill_request = vec![
         &fixture.env,
@@ -831,7 +831,7 @@ fn test_liquidations() {
     pool_fixture.pool.new_auction(&auction_type);
 
     //fill bad debt auction
-    fixture.jump(401 * 5);
+    fixture.jump_with_sequence(401 * 5);
     let bump_usdc = vec![
         &fixture.env,
         Request {

@@ -70,7 +70,7 @@ mod tests {
 
     use crate::{
         backstop::{execute_deposit, execute_donate},
-        testutils::{assert_eq_vec_q4w, create_backstop_token},
+        testutils::{assert_eq_vec_q4w, create_backstop, create_backstop_token},
     };
 
     use super::*;
@@ -78,9 +78,9 @@ mod tests {
     #[test]
     fn test_execute_queue_withdrawal() {
         let e = Env::default();
-        e.mock_all_auths();
+        e.mock_all_auths_allowing_non_root_auth();
 
-        let backstop_address = Address::random(&e);
+        let backstop_address = create_backstop(&e);
         let pool_address = Address::random(&e);
         let bombadil = Address::random(&e);
         let samwise = Address::random(&e);
@@ -94,7 +94,7 @@ mod tests {
         });
 
         e.ledger().set(LedgerInfo {
-            protocol_version: 1,
+            protocol_version: 20,
             sequence_number: 200,
             timestamp: 10000,
             network_id: Default::default(),
@@ -132,13 +132,12 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
-    //#[should_panic(expected = "ContractError(11)")]
+    #[should_panic(expected = "Error(Contract, #11)")]
     fn test_execute_queue_withdrawal_negative_amount() {
         let e = Env::default();
-        e.mock_all_auths();
+        e.mock_all_auths_allowing_non_root_auth();
 
-        let backstop_address = Address::random(&e);
+        let backstop_address = create_backstop(&e);
         let pool_address = Address::random(&e);
         let bombadil = Address::random(&e);
         let samwise = Address::random(&e);
@@ -152,7 +151,7 @@ mod tests {
         });
 
         e.ledger().set(LedgerInfo {
-            protocol_version: 1,
+            protocol_version: 20,
             sequence_number: 200,
             timestamp: 10000,
             network_id: Default::default(),
@@ -170,9 +169,9 @@ mod tests {
     #[test]
     fn test_execute_dequeue_withdrawal() {
         let e = Env::default();
-        e.mock_all_auths();
+        e.mock_all_auths_allowing_non_root_auth();
 
-        let backstop_address = Address::random(&e);
+        let backstop_address = create_backstop(&e);
         let pool_address = Address::random(&e);
         let bombadil = Address::random(&e);
         let samwise = Address::random(&e);
@@ -186,7 +185,7 @@ mod tests {
             execute_queue_withdrawal(&e, &samwise, &pool_address, 25_0000000);
 
             e.ledger().set(LedgerInfo {
-                protocol_version: 1,
+                protocol_version: 20,
                 sequence_number: 100,
                 timestamp: 10000,
                 network_id: Default::default(),
@@ -200,7 +199,7 @@ mod tests {
         });
 
         e.ledger().set(LedgerInfo {
-            protocol_version: 1,
+            protocol_version: 20,
             sequence_number: 200,
             timestamp: 20000,
             network_id: Default::default(),
@@ -231,13 +230,12 @@ mod tests {
         });
     }
     #[test]
-    #[should_panic]
-    //#[should_panic(expected = "ContractError(11)")]
+    #[should_panic(expected = "Error(Contract, #11)")]
     fn test_execute_dequeue_withdrawal_negative_amount() {
         let e = Env::default();
-        e.mock_all_auths();
+        e.mock_all_auths_allowing_non_root_auth();
 
-        let backstop_address = Address::random(&e);
+        let backstop_address = create_backstop(&e);
         let pool_address = Address::random(&e);
         let bombadil = Address::random(&e);
         let samwise = Address::random(&e);
@@ -251,7 +249,7 @@ mod tests {
             execute_queue_withdrawal(&e, &samwise, &pool_address, 25_0000000);
 
             e.ledger().set(LedgerInfo {
-                protocol_version: 1,
+                protocol_version: 20,
                 sequence_number: 100,
                 timestamp: 10000,
                 network_id: Default::default(),
@@ -265,7 +263,7 @@ mod tests {
         });
 
         e.ledger().set(LedgerInfo {
-            protocol_version: 1,
+            protocol_version: 20,
             sequence_number: 200,
             timestamp: 20000,
             network_id: Default::default(),
@@ -283,9 +281,9 @@ mod tests {
     #[test]
     fn test_execute_withdrawal() {
         let e = Env::default();
-        e.mock_all_auths();
+        e.mock_all_auths_allowing_non_root_auth();
 
-        let backstop_address = Address::random(&e);
+        let backstop_address = create_backstop(&e);
         let pool_address = Address::random(&e);
         let bombadil = Address::random(&e);
         let samwise = Address::random(&e);
@@ -294,7 +292,7 @@ mod tests {
         backstop_token_client.mint(&samwise, &150_0000000);
 
         e.ledger().set(LedgerInfo {
-            protocol_version: 1,
+            protocol_version: 20,
             sequence_number: 200,
             timestamp: 10000,
             network_id: Default::default(),
@@ -312,7 +310,7 @@ mod tests {
         });
 
         e.ledger().set(LedgerInfo {
-            protocol_version: 1,
+            protocol_version: 20,
             sequence_number: 200,
             timestamp: 10000 + 30 * 24 * 60 * 60 + 1,
             network_id: Default::default(),
@@ -343,13 +341,12 @@ mod tests {
         });
     }
     #[test]
-    #[should_panic]
-    //#[should_panic(expected = "ContractError(11)")]
+    #[should_panic(expected = "Error(Contract, #11)")]
     fn test_execute_withdrawal_negative_amount() {
         let e = Env::default();
-        e.mock_all_auths();
+        e.mock_all_auths_allowing_non_root_auth();
 
-        let backstop_address = Address::random(&e);
+        let backstop_address = create_backstop(&e);
         let pool_address = Address::random(&e);
         let bombadil = Address::random(&e);
         let samwise = Address::random(&e);
@@ -358,7 +355,7 @@ mod tests {
         backstop_token_client.mint(&samwise, &150_0000000);
 
         e.ledger().set(LedgerInfo {
-            protocol_version: 1,
+            protocol_version: 20,
             sequence_number: 200,
             timestamp: 10000,
             network_id: Default::default(),
@@ -376,7 +373,7 @@ mod tests {
         });
 
         e.ledger().set(LedgerInfo {
-            protocol_version: 1,
+            protocol_version: 20,
             sequence_number: 200,
             timestamp: 10000 + 30 * 24 * 60 * 60 + 1,
             network_id: Default::default(),

@@ -143,7 +143,7 @@ impl PoolBalance {
 mod tests {
     use soroban_sdk::testutils::Address as _;
 
-    use crate::testutils::create_mock_pool_factory;
+    use crate::testutils::{create_backstop, create_mock_pool_factory};
 
     use super::*;
 
@@ -151,10 +151,10 @@ mod tests {
     fn test_load_pool_data() {
         let e = Env::default();
 
-        let backstop = Address::random(&e);
+        let backstop_address = create_backstop(&e);
         let pool = Address::random(&e);
 
-        e.as_contract(&backstop, || {
+        e.as_contract(&backstop_address, || {
             storage::set_pool_balance(
                 &e,
                 &pool,
@@ -181,7 +181,7 @@ mod tests {
     fn test_require_is_from_pool_factory() {
         let e = Env::default();
 
-        let backstop_address = Address::random(&e);
+        let backstop_address = create_backstop(&e);
         let pool_address = Address::random(&e);
 
         let (_, mock_pool_factory) = create_mock_pool_factory(&e, &backstop_address);
@@ -194,12 +194,11 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
-    // #[should_panic(expected = "ContractError(10)")]
+    #[should_panic(expected = "Error(Contract, #10)")]
     fn test_require_is_from_pool_factory_not_valid() {
         let e = Env::default();
 
-        let backstop_address = Address::random(&e);
+        let backstop_address = create_backstop(&e);
         let pool_address = Address::random(&e);
         let not_pool_address = Address::random(&e);
 
@@ -298,8 +297,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
-    //#[should_panic(expected = "ContractError(6)")]
+    #[should_panic(expected = "Error(Contract, #6)")]
     fn test_withdraw_too_much() {
         let e = Env::default();
         let mut pool_balance = PoolBalance {
@@ -328,8 +326,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
-    //#[should_panic(expected = "ContractError(6)")]
+    #[should_panic(expected = "Error(Contract, #6)")]
     fn test_dequeue_q4w_too_much() {
         let e = Env::default();
         let mut pool_balance = PoolBalance {

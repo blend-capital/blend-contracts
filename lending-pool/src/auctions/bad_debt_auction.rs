@@ -112,7 +112,12 @@ pub fn fill_bad_debt_auction(
 #[cfg(test)]
 mod tests {
 
-    use crate::{auctions::auction::AuctionType, pool::Positions, storage::PoolConfig, testutils};
+    use crate::{
+        auctions::auction::AuctionType,
+        pool::Positions,
+        storage::PoolConfig,
+        testutils::{self, create_pool},
+    };
 
     use super::*;
     use soroban_sdk::{
@@ -122,13 +127,13 @@ mod tests {
     };
 
     #[test]
-    #[should_panic]
-    //#[should_panic(expected = "ContractError(103)")]
+    #[should_panic(expected = "Error(Contract, #103)")]
     fn test_create_bad_debt_auction_already_in_progress() {
         let e = Env::default();
+        e.mock_all_auths_allowing_non_root_auth();
         e.budget().reset_unlimited(); // setup exhausts budget
 
-        let pool_address = Address::random(&e);
+        let pool_address = create_pool(&e);
         let bombadil = Address::random(&e);
         let samwise = Address::random(&e);
 
@@ -160,7 +165,7 @@ mod tests {
 
         e.ledger().set(LedgerInfo {
             timestamp: 12345,
-            protocol_version: 1,
+            protocol_version: 20,
             sequence_number: 100,
             network_id: Default::default(),
             base_reserve: 10,
@@ -189,12 +194,12 @@ mod tests {
     #[test]
     fn test_create_bad_debt_auction() {
         let e = Env::default();
-        e.mock_all_auths();
+        e.mock_all_auths_allowing_non_root_auth();
         e.budget().reset_unlimited(); // setup exhausts budget
 
         e.ledger().set(LedgerInfo {
             timestamp: 12345,
-            protocol_version: 1,
+            protocol_version: 20,
             sequence_number: 50,
             network_id: Default::default(),
             base_reserve: 10,
@@ -205,7 +210,7 @@ mod tests {
 
         let bombadil = Address::random(&e);
         let samwise = Address::random(&e);
-        let pool_address = Address::random(&e);
+        let pool_address = create_pool(&e);
 
         let (blnd, blnd_client) = testutils::create_blnd_token(&e, &pool_address, &bombadil);
         let (usdc, usdc_client) = testutils::create_usdc_token(&e, &pool_address, &bombadil);
@@ -236,7 +241,7 @@ mod tests {
         let (oracle_id, oracle_client) = testutils::create_mock_oracle(&e);
 
         let (underlying_0, _) = testutils::create_token_contract(&e, &bombadil);
-        let (mut reserve_config_0, mut reserve_data_0) = testutils::default_reserve_meta(&e);
+        let (mut reserve_config_0, mut reserve_data_0) = testutils::default_reserve_meta();
         reserve_data_0.d_rate = 1_100_000_000;
         reserve_data_0.last_time = 12345;
         reserve_config_0.index = 0;
@@ -249,7 +254,7 @@ mod tests {
         );
 
         let (underlying_1, _) = testutils::create_token_contract(&e, &bombadil);
-        let (mut reserve_config_1, mut reserve_data_1) = testutils::default_reserve_meta(&e);
+        let (mut reserve_config_1, mut reserve_data_1) = testutils::default_reserve_meta();
         reserve_data_1.d_rate = 1_200_000_000;
         reserve_data_1.last_time = 12345;
         reserve_config_1.index = 1;
@@ -262,7 +267,7 @@ mod tests {
         );
 
         let (underlying_2, _) = testutils::create_token_contract(&e, &bombadil);
-        let (mut reserve_config_2, mut reserve_data_2) = testutils::default_reserve_meta(&e);
+        let (mut reserve_config_2, mut reserve_data_2) = testutils::default_reserve_meta();
         reserve_data_2.b_rate = 1_100_000_000;
         reserve_data_2.last_time = 12345;
         reserve_config_2.index = 1;
@@ -313,12 +318,12 @@ mod tests {
     #[test]
     fn test_create_bad_debt_auction_max_balance() {
         let e = Env::default();
-        e.mock_all_auths();
+        e.mock_all_auths_allowing_non_root_auth();
         e.budget().reset_unlimited(); // setup exhausts budget
 
         e.ledger().set(LedgerInfo {
             timestamp: 12345,
-            protocol_version: 1,
+            protocol_version: 20,
             sequence_number: 50,
             network_id: Default::default(),
             base_reserve: 10,
@@ -330,7 +335,7 @@ mod tests {
         let bombadil = Address::random(&e);
         let samwise = Address::random(&e);
 
-        let pool_address = Address::random(&e);
+        let pool_address = create_pool(&e);
         let (blnd, blnd_client) = testutils::create_blnd_token(&e, &pool_address, &bombadil);
         let (usdc, usdc_client) = testutils::create_usdc_token(&e, &pool_address, &bombadil);
         let (lp_token, lp_token_client) =
@@ -360,7 +365,7 @@ mod tests {
         let (oracle_id, oracle_client) = testutils::create_mock_oracle(&e);
 
         let (underlying_0, _) = testutils::create_token_contract(&e, &bombadil);
-        let (mut reserve_config_0, mut reserve_data_0) = testutils::default_reserve_meta(&e);
+        let (mut reserve_config_0, mut reserve_data_0) = testutils::default_reserve_meta();
         reserve_data_0.d_rate = 1_100_000_000;
         reserve_data_0.last_time = 12345;
         reserve_config_0.index = 0;
@@ -373,7 +378,7 @@ mod tests {
         );
 
         let (underlying_1, _) = testutils::create_token_contract(&e, &bombadil);
-        let (mut reserve_config_1, mut reserve_data_1) = testutils::default_reserve_meta(&e);
+        let (mut reserve_config_1, mut reserve_data_1) = testutils::default_reserve_meta();
         reserve_data_1.d_rate = 1_200_000_000;
         reserve_data_1.last_time = 12345;
         reserve_config_1.index = 1;
@@ -386,7 +391,7 @@ mod tests {
         );
 
         let (underlying_2, _) = testutils::create_token_contract(&e, &bombadil);
-        let (mut reserve_config_2, mut reserve_data_2) = testutils::default_reserve_meta(&e);
+        let (mut reserve_config_2, mut reserve_data_2) = testutils::default_reserve_meta();
         reserve_data_2.b_rate = 1_100_000_000;
         reserve_data_2.last_time = 12345;
         reserve_config_2.index = 1;
@@ -438,12 +443,12 @@ mod tests {
     #[test]
     fn test_create_bad_debt_auction_applies_interest() {
         let e = Env::default();
-        e.mock_all_auths();
+        e.mock_all_auths_allowing_non_root_auth();
         e.budget().reset_unlimited(); // setup exhausts budget
 
         e.ledger().set(LedgerInfo {
             timestamp: 12345,
-            protocol_version: 1,
+            protocol_version: 20,
             sequence_number: 150,
             network_id: Default::default(),
             base_reserve: 10,
@@ -454,7 +459,7 @@ mod tests {
 
         let bombadil = Address::random(&e);
         let samwise = Address::random(&e);
-        let pool_address = Address::random(&e);
+        let pool_address = create_pool(&e);
 
         let (blnd, blnd_client) = testutils::create_blnd_token(&e, &pool_address, &bombadil);
         let (usdc, usdc_client) = testutils::create_usdc_token(&e, &pool_address, &bombadil);
@@ -485,7 +490,7 @@ mod tests {
         let (oracle_id, oracle_client) = testutils::create_mock_oracle(&e);
 
         let (underlying_0, _) = testutils::create_token_contract(&e, &bombadil);
-        let (mut reserve_config_0, mut reserve_data_0) = testutils::default_reserve_meta(&e);
+        let (mut reserve_config_0, mut reserve_data_0) = testutils::default_reserve_meta();
         reserve_data_0.d_rate = 1_100_000_000;
         reserve_data_0.last_time = 11845;
         reserve_config_0.index = 0;
@@ -498,7 +503,7 @@ mod tests {
         );
 
         let (underlying_1, _) = testutils::create_token_contract(&e, &bombadil);
-        let (mut reserve_config_1, mut reserve_data_1) = testutils::default_reserve_meta(&e);
+        let (mut reserve_config_1, mut reserve_data_1) = testutils::default_reserve_meta();
         reserve_data_1.d_rate = 1_200_000_000;
         reserve_data_1.last_time = 11845;
         reserve_config_1.index = 1;
@@ -511,7 +516,7 @@ mod tests {
         );
 
         let (underlying_2, _) = testutils::create_token_contract(&e, &bombadil);
-        let (mut reserve_config_2, mut reserve_data_2) = testutils::default_reserve_meta(&e);
+        let (mut reserve_config_2, mut reserve_data_2) = testutils::default_reserve_meta();
         reserve_data_2.b_rate = 1_100_000_000;
         reserve_data_2.last_time = 11845;
         reserve_config_2.index = 1;
@@ -563,12 +568,12 @@ mod tests {
     #[test]
     fn test_fill_bad_debt_auction() {
         let e = Env::default();
-        e.mock_all_auths();
+        e.mock_all_auths_allowing_non_root_auth();
         e.budget().reset_unlimited(); // setup exhausts budget
 
         e.ledger().set(LedgerInfo {
             timestamp: 12345,
-            protocol_version: 1,
+            protocol_version: 20,
             sequence_number: 51,
             network_id: Default::default(),
             base_reserve: 10,
@@ -580,7 +585,7 @@ mod tests {
         let bombadil = Address::random(&e);
         let samwise = Address::random(&e);
 
-        let pool_address = Address::random(&e);
+        let pool_address = create_pool(&e);
 
         let (blnd, blnd_client) = testutils::create_blnd_token(&e, &pool_address, &bombadil);
         let (usdc, usdc_client) = testutils::create_usdc_token(&e, &pool_address, &bombadil);
@@ -609,7 +614,7 @@ mod tests {
         backstop_client.update_tkn_val();
 
         let (underlying_0, _) = testutils::create_token_contract(&e, &bombadil);
-        let (mut reserve_config_0, mut reserve_data_0) = testutils::default_reserve_meta(&e);
+        let (mut reserve_config_0, mut reserve_data_0) = testutils::default_reserve_meta();
         reserve_data_0.d_rate = 1_100_000_000;
         reserve_data_0.last_time = 12345;
         reserve_config_0.index = 0;
@@ -622,7 +627,7 @@ mod tests {
         );
 
         let (underlying_1, _) = testutils::create_token_contract(&e, &bombadil);
-        let (mut reserve_config_1, mut reserve_data_1) = testutils::default_reserve_meta(&e);
+        let (mut reserve_config_1, mut reserve_data_1) = testutils::default_reserve_meta();
         reserve_data_1.d_rate = 1_200_000_000;
         reserve_data_1.last_time = 12345;
         reserve_config_1.index = 1;
@@ -635,7 +640,7 @@ mod tests {
         );
 
         let (underlying_2, _) = testutils::create_token_contract(&e, &bombadil);
-        let (mut reserve_config_2, mut reserve_data_2) = testutils::default_reserve_meta(&e);
+        let (mut reserve_config_2, mut reserve_data_2) = testutils::default_reserve_meta();
         reserve_data_2.b_rate = 1_100_000_000;
         reserve_data_2.last_time = 12345;
         reserve_config_2.index = 1;
@@ -707,12 +712,12 @@ mod tests {
     #[test]
     fn test_fill_bad_debt_auction_leftover_debt_small_backstop_burns() {
         let e = Env::default();
-        e.mock_all_auths();
+        e.mock_all_auths_allowing_non_root_auth();
         e.budget().reset_unlimited(); // setup exhausts budget
 
         e.ledger().set(LedgerInfo {
             timestamp: 12345,
-            protocol_version: 1,
+            protocol_version: 20,
             sequence_number: 51,
             network_id: Default::default(),
             base_reserve: 10,
@@ -723,7 +728,7 @@ mod tests {
 
         let bombadil = Address::random(&e);
         let samwise = Address::random(&e);
-        let pool_address = Address::random(&e);
+        let pool_address = create_pool(&e);
 
         let (blnd, blnd_client) = testutils::create_blnd_token(&e, &pool_address, &bombadil);
         let (usdc, usdc_client) = testutils::create_usdc_token(&e, &pool_address, &bombadil);
@@ -752,7 +757,7 @@ mod tests {
         backstop_client.update_tkn_val();
 
         let (underlying_0, _) = testutils::create_token_contract(&e, &bombadil);
-        let (mut reserve_config_0, mut reserve_data_0) = testutils::default_reserve_meta(&e);
+        let (mut reserve_config_0, mut reserve_data_0) = testutils::default_reserve_meta();
         reserve_data_0.d_rate = 1_100_000_000;
         reserve_data_0.last_time = 12345;
         reserve_config_0.index = 0;
@@ -765,7 +770,7 @@ mod tests {
         );
 
         let (underlying_1, _) = testutils::create_token_contract(&e, &bombadil);
-        let (mut reserve_config_1, mut reserve_data_1) = testutils::default_reserve_meta(&e);
+        let (mut reserve_config_1, mut reserve_data_1) = testutils::default_reserve_meta();
         reserve_data_1.d_rate = 1_200_000_000;
         reserve_data_1.last_time = 12345;
         reserve_config_1.index = 1;
@@ -778,7 +783,7 @@ mod tests {
         );
 
         let (underlying_2, _) = testutils::create_token_contract(&e, &bombadil);
-        let (mut reserve_config_2, mut reserve_data_2) = testutils::default_reserve_meta(&e);
+        let (mut reserve_config_2, mut reserve_data_2) = testutils::default_reserve_meta();
         reserve_data_2.b_rate = 1_100_000_000;
         reserve_data_2.last_time = 12345;
         reserve_config_2.index = 1;
@@ -857,12 +862,12 @@ mod tests {
     #[test]
     fn test_fill_bad_debt_auction_leftover_debt_sufficient_balance() {
         let e = Env::default();
-        e.mock_all_auths();
+        e.mock_all_auths_allowing_non_root_auth();
         e.budget().reset_unlimited(); // setup exhausts budget
 
         e.ledger().set(LedgerInfo {
             timestamp: 12345,
-            protocol_version: 1,
+            protocol_version: 20,
             sequence_number: 51,
             network_id: Default::default(),
             base_reserve: 10,
@@ -873,7 +878,7 @@ mod tests {
 
         let bombadil = Address::random(&e);
         let samwise = Address::random(&e);
-        let pool_address = Address::random(&e);
+        let pool_address = create_pool(&e);
 
         let (blnd, blnd_client) = testutils::create_blnd_token(&e, &pool_address, &bombadil);
         let (usdc, usdc_client) = testutils::create_usdc_token(&e, &pool_address, &bombadil);
@@ -902,7 +907,7 @@ mod tests {
         backstop_client.update_tkn_val();
 
         let (underlying_0, _) = testutils::create_token_contract(&e, &bombadil);
-        let (mut reserve_config_0, mut reserve_data_0) = testutils::default_reserve_meta(&e);
+        let (mut reserve_config_0, mut reserve_data_0) = testutils::default_reserve_meta();
         reserve_data_0.d_rate = 1_100_000_000;
         reserve_data_0.last_time = 12345;
         reserve_config_0.index = 0;
@@ -915,7 +920,7 @@ mod tests {
         );
 
         let (underlying_1, _) = testutils::create_token_contract(&e, &bombadil);
-        let (mut reserve_config_1, mut reserve_data_1) = testutils::default_reserve_meta(&e);
+        let (mut reserve_config_1, mut reserve_data_1) = testutils::default_reserve_meta();
         reserve_data_1.d_rate = 1_200_000_000;
         reserve_data_1.last_time = 12345;
         reserve_config_1.index = 1;
@@ -928,7 +933,7 @@ mod tests {
         );
 
         let (underlying_2, _) = testutils::create_token_contract(&e, &bombadil);
-        let (mut reserve_config_2, mut reserve_data_2) = testutils::default_reserve_meta(&e);
+        let (mut reserve_config_2, mut reserve_data_2) = testutils::default_reserve_meta();
         reserve_data_2.b_rate = 1_100_000_000;
         reserve_data_2.last_time = 12345;
         reserve_config_2.index = 1;

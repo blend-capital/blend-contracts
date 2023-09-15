@@ -179,7 +179,7 @@ mod tests {
         e.mock_all_auths();
         e.ledger().set(LedgerInfo {
             timestamp: 1500000000,
-            protocol_version: 1,
+            protocol_version: 20,
             sequence_number: 20100,
             network_id: Default::default(),
             base_reserve: 10,
@@ -188,14 +188,14 @@ mod tests {
             max_entry_expiration: 2000000,
         });
 
-        let pool = Address::random(&e);
+        let pool = testutils::create_pool(&e);
         let bombadil = Address::random(&e);
 
         let next_exp = 1500604800;
         let pool_eps = 0_5000000;
         let pool_emissions: Map<u32, u64> = map![&e];
 
-        let (reserve_config, reserve_data) = testutils::default_reserve_meta(&e);
+        let (reserve_config, reserve_data) = testutils::default_reserve_meta();
         let (underlying_0, _) = testutils::create_token_contract(&e, &bombadil);
         testutils::create_reserve(&e, &pool, &underlying_0, &reserve_config, &reserve_data);
         let (underlying_1, _) = testutils::create_token_contract(&e, &bombadil);
@@ -221,7 +221,7 @@ mod tests {
         e.mock_all_auths();
         e.ledger().set(LedgerInfo {
             timestamp: 1500000000,
-            protocol_version: 1,
+            protocol_version: 20,
             sequence_number: 20100,
             network_id: Default::default(),
             base_reserve: 10,
@@ -230,7 +230,7 @@ mod tests {
             max_entry_expiration: 2000000,
         });
 
-        let pool = Address::random(&e);
+        let pool = testutils::create_pool(&e);
         let bombadil = Address::random(&e);
 
         let next_exp = 1500604800;
@@ -241,7 +241,7 @@ mod tests {
             (3, 0_2500000)  // reserve_1 supply
         ];
 
-        let (reserve_config, mut reserve_data) = testutils::default_reserve_meta(&e);
+        let (reserve_config, mut reserve_data) = testutils::default_reserve_meta();
         reserve_data.last_time = 1499900000;
         let (underlying_0, _) = testutils::create_token_contract(&e, &bombadil);
         testutils::create_reserve(&e, &pool, &underlying_0, &reserve_config, &reserve_data);
@@ -284,12 +284,12 @@ mod tests {
         let e = Env::default();
         e.mock_all_auths();
 
-        let pool = Address::random(&e);
+        let pool = testutils::create_pool(&e);
         let bombadil = Address::random(&e);
 
         e.ledger().set(LedgerInfo {
             timestamp: 1500000000,
-            protocol_version: 1,
+            protocol_version: 20,
             sequence_number: 20100,
             network_id: Default::default(),
             base_reserve: 10,
@@ -323,7 +323,7 @@ mod tests {
             last_time: 1499980000,
         };
 
-        let (reserve_config, mut reserve_data) = testutils::default_reserve_meta(&e);
+        let (reserve_config, mut reserve_data) = testutils::default_reserve_meta();
         reserve_data.last_time = 1499900000;
         let (underlying_0, _) = testutils::create_token_contract(&e, &bombadil);
         testutils::create_reserve(&e, &pool, &underlying_0, &reserve_config, &reserve_data);
@@ -372,12 +372,12 @@ mod tests {
         let e = Env::default();
         e.mock_all_auths();
 
-        let pool = Address::random(&e);
+        let pool = testutils::create_pool(&e);
         let bombadil = Address::random(&e);
 
         e.ledger().set(LedgerInfo {
             timestamp: 1500100000,
-            protocol_version: 1,
+            protocol_version: 20,
             sequence_number: 20100,
             network_id: Default::default(),
             base_reserve: 10,
@@ -411,7 +411,7 @@ mod tests {
             last_time: 1500000100,
         };
 
-        let (reserve_config, mut reserve_data) = testutils::default_reserve_meta(&e);
+        let (reserve_config, mut reserve_data) = testutils::default_reserve_meta();
         reserve_data.last_time = 1499900000;
         let (underlying_0, _) = testutils::create_token_contract(&e, &bombadil);
         testutils::create_reserve(&e, &pool, &underlying_0, &reserve_config, &reserve_data);
@@ -457,14 +457,13 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
-    //#[should_panic(expected = "ContractError(2)")]
+    #[should_panic(expected = "Error(Contract, #2)")]
     fn test_update_emissions_cycle_panics_if_already_updated() {
         let e = Env::default();
         e.mock_all_auths();
         e.ledger().set(LedgerInfo {
             timestamp: 1500000000,
-            protocol_version: 1,
+            protocol_version: 20,
             sequence_number: 20100,
             network_id: Default::default(),
             base_reserve: 10,
@@ -473,14 +472,14 @@ mod tests {
             max_entry_expiration: 2000000,
         });
 
-        let pool = Address::random(&e);
+        let pool = testutils::create_pool(&e);
         let bombadil = Address::random(&e);
 
         let next_exp = 1500604800;
         let pool_eps = 0_5000000;
         let pool_emissions: Map<u32, u64> = map![&e, (2, 0_7500000), (3, 0_2500000)];
 
-        let (reserve_config, mut reserve_data) = testutils::default_reserve_meta(&e);
+        let (reserve_config, mut reserve_data) = testutils::default_reserve_meta();
         reserve_data.last_time = 1499900000;
         let (underlying_0, _) = testutils::create_token_contract(&e, &bombadil);
         testutils::create_reserve(&e, &pool, &underlying_0, &reserve_config, &reserve_data);
@@ -508,7 +507,7 @@ mod tests {
 
         e.ledger().set(LedgerInfo {
             timestamp: 1500000000,
-            protocol_version: 1,
+            protocol_version: 20,
             sequence_number: 20100,
             network_id: Default::default(),
             base_reserve: 10,
@@ -517,10 +516,10 @@ mod tests {
             max_entry_expiration: 2000000,
         });
 
-        let pool = Address::random(&e);
+        let pool = testutils::create_pool(&e);
         let bombadil = Address::random(&e);
 
-        let (reserve_config, reserve_data) = testutils::default_reserve_meta(&e);
+        let (reserve_config, reserve_data) = testutils::default_reserve_meta();
         let (underlying_0, _) = testutils::create_token_contract(&e, &bombadil);
         testutils::create_reserve(&e, &pool, &underlying_0, &reserve_config, &reserve_data);
         let (underlying_1, _) = testutils::create_token_contract(&e, &bombadil);
@@ -558,13 +557,12 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
-    //#[should_panic(expected = "ContractError(2)")]
+    #[should_panic(expected = "Error(Contract, #2)")]
     fn test_set_pool_emissions_panics_if_over_100() {
         let e = Env::default();
         e.ledger().set(LedgerInfo {
             timestamp: 1500000000,
-            protocol_version: 1,
+            protocol_version: 20,
             sequence_number: 20100,
             network_id: Default::default(),
             base_reserve: 10,
@@ -573,10 +571,10 @@ mod tests {
             max_entry_expiration: 2000000,
         });
 
-        let pool = Address::random(&e);
+        let pool = testutils::create_pool(&e);
         let bombadil = Address::random(&e);
 
-        let (reserve_config, reserve_data) = testutils::default_reserve_meta(&e);
+        let (reserve_config, reserve_data) = testutils::default_reserve_meta();
         let (underlying_0, _) = testutils::create_token_contract(&e, &bombadil);
         testutils::create_reserve(&e, &pool, &underlying_0, &reserve_config, &reserve_data);
         let (underlying_1, _) = testutils::create_token_contract(&e, &bombadil);
@@ -616,7 +614,7 @@ mod tests {
 
         e.ledger().set(LedgerInfo {
             timestamp: 1500000000,
-            protocol_version: 1,
+            protocol_version: 20,
             sequence_number: 20100,
             network_id: Default::default(),
             base_reserve: 10,
@@ -625,10 +623,10 @@ mod tests {
             max_entry_expiration: 2000000,
         });
 
-        let pool = Address::random(&e);
+        let pool = testutils::create_pool(&e);
         let bombadil = Address::random(&e);
 
-        let (reserve_config, reserve_data) = testutils::default_reserve_meta(&e);
+        let (reserve_config, reserve_data) = testutils::default_reserve_meta();
         let (underlying_0, _) = testutils::create_token_contract(&e, &bombadil);
         testutils::create_reserve(&e, &pool, &underlying_0, &reserve_config, &reserve_data);
         let (underlying_1, _) = testutils::create_token_contract(&e, &bombadil);

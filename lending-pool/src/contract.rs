@@ -251,7 +251,6 @@ impl PoolTrait for Pool {
         blnd_id: Address,
         usdc_id: Address,
     ) {
-        admin.require_auth();
         storage::bump_instance(&e);
 
         pool::execute_initialize(
@@ -319,9 +318,9 @@ impl PoolTrait for Pool {
         requests: Vec<Request>,
     ) -> Positions {
         storage::bump_instance(&e);
-        from.require_auth();
+        spender.require_auth();
         if from != spender {
-            spender.require_auth();
+            from.require_auth();
         }
 
         pool::execute_submit(&e, &from, &spender, &to, requests)

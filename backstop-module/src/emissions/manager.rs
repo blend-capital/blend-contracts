@@ -100,7 +100,7 @@ pub fn update_emission_cycle(e: &Env) {
             &e.current_contract_address(),
             &rz_pool,
             &(current_allowance + new_pool_emissions),
-            &(e.ledger().sequence() + 17_280 * 90), // ~90 days
+            &(e.ledger().sequence() + 17_280 * 30), // ~30 days: TODO: check phase 1 limits
         );
         storage::set_pool_eps(e, &rz_pool, &pool_eps);
 

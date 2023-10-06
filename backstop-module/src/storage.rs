@@ -7,8 +7,8 @@ use crate::backstop::{PoolBalance, UserBalance};
 pub(crate) const LEDGER_THRESHOLD_SHARED: u32 = 172800; // ~ 10 days
 pub(crate) const LEDGER_BUMP_SHARED: u32 = 241920; // ~ 14 days
 
-pub(crate) const LEDGER_THRESHOLD_USER: u32 = 725760; // ~ 42 days - 6 weeks
-pub(crate) const LEDGER_BUMP_USER: u32 = 967680; // ~ 56 days - 8 weeks
+pub(crate) const LEDGER_THRESHOLD_USER: u32 = 518400; // TODO: Check on phase 1 max ledger entry bump
+pub(crate) const LEDGER_BUMP_USER: u32 = 535670; // TODO: Check on phase 1 max ledger entry bump
 
 /********** Storage Types **********/
 

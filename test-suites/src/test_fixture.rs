@@ -60,7 +60,7 @@ impl TestFixture<'_> {
     /// Blend Protocol contracts, including a BLND-USDC LP.
     pub fn create<'a>(wasm: bool) -> TestFixture<'a> {
         let e = Env::default();
-        e.mock_all_auths_allowing_non_root_auth();
+        e.mock_all_auths();
         e.budget().reset_unlimited();
 
         let bombadil = Address::random(&e);

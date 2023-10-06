@@ -99,6 +99,9 @@ pub(crate) fn create_comet_lp_pool<'a>(
     let usdc_client = TokenClient::new(e, usdc_token);
     blnd_client.mint(&admin, &1_000_0000000);
     usdc_client.mint(&admin, &25_0000000);
+    let exp_ledger = e.ledger().sequence() + 100;
+    blnd_client.approve(&admin, &contract_address, &2_000_0000000, &exp_ledger);
+    usdc_client.approve(&admin, &contract_address, &2_000_0000000, &exp_ledger);
 
     client.init(&Address::random(e), &admin);
     client.bundle_bind(

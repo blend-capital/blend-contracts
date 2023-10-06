@@ -59,6 +59,7 @@ impl PoolFactoryTrait for PoolFactory {
         oracle: Address,
         backstop_take_rate: u64,
     ) -> Address {
+        admin.require_auth();
         storage::bump_instance(&e);
         let pool_init_meta = storage::get_pool_init_meta(&e);
 

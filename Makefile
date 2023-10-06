@@ -12,9 +12,6 @@ build:
 	cargo rustc --manifest-path=lending-pool/Cargo.toml --crate-type=cdylib --target=wasm32-unknown-unknown --release
 	mkdir -p target/wasm32-unknown-unknown/optimized
 	soroban contract optimize \
-		--wasm target/wasm32-unknown-unknown/release/oracle.wasm \
-		--wasm-out target/wasm32-unknown-unknown/optimized/oracle.wasm
-	soroban contract optimize \
 		--wasm target/wasm32-unknown-unknown/release/emitter.wasm \
 		--wasm-out target/wasm32-unknown-unknown/optimized/emitter.wasm
 	soroban contract optimize \

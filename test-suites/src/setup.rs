@@ -85,6 +85,20 @@ pub fn create_fixture_with_data<'a>(wasm: bool) -> (TestFixture<'a>, Address) {
 
     fixture.jump(60);
 
+    fixture.tokens[TokenIndex::STABLE].approve(
+        &frodo,
+        &pool_fixture.pool.address,
+        &i128::MAX,
+        &50000,
+    );
+    fixture.tokens[TokenIndex::WETH].approve(
+        &frodo,
+        &pool_fixture.pool.address,
+        &i128::MAX,
+        &50000,
+    );
+    fixture.tokens[TokenIndex::XLM].approve(&frodo, &pool_fixture.pool.address, &i128::MAX, &50000);
+
     // supply and borrow STABLE for 80% utilization (close to target)
     let requests: Vec<Request> = vec![
         &fixture.env,

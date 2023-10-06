@@ -1,8 +1,8 @@
 use soroban_sdk::{contracttype, unwrap::UnwrapOptimized, Address, BytesN, Env, Symbol};
 
 // @dev: This contract is not expected to be used often, so we can use a higher bump amount
-pub(crate) const LEDGER_THRESHOLD: u32 = 725760; // ~ 42 days - 6 weeks
-pub(crate) const LEDGER_BUMP: u32 = 967680; // ~ 56 days - 8 weeks
+pub(crate) const LEDGER_THRESHOLD: u32 = 518400; // TODO: Check on phase 1 max ledger entry bump
+pub(crate) const LEDGER_BUMP: u32 = 535670; // TODO: Check on phase 1 max ledger entry bump
 
 #[derive(Clone)]
 #[contracttype]

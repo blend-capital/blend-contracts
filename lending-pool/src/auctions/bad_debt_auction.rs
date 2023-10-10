@@ -101,8 +101,8 @@ pub fn fill_bad_debt_auction(
     if !backstop_state.positions.liabilities.is_empty() {
         let pool_backstop_data = backstop_client.pool_data(&e.current_contract_address());
         let threshold = calc_pool_backstop_threshold(&pool_backstop_data);
-        if threshold < 0_0000100 {
-            // ~10% of threshold
+        if threshold < 0_0000003 {
+            // ~5% of threshold
             burn_backstop_bad_debt(e, &mut backstop_state, pool);
         }
     }
@@ -753,7 +753,7 @@ mod tests {
             &vec![&e, 500_001_0000000, 12_501_0000000],
             &samwise,
         );
-        backstop_client.deposit(&samwise, &pool_address, &150_0000000);
+        backstop_client.deposit(&samwise, &pool_address, &2_000_0000000);
         backstop_client.update_tkn_val();
 
         let (underlying_0, _) = testutils::create_token_contract(&e, &bombadil);
@@ -833,11 +833,11 @@ mod tests {
             fill_bad_debt_auction(&e, &mut pool, &mut auction_data, &mut samwise_state);
             assert_eq!(
                 lp_token_client.balance(&backstop_address),
-                150_0000000 - 47_6000000
+                2_000_0000000 - 47_6000000
             );
             assert_eq!(
                 lp_token_client.balance(&samwise),
-                50_000_0000000 - 150_0000000 + 47_6000000
+                50_000_0000000 - 2_000_0000000 + 47_6000000
             );
             let samwise_positions = samwise_state.positions;
             assert_eq!(
@@ -903,7 +903,7 @@ mod tests {
             &vec![&e, 500_001_0000000, 12_501_0000000],
             &samwise,
         );
-        backstop_client.deposit(&samwise, &pool_address, &50_000_0000000);
+        backstop_client.deposit(&samwise, &pool_address, &2_500_0000000);
         backstop_client.update_tkn_val();
 
         let (underlying_0, _) = testutils::create_token_contract(&e, &bombadil);
@@ -982,9 +982,12 @@ mod tests {
             fill_bad_debt_auction(&e, &mut pool, &mut auction_data, &mut samwise_state);
             assert_eq!(
                 lp_token_client.balance(&backstop_address),
-                50_000_0000000 - 47_6000000
+                2_500_0000000 - 47_6000000
             );
-            assert_eq!(lp_token_client.balance(&samwise), 47_6000000);
+            assert_eq!(
+                lp_token_client.balance(&samwise),
+                50_000_0000000 - 2_500_0000000 + 47_6000000
+            );
             let samwise_positions = samwise_state.positions;
             assert_eq!(
                 samwise_positions

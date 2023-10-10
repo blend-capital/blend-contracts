@@ -499,4 +499,36 @@ mod tests {
         let result = calc_pool_backstop_threshold(&pool_backstop_data);
         assert_eq!(result, 53169_1198313);
     }
+
+    #[test]
+    fn test_calc_pool_backstop_threshold_10pct() {
+        let e = Env::default();
+        e.budget().reset_unlimited();
+
+        let pool_backstop_data = PoolBackstopData {
+            blnd: 20_000_0000000,
+            q4w_pct: 0,
+            tokens: 999_999_0000000,
+            usdc: 20_000_0000000,
+        }; // 10% threshold
+
+        let result = calc_pool_backstop_threshold(&pool_backstop_data);
+        assert_eq!(result, 0_0000100);
+    }
+
+    #[test]
+    fn test_calc_pool_backstop_threshold_5pct() {
+        let e = Env::default();
+        e.budget().reset_unlimited();
+
+        let pool_backstop_data = PoolBackstopData {
+            blnd: 10_000_0000000,
+            q4w_pct: 0,
+            tokens: 999_999_0000000,
+            usdc: 10_000_0000000,
+        }; // 5% threshold
+
+        let result = calc_pool_backstop_threshold(&pool_backstop_data);
+        assert_eq!(result, 0_0000003);
+    }
 }

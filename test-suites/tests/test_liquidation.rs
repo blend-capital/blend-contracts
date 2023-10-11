@@ -14,7 +14,8 @@ use test_suites::{
 
 #[test]
 fn test_liquidations() {
-    let (fixture, frodo) = create_fixture_with_data(false);
+    let fixture = create_fixture_with_data(false);
+    let frodo = fixture.users.get(0).unwrap();
     let pool_fixture = &fixture.pools[0];
 
     // Disable rate modifiers

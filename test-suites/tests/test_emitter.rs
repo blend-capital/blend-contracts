@@ -13,7 +13,7 @@ use test_suites::{
 /// Does not test internal state management of the emitter, only external effects.
 #[test]
 fn test_emitter() {
-    let (fixture, _) = create_fixture_with_data(false);
+    let fixture = create_fixture_with_data(false);
 
     let bstop_token = &fixture.lp;
     let blnd_token = &fixture.tokens[TokenIndex::BLND];

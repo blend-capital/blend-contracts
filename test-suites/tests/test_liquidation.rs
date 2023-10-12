@@ -19,23 +19,17 @@ fn test_liquidations() {
     let pool_fixture = &fixture.pools[0];
 
     // Disable rate modifiers
-    let mut usdc_config: ReserveConfig = pool_fixture
-        .pool
-        .get_reserve_config(&fixture.tokens[TokenIndex::STABLE].address);
+    let mut usdc_config: ReserveConfig = fixture.read_reserve_config(0, TokenIndex::STABLE);
     usdc_config.reactivity = 0;
     pool_fixture
         .pool
         .update_reserve(&fixture.tokens[TokenIndex::STABLE].address, &usdc_config);
-    let mut xlm_config: ReserveConfig = pool_fixture
-        .pool
-        .get_reserve_config(&fixture.tokens[TokenIndex::XLM].address);
+    let mut xlm_config: ReserveConfig = fixture.read_reserve_config(0, TokenIndex::XLM);
     xlm_config.reactivity = 0;
     pool_fixture
         .pool
         .update_reserve(&fixture.tokens[TokenIndex::XLM].address, &xlm_config);
-    let mut weth_config: ReserveConfig = pool_fixture
-        .pool
-        .get_reserve_config(&fixture.tokens[TokenIndex::WETH].address);
+    let mut weth_config: ReserveConfig = fixture.read_reserve_config(0, TokenIndex::WETH);
     weth_config.reactivity = 0;
     pool_fixture
         .pool

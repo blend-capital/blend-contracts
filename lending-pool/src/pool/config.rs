@@ -59,7 +59,7 @@ pub fn execute_update_pool(e: &Env, backstop_take_rate: u64) {
 }
 
 /// Initialize a reserve for the pool
-pub fn initialize_reserve(e: &Env, asset: &Address, config: &ReserveConfig) {
+pub fn initialize_reserve(e: &Env, asset: &Address, config: &ReserveConfig) -> u32 {
     if storage::has_res(e, asset) {
         panic_with_error!(e, PoolError::AlreadyInitialized);
     }
@@ -90,6 +90,7 @@ pub fn initialize_reserve(e: &Env, asset: &Address, config: &ReserveConfig) {
         backstop_credit: 0,
     };
     storage::set_res_data(e, asset, &init_data);
+    index
 }
 
 /// Update a reserve in the pool

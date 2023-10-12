@@ -10,7 +10,10 @@ use crate::pool_factory::create_pool_factory;
 use crate::token::{create_stellar_token, create_token, TokenClient};
 use backstop_module::BackstopModuleClient;
 use emitter::EmitterClient;
-use lending_pool::{PoolClient, ReserveConfig};
+use lending_pool::{
+    PoolClient, PoolConfig, PoolDataKey, ReserveConfig, ReserveData, ReserveEmissionsConfig,
+    ReserveEmissionsData,
+};
 use mock_oracle::MockOracleClient;
 use pool_factory::{PoolFactoryClient, PoolInitMeta};
 use soroban_sdk::testutils::{Address as _, BytesN as _, Ledger, LedgerInfo};
@@ -171,12 +174,87 @@ impl TestFixture<'_> {
     ) {
         let mut pool_fixture = self.pools.remove(pool_index);
         let token = &self.tokens[asset_index];
-        pool_fixture
+        let index = pool_fixture
             .pool
             .init_reserve(&token.address, &reserve_config);
-        let config = pool_fixture.pool.get_reserve_config(&token.address);
-        pool_fixture.reserves.insert(asset_index, config.index);
+        pool_fixture.reserves.insert(asset_index, index);
         self.pools.insert(pool_index, pool_fixture);
+    }
+
+    /********** Contract Data Helpers **********/
+
+    pub fn read_pool_config(&self, pool_index: usize) -> PoolConfig {
+        let pool_fixture = &self.pools[pool_index];
+        self.env.as_contract(&pool_fixture.pool.address, || {
+            self.env
+                .storage()
+                .instance()
+                .get(&Symbol::new(&self.env, "PoolConfig"))
+                .unwrap()
+        })
+    }
+
+    pub fn read_pool_emissions(&self, pool_index: usize) -> Map<u32, u64> {
+        let pool_fixture = &self.pools[pool_index];
+        self.env.as_contract(&pool_fixture.pool.address, || {
+            self.env
+                .storage()
+                .persistent()
+                .get(&Symbol::new(&self.env, "PoolEmis"))
+                .unwrap()
+        })
+    }
+
+    pub fn read_reserve_config(&self, pool_index: usize, asset_index: TokenIndex) -> ReserveConfig {
+        let pool_fixture = &self.pools[pool_index];
+        let token = &self.tokens[asset_index];
+        self.env.as_contract(&pool_fixture.pool.address, || {
+            let token_id = &token.address;
+            self.env
+                .storage()
+                .persistent()
+                .get(&PoolDataKey::ResConfig(token_id.clone()))
+                .unwrap()
+        })
+    }
+
+    pub fn read_reserve_data(&self, pool_index: usize, asset_index: TokenIndex) -> ReserveData {
+        let pool_fixture = &self.pools[pool_index];
+        let token = &self.tokens[asset_index];
+        self.env.as_contract(&pool_fixture.pool.address, || {
+            let token_id = &token.address;
+            self.env
+                .storage()
+                .persistent()
+                .get(&PoolDataKey::ResData(token_id.clone()))
+                .unwrap()
+        })
+    }
+
+    pub fn read_reserve_emissions(
+        &self,
+        pool_index: usize,
+        asset_index: TokenIndex,
+        token_type: u32,
+    ) -> (ReserveEmissionsConfig, ReserveEmissionsData) {
+        let pool_fixture = &self.pools[pool_index];
+        let reserve_index = pool_fixture.reserves.get(&asset_index).unwrap();
+        let res_emis_index = reserve_index * 2 + token_type;
+        self.env.as_contract(&pool_fixture.pool.address, || {
+            let emis_config = self
+                .env
+                .storage()
+                .persistent()
+                .get(&PoolDataKey::EmisConfig(res_emis_index))
+                .unwrap();
+            let emis_data = self
+                .env
+                .storage()
+                .persistent()
+                .get(&PoolDataKey::EmisData(res_emis_index))
+                .unwrap();
+            (emis_config, emis_data)
+        })
     }
 
     /********** Chain Helpers ***********/

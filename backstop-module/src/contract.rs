@@ -106,9 +106,6 @@ pub trait BackstopModuleTrait {
     /// If the pool to remove has more tokens, or if distribution occurred in the last 48 hours
     fn add_reward(e: Env, to_add: Address, to_remove: Address);
 
-    /// Fetch the reward zone
-    fn get_rz(e: Env) -> Vec<Address>;
-
     /// Fetch the EPS (emissions per second) and expiration for the current distribution window of a pool
     /// in a tuple where (EPS, expiration)
     fn pool_eps(e: Env, pool_address: Address) -> (i128, u64);
@@ -291,10 +288,6 @@ impl BackstopModuleTrait for BackstopModule {
 
         e.events()
             .publish((Symbol::new(&e, "rw_zone"),), (to_add, to_remove));
-    }
-
-    fn get_rz(e: Env) -> Vec<Address> {
-        storage::get_reward_zone(&e)
     }
 
     fn pool_eps(e: Env, pool_address: Address) -> (i128, u64) {

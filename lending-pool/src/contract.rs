@@ -2,11 +2,9 @@ use crate::{
     auctions::{self, AuctionData},
     emissions::{self, ReserveEmissionMetadata},
     pool::{self, Positions, Request},
-    storage::{
-        self, PoolConfig, ReserveConfig, ReserveData, ReserveEmissionsConfig, ReserveEmissionsData,
-    },
+    storage::{self, ReserveConfig},
 };
-use soroban_sdk::{contract, contractimpl, Address, Env, Map, Symbol, Vec};
+use soroban_sdk::{contract, contractimpl, Address, Env, Symbol, Vec};
 
 /// ### Pool
 ///
@@ -57,7 +55,7 @@ pub trait PoolTrait {
     ///
     /// ### Panics
     /// If the caller is not the admin or the reserve is already setup
-    fn init_reserve(e: Env, asset: Address, metadata: ReserveConfig);
+    fn init_reserve(e: Env, asset: Address, metadata: ReserveConfig) -> u32;
 
     /// (Admin only) Update a reserve in the pool
     ///
@@ -68,18 +66,6 @@ pub trait PoolTrait {
     /// ### Panics
     /// If the caller is not the admin or the reserve does not exist
     fn update_reserve(e: Env, asset: Address, config: ReserveConfig);
-
-    /// Fetch the reserve configuration for a reserve
-    ///
-    /// ### Arguments
-    /// * `asset` - The underlying asset to add as a reserve
-    fn get_reserve_config(e: Env, asset: Address) -> ReserveConfig;
-
-    /// Fetch the reserve data for a reserve
-    ///
-    /// ### Arguments
-    /// * `asset` - The underlying asset to add as a reserve
-    fn get_reserve_data(e: Env, asset: Address) -> ReserveData;
 
     /// Fetch the positions for an address
     ///
@@ -147,13 +133,7 @@ pub trait PoolTrait {
     /// If the caller is not the admin
     fn set_status(e: Env, pool_status: u32);
 
-    /// Fetch the configuration of the pool
-    fn get_pool_config(e: Env) -> PoolConfig;
-
     /********* Emission Functions **********/
-
-    /// Fetch the next emission configuration
-    fn get_emissions_config(e: Env) -> Map<u32, u64>;
 
     /// Update emissions for reserves for the next emission cycle
     ///
@@ -183,19 +163,6 @@ pub trait PoolTrait {
     /// * `reserve_token_ids` - Vector of reserve token ids
     /// * `to` - The Address to send the claimed tokens to
     fn claim(e: Env, from: Address, reserve_token_ids: Vec<u32>, to: Address) -> i128;
-
-    /***** Reserve Emission Functions *****/
-
-    /// Fetch the emission details for a given reserve token
-    ///
-    /// ### Arguments
-    /// * `asset` - The contract address of the asset backing the reserve
-    /// * `token_type` - The type of reserve token (0 for dToken / 1 for bToken)
-    fn get_reserve_emissions(
-        e: Env,
-        asset: Address,
-        token_type: u32,
-    ) -> Option<(ReserveEmissionsConfig, ReserveEmissionsData)>;
 
     /***** Auction / Liquidation Functions *****/
 
@@ -276,15 +243,16 @@ impl PoolTrait for Pool {
             .publish((Symbol::new(&e, "update_pool"), admin), backstop_take_rate);
     }
 
-    fn init_reserve(e: Env, asset: Address, config: ReserveConfig) {
+    fn init_reserve(e: Env, asset: Address, config: ReserveConfig) -> u32 {
         storage::bump_instance(&e);
         let admin = storage::get_admin(&e);
         admin.require_auth();
 
-        pool::initialize_reserve(&e, &asset, &config);
+        let index = pool::initialize_reserve(&e, &asset, &config);
 
         e.events()
-            .publish((Symbol::new(&e, "init_reserve"), admin), asset);
+            .publish((Symbol::new(&e, "init_reserve"), admin), (asset, index));
+        index
     }
 
     fn update_reserve(e: Env, asset: Address, config: ReserveConfig) {
@@ -296,14 +264,6 @@ impl PoolTrait for Pool {
 
         e.events()
             .publish((Symbol::new(&e, "update_reserve"), admin), asset);
-    }
-
-    fn get_reserve_config(e: Env, asset: Address) -> ReserveConfig {
-        storage::get_res_config(&e, &asset)
-    }
-
-    fn get_reserve_data(e: Env, asset: Address) -> ReserveData {
-        storage::get_res_data(&e, &asset)
     }
 
     fn get_positions(e: Env, address: Address) -> Positions {
@@ -350,16 +310,7 @@ impl PoolTrait for Pool {
             .publish((Symbol::new(&e, "set_status"), admin), pool_status);
     }
 
-    fn get_pool_config(e: Env) -> PoolConfig {
-        storage::get_pool_config(&e)
-    }
-
     /********* Emission Functions **********/
-
-    // @dev: view
-    fn get_emissions_config(e: Env) -> Map<u32, u64> {
-        storage::get_pool_emissions(&e)
-    }
 
     fn update_emissions(e: Env) -> u64 {
         storage::bump_instance(&e);
@@ -389,15 +340,6 @@ impl PoolTrait for Pool {
         );
 
         amount_claimed
-    }
-
-    // @dev: view
-    fn get_reserve_emissions(
-        e: Env,
-        asset: Address,
-        token_type: u32,
-    ) -> Option<(ReserveEmissionsConfig, ReserveEmissionsData)> {
-        emissions::get_reserve_emissions(&e, &asset, token_type)
     }
 
     /***** Auction / Liquidation Functions *****/

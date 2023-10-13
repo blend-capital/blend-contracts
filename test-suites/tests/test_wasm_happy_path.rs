@@ -1,7 +1,7 @@
 #![cfg(test)]
 
 use fixed_point_math::FixedPoint;
-use lending_pool::Request;
+use pool::Request;
 use soroban_sdk::{testutils::Address as _, vec, Address};
 use test_suites::{
     assertions::assert_approx_eq_abs,

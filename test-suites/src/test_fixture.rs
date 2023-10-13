@@ -8,13 +8,13 @@ use crate::mock_oracle::create_mock_oracle;
 use crate::pool::POOL_WASM;
 use crate::pool_factory::create_pool_factory;
 use crate::token::{create_stellar_token, create_token, TokenClient};
-use backstop_module::BackstopModuleClient;
+use backstop::BackstopClient;
 use emitter::EmitterClient;
-use lending_pool::{
+use mock_oracle::MockOracleClient;
+use pool::{
     PoolClient, PoolConfig, PoolDataKey, ReserveConfig, ReserveData, ReserveEmissionsConfig,
     ReserveEmissionsData,
 };
-use mock_oracle::MockOracleClient;
 use pool_factory::{PoolFactoryClient, PoolInitMeta};
 use soroban_sdk::testutils::{Address as _, BytesN as _, Ledger, LedgerInfo};
 use soroban_sdk::{Address, BytesN, Env, Map, Symbol};
@@ -49,7 +49,7 @@ pub struct TestFixture<'a> {
     pub bombadil: Address,
     pub users: Vec<Address>,
     pub emitter: EmitterClient<'a>,
-    pub backstop: BackstopModuleClient<'a>,
+    pub backstop: BackstopClient<'a>,
     pub pool_factory: PoolFactoryClient<'a>,
     pub oracle: MockOracleClient<'a>,
     pub lp: LPClient<'a>,

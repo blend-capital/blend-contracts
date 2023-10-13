@@ -1,7 +1,7 @@
 #![cfg(test)]
 
 use fixed_point_math::FixedPoint;
-use lending_pool::{Request, ReserveEmissionMetadata};
+use pool::{Request, ReserveEmissionMetadata};
 use soroban_sdk::{
     testutils::{Address as _, AuthorizedFunction, AuthorizedInvocation, Events},
     vec, Address, IntoVal, Symbol, Val,

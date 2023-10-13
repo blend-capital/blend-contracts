@@ -3,7 +3,7 @@
 #[cfg(any(test, feature = "testutils"))]
 extern crate std;
 
-mod lending_pool;
+mod pool;
 mod storage;
 
-pub use lending_pool::*;
+pub use pool::*;

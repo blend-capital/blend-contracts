@@ -5,16 +5,14 @@ use soroban_sdk::{
     vec, Address, BytesN, Env, IntoVal, Symbol,
 };
 
-use crate::{PoolFactory, PoolFactoryClient, PoolInitMeta};
+use crate::{PoolFactoryClient, PoolFactoryContract, PoolInitMeta};
 
-mod lending_pool {
-    soroban_sdk::contractimport!(
-        file = "../target/wasm32-unknown-unknown/release/lending_pool.wasm"
-    );
+mod pool {
+    soroban_sdk::contractimport!(file = "../target/wasm32-unknown-unknown/optimized/pool.wasm");
 }
 
 fn create_pool_factory(e: &Env) -> (Address, PoolFactoryClient) {
-    let contract_id = e.register_contract(None, PoolFactory {});
+    let contract_id = e.register_contract(None, PoolFactoryContract {});
     (contract_id.clone(), PoolFactoryClient::new(e, &contract_id))
 }
 
@@ -25,7 +23,7 @@ fn test_pool_factory() {
     e.mock_all_auths_allowing_non_root_auth();
     let (pool_factory_address, pool_factory_client) = create_pool_factory(&e);
 
-    let wasm_hash = e.deployer().upload_contract_wasm(lending_pool::WASM);
+    let wasm_hash = e.deployer().upload_contract_wasm(pool::WASM);
 
     let bombadil = Address::random(&e);
 
@@ -89,9 +87,9 @@ fn test_pool_factory() {
         assert_eq!(
             e.storage()
                 .instance()
-                .get::<_, lending_pool::PoolConfig>(&Symbol::new(&e, "PoolConfig"))
+                .get::<_, pool::PoolConfig>(&Symbol::new(&e, "PoolConfig"))
                 .unwrap(),
-            lending_pool::PoolConfig {
+            pool::PoolConfig {
                 oracle: oracle,
                 bstop_rate: backstop_rate,
                 status: 1

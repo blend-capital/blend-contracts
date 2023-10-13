@@ -1,7 +1,7 @@
 #![cfg(test)]
 use cast::i128;
 use fixed_point_math::FixedPoint;
-use lending_pool::{PoolDataKey, Positions, Request, ReserveConfig, ReserveData};
+use pool::{PoolDataKey, Positions, Request, ReserveConfig, ReserveData};
 use soroban_sdk::{
     testutils::{Address as AddressTestTrait, Events},
     vec, Address, IntoVal, Symbol, Val, Vec,

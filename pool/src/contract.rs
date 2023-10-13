@@ -4,15 +4,16 @@ use crate::{
     pool::{self, Positions, Request},
     storage::{self, ReserveConfig},
 };
-use soroban_sdk::{contract, contractimpl, Address, Env, Symbol, Vec};
+use soroban_sdk::{contract, contractclient, contractimpl, Address, Env, Symbol, Vec};
 
 /// ### Pool
 ///
 /// An isolated money market pool.
 #[contract]
-pub struct Pool;
+pub struct PoolContract;
 
-pub trait PoolTrait {
+#[contractclient(name = "PoolClient")]
+pub trait Pool {
     /// Initialize the pool
     ///
     /// ### Arguments
@@ -206,7 +207,7 @@ pub trait PoolTrait {
 }
 
 #[contractimpl]
-impl PoolTrait for Pool {
+impl Pool for PoolContract {
     #[allow(clippy::too_many_arguments)]
     fn initialize(
         e: Env,

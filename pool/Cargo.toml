@@ -1,5 +1,5 @@
 [package]
-name = "backstop-module"
+name = "pool"
 version = "0.0.0"
 authors = ["Blend Capital <gm@blend.capital>"]
 license = "AGPL-3.0"
@@ -19,7 +19,10 @@ testutils = [
 soroban-sdk = { workspace = true }
 fixed-point-math = { workspace = true }
 cast = { workspace = true }
+oracle = { path = "../oracle" }
 
 [dev_dependencies]
 soroban-sdk = { workspace = true, features = ["testutils"] }
+backstop = { path = "../backstop", features = ["testutils"] }
 mock-pool-factory = { path = "../mocks/mock-pool-factory", features = ["testutils"] }
+mock-oracle = { path = "../mocks/mock-oracle", features = ["testutils"] }

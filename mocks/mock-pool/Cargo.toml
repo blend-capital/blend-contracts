@@ -1,5 +1,5 @@
 [package]
-name = "mock-lending-pool"
+name = "mock-pool"
 version = "0.0.0"
 authors = ["Blend Capital <gm@blend.capital>"]
 license = "AGPL-3.0"

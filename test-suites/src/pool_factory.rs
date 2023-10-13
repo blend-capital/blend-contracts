@@ -2,7 +2,7 @@ use soroban_sdk::{testutils::Address as _, Address, Env};
 
 mod pool_factory_contract {
     soroban_sdk::contractimport!(
-        file = "../target/wasm32-unknown-unknown/release/pool_factory.wasm"
+        file = "../target/wasm32-unknown-unknown/optimized/pool_factory.wasm"
     );
 }
 use pool_factory::PoolFactoryClient;

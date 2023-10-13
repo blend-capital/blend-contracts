@@ -3,13 +3,15 @@ use crate::{
     storage::{self, PoolInitMeta},
 };
 use soroban_sdk::{
-    contract, contractimpl, panic_with_error, vec, Address, BytesN, Env, IntoVal, Symbol, Val, Vec,
+    contract, contractclient, contractimpl, panic_with_error, vec, Address, BytesN, Env, IntoVal,
+    Symbol, Val, Vec,
 };
 
 #[contract]
-pub struct PoolFactory;
+pub struct PoolFactoryContract;
 
-pub trait PoolFactoryTrait {
+#[contractclient(name = "PoolFactoryClient")]
+pub trait PoolFactory {
     /// Setup the pool factory
     ///
     /// ### Arguments
@@ -42,7 +44,7 @@ pub trait PoolFactoryTrait {
 }
 
 #[contractimpl]
-impl PoolFactoryTrait for PoolFactory {
+impl PoolFactory for PoolFactoryContract {
     fn initialize(e: Env, pool_init_meta: PoolInitMeta) {
         storage::bump_instance(&e);
         if storage::has_pool_init_meta(&e) {

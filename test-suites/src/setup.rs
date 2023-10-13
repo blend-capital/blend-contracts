@@ -7,7 +7,7 @@ use crate::{
 };
 
 /// Create a test fixture with a pool and a whale depositing and borrowing all assets
-pub fn create_fixture_with_data<'a>(wasm: bool) -> (TestFixture<'a>, Address) {
+pub fn create_fixture_with_data<'a>(wasm: bool) -> TestFixture<'a> {
     let mut fixture = TestFixture::create(wasm);
 
     // create pool
@@ -53,6 +53,7 @@ pub fn create_fixture_with_data<'a>(wasm: bool) -> (TestFixture<'a>, Address) {
 
     // mint whale tokens
     let frodo = Address::random(&fixture.env);
+    fixture.users.push(frodo.clone());
     fixture.tokens[TokenIndex::STABLE].mint(&frodo, &(100_000 * 10i128.pow(6)));
     fixture.tokens[TokenIndex::XLM].mint(&frodo, &(1_000_000 * SCALAR_7));
     fixture.tokens[TokenIndex::WETH].mint(&frodo, &(100 * 10i128.pow(9)));
@@ -150,18 +151,21 @@ pub fn create_fixture_with_data<'a>(wasm: bool) -> (TestFixture<'a>, Address) {
     fixture.jump(60 * 60); // 1 hr
 
     fixture.env.budget().reset_unlimited();
-    (fixture, frodo)
+    fixture
 }
 
 #[cfg(test)]
 mod tests {
 
+    use crate::test_fixture::PoolFixture;
+
     use super::*;
 
     #[test]
     fn test_create_fixture_with_data_wasm() {
-        let (fixture, frodo) = create_fixture_with_data(true);
-        let pool_fixture = &fixture.pools[0];
+        let fixture = create_fixture_with_data(true);
+        let frodo = fixture.users.get(0).unwrap();
+        let pool_fixture: &PoolFixture = fixture.pools.get(0).unwrap();
 
         // validate backstop deposit
         assert_eq!(
@@ -218,8 +222,9 @@ mod tests {
 
     #[test]
     fn test_create_fixture_with_data_rlib() {
-        let (fixture, frodo) = create_fixture_with_data(false);
-        let pool_fixture = &fixture.pools[0];
+        let fixture = create_fixture_with_data(false);
+        let frodo = fixture.users.get(0).unwrap();
+        let pool_fixture: &PoolFixture = fixture.pools.get(0).unwrap();
 
         // validate backstop deposit
         assert_eq!(

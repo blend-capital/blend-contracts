@@ -17,7 +17,7 @@ use test_suites::{
 /// Does not test internal state management of the lending pool, only external effects.
 #[test]
 fn test_pool_user() {
-    let (fixture, _) = create_fixture_with_data(false);
+    let fixture = create_fixture_with_data(false);
     let pool_fixture = &fixture.pools[0];
     let xlm_pool_index = pool_fixture.reserves[&TokenIndex::XLM];
     let weth_pool_index = pool_fixture.reserves[&TokenIndex::WETH];
@@ -535,7 +535,8 @@ fn test_pool_user() {
 /// Does not test internal state management of the lending pool, only external effects.
 #[test]
 fn test_pool_config() {
-    let (fixture, _) = create_fixture_with_data(true);
+    let fixture = create_fixture_with_data(true);
+
     let pool_fixture = &fixture.pools[0];
 
     // Verify initialize can't be run again

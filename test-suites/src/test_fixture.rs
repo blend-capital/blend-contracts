@@ -22,8 +22,8 @@ pub const SCALAR_9: i128 = 1_000_000_000;
 #[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
 pub enum TokenIndex {
     BLND = 0,
-    WETH = 1,
-    USDC = 2,
+    USDC = 1,
+    WETH = 2,
     XLM = 3,
     STABLE = 4,
 }
@@ -44,6 +44,7 @@ impl<'a> Index<TokenIndex> for Vec<TokenClient<'a>> {
 pub struct TestFixture<'a> {
     pub env: Env,
     pub bombadil: Address,
+    pub users: Vec<Address>,
     pub emitter: EmitterClient<'a>,
     pub backstop: BackstopModuleClient<'a>,
     pub pool_factory: PoolFactoryClient<'a>,
@@ -56,7 +57,7 @@ pub struct TestFixture<'a> {
 impl TestFixture<'_> {
     /// Create a new TestFixture for the Blend Protocol
     ///
-    /// Deploys BLND (0), wETH (1), USDC (2), XLM (3), and STABLE (4) test tokens, alongside all required
+    /// Deploys BLND (0), USDC (1), wETH (2), XLM (3), and STABLE (4) test tokens, alongside all required
     /// Blend Protocol contracts, including a BLND-USDC LP.
     pub fn create<'a>(wasm: bool) -> TestFixture<'a> {
         let e = Env::default();
@@ -131,6 +132,7 @@ impl TestFixture<'_> {
         TestFixture {
             env: e,
             bombadil,
+            users: vec![],
             emitter: emitter_client,
             backstop: backstop_client,
             pool_factory: pool_factory_client,
@@ -139,8 +141,8 @@ impl TestFixture<'_> {
             pools: vec![],
             tokens: vec![
                 blnd_client,
-                eth_client,
                 usdc_client,
+                eth_client,
                 xlm_client,
                 stable_client,
             ],

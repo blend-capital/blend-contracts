@@ -3,6 +3,7 @@ resolver = "2"
 
 members = [
     "backstop",
+    "blend-interfaces",
     "emitter",
     "pool",
     "mocks/mock-oracle",

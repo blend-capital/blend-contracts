@@ -5,7 +5,7 @@ use crate::{
     dependencies::{TokenClient, TOKEN_WASM},
     pool::Reserve,
     storage::{self, ReserveConfig, ReserveData},
-    Pool, PoolContract,
+    PoolContract,
 };
 use fixed_point_math::FixedPoint;
 use soroban_sdk::{

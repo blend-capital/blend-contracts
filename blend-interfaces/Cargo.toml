@@ -1,0 +1,21 @@
+[package]
+name = "blend-interfaces"
+version = "0.0.1"
+description = "Traits, clients, and types for the Blend Protocol"
+homepage = "https://github.com/blend-capital/blend-contracts"
+repository = "https://github.com/blend-capital/blend-contracts"
+authors = ["Blend Capital <gm@blend.capital>"]
+license = "MIT"
+edition = "2021"
+readme = "README.md"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+doctest = false
+
+[dependencies]
+soroban-sdk = { workspace = true }
+pool = { path = "../pool" }
+backstop = { path = "../backstop" } 
+pool-factory = { path = "../pool-factory" }
+emitter = { path = "../emitter" }

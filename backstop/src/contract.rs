@@ -4,16 +4,19 @@ use crate::{
     errors::BackstopError,
     storage,
 };
-use soroban_sdk::{contract, contractimpl, panic_with_error, Address, Env, Map, Symbol, Vec};
+use soroban_sdk::{
+    contract, contractclient, contractimpl, panic_with_error, Address, Env, Map, Symbol, Vec,
+};
 
-/// ### Backstop Module
+/// ### Backstop
 ///
 /// A backstop module for the Blend protocol's Isolated Lending Pools
 #[contract]
-pub struct BackstopModule;
+pub struct BackstopContract;
 
-pub trait BackstopModuleTrait {
-    /// Initialize the backstop module
+#[contractclient(name = "BackstopClient")]
+pub trait Backstop {
+    /// Initialize the backstop
     ///
     /// ### Arguments
     /// * `backstop_token` - The backstop token ID - an LP token with the pair BLND:USDC
@@ -106,9 +109,6 @@ pub trait BackstopModuleTrait {
     /// If the pool to remove has more tokens, or if distribution occurred in the last 48 hours
     fn add_reward(e: Env, to_add: Address, to_remove: Address);
 
-    /// Fetch the reward zone
-    fn get_rz(e: Env) -> Vec<Address>;
-
     /// Fetch the EPS (emissions per second) and expiration for the current distribution window of a pool
     /// in a tuple where (EPS, expiration)
     fn pool_eps(e: Env, pool_address: Address) -> (i128, u64);
@@ -124,7 +124,7 @@ pub trait BackstopModuleTrait {
     ///
     /// ### Errors
     /// If an invalid pool address is included
-    fn claim(e: Env, from: Address, pool_addresses: Vec<Address>, to: Address);
+    fn claim(e: Env, from: Address, pool_addresses: Vec<Address>, to: Address) -> i128;
 
     /// Fetch the drop list
     fn drop_list(e: Env) -> Map<Address, i128>;
@@ -192,7 +192,7 @@ pub trait BackstopModuleTrait {
 /// The contract implementation only manages the authorization / authentication required from the caller(s), and
 /// utilizes other modules to carry out contract functionality.
 #[contractimpl]
-impl BackstopModuleTrait for BackstopModule {
+impl Backstop for BackstopContract {
     fn initialize(
         e: Env,
         backstop_token: Address,
@@ -293,10 +293,6 @@ impl BackstopModuleTrait for BackstopModule {
             .publish((Symbol::new(&e, "rw_zone"),), (to_add, to_remove));
     }
 
-    fn get_rz(e: Env) -> Vec<Address> {
-        storage::get_reward_zone(&e)
-    }
-
     fn pool_eps(e: Env, pool_address: Address) -> (i128, u64) {
         (
             storage::get_pool_eps(&e, &pool_address),
@@ -304,13 +300,14 @@ impl BackstopModuleTrait for BackstopModule {
         )
     }
 
-    fn claim(e: Env, from: Address, pool_addresses: Vec<Address>, to: Address) {
+    fn claim(e: Env, from: Address, pool_addresses: Vec<Address>, to: Address) -> i128 {
         storage::bump_instance(&e);
         from.require_auth();
 
         let amount = emissions::execute_claim(&e, &from, &pool_addresses, &to);
 
         e.events().publish((Symbol::new(&e, "claim"), from), amount);
+        amount
     }
 
     fn drop_list(e: Env) -> Map<Address, i128> {

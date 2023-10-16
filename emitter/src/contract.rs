@@ -1,13 +1,14 @@
 use crate::{emitter, errors::EmitterError, storage};
-use soroban_sdk::{contract, contractimpl, panic_with_error, Address, Env, Symbol};
+use soroban_sdk::{contract, contractclient, contractimpl, panic_with_error, Address, Env, Symbol};
 
 /// ### Emitter
 ///
 /// Emits Blend tokens to the backstop module
 #[contract]
-pub struct Emitter;
+pub struct EmitterContract;
 
-pub trait EmitterTrait {
+#[contractclient(name = "EmitterClient")]
+pub trait Emitter {
     /// Initialize the Emitter
     ///
     /// ### Arguments
@@ -47,7 +48,7 @@ pub trait EmitterTrait {
 }
 
 #[contractimpl]
-impl EmitterTrait for Emitter {
+impl Emitter for EmitterContract {
     fn initialize(e: Env, backstop: Address, blnd_token_id: Address) {
         storage::bump_instance(&e);
         if storage::has_backstop(&e) {

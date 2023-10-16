@@ -1,7 +1,7 @@
 #![cfg(test)]
 
 use fixed_point_math::FixedPoint;
-use lending_pool::Request;
+use pool::Request;
 use soroban_sdk::{testutils::Address as _, vec, Address};
 use test_suites::{
     assertions::assert_approx_eq_abs,
@@ -15,7 +15,7 @@ fn test_wasm_happy_path() {
     let fixture = create_fixture_with_data(true);
     let frodo = fixture.users.get(0).unwrap();
     let pool_fixture = &fixture.pools[0];
-    let usdc_pool_index = pool_fixture.reserves[&TokenIndex::STABLE];
+    let stable_pool_index = pool_fixture.reserves[&TokenIndex::STABLE];
     let xlm_pool_index = pool_fixture.reserves[&TokenIndex::XLM];
 
     // Create two new users
@@ -23,23 +23,23 @@ fn test_wasm_happy_path() {
     let merry = Address::random(&fixture.env); // merry will be supplying STABLE and borrowing XLM
 
     // Mint users tokens
-    let usdc = &fixture.tokens[TokenIndex::STABLE];
+    let stable = &fixture.tokens[TokenIndex::STABLE];
     let xlm = &fixture.tokens[TokenIndex::XLM];
-    let mut sam_usdc_balance = 60_000 * 10i128.pow(6);
+    let mut sam_stable_balance = 60_000 * 10i128.pow(6);
     let mut sam_xlm_balance = 2_500_000 * SCALAR_7;
-    let mut merry_usdc_balance = 250_000 * 10i128.pow(6);
+    let mut merry_stable_balance = 250_000 * 10i128.pow(6);
     let mut merry_xlm_balance = 600_000 * SCALAR_7;
-    usdc.mint(&sam, &sam_usdc_balance);
-    usdc.mint(&merry, &merry_usdc_balance);
+    stable.mint(&sam, &sam_stable_balance);
+    stable.mint(&merry, &merry_stable_balance);
     xlm.mint(&sam, &sam_xlm_balance);
     xlm.mint(&merry, &merry_xlm_balance);
 
-    let mut pool_usdc_balance = usdc.balance(&pool_fixture.pool.address);
+    let mut pool_stable_balance = stable.balance(&pool_fixture.pool.address);
     let mut pool_xlm_balance = xlm.balance(&pool_fixture.pool.address);
 
     let mut sam_xlm_btoken_balance = 0;
-    let mut sam_usdc_dtoken_balance = 0;
-    let mut merry_usdc_btoken_balance = 0;
+    let mut sam_stable_dtoken_balance = 0;
+    let mut merry_stable_btoken_balance = 0;
     let mut merry_xlm_dtoken_balance = 0;
 
     // Merry supply STABLE
@@ -52,22 +52,25 @@ fn test_wasm_happy_path() {
             &fixture.env,
             Request {
                 request_type: 2,
-                address: usdc.address.clone(),
+                address: stable.address.clone(),
                 amount,
             },
         ],
     );
-    let reserve_data = pool_fixture.pool.get_reserve_data(&usdc.address);
-    pool_usdc_balance += amount;
-    merry_usdc_balance -= amount;
-    assert_eq!(usdc.balance(&merry), merry_usdc_balance);
-    assert_eq!(usdc.balance(&pool_fixture.pool.address), pool_usdc_balance);
-    merry_usdc_btoken_balance += amount
+    let reserve_data = fixture.read_reserve_data(0, TokenIndex::STABLE);
+    pool_stable_balance += amount;
+    merry_stable_balance -= amount;
+    assert_eq!(stable.balance(&merry), merry_stable_balance);
+    assert_eq!(
+        stable.balance(&pool_fixture.pool.address),
+        pool_stable_balance
+    );
+    merry_stable_btoken_balance += amount
         .fixed_div_floor(reserve_data.b_rate, SCALAR_9)
         .unwrap();
     assert_approx_eq_abs(
-        result.collateral.get_unchecked(usdc_pool_index),
-        merry_usdc_btoken_balance,
+        result.collateral.get_unchecked(stable_pool_index),
+        merry_stable_btoken_balance,
         10,
     );
 
@@ -86,7 +89,7 @@ fn test_wasm_happy_path() {
             },
         ],
     );
-    let reserve_data = pool_fixture.pool.get_reserve_data(&xlm.address);
+    let reserve_data = fixture.read_reserve_data(0, TokenIndex::XLM);
     pool_xlm_balance += amount;
     sam_xlm_balance -= amount;
     assert_eq!(xlm.balance(&sam), sam_xlm_balance);
@@ -110,22 +113,25 @@ fn test_wasm_happy_path() {
             &fixture.env,
             Request {
                 request_type: 4,
-                address: usdc.address.clone(),
+                address: stable.address.clone(),
                 amount,
             },
         ],
     );
-    let reserve_data = pool_fixture.pool.get_reserve_data(&usdc.address);
-    pool_usdc_balance -= amount;
-    sam_usdc_balance += amount;
-    assert_eq!(usdc.balance(&sam), sam_usdc_balance);
-    assert_eq!(usdc.balance(&pool_fixture.pool.address), pool_usdc_balance);
-    sam_usdc_dtoken_balance += amount
+    let reserve_data = fixture.read_reserve_data(0, TokenIndex::STABLE);
+    pool_stable_balance -= amount;
+    sam_stable_balance += amount;
+    assert_eq!(stable.balance(&sam), sam_stable_balance);
+    assert_eq!(
+        stable.balance(&pool_fixture.pool.address),
+        pool_stable_balance
+    );
+    sam_stable_dtoken_balance += amount
         .fixed_div_floor(reserve_data.d_rate, SCALAR_9)
         .unwrap();
     assert_approx_eq_abs(
-        result.liabilities.get_unchecked(usdc_pool_index),
-        sam_usdc_dtoken_balance,
+        result.liabilities.get_unchecked(stable_pool_index),
+        sam_stable_dtoken_balance,
         10,
     );
 
@@ -144,7 +150,7 @@ fn test_wasm_happy_path() {
             },
         ],
     );
-    let reserve_data = pool_fixture.pool.get_reserve_data(&xlm.address);
+    let reserve_data = fixture.read_reserve_data(0, TokenIndex::XLM);
     pool_xlm_balance -= amount;
     merry_xlm_balance += amount;
     assert_eq!(xlm.balance(&merry), merry_xlm_balance);
@@ -231,22 +237,25 @@ fn test_wasm_happy_path() {
             &fixture.env,
             Request {
                 request_type: 5,
-                address: usdc.address.clone(),
+                address: stable.address.clone(),
                 amount,
             },
         ],
     );
-    let reserve_data = pool_fixture.pool.get_reserve_data(&usdc.address);
-    pool_usdc_balance += amount;
-    sam_usdc_balance -= amount;
-    assert_eq!(usdc.balance(&sam), sam_usdc_balance);
-    assert_eq!(usdc.balance(&pool_fixture.pool.address), pool_usdc_balance);
-    sam_usdc_dtoken_balance -= amount
+    let reserve_data = fixture.read_reserve_data(0, TokenIndex::STABLE);
+    pool_stable_balance += amount;
+    sam_stable_balance -= amount;
+    assert_eq!(stable.balance(&sam), sam_stable_balance);
+    assert_eq!(
+        stable.balance(&pool_fixture.pool.address),
+        pool_stable_balance
+    );
+    sam_stable_dtoken_balance -= amount
         .fixed_div_floor(reserve_data.d_rate, SCALAR_9)
         .unwrap();
     assert_approx_eq_abs(
-        result.liabilities.get_unchecked(usdc_pool_index),
-        sam_usdc_dtoken_balance,
+        result.liabilities.get_unchecked(stable_pool_index),
+        sam_stable_dtoken_balance,
         10,
     );
 
@@ -265,7 +274,7 @@ fn test_wasm_happy_path() {
             },
         ],
     );
-    let reserve_data = pool_fixture.pool.get_reserve_data(&xlm.address);
+    let reserve_data = fixture.read_reserve_data(0, TokenIndex::XLM);
     pool_xlm_balance += amount;
     merry_xlm_balance -= amount;
     assert_eq!(xlm.balance(&merry), merry_xlm_balance);
@@ -294,7 +303,7 @@ fn test_wasm_happy_path() {
             },
         ],
     );
-    let reserve_data = pool_fixture.pool.get_reserve_data(&xlm.address);
+    let reserve_data = fixture.read_reserve_data(0, TokenIndex::XLM);
     pool_xlm_balance -= amount;
     sam_xlm_balance += amount;
     assert_eq!(xlm.balance(&sam), sam_xlm_balance);
@@ -318,22 +327,25 @@ fn test_wasm_happy_path() {
             &fixture.env,
             Request {
                 request_type: 3,
-                address: usdc.address.clone(),
+                address: stable.address.clone(),
                 amount,
             },
         ],
     );
-    let reserve_data = pool_fixture.pool.get_reserve_data(&usdc.address);
-    pool_usdc_balance -= amount;
-    merry_usdc_balance += amount;
-    assert_eq!(usdc.balance(&merry), merry_usdc_balance);
-    assert_eq!(usdc.balance(&pool_fixture.pool.address), pool_usdc_balance);
-    merry_usdc_btoken_balance -= amount
+    let reserve_data = fixture.read_reserve_data(0, TokenIndex::STABLE);
+    pool_stable_balance -= amount;
+    merry_stable_balance += amount;
+    assert_eq!(stable.balance(&merry), merry_stable_balance);
+    assert_eq!(
+        stable.balance(&pool_fixture.pool.address),
+        pool_stable_balance
+    );
+    merry_stable_btoken_balance -= amount
         .fixed_div_floor(reserve_data.b_rate, SCALAR_9)
         .unwrap();
     assert_approx_eq_abs(
-        result.collateral.get_unchecked(usdc_pool_index),
-        merry_usdc_btoken_balance,
+        result.collateral.get_unchecked(stable_pool_index),
+        merry_stable_btoken_balance,
         10,
     );
 
@@ -422,7 +434,7 @@ fn test_wasm_happy_path() {
     );
 
     // Sam repays his STABLE loan
-    let amount = sam_usdc_dtoken_balance
+    let amount = sam_stable_dtoken_balance
         .fixed_mul_ceil(1_100_000_000, SCALAR_9)
         .unwrap();
     let result = pool_fixture.pool.submit(
@@ -433,24 +445,24 @@ fn test_wasm_happy_path() {
             &fixture.env,
             Request {
                 request_type: 5,
-                address: usdc.address.clone(),
+                address: stable.address.clone(),
                 amount: amount,
             },
         ],
     );
-    let reserve_data = pool_fixture.pool.get_reserve_data(&usdc.address);
-    let est_amount = sam_usdc_dtoken_balance
+    let reserve_data = fixture.read_reserve_data(0, TokenIndex::STABLE);
+    let est_amount = sam_stable_dtoken_balance
         .fixed_mul_ceil(reserve_data.d_rate, SCALAR_9)
         .unwrap();
-    pool_usdc_balance += est_amount;
-    sam_usdc_balance -= est_amount;
-    assert_approx_eq_abs(usdc.balance(&sam), sam_usdc_balance, 100);
+    pool_stable_balance += est_amount;
+    sam_stable_balance -= est_amount;
+    assert_approx_eq_abs(stable.balance(&sam), sam_stable_balance, 100);
     assert_approx_eq_abs(
-        usdc.balance(&pool_fixture.pool.address),
-        pool_usdc_balance,
+        stable.balance(&pool_fixture.pool.address),
+        pool_stable_balance,
         100,
     );
-    assert_eq!(result.liabilities.get(usdc_pool_index), None);
+    assert_eq!(result.liabilities.get(stable_pool_index), None);
     assert_eq!(result.liabilities.len(), 0);
 
     // Merry repays his XLM loan
@@ -470,7 +482,7 @@ fn test_wasm_happy_path() {
             },
         ],
     );
-    let reserve_data = pool_fixture.pool.get_reserve_data(&xlm.address);
+    let reserve_data = fixture.read_reserve_data(0, TokenIndex::XLM);
     let est_amount = merry_xlm_dtoken_balance
         .fixed_mul_ceil(reserve_data.d_rate, SCALAR_9)
         .unwrap();
@@ -486,7 +498,7 @@ fn test_wasm_happy_path() {
     assert_eq!(result.liabilities.len(), 0);
 
     // Sam withdraws all of his XLM
-    let reserve_data = pool_fixture.pool.get_reserve_data(&xlm.address);
+    let reserve_data = fixture.read_reserve_data(0, TokenIndex::XLM);
     let amount = sam_xlm_btoken_balance
         .fixed_mul_ceil(reserve_data.b_rate, SCALAR_9)
         .unwrap();
@@ -514,8 +526,8 @@ fn test_wasm_happy_path() {
     assert_eq!(result.collateral.get(xlm_pool_index), None);
 
     // Merry withdraws all of his STABLE
-    let reserve_data = pool_fixture.pool.get_reserve_data(&usdc.address);
-    let amount = merry_usdc_btoken_balance
+    let reserve_data = fixture.read_reserve_data(0, TokenIndex::STABLE);
+    let amount = merry_stable_btoken_balance
         .fixed_mul_ceil(reserve_data.b_rate, SCALAR_9)
         .unwrap();
     let result = pool_fixture.pool.submit(
@@ -526,20 +538,20 @@ fn test_wasm_happy_path() {
             &fixture.env,
             Request {
                 request_type: 3,
-                address: usdc.address.clone(),
+                address: stable.address.clone(),
                 amount: amount,
             },
         ],
     );
-    pool_usdc_balance -= amount;
-    merry_usdc_balance += amount;
-    assert_approx_eq_abs(usdc.balance(&merry), merry_usdc_balance, 10);
+    pool_stable_balance -= amount;
+    merry_stable_balance += amount;
+    assert_approx_eq_abs(stable.balance(&merry), merry_stable_balance, 10);
     assert_approx_eq_abs(
-        usdc.balance(&pool_fixture.pool.address),
-        pool_usdc_balance,
+        stable.balance(&pool_fixture.pool.address),
+        pool_stable_balance,
         10,
     );
-    assert_eq!(result.collateral.get(usdc_pool_index), None);
+    assert_eq!(result.collateral.get(stable_pool_index), None);
 
     // Frodo queues for withdrawal a portion of his backstop deposit
     // Backstop shares are still 1 to 1 with BSTOP tokens - no donation via auction or other means has occurred

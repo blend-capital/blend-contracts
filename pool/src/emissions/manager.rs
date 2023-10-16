@@ -19,31 +19,6 @@ pub struct ReserveEmissionMetadata {
     pub share: u64,
 }
 
-/// Get emissions information for a reserve
-pub fn get_reserve_emissions(
-    e: &Env,
-    asset: &Address,
-    token_type: u32,
-) -> Option<(ReserveEmissionsConfig, ReserveEmissionsData)> {
-    if token_type > 1 {
-        panic_with_error!(e, PoolError::BadRequest);
-    }
-
-    let res_list = storage::get_res_list(e);
-    if let Some(res_index) = res_list.first_index_of(asset) {
-        let res_token_index = res_index * 2 + token_type;
-        if storage::has_res_emis_data(e, &res_token_index) {
-            return Some((
-                storage::get_res_emis_config(e, &res_token_index).unwrap_optimized(),
-                storage::get_res_emis_data(e, &res_token_index).unwrap_optimized(),
-            ));
-        }
-        return None;
-    }
-
-    panic_with_error!(e, PoolError::BadRequest);
-}
-
 /// Set the pool emissions
 ///
 /// These will not be applied until the next `update_emissions` is run

@@ -17,8 +17,8 @@ extension-trait = "1"
 [dependencies.test-suites]
 path = ".."
 
-[dependencies.lending-pool]
-path = "../../lending-pool"
+[dependencies.pool]
+path = "../../pool"
 features = ["testutils"]
 
 # Prevent this from interfering with workspaces

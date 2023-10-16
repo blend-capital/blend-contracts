@@ -48,7 +48,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d468802bab17cbc0cc575e9b053f41e72aa36bfa6b7f55e3529ffa43161b97fa"
 
 [[package]]
-name = "backstop-module"
+name = "backstop"
 version = "0.0.0"
 dependencies = [
  "cast",
@@ -101,6 +101,17 @@ name = "base64ct"
 version = "1.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8c3c1a368f70d6cf7302d78f8f7093da241fb8e8807c05cc9e51a125895a6d5b"
+
+[[package]]
+name = "blend-interfaces"
+version = "0.0.1"
+dependencies = [
+ "backstop",
+ "emitter",
+ "pool",
+ "pool-factory",
+ "soroban-sdk",
+]
 
 [[package]]
 name = "block-buffer"
@@ -393,7 +404,7 @@ dependencies = [
 name = "emitter"
 version = "0.0.0"
 dependencies = [
- "backstop-module",
+ "backstop",
  "soroban-sdk",
 ]
 
@@ -601,19 +612,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "lending-pool"
-version = "0.0.0"
-dependencies = [
- "backstop-module",
- "cast",
- "fixed-point-math",
- "mock-oracle",
- "mock-pool-factory",
- "oracle",
- "soroban-sdk",
-]
-
-[[package]]
 name = "libc"
 version = "0.2.147"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -647,13 +645,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "mock-lending-pool"
-version = "0.0.0"
-dependencies = [
- "soroban-sdk",
-]
-
-[[package]]
 name = "mock-oracle"
 version = "0.0.0"
 dependencies = [
@@ -662,10 +653,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "mock-pool"
+version = "0.0.0"
+dependencies = [
+ "soroban-sdk",
+]
+
+[[package]]
 name = "mock-pool-factory"
 version = "0.0.0"
 dependencies = [
- "lending-pool",
+ "pool",
  "rand 0.7.3",
  "soroban-sdk",
 ]
@@ -754,6 +752,19 @@ name = "platforms"
 version = "3.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4503fa043bf02cee09a9582e9554b4c6403b2ef55e4612e96561d294419429f8"
+
+[[package]]
+name = "pool"
+version = "0.0.0"
+dependencies = [
+ "backstop",
+ "cast",
+ "fixed-point-math",
+ "mock-oracle",
+ "mock-pool-factory",
+ "oracle",
+ "soroban-sdk",
+]
 
 [[package]]
 name = "pool-factory"
@@ -1259,13 +1270,13 @@ dependencies = [
 name = "test-suites"
 version = "0.0.0"
 dependencies = [
- "backstop-module",
+ "backstop",
  "cast",
  "emitter",
  "fixed-point-math",
- "lending-pool",
  "mock-oracle",
  "mock-pool-factory",
+ "pool",
  "pool-factory",
  "rand 0.7.3",
  "soroban-sdk",

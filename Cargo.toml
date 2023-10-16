@@ -2,11 +2,12 @@
 resolver = "2"
 
 members = [
-    "backstop-module",
+    "backstop",
+    "blend-interfaces",
     "emitter",
-    "lending-pool",
+    "pool",
     "mocks/mock-oracle",
-    "mocks/mock-lending-pool",
+    "mocks/mock-pool",
     "mocks/mock-pool-factory",
     "oracle",
     "pool-factory",

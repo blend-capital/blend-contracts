@@ -1,4 +1,4 @@
-use lending_pool::{Request, ReserveEmissionMetadata};
+use pool::{Request, ReserveEmissionMetadata};
 use soroban_sdk::{testutils::Address as _, vec, Address, Symbol, Vec};
 
 use crate::{
@@ -208,10 +208,7 @@ mod tests {
             ),
             fixture.backstop.pool_eps(&pool_fixture.pool.address)
         );
-        let (emis_config, emis_data) = pool_fixture
-            .pool
-            .get_reserve_emissions(&fixture.tokens[TokenIndex::STABLE].address, &0)
-            .unwrap();
+        let (emis_config, emis_data) = fixture.read_reserve_emissions(0, TokenIndex::STABLE, 0);
         assert_eq!(
             emis_data.last_time,
             fixture.env.ledger().timestamp() - 60 * 61
@@ -267,10 +264,7 @@ mod tests {
             ),
             fixture.backstop.pool_eps(&pool_fixture.pool.address)
         );
-        let (emis_config, emis_data) = pool_fixture
-            .pool
-            .get_reserve_emissions(&fixture.tokens[TokenIndex::STABLE].address, &0)
-            .unwrap();
+        let (emis_config, emis_data) = fixture.read_reserve_emissions(0, TokenIndex::STABLE, 0);
         assert_eq!(
             emis_data.last_time,
             fixture.env.ledger().timestamp() - 60 * 61

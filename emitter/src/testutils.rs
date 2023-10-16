@@ -2,18 +2,18 @@
 
 use soroban_sdk::{Address, Env};
 
-use backstop_module::{BackstopModule, BackstopModuleClient};
+use backstop::{BackstopClient, BackstopContract};
 
-use crate::Emitter;
+use crate::EmitterContract;
 
 pub(crate) fn create_emitter(e: &Env) -> Address {
-    e.register_contract(None, Emitter {})
+    e.register_contract(None, EmitterContract {})
 }
 
-pub(crate) fn create_backstop(e: &Env) -> (Address, BackstopModuleClient) {
-    let contract_address = e.register_contract(None, BackstopModule {});
+pub(crate) fn create_backstop(e: &Env) -> (Address, BackstopClient) {
+    let contract_address = e.register_contract(None, BackstopContract {});
     (
         contract_address.clone(),
-        BackstopModuleClient::new(e, &contract_address),
+        BackstopClient::new(e, &contract_address),
     )
 }

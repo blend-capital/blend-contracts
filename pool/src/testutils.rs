@@ -5,19 +5,19 @@ use crate::{
     dependencies::{TokenClient, TOKEN_WASM},
     pool::Reserve,
     storage::{self, ReserveConfig, ReserveData},
-    Pool,
+    PoolContract,
 };
 use fixed_point_math::FixedPoint;
 use soroban_sdk::{
     map, testutils::Address as _, unwrap::UnwrapOptimized, vec, Address, Env, IntoVal,
 };
 
-use backstop_module::{BackstopModule, BackstopModuleClient};
+use backstop::{BackstopClient, BackstopContract};
 use mock_oracle::{MockOracle, MockOracleClient};
 use mock_pool_factory::{MockPoolFactory, MockPoolFactoryClient};
 
 pub(crate) fn create_pool(e: &Env) -> Address {
-    e.register_contract(None, Pool {})
+    e.register_contract(None, PoolContract {})
 }
 
 //************************************************
@@ -86,11 +86,11 @@ mod comet {
     soroban_sdk::contractimport!(file = "../comet.wasm");
 }
 
-pub(crate) fn create_backstop(e: &Env) -> (Address, BackstopModuleClient) {
-    let contract_address = e.register_contract(None, BackstopModule {});
+pub(crate) fn create_backstop(e: &Env) -> (Address, BackstopClient) {
+    let contract_address = e.register_contract(None, BackstopContract {});
     (
         contract_address.clone(),
-        BackstopModuleClient::new(e, &contract_address),
+        BackstopClient::new(e, &contract_address),
     )
 }
 
@@ -104,7 +104,7 @@ pub(crate) fn setup_backstop(
 ) {
     let (pool_factory, mock_pool_factory_client) = create_mock_pool_factory(e);
     mock_pool_factory_client.set_pool(pool_address);
-    BackstopModuleClient::new(e, backstop_id).initialize(
+    BackstopClient::new(e, backstop_id).initialize(
         backstop_token,
         usdc_token,
         blnd_token,

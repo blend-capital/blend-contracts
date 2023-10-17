@@ -1,8 +1,7 @@
-pub use pool_factory::{PoolFactory, PoolFactoryClient, PoolFactoryError, PoolInitMeta};
-
 mod wasm {
-    soroban_sdk::contractimport!(
-        file = "../target/wasm32-unknown-unknown/optimized/pool_factory.wasm"
-    );
+    soroban_sdk::contractimport!(file = "./wasm/pool_factory.wasm");
 }
-pub use wasm::WASM as PoolFactoryWASM;
+pub use wasm::{
+    Client as PoolFactoryClient, Contract as PoolFactory, PoolFactoryDataKey, PoolFactoryError,
+    PoolInitMeta, WASM as PoolFactoryWASM,
+};

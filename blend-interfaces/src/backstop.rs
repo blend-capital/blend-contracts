@@ -1,6 +1,8 @@
-pub use backstop::{Backstop, BackstopClient, BackstopError, PoolBackstopData, UserBalance, Q4W};
-
 mod wasm {
-    soroban_sdk::contractimport!(file = "../target/wasm32-unknown-unknown/optimized/backstop.wasm");
+    soroban_sdk::contractimport!(file = "./wasm/backstop.wasm");
 }
-pub use wasm::WASM as BackstopWASM;
+pub use wasm::{
+    BackstopDataKey, BackstopError, Client as BackstopClient, Contract as Backstop,
+    PoolBackstopData, PoolBalance, PoolUserKey, UserBalance, UserEmissionData, Q4W,
+    WASM as BackstopWASM,
+};

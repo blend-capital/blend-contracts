@@ -1,7 +1,6 @@
 [package]
 name = "pool"
-version = "0.0.0"
-authors = ["Blend Capital <gm@blend.capital>"]
+version = "0.0.1"
 license = "AGPL-3.0"
 edition = "2021"
 publish = false

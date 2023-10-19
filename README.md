@@ -4,8 +4,7 @@ This repository contains the smart contacts for an implementation of the Blend P
 
 ## Documentation
 
-To learn more about the Blend Protocol, visit the whitepaper or the docs:
-* [Whitepaper](https://github.com/blend-capital/blend-whitepaper)
+To learn more about the Blend Protocol, visit the docs:
 * [Blend Docs](https://docs.blend.capital/)
 
 ## Audits

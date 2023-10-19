@@ -1,6 +1,6 @@
-pub use emitter::{Emitter, EmitterClient, EmitterContract, EmitterError};
-
 mod wasm {
-    soroban_sdk::contractimport!(file = "../target/wasm32-unknown-unknown/optimized/emitter.wasm");
+    soroban_sdk::contractimport!(file = "./wasm/emitter.wasm");
 }
-pub use wasm::WASM as EmitterWASM;
+pub use wasm::{
+    Client as EmitterClient, Contract as Emitter, EmitterDataKey, EmitterError, WASM as EmitterWASM,
+};

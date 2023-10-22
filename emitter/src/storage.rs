@@ -21,6 +21,8 @@ pub enum EmitterDataKey {
     LastDistro,
     // The drop status for the current backstop
     DropStatus,
+    // The last block emissions were forked
+    LastFork,
 }
 
 /// Bump the instance rent for the contract. Bumps for 10 days due to the 7-day cycle window of this contract
@@ -138,6 +140,36 @@ pub fn set_drop_status(e: &Env, new_status: bool) {
         .set::<EmitterDataKey, bool>(&EmitterDataKey::DropStatus, &new_status);
     e.storage().persistent().bump(
         &EmitterDataKey::DropStatus,
+        LEDGER_THRESHOLD_SHARED,
+        LEDGER_BUMP_SHARED,
+    );
+}
+
+/// Get the last block an emission fork was executed
+///
+/// Returns true if the emitter has dropped
+pub fn get_last_fork(e: &Env) -> u32 {
+    e.storage().persistent().bump(
+        &EmitterDataKey::DropStatus,
+        LEDGER_THRESHOLD_SHARED,
+        LEDGER_BUMP_SHARED,
+    );
+    e.storage()
+        .persistent()
+        .get(&EmitterDataKey::LastFork)
+        .unwrap_optimized()
+}
+
+/// Set whether the emitter has performed the drop distribution or not for the current backstop
+///
+/// ### Arguments
+/// * `new_status` - new drop status
+pub fn set_last_fork(e: &Env, block: u32) {
+    e.storage()
+        .persistent()
+        .set::<EmitterDataKey, u32>(&EmitterDataKey::LastFork, &block);
+    e.storage().persistent().bump(
+        &EmitterDataKey::LastFork,
         LEDGER_THRESHOLD_SHARED,
         LEDGER_BUMP_SHARED,
     );

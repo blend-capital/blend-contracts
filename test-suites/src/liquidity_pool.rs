@@ -30,8 +30,8 @@ pub(crate) fn create_lp_pool<'a>(
     let token_2_client = TokenClient::new(e, token_2);
     token_1_client.mint(&admin, &1_000_0000000);
     token_2_client.mint(&admin, &25_0000000);
-    token_1_client.approve(&admin, &contract_address, &1_000_0000000, &535670);
-    token_2_client.approve(&admin, &contract_address, &1_000_0000000, &535670);
+    token_1_client.approve(&admin, &contract_address, &1_000_0000000, &5356700);
+    token_2_client.approve(&admin, &contract_address, &1_000_0000000, &5356700);
 
     client.init(&Address::random(e), &admin);
     client.bundle_bind(

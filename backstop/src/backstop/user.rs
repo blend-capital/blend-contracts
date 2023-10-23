@@ -48,14 +48,10 @@ impl UserBalance {
     /// ### Errors
     /// If the amount to queue is greater than the available shares
     pub fn queue_shares_for_withdrawal(&mut self, e: &Env, to_q: i128) {
-        let mut q4w_amt: i128 = 0;
-        for q4w in self.q4w.iter() {
-            q4w_amt += q4w.amount
-        }
-
-        if self.shares - q4w_amt < to_q {
+        if self.shares < to_q {
             panic_with_error!(e, BackstopError::InvalidBalance);
         }
+        self.shares = self.shares - to_q;
 
         // user has enough tokens to withdrawal, add Q4W
         // TODO: Consider capping how many active Q4Ws a user can have
@@ -117,14 +113,14 @@ impl UserBalance {
     /// Withdraw shares from the user
     ///
     /// ### Arguments
-    /// * `to_q` - The amount of new shares to queue for withdraw
+    /// * `to_dequeue` - The amount of shares to dequeue from withdraw
     ///
     /// ### Errors
     /// If the amount to queue is greater than the available shares
-    pub fn withdraw_shares(&mut self, e: &Env, to_withdraw: i128) {
-        self.dequeue_shares_for_withdrawal(e, to_withdraw, true);
+    pub fn dequeue_withdrawal(&mut self, e: &Env, to_dequeue: i128) {
+        self.dequeue_shares_for_withdrawal(e, to_dequeue, false);
 
-        self.shares -= to_withdraw;
+        self.shares += to_dequeue;
     }
 }
 
@@ -240,7 +236,7 @@ mod tests {
             },
         ];
         let mut user = UserBalance {
-            shares: 1000,
+            shares: 800,
             q4w: cur_q4w.clone(),
         };
 
@@ -281,7 +277,7 @@ mod tests {
         });
 
         let to_wd = 1;
-        user.withdraw_shares(&e, to_wd);
+        user.dequeue_shares_for_withdrawal(&e, to_wd, false);
     }
 
     #[test]
@@ -312,10 +308,10 @@ mod tests {
         });
 
         let to_wd = 200;
-        user.withdraw_shares(&e, to_wd);
+        user.dequeue_shares_for_withdrawal(&e, to_wd, true);
 
         assert_eq_vec_q4w(&user.q4w, &vec![&e]);
-        assert_eq!(user.shares, 800);
+        assert_eq!(user.shares, 1000);
     }
 
     #[test]
@@ -346,7 +342,7 @@ mod tests {
         });
 
         let to_wd = 150;
-        user.withdraw_shares(&e, to_wd);
+        user.dequeue_shares_for_withdrawal(&e, to_wd, false);
 
         let expected_q4w = vec![
             &e,
@@ -356,7 +352,7 @@ mod tests {
             },
         ];
         assert_eq_vec_q4w(&user.q4w, &expected_q4w);
-        assert_eq!(user.shares, 850);
+        assert_eq!(user.shares, 1000);
     }
 
     #[test]
@@ -395,7 +391,7 @@ mod tests {
         });
 
         let to_wd = 300;
-        user.withdraw_shares(&e, to_wd);
+        user.dequeue_shares_for_withdrawal(&e, to_wd, true);
 
         let expected_q4w = vec![
             &e,
@@ -409,7 +405,7 @@ mod tests {
             },
         ];
         assert_eq_vec_q4w(&user.q4w, &expected_q4w);
-        assert_eq!(user.shares, 700);
+        assert_eq!(user.shares, 1000);
     }
 
     #[test]
@@ -449,7 +445,7 @@ mod tests {
         });
 
         let to_wd = 300;
-        user.withdraw_shares(&e, to_wd);
+        user.dequeue_shares_for_withdrawal(&e, to_wd, true);
     }
 
     #[test]
@@ -489,7 +485,7 @@ mod tests {
         let to_dequeue = 300;
 
         // verify exp is ignored if only dequeueing
-        user.dequeue_shares_for_withdrawal(&e, to_dequeue, false);
+        user.dequeue_withdrawal(&e, to_dequeue);
 
         let expected_q4w = vec![
             &e,
@@ -503,7 +499,7 @@ mod tests {
             },
         ];
         assert_eq_vec_q4w(&user.q4w, &expected_q4w);
-        assert_eq!(user.shares, 1000);
+        assert_eq!(user.shares, 1300);
     }
 
     #[test]
@@ -548,7 +544,7 @@ mod tests {
 
     #[test]
     #[should_panic(expected = "Error(Contract, #2)")]
-    fn test_try_withdraw_shares_over_total() {
+    fn test_try_dequeue_shares_over_total() {
         let e = Env::default();
 
         let cur_q4w = vec![
@@ -583,6 +579,6 @@ mod tests {
         });
 
         let to_dequeue = 376;
-        user.dequeue_shares_for_withdrawal(&e, to_dequeue, false);
+        user.dequeue_withdrawal(&e, to_dequeue);
     }
 }

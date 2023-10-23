@@ -1,4 +1,9 @@
-use crate::{contract::require_nonnegative, dependencies::TokenClient, emissions, storage};
+use crate::{
+    contract::require_nonnegative,
+    dependencies::TokenClient,
+    emissions::{self},
+    storage,
+};
 use soroban_sdk::{unwrap::UnwrapOptimized, Address, Env};
 
 use super::Q4W;
@@ -14,6 +19,9 @@ pub fn execute_queue_withdrawal(
 
     let mut pool_balance = storage::get_pool_balance(e, pool_address);
     let mut user_balance = storage::get_user_balance(e, pool_address, from);
+
+    // update emissions
+    emissions::update_emissions(e, pool_address, &pool_balance, from, &user_balance, false);
 
     user_balance.queue_shares_for_withdrawal(e, amount);
     pool_balance.queue_for_withdraw(amount);
@@ -31,7 +39,10 @@ pub fn execute_dequeue_withdrawal(e: &Env, from: &Address, pool_address: &Addres
     let mut pool_balance = storage::get_pool_balance(e, pool_address);
     let mut user_balance = storage::get_user_balance(e, pool_address, from);
 
-    user_balance.dequeue_shares_for_withdrawal(e, amount, false);
+    // update emissions
+    emissions::update_emissions(e, pool_address, &pool_balance, from, &user_balance, false);
+
+    user_balance.dequeue_withdrawal(e, amount);
     pool_balance.dequeue_q4w(e, amount);
 
     storage::set_user_balance(e, pool_address, from, &user_balance);
@@ -45,9 +56,7 @@ pub fn execute_withdraw(e: &Env, from: &Address, pool_address: &Address, amount:
     let mut pool_balance = storage::get_pool_balance(e, pool_address);
     let mut user_balance = storage::get_user_balance(e, pool_address, from);
 
-    emissions::update_emissions(e, pool_address, &pool_balance, from, &user_balance, false);
-
-    user_balance.withdraw_shares(e, amount);
+    user_balance.dequeue_shares_for_withdrawal(e, amount, true);
 
     let to_return = pool_balance.convert_to_tokens(amount);
     pool_balance.withdraw(e, to_return, amount);
@@ -108,7 +117,7 @@ mod tests {
             execute_queue_withdrawal(&e, &samwise, &pool_address, 42_0000000);
 
             let new_user_balance = storage::get_user_balance(&e, &pool_address, &samwise);
-            assert_eq!(new_user_balance.shares, 100_0000000);
+            assert_eq!(new_user_balance.shares, 58_0000000);
             let expected_q4w = vec![
                 &e,
                 Q4W {
@@ -213,7 +222,7 @@ mod tests {
             execute_dequeue_withdrawal(&e, &samwise, &pool_address, 30_0000000);
 
             let new_user_balance = storage::get_user_balance(&e, &pool_address, &samwise);
-            assert_eq!(new_user_balance.shares, 75_0000000);
+            assert_eq!(new_user_balance.shares, 40_0000000);
             let expected_q4w = vec![
                 &e,
                 Q4W {

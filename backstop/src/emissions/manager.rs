@@ -75,9 +75,11 @@ pub fn update_emission_cycle(e: &Env) {
     let mut total_tokens: i128 = 0;
     for rz_pool_index in 0..rz_len {
         let rz_pool = reward_zone.get(rz_pool_index).unwrap_optimized();
-        let pool_tokens = storage::get_pool_balance(e, &rz_pool).tokens;
-        rz_tokens.push_back(pool_tokens);
-        total_tokens += i128(pool_tokens);
+        let mut pool_balance = storage::get_pool_balance(e, &rz_pool);
+        let net_deposits =
+            pool_balance.tokens.clone() - pool_balance.convert_to_tokens(pool_balance.q4w.clone());
+        rz_tokens.push_back(net_deposits);
+        total_tokens += i128(net_deposits);
     }
 
     let blnd_token_client = TokenClient::new(e, &storage::get_blnd_token(e));

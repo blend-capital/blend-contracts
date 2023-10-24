@@ -4,20 +4,21 @@ use std::ops::Index;
 use crate::backstop::create_backstop;
 use crate::emitter::create_emitter;
 use crate::liquidity_pool::{create_lp_pool, LPClient};
-use crate::mock_oracle::create_mock_oracle;
+use crate::oracle::create_mock_oracle;
 use crate::pool::POOL_WASM;
 use crate::pool_factory::create_pool_factory;
-use crate::token::{create_stellar_token, create_token, TokenClient};
+use crate::token::{create_stellar_token, create_token};
 use backstop::BackstopClient;
 use emitter::EmitterClient;
-use mock_oracle::MockOracleClient;
 use pool::{
     PoolClient, PoolConfig, PoolDataKey, ReserveConfig, ReserveData, ReserveEmissionsConfig,
     ReserveEmissionsData,
 };
 use pool_factory::{PoolFactoryClient, PoolInitMeta};
+use sep_40_oracle::testutils::{Asset, MockPriceOracleClient};
+use sep_41_token::testutils::MockTokenClient;
 use soroban_sdk::testutils::{Address as _, BytesN as _, Ledger, LedgerInfo};
-use soroban_sdk::{Address, BytesN, Env, Map, Symbol};
+use soroban_sdk::{vec as svec, Address, BytesN, Env, Map, Symbol};
 
 pub const SCALAR_7: i128 = 1_000_0000;
 pub const SCALAR_9: i128 = 1_000_000_000;
@@ -36,8 +37,8 @@ pub struct PoolFixture<'a> {
     pub reserves: HashMap<TokenIndex, u32>,
 }
 
-impl<'a> Index<TokenIndex> for Vec<TokenClient<'a>> {
-    type Output = TokenClient<'a>;
+impl<'a> Index<TokenIndex> for Vec<MockTokenClient<'a>> {
+    type Output = MockTokenClient<'a>;
 
     fn index(&self, index: TokenIndex) -> &Self::Output {
         &self[index as usize]
@@ -51,10 +52,10 @@ pub struct TestFixture<'a> {
     pub emitter: EmitterClient<'a>,
     pub backstop: BackstopClient<'a>,
     pub pool_factory: PoolFactoryClient<'a>,
-    pub oracle: MockOracleClient<'a>,
+    pub oracle: MockPriceOracleClient<'a>,
     pub lp: LPClient<'a>,
     pub pools: Vec<PoolFixture<'a>>,
-    pub tokens: Vec<TokenClient<'a>>,
+    pub tokens: Vec<MockTokenClient<'a>>,
 }
 
 impl TestFixture<'_> {
@@ -91,7 +92,6 @@ impl TestFixture<'_> {
         let (backstop_id, backstop_client) = create_backstop(&e, wasm);
         let (emitter_id, emitter_client) = create_emitter(&e, wasm);
         let (pool_factory_id, _) = create_pool_factory(&e, wasm);
-        let (_, mock_oracle_client) = create_mock_oracle(&e, wasm);
 
         // initialize emitter
         blnd_client.mint(&bombadil, &(10_000_000 * SCALAR_7));
@@ -114,11 +114,29 @@ impl TestFixture<'_> {
         pool_factory_client.initialize(&pool_init_meta);
 
         // initialize oracle
-        mock_oracle_client.set_price(&blnd_id, &(0_0500000));
-        mock_oracle_client.set_price(&eth_id, &(2000_0000000));
-        mock_oracle_client.set_price(&usdc_id, &(1_0000000));
-        mock_oracle_client.set_price(&xlm_id, &(0_1000000));
-        mock_oracle_client.set_price(&stable_id, &(1_0000000));
+        let (_, mock_oracle_client) = create_mock_oracle(&e);
+        mock_oracle_client.set_data(
+            &bombadil,
+            &Asset::Other(Symbol::new(&e, "USD")),
+            &svec![
+                &e,
+                Asset::Stellar(blnd_id.clone()),
+                Asset::Stellar(eth_id.clone()),
+                Asset::Stellar(usdc_id),
+                Asset::Stellar(xlm_id.clone()),
+                Asset::Stellar(stable_id.clone())
+            ],
+            &7,
+            &300,
+        );
+        mock_oracle_client.set_price_stable(&svec![
+            &e,
+            0_0500000,    // blnd
+            2000_0000000, // eth
+            1_0000000,    // usdc
+            0_1000000,    // xlm
+            1_0000000     // stable
+        ]);
 
         // pass 1 day
         e.ledger().set(LedgerInfo {

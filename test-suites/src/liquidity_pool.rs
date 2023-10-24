@@ -6,7 +6,7 @@ mod lp_contract {
 
 pub use lp_contract::{Client as LPClient, WASM as LP_WASM};
 
-use crate::token::TokenClient;
+use sep_41_token::testutils::MockTokenClient;
 
 /// Deploy a test Comet LP pool of 80% token_1 / 20% token_2. The admin must be the
 /// admin of both of the token contracts used.
@@ -26,8 +26,8 @@ pub(crate) fn create_lp_pool<'a>(
     e.register_contract_wasm(&contract_address, LP_WASM);
     let client = LPClient::new(e, &contract_address);
 
-    let token_1_client = TokenClient::new(e, token_1);
-    let token_2_client = TokenClient::new(e, token_2);
+    let token_1_client = MockTokenClient::new(e, token_1);
+    let token_2_client = MockTokenClient::new(e, token_2);
     token_1_client.mint(&admin, &1_000_0000000);
     token_2_client.mint(&admin, &25_0000000);
     token_1_client.approve(&admin, &contract_address, &1_000_0000000, &535670);

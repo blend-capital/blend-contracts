@@ -1,9 +1,9 @@
 use cast::i128;
 use fixed_point_math::FixedPoint;
+use sep_41_token::TokenClient;
 use soroban_sdk::{panic_with_error, unwrap::UnwrapOptimized, Address, Env, Vec};
 
 use crate::{
-    dependencies::TokenClient,
     errors::PoolError,
     pool::User,
     storage::{self, ReserveEmissionsData, UserEmissionData},

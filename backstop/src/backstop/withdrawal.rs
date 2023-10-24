@@ -1,4 +1,5 @@
-use crate::{contract::require_nonnegative, dependencies::TokenClient, emissions, storage};
+use crate::{contract::require_nonnegative, emissions, storage};
+use sep_41_token::TokenClient;
 use soroban_sdk::{unwrap::UnwrapOptimized, Address, Env};
 
 use super::Q4W;

@@ -1,4 +1,5 @@
-use crate::{dependencies::TokenClient, errors::BackstopError, storage};
+use crate::{errors::BackstopError, storage};
+use sep_41_token::TokenClient;
 use soroban_sdk::{panic_with_error, Address, Env, Vec};
 
 use super::update_emissions;

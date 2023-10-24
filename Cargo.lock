@@ -54,6 +54,7 @@ dependencies = [
  "cast",
  "fixed-point-math",
  "mock-pool-factory",
+ "sep-41-token",
  "soroban-sdk",
 ]
 
@@ -401,6 +402,7 @@ name = "emitter"
 version = "0.0.1"
 dependencies = [
  "backstop",
+ "sep-41-token",
  "soroban-sdk",
 ]
 
@@ -641,14 +643,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "mock-oracle"
-version = "0.0.0"
-dependencies = [
- "oracle",
- "soroban-sdk",
-]
-
-[[package]]
 name = "mock-pool"
 version = "0.0.0"
 dependencies = [
@@ -721,13 +715,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dd8b5dd2ae5ed71462c540258bedcb51965123ad7e7ccf4b9a8cafaa4a63576d"
 
 [[package]]
-name = "oracle"
-version = "0.0.0"
-dependencies = [
- "soroban-sdk",
-]
-
-[[package]]
 name = "paste"
 version = "1.0.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -756,9 +743,9 @@ dependencies = [
  "backstop",
  "cast",
  "fixed-point-math",
- "mock-oracle",
  "mock-pool-factory",
- "oracle",
+ "sep-40-oracle",
+ "sep-41-token",
  "soroban-sdk",
 ]
 
@@ -925,6 +912,24 @@ name = "semver"
 version = "1.0.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b0293b4b29daaf487284529cc2f5675b8e57c61f70167ba415a463651fd6a918"
+
+[[package]]
+name = "sep-40-oracle"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fa589e8db60e397c7a7af90908eab64ca46cc5628957a554a24efb36235b34d2"
+dependencies = [
+ "soroban-sdk",
+]
+
+[[package]]
+name = "sep-41-token"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e0edb6a114daf783364bf705d27f97a4f49ae858518eb46d46e4161cd75b9678"
+dependencies = [
+ "soroban-sdk",
+]
 
 [[package]]
 name = "serde"
@@ -1270,11 +1275,12 @@ dependencies = [
  "cast",
  "emitter",
  "fixed-point-math",
- "mock-oracle",
  "mock-pool-factory",
  "pool",
  "pool-factory",
  "rand 0.7.3",
+ "sep-40-oracle",
+ "sep-41-token",
  "soroban-sdk",
 ]
 

@@ -1,10 +1,10 @@
 use cast::i128;
 use fixed_point_math::FixedPoint;
+use sep_41_token::TokenClient;
 use soroban_sdk::{contracttype, panic_with_error, unwrap::UnwrapOptimized, Address, Env};
 
 use crate::{
     constants::{SCALAR_7, SCALAR_9},
-    dependencies::TokenClient,
     errors::PoolError,
     storage::{self, PoolConfig, ReserveData},
 };

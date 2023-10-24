@@ -120,10 +120,11 @@ mod tests {
     };
 
     use super::*;
+    use sep_40_oracle::testutils::Asset;
     use soroban_sdk::{
         testutils::{Address as _, Ledger, LedgerInfo},
         unwrap::UnwrapOptimized,
-        vec,
+        vec, Symbol,
     };
 
     #[test]
@@ -279,11 +280,28 @@ mod tests {
             &reserve_data_2,
         );
 
-        oracle_client.set_price(&underlying_0, &2_0000000);
-        oracle_client.set_price(&underlying_1, &4_0000000);
-        oracle_client.set_price(&underlying_2, &100_0000000);
-        oracle_client.set_price(&usdc, &1_0000000);
-        oracle_client.set_price(&blnd, &0_1000000);
+        oracle_client.set_data(
+            &bombadil,
+            &Asset::Other(Symbol::new(&e, "USD")),
+            &vec![
+                &e,
+                Asset::Stellar(underlying_0.clone()),
+                Asset::Stellar(underlying_1.clone()),
+                Asset::Stellar(underlying_2),
+                Asset::Stellar(usdc),
+                Asset::Stellar(blnd),
+            ],
+            &7,
+            &300,
+        );
+        oracle_client.set_price_stable(&vec![
+            &e,
+            2_0000000,
+            4_0000000,
+            100_0000000,
+            1_0000000,
+            0_1000000,
+        ]);
 
         let positions: Positions = Positions {
             collateral: map![&e],
@@ -403,11 +421,28 @@ mod tests {
             &reserve_data_2,
         );
 
-        oracle_client.set_price(&underlying_0, &2_0000000);
-        oracle_client.set_price(&underlying_1, &4_0000000);
-        oracle_client.set_price(&underlying_2, &100_0000000);
-        oracle_client.set_price(&usdc, &1_0000000);
-        oracle_client.set_price(&blnd, &0_1000000);
+        oracle_client.set_data(
+            &bombadil,
+            &Asset::Other(Symbol::new(&e, "USD")),
+            &vec![
+                &e,
+                Asset::Stellar(underlying_0.clone()),
+                Asset::Stellar(underlying_1.clone()),
+                Asset::Stellar(underlying_2),
+                Asset::Stellar(usdc),
+                Asset::Stellar(blnd),
+            ],
+            &7,
+            &300,
+        );
+        oracle_client.set_price_stable(&vec![
+            &e,
+            2_0000000,
+            4_0000000,
+            100_0000000,
+            1_0000000,
+            0_1000000,
+        ]);
 
         let positions: Positions = Positions {
             collateral: map![&e],
@@ -528,11 +563,28 @@ mod tests {
             &reserve_data_2,
         );
 
-        oracle_client.set_price(&underlying_0, &2_0000000);
-        oracle_client.set_price(&underlying_1, &4_0000000);
-        oracle_client.set_price(&underlying_2, &100_0000000);
-        oracle_client.set_price(&usdc, &1_0000000);
-        oracle_client.set_price(&blnd, &0_1000000);
+        oracle_client.set_data(
+            &bombadil,
+            &Asset::Other(Symbol::new(&e, "USD")),
+            &vec![
+                &e,
+                Asset::Stellar(underlying_0.clone()),
+                Asset::Stellar(underlying_1.clone()),
+                Asset::Stellar(underlying_2),
+                Asset::Stellar(usdc),
+                Asset::Stellar(blnd),
+            ],
+            &7,
+            &300,
+        );
+        oracle_client.set_price_stable(&vec![
+            &e,
+            2_0000000,
+            4_0000000,
+            100_0000000,
+            1_0000000,
+            0_1000000,
+        ]);
 
         let positions: Positions = Positions {
             collateral: map![&e],

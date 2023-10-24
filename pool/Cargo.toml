@@ -18,10 +18,13 @@ testutils = [
 soroban-sdk = { workspace = true }
 fixed-point-math = { workspace = true }
 cast = { workspace = true }
-oracle = { path = "../oracle" }
+sep-40-oracle = { workspace = true }
+sep-41-token = { workspace = true}
+
 
 [dev_dependencies]
 soroban-sdk = { workspace = true, features = ["testutils"] }
 backstop = { path = "../backstop", features = ["testutils"] }
+sep-40-oracle = { workspace = true, features = ["testutils"] }
+sep-41-token = { workspace = true, features = ["testutils"] }
 mock-pool-factory = { path = "../mocks/mock-pool-factory", features = ["testutils"] }
-mock-oracle = { path = "../mocks/mock-oracle", features = ["testutils"] }

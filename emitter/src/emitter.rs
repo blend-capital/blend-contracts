@@ -360,51 +360,6 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Error(Storage, MissingValue)")]
-    fn test_drop_no_status() {
-        let e = Env::default();
-        e.mock_all_auths_allowing_non_root_auth();
-
-        e.ledger().set(LedgerInfo {
-            timestamp: 12345,
-            protocol_version: 20,
-            sequence_number: 50,
-            network_id: Default::default(),
-            base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
-        });
-
-        let bombadil = Address::random(&e);
-        let frodo = Address::random(&e);
-        let samwise = Address::random(&e);
-        let emitter = create_emitter(&e);
-        let (backstop, backstop_client) = create_backstop(&e);
-
-        let backstop_token = e.register_stellar_asset_contract(bombadil.clone());
-        let drop_list = map![
-            &e,
-            (frodo.clone(), 20_000_000 * SCALAR_7),
-            (samwise.clone(), 30_000_000 * SCALAR_7)
-        ];
-
-        backstop_client.initialize(
-            &backstop_token,
-            &Address::random(&e),
-            &Address::random(&e),
-            &Address::random(&e),
-            &drop_list,
-        );
-
-        e.as_contract(&emitter, || {
-            storage::set_last_distro_time(&e, &1000);
-            storage::set_backstop(&e, &backstop);
-
-            execute_drop(&e);
-        });
-    }
-    #[test]
     #[should_panic(expected = "Error(Contract, #40)")]
     fn test_drop_bad_block() {
         let e = Env::default();

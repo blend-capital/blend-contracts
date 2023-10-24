@@ -119,13 +119,8 @@ pub fn set_last_distro_time(e: &Env, last_distro: &u64) {
 ///
 /// Returns true if the emitter has dropped
 pub fn get_drop_status(e: &Env) -> bool {
-    e.storage().persistent().bump(
-        &EmitterDataKey::DropStatus,
-        LEDGER_THRESHOLD_SHARED,
-        LEDGER_BUMP_SHARED,
-    );
     e.storage()
-        .persistent()
+        .instance()
         .get(&EmitterDataKey::DropStatus)
         .unwrap_optimized()
 }
@@ -136,26 +131,16 @@ pub fn get_drop_status(e: &Env) -> bool {
 /// * `new_status` - new drop status
 pub fn set_drop_status(e: &Env, new_status: bool) {
     e.storage()
-        .persistent()
+        .instance()
         .set::<EmitterDataKey, bool>(&EmitterDataKey::DropStatus, &new_status);
-    e.storage().persistent().bump(
-        &EmitterDataKey::DropStatus,
-        LEDGER_THRESHOLD_SHARED,
-        LEDGER_BUMP_SHARED,
-    );
 }
 
 /// Get the last block an emission fork was executed
 ///
 /// Returns true if the emitter has dropped
 pub fn get_last_fork(e: &Env) -> u32 {
-    e.storage().persistent().bump(
-        &EmitterDataKey::DropStatus,
-        LEDGER_THRESHOLD_SHARED,
-        LEDGER_BUMP_SHARED,
-    );
     e.storage()
-        .persistent()
+        .instance()
         .get(&EmitterDataKey::LastFork)
         .unwrap_optimized()
 }
@@ -166,11 +151,6 @@ pub fn get_last_fork(e: &Env) -> u32 {
 /// * `new_status` - new drop status
 pub fn set_last_fork(e: &Env, block: u32) {
     e.storage()
-        .persistent()
+        .instance()
         .set::<EmitterDataKey, u32>(&EmitterDataKey::LastFork, &block);
-    e.storage().persistent().bump(
-        &EmitterDataKey::LastFork,
-        LEDGER_THRESHOLD_SHARED,
-        LEDGER_BUMP_SHARED,
-    );
 }

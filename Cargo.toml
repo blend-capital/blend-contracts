@@ -6,7 +6,6 @@ members = [
     "blend-interfaces",
     "emitter",
     "pool",
-    "mocks/mock-pool",
     "mocks/mock-pool-factory",
     "pool-factory",
     "test-suites"

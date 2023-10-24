@@ -643,13 +643,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "mock-pool"
-version = "0.0.0"
-dependencies = [
- "soroban-sdk",
-]
-
-[[package]]
 name = "mock-pool-factory"
 version = "0.0.0"
 dependencies = [

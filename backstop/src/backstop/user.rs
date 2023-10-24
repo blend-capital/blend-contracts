@@ -109,19 +109,6 @@ impl UserBalance {
             panic_with_error!(e, BackstopError::InvalidBalance);
         }
     }
-
-    /// Withdraw shares from the user
-    ///
-    /// ### Arguments
-    /// * `to_dequeue` - The amount of shares to dequeue from withdraw
-    ///
-    /// ### Errors
-    /// If the amount to queue is greater than the available shares
-    pub fn dequeue_withdrawal(&mut self, e: &Env, to_dequeue: i128) {
-        self.dequeue_shares_for_withdrawal(e, to_dequeue, false);
-
-        self.shares += to_dequeue;
-    }
 }
 
 #[cfg(test)]
@@ -449,60 +436,6 @@ mod tests {
     }
 
     #[test]
-    fn test_dequeue_shares() {
-        let e = Env::default();
-
-        let cur_q4w = vec![
-            &e,
-            Q4W {
-                amount: 125,
-                exp: 10000000,
-            },
-            Q4W {
-                amount: 200,
-                exp: 12592000,
-            },
-            Q4W {
-                amount: 50,
-                exp: 19592000,
-            },
-        ];
-        let mut user = UserBalance {
-            shares: 1000,
-            q4w: cur_q4w.clone(),
-        };
-
-        e.ledger().set(LedgerInfo {
-            protocol_version: 20,
-            sequence_number: 1,
-            timestamp: 11192000,
-            network_id: Default::default(),
-            base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
-        });
-        let to_dequeue = 300;
-
-        // verify exp is ignored if only dequeueing
-        user.dequeue_withdrawal(&e, to_dequeue);
-
-        let expected_q4w = vec![
-            &e,
-            Q4W {
-                amount: 25,
-                exp: 12592000,
-            },
-            Q4W {
-                amount: 50,
-                exp: 19592000,
-            },
-        ];
-        assert_eq_vec_q4w(&user.q4w, &expected_q4w);
-        assert_eq!(user.shares, 1300);
-    }
-
-    #[test]
     #[should_panic(expected = "Error(Contract, #3)")]
     fn test_try_dequeue_shares_require_expired_expect_panic() {
         let e = Env::default();
@@ -540,45 +473,5 @@ mod tests {
         let to_dequeue = 300;
         // verify exp is respected when specified
         user.dequeue_shares_for_withdrawal(&e, to_dequeue, true);
-    }
-
-    #[test]
-    #[should_panic(expected = "Error(Contract, #2)")]
-    fn test_try_dequeue_shares_over_total() {
-        let e = Env::default();
-
-        let cur_q4w = vec![
-            &e,
-            Q4W {
-                amount: 125,
-                exp: 10000000,
-            },
-            Q4W {
-                amount: 200,
-                exp: 12592000,
-            },
-            Q4W {
-                amount: 50,
-                exp: 19592000,
-            },
-        ];
-        let mut user = UserBalance {
-            shares: 1000,
-            q4w: cur_q4w.clone(),
-        };
-
-        e.ledger().set(LedgerInfo {
-            protocol_version: 20,
-            sequence_number: 1,
-            timestamp: 11192000,
-            network_id: Default::default(),
-            base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
-        });
-
-        let to_dequeue = 376;
-        user.dequeue_withdrawal(&e, to_dequeue);
     }
 }

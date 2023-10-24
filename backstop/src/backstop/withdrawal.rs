@@ -42,7 +42,8 @@ pub fn execute_dequeue_withdrawal(e: &Env, from: &Address, pool_address: &Addres
     // update emissions
     emissions::update_emissions(e, pool_address, &pool_balance, from, &user_balance, false);
 
-    user_balance.dequeue_withdrawal(e, amount);
+    user_balance.dequeue_shares_for_withdrawal(e, amount, false);
+    user_balance.add_shares(amount);
     pool_balance.dequeue_q4w(e, amount);
 
     storage::set_user_balance(e, pool_address, from, &user_balance);

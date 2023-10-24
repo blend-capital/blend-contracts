@@ -79,14 +79,14 @@ pub fn update_emission_cycle(e: &Env) {
         let net_deposits =
             pool_balance.tokens.clone() - pool_balance.convert_to_tokens(pool_balance.q4w.clone());
         rz_tokens.push_back(net_deposits);
-        total_tokens += i128(net_deposits);
+        total_tokens += net_deposits;
     }
 
     let blnd_token_client = TokenClient::new(e, &storage::get_blnd_token(e));
     // store pools EPS and distribute emissions to backstop depositors
     for rz_pool_index in 0..rz_len {
         let rz_pool = reward_zone.get(rz_pool_index).unwrap_optimized();
-        let cur_pool_tokens = i128(rz_tokens.pop_front_unchecked());
+        let cur_pool_tokens = rz_tokens.pop_front_unchecked();
         let share = cur_pool_tokens
             .fixed_div_floor(total_tokens, SCALAR_7)
             .unwrap_optimized();

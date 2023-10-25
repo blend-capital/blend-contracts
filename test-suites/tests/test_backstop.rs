@@ -434,20 +434,27 @@ fn test_backstop() {
             }
         )
     );
-    let emitted_tokens = (28 * 24 * 60 * 60 - 61 * 60) * SCALAR_7; // 27d22hr59m on emissions to claim
-    let emission_share = 0_7000000.fixed_mul_floor(0_2000000, SCALAR_7).unwrap();
-    let emitted_blnd = emission_share
-        .fixed_mul_floor(emitted_tokens, SCALAR_7)
+    //6d23hr at full
+    //7 days at none
+    //7 at 6250 + (60 * 60 * 24 * 16 + 1)
+    let emission_share_1 = 0_7000000.fixed_mul_floor(0_2000000, SCALAR_7).unwrap();
+    let emission_share_2 = 0_7000000.fixed_mul_floor(0_1111111, SCALAR_7).unwrap();
+    let emitted_blnd_1 = ((7 * 24 * 60 * 60 - 61 * 60) * SCALAR_7)
+        .fixed_mul_floor(emission_share_1, SCALAR_7)
         .unwrap();
+    let emitted_blnd_2 = ((14 * 24 * 60 * 60 + 1) * SCALAR_7 + 2096022)
+        .fixed_mul_floor(emission_share_2, SCALAR_7)
+        .unwrap();
+
     assert_approx_eq_abs(
         fixture.tokens[TokenIndex::BLND].balance(&sam),
-        sam_blnd_balance + emitted_blnd,
-        100,
+        sam_blnd_balance + emitted_blnd_1 + emitted_blnd_2,
+        SCALAR_7,
     );
     assert_approx_eq_abs(
         fixture.tokens[TokenIndex::BLND].balance(&fixture.backstop.address),
-        bstop_blend_balance - emitted_blnd,
-        100,
+        bstop_blend_balance - emitted_blnd_1 - emitted_blnd_2,
+        SCALAR_7,
     );
     let event = vec![&fixture.env, fixture.env.events().all().last_unchecked()];
     assert_eq!(
@@ -457,7 +464,7 @@ fn test_backstop() {
             (
                 fixture.backstop.address.clone(),
                 (Symbol::new(&fixture.env, "claim"), sam.clone()).into_val(&fixture.env),
-                emitted_blnd.into_val(&fixture.env),
+                (emitted_blnd_1 + emitted_blnd_2).into_val(&fixture.env),
             )
         ]
     );

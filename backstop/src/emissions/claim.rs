@@ -146,11 +146,11 @@ mod tests {
                 &vec![&e, pool_1_id.clone(), pool_2_id.clone()],
                 &frodo,
             );
-            assert_eq!(result, 75_3145677 + 5_0250000);
-            assert_eq!(blnd_token_client.balance(&frodo), 75_3145677 + 5_0250000);
+            assert_eq!(result, 75_3145677 + 6_2904190);
+            assert_eq!(blnd_token_client.balance(&frodo), 75_3145677 + 6_2904190);
             assert_eq!(
                 blnd_token_client.balance(&backstop_address),
-                100_0000000 - (75_3145677 + 5_0250000)
+                100_0000000 - (75_3145677 + 6_2904190)
             );
 
             let new_backstop_1_data =
@@ -158,18 +158,18 @@ mod tests {
             let new_user_1_data =
                 storage::get_user_emis_data(&e, &pool_1_id, &samwise).unwrap_optimized();
             assert_eq!(new_backstop_1_data.last_time, block_timestamp);
-            assert_eq!(new_backstop_1_data.index, 82322222);
+            assert_eq!(new_backstop_1_data.index, 83434384);
             assert_eq!(new_user_1_data.accrued, 0);
-            assert_eq!(new_user_1_data.index, 82322222);
+            assert_eq!(new_user_1_data.index, 83434384);
 
             let new_backstop_2_data =
                 storage::get_backstop_emis_data(&e, &pool_2_id).unwrap_optimized();
             let new_user_2_data =
                 storage::get_user_emis_data(&e, &pool_2_id, &samwise).unwrap_optimized();
             assert_eq!(new_backstop_2_data.last_time, block_timestamp);
-            assert_eq!(new_backstop_2_data.index, 6700000);
+            assert_eq!(new_backstop_2_data.index, 7052631);
             assert_eq!(new_user_2_data.accrued, 0);
-            assert_eq!(new_user_2_data.index, 6700000);
+            assert_eq!(new_user_2_data.index, 7052631);
         });
     }
 
@@ -277,11 +277,11 @@ mod tests {
                 &vec![&e, pool_1_id.clone(), pool_2_id.clone()],
                 &frodo,
             );
-            assert_eq!(result, 75_3145677 + 5_0250000);
-            assert_eq!(blnd_token_client.balance(&frodo), 75_3145677 + 5_0250000);
+            assert_eq!(result, 75_3145677 + 6_2904190);
+            assert_eq!(blnd_token_client.balance(&frodo), 75_3145677 + 6_2904190);
             assert_eq!(
                 blnd_token_client.balance(&backstop_address),
-                200_0000000 - (75_3145677 + 5_0250000)
+                200_0000000 - (75_3145677 + 6_2904190)
             );
 
             let new_backstop_1_data =
@@ -289,18 +289,18 @@ mod tests {
             let new_user_1_data =
                 storage::get_user_emis_data(&e, &pool_1_id, &samwise).unwrap_optimized();
             assert_eq!(new_backstop_1_data.last_time, block_timestamp);
-            assert_eq!(new_backstop_1_data.index, 82322222);
+            assert_eq!(new_backstop_1_data.index, 83434384);
             assert_eq!(new_user_1_data.accrued, 0);
-            assert_eq!(new_user_1_data.index, 82322222);
+            assert_eq!(new_user_1_data.index, 83434384);
 
             let new_backstop_2_data =
                 storage::get_backstop_emis_data(&e, &pool_2_id).unwrap_optimized();
             let new_user_2_data =
                 storage::get_user_emis_data(&e, &pool_2_id, &samwise).unwrap_optimized();
             assert_eq!(new_backstop_2_data.last_time, block_timestamp);
-            assert_eq!(new_backstop_2_data.index, 6700000);
+            assert_eq!(new_backstop_2_data.index, 7052631);
             assert_eq!(new_user_2_data.accrued, 0);
-            assert_eq!(new_user_2_data.index, 6700000);
+            assert_eq!(new_user_2_data.index, 7052631);
 
             let block_timestamp_1 = 1500000000 + 12345 + 12345;
             e.ledger().set(LedgerInfo {
@@ -319,14 +319,14 @@ mod tests {
                 &vec![&e, pool_1_id.clone(), pool_2_id.clone()],
                 &frodo,
             );
-            assert_eq!(result_1, 1005235710);
+            assert_eq!(result_1, 1029168100);
             assert_eq!(
                 blnd_token_client.balance(&frodo),
-                75_3145677 + 5_0250000 + 1005235710
+                75_3145677 + 6_2904190 + 1029168100
             );
             assert_eq!(
                 blnd_token_client.balance(&backstop_address),
-                200_0000000 - (75_3145677 + 5_0250000) - (1005235710)
+                200_0000000 - (75_3145677 + 6_2904190) - (1029168100)
             );
 
             let new_backstop_1_data =
@@ -334,18 +334,18 @@ mod tests {
             let new_user_1_data =
                 storage::get_user_emis_data(&e, &pool_1_id, &samwise).unwrap_optimized();
             assert_eq!(new_backstop_1_data.last_time, block_timestamp_1);
-            assert_eq!(new_backstop_1_data.index, 164622222);
+            assert_eq!(new_backstop_1_data.index, 166846546);
             assert_eq!(new_user_1_data.accrued, 0);
-            assert_eq!(new_user_1_data.index, 164622222);
+            assert_eq!(new_user_1_data.index, 166846546);
 
             let new_backstop_2_data =
                 storage::get_backstop_emis_data(&e, &pool_2_id).unwrap_optimized();
             let new_user_2_data =
                 storage::get_user_emis_data(&e, &pool_2_id, &samwise).unwrap_optimized();
             assert_eq!(new_backstop_2_data.last_time, block_timestamp_1);
-            assert_eq!(new_backstop_2_data.index, 41971428);
+            assert_eq!(new_backstop_2_data.index, 44180450);
             assert_eq!(new_user_2_data.accrued, 0);
-            assert_eq!(new_user_2_data.index, 41971428);
+            assert_eq!(new_user_2_data.index, 44180450);
         });
     }
 

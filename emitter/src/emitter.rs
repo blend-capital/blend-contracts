@@ -28,6 +28,7 @@ pub fn execute_swap_backstop(e: &Env, new_backstop_id: Address) {
     if new_backstop_balance > backstop_balance {
         storage::set_backstop(e, &new_backstop_id);
         storage::set_drop_status(e, false);
+        storage::set_last_fork(e, e.ledger().sequence());
     } else {
         panic_with_error!(e, EmitterError::InsufficientBackstopSize);
     }
@@ -38,8 +39,10 @@ pub fn execute_drop(e: &Env) -> Map<Address, i128> {
     if storage::get_drop_status(e) {
         panic_with_error!(e, EmitterError::BadDrop);
     }
-    let blnd_id = storage::get_blend_id(e);
-    let blnd_client = StellarAssetClient::new(e, &blnd_id);
+    if storage::get_last_fork(e) + 777600 > e.ledger().sequence() {
+        // Check that the last fork was at least 45 days ago
+        panic_with_error!(e, EmitterError::BadDrop);
+    }
 
     let backstop = storage::get_backstop(e);
     let backstop_client = BackstopClient::new(e, &backstop);
@@ -52,6 +55,9 @@ pub fn execute_drop(e: &Env) -> Map<Address, i128> {
     if drop_amount > 50_000_000 * SCALAR_7 {
         panic_with_error!(e, EmitterError::BadDrop);
     }
+    
+    let blnd_id = storage::get_blend_id(e);
+    let blnd_client = StellarAssetClient::new(e, &blnd_id);
     for (addr, amt) in drop_list.iter() {
         blnd_client.mint(&addr, &amt);
     }
@@ -61,6 +67,7 @@ pub fn execute_drop(e: &Env) -> Map<Address, i128> {
 
 #[cfg(test)]
 mod tests {
+
     use crate::{
         storage,
         testutils::{create_backstop, create_emitter},
@@ -206,7 +213,7 @@ mod tests {
         e.ledger().set(LedgerInfo {
             timestamp: 12345,
             protocol_version: 20,
-            sequence_number: 50,
+            sequence_number: 5000000,
             network_id: Default::default(),
             base_reserve: 10,
             min_temp_entry_expiration: 10,
@@ -240,6 +247,7 @@ mod tests {
             storage::set_backstop(&e, &backstop);
             storage::set_blend_id(&e, &blnd_id);
             storage::set_drop_status(&e, false);
+            storage::set_last_fork(&e, 4000000);
 
             let list = execute_drop(&e);
             assert_eq!(storage::get_drop_status(&e), true);
@@ -258,7 +266,7 @@ mod tests {
         e.ledger().set(LedgerInfo {
             timestamp: 12345,
             protocol_version: 20,
-            sequence_number: 50,
+            sequence_number: 5000000,
             network_id: Default::default(),
             base_reserve: 10,
             min_temp_entry_expiration: 10,
@@ -291,6 +299,7 @@ mod tests {
             storage::set_backstop(&e, &backstop);
             storage::set_blend_id(&e, &blnd_id);
             storage::set_drop_status(&e, true);
+            storage::set_last_fork(&e, 4000000);
 
             execute_drop(&e);
             assert_eq!(storage::get_drop_status(&e), true);
@@ -306,7 +315,7 @@ mod tests {
         e.ledger().set(LedgerInfo {
             timestamp: 12345,
             protocol_version: 20,
-            sequence_number: 50,
+            sequence_number: 5000000,
             network_id: Default::default(),
             base_reserve: 10,
             min_temp_entry_expiration: 10,
@@ -339,6 +348,7 @@ mod tests {
             storage::set_backstop(&e, &backstop);
             storage::set_blend_id(&e, &blnd_id);
             storage::set_drop_status(&e, false);
+            storage::set_last_fork(&e, 4000000);
 
             execute_drop(&e);
             assert_eq!(storage::get_drop_status(&e), false);
@@ -346,15 +356,15 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Error(Storage, MissingValue)")]
-    fn test_drop_no_status() {
+    #[should_panic(expected = "Error(Contract, #40)")]
+    fn test_drop_bad_block() {
         let e = Env::default();
         e.mock_all_auths();
 
         e.ledger().set(LedgerInfo {
             timestamp: 12345,
             protocol_version: 20,
-            sequence_number: 50,
+            sequence_number: 5000000,
             network_id: Default::default(),
             base_reserve: 10,
             min_temp_entry_expiration: 10,
@@ -387,6 +397,8 @@ mod tests {
             storage::set_last_distro_time(&e, &1000);
             storage::set_backstop(&e, &backstop);
             storage::set_blend_id(&e, &blnd_id);
+            storage::set_last_fork(&e, 5000000);
+            storage::set_drop_status(&e, false);
 
             execute_drop(&e);
         });

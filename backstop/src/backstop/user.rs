@@ -474,4 +474,43 @@ mod tests {
         // verify exp is respected when specified
         user.dequeue_shares_for_withdrawal(&e, to_dequeue, true);
     }
+    #[test]
+    #[should_panic(expected = "Error(Contract, #2)")]
+    fn test_try_withdraw_shares_over_total() {
+        let e = Env::default();
+
+        let cur_q4w = vec![
+            &e,
+            Q4W {
+                amount: 125,
+                exp: 10000000,
+            },
+            Q4W {
+                amount: 200,
+                exp: 12592000,
+            },
+            Q4W {
+                amount: 50,
+                exp: 19592000,
+            },
+        ];
+        let mut user = UserBalance {
+            shares: 1000,
+            q4w: cur_q4w.clone(),
+        };
+
+        e.ledger().set(LedgerInfo {
+            protocol_version: 20,
+            sequence_number: 1,
+            timestamp: 11192000,
+            network_id: Default::default(),
+            base_reserve: 10,
+            min_temp_entry_expiration: 10,
+            min_persistent_entry_expiration: 10,
+            max_entry_expiration: 2000000,
+        });
+
+        let to_dequeue = 376;
+        user.dequeue_shares_for_withdrawal(&e, to_dequeue, false);
+    }
 }

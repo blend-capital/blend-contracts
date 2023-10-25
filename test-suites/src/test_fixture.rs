@@ -72,7 +72,7 @@ impl TestFixture<'_> {
         e.ledger().set(LedgerInfo {
             timestamp: 1441065600, // Sept 1st, 2015 (backstop epoch)
             protocol_version: 20,
-            sequence_number: 100,
+            sequence_number: 5000000,
             network_id: Default::default(),
             base_reserve: 10,
             min_temp_entry_expiration: 999999,

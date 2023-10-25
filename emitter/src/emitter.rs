@@ -55,7 +55,7 @@ pub fn execute_drop(e: &Env) -> Map<Address, i128> {
     if drop_amount > 50_000_000 * SCALAR_7 {
         panic_with_error!(e, EmitterError::BadDrop);
     }
-    
+
     let blnd_id = storage::get_blend_id(e);
     let blnd_client = StellarAssetClient::new(e, &blnd_id);
     for (addr, amt) in drop_list.iter() {

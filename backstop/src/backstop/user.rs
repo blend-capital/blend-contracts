@@ -48,14 +48,10 @@ impl UserBalance {
     /// ### Errors
     /// If the amount to queue is greater than the available shares
     pub fn queue_shares_for_withdrawal(&mut self, e: &Env, to_q: i128) {
-        let mut q4w_amt: i128 = 0;
-        for q4w in self.q4w.iter() {
-            q4w_amt += q4w.amount
-        }
-
-        if self.shares - q4w_amt < to_q {
+        if self.shares < to_q {
             panic_with_error!(e, BackstopError::InvalidBalance);
         }
+        self.shares = self.shares - to_q;
 
         // user has enough tokens to withdrawal, add Q4W
         // TODO: Consider capping how many active Q4Ws a user can have
@@ -112,19 +108,6 @@ impl UserBalance {
         if left_to_dequeue > 0 {
             panic_with_error!(e, BackstopError::InvalidBalance);
         }
-    }
-
-    /// Withdraw shares from the user
-    ///
-    /// ### Arguments
-    /// * `to_q` - The amount of new shares to queue for withdraw
-    ///
-    /// ### Errors
-    /// If the amount to queue is greater than the available shares
-    pub fn withdraw_shares(&mut self, e: &Env, to_withdraw: i128) {
-        self.dequeue_shares_for_withdrawal(e, to_withdraw, true);
-
-        self.shares -= to_withdraw;
     }
 }
 
@@ -240,7 +223,7 @@ mod tests {
             },
         ];
         let mut user = UserBalance {
-            shares: 1000,
+            shares: 800,
             q4w: cur_q4w.clone(),
         };
 
@@ -281,7 +264,7 @@ mod tests {
         });
 
         let to_wd = 1;
-        user.withdraw_shares(&e, to_wd);
+        user.dequeue_shares_for_withdrawal(&e, to_wd, false);
     }
 
     #[test]
@@ -312,10 +295,10 @@ mod tests {
         });
 
         let to_wd = 200;
-        user.withdraw_shares(&e, to_wd);
+        user.dequeue_shares_for_withdrawal(&e, to_wd, true);
 
         assert_eq_vec_q4w(&user.q4w, &vec![&e]);
-        assert_eq!(user.shares, 800);
+        assert_eq!(user.shares, 1000);
     }
 
     #[test]
@@ -346,7 +329,7 @@ mod tests {
         });
 
         let to_wd = 150;
-        user.withdraw_shares(&e, to_wd);
+        user.dequeue_shares_for_withdrawal(&e, to_wd, false);
 
         let expected_q4w = vec![
             &e,
@@ -356,7 +339,7 @@ mod tests {
             },
         ];
         assert_eq_vec_q4w(&user.q4w, &expected_q4w);
-        assert_eq!(user.shares, 850);
+        assert_eq!(user.shares, 1000);
     }
 
     #[test]
@@ -395,7 +378,7 @@ mod tests {
         });
 
         let to_wd = 300;
-        user.withdraw_shares(&e, to_wd);
+        user.dequeue_shares_for_withdrawal(&e, to_wd, true);
 
         let expected_q4w = vec![
             &e,
@@ -409,7 +392,7 @@ mod tests {
             },
         ];
         assert_eq_vec_q4w(&user.q4w, &expected_q4w);
-        assert_eq!(user.shares, 700);
+        assert_eq!(user.shares, 1000);
     }
 
     #[test]
@@ -449,61 +432,7 @@ mod tests {
         });
 
         let to_wd = 300;
-        user.withdraw_shares(&e, to_wd);
-    }
-
-    #[test]
-    fn test_dequeue_shares() {
-        let e = Env::default();
-
-        let cur_q4w = vec![
-            &e,
-            Q4W {
-                amount: 125,
-                exp: 10000000,
-            },
-            Q4W {
-                amount: 200,
-                exp: 12592000,
-            },
-            Q4W {
-                amount: 50,
-                exp: 19592000,
-            },
-        ];
-        let mut user = UserBalance {
-            shares: 1000,
-            q4w: cur_q4w.clone(),
-        };
-
-        e.ledger().set(LedgerInfo {
-            protocol_version: 20,
-            sequence_number: 1,
-            timestamp: 11192000,
-            network_id: Default::default(),
-            base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
-        });
-        let to_dequeue = 300;
-
-        // verify exp is ignored if only dequeueing
-        user.dequeue_shares_for_withdrawal(&e, to_dequeue, false);
-
-        let expected_q4w = vec![
-            &e,
-            Q4W {
-                amount: 25,
-                exp: 12592000,
-            },
-            Q4W {
-                amount: 50,
-                exp: 19592000,
-            },
-        ];
-        assert_eq_vec_q4w(&user.q4w, &expected_q4w);
-        assert_eq!(user.shares, 1000);
+        user.dequeue_shares_for_withdrawal(&e, to_wd, true);
     }
 
     #[test]
@@ -545,7 +474,6 @@ mod tests {
         // verify exp is respected when specified
         user.dequeue_shares_for_withdrawal(&e, to_dequeue, true);
     }
-
     #[test]
     #[should_panic(expected = "Error(Contract, #2)")]
     fn test_try_withdraw_shares_over_total() {

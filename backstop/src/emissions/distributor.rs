@@ -55,7 +55,7 @@ pub fn update_emission_data(
     };
 
     let additional_idx = (i128(max_timestamp - emis_data.last_time) * i128(emis_config.eps))
-        .fixed_div_floor(pool_balance.shares, SCALAR_7)
+        .fixed_div_floor(pool_balance.shares - pool_balance.q4w, SCALAR_7)
         .unwrap_optimized();
     let new_data = BackstopEmissionsData {
         index: additional_idx + emis_data.index,
@@ -77,8 +77,7 @@ fn update_user_emissions(
         if user_data.index != emis_data.index || to_claim {
             let mut accrual = user_data.accrued;
             if user_balance.shares != 0 {
-                let to_accrue = user_balance
-                    .shares
+                let to_accrue = (user_balance.shares)
                     .fixed_mul_floor(emis_data.index - user_data.index, SCALAR_7)
                     .unwrap_optimized();
                 accrual += to_accrue;
@@ -119,7 +118,7 @@ fn set_user_emissions(
 #[cfg(test)]
 mod tests {
     use crate::{
-        constants::BACKSTOP_EPOCH, storage::BackstopEmissionConfig, testutils::create_backstop,
+        constants::BACKSTOP_EPOCH, storage::BackstopEmissionConfig, testutils::create_backstop, Q4W,
     };
 
     use super::*;
@@ -404,6 +403,70 @@ mod tests {
             assert_eq!(new_backstop_data.index, 34566000);
             assert_eq!(new_user_data.accrued, 31_1094000);
             assert_eq!(new_user_data.index, 34566000);
+        });
+    }
+    #[test]
+    fn test_update_emissions_q4w_not_counted() {
+        let e = Env::default();
+        let block_timestamp = BACKSTOP_EPOCH + 1234;
+        e.ledger().set(LedgerInfo {
+            timestamp: block_timestamp,
+            protocol_version: 20,
+            sequence_number: 0,
+            network_id: Default::default(),
+            base_reserve: 10,
+            min_temp_entry_expiration: 10,
+            min_persistent_entry_expiration: 10,
+            max_entry_expiration: 2000000,
+        });
+
+        let backstop_id = create_backstop(&e);
+        let pool_1 = Address::random(&e);
+        let samwise = Address::random(&e);
+
+        let backstop_emissions_config = BackstopEmissionConfig {
+            expiration: BACKSTOP_EPOCH + 7 * 24 * 60 * 60,
+            eps: 0_1000000,
+        };
+        let backstop_emissions_data = BackstopEmissionsData {
+            index: 22222,
+            last_time: BACKSTOP_EPOCH,
+        };
+        let user_emissions_data = UserEmissionData {
+            index: 11111,
+            accrued: 3,
+        };
+        e.as_contract(&backstop_id, || {
+            storage::set_next_emission_cycle(&e, &(BACKSTOP_EPOCH + 7 * 24 * 60 * 60));
+            storage::set_backstop_emis_config(&e, &pool_1, &backstop_emissions_config);
+            storage::set_backstop_emis_data(&e, &pool_1, &backstop_emissions_data);
+            storage::set_user_emis_data(&e, &pool_1, &samwise, &user_emissions_data);
+
+            let pool_balance = PoolBalance {
+                shares: 150_0000000,
+                tokens: 200_0000000,
+                q4w: 4_5000000,
+            };
+            let q4w: Q4W = Q4W {
+                amount: (4_5000000),
+                exp: (5000),
+            };
+            let user_balance = UserBalance {
+                shares: 4_5000000,
+                q4w: vec![&e, q4w],
+            };
+
+            let result =
+                update_emissions(&e, &pool_1, &pool_balance, &samwise, &user_balance, false);
+
+            let new_backstop_data = storage::get_backstop_emis_data(&e, &pool_1).unwrap_optimized();
+            let new_user_data =
+                storage::get_user_emis_data(&e, &pool_1, &samwise).unwrap_optimized();
+            assert_eq!(result, 0);
+            assert_eq!(new_backstop_data.last_time, block_timestamp);
+            assert_eq!(new_backstop_data.index, 8503321);
+            assert_eq!(new_user_data.accrued, 38214948);
+            assert_eq!(new_user_data.index, 8503321);
         });
     }
 }

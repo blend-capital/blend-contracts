@@ -1,10 +1,8 @@
 use crate::{
-    constants::SCALAR_7,
-    contract::require_nonnegative,
-    dependencies::{CometClient, TokenClient},
-    storage,
+    constants::SCALAR_7, contract::require_nonnegative, dependencies::CometClient, storage,
 };
 use fixed_point_math::FixedPoint;
+use sep_41_token::TokenClient;
 use soroban_sdk::{unwrap::UnwrapOptimized, Address, Env};
 
 use super::require_is_from_pool_factory;

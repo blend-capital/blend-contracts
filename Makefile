@@ -4,8 +4,6 @@ test: build
 	cargo test --all --tests
 
 build:
-	cargo rustc --manifest-path=mocks/mock-pool/Cargo.toml --crate-type=cdylib --target=wasm32-unknown-unknown --release
-	cargo rustc --manifest-path=mocks/mock-oracle/Cargo.toml --crate-type=cdylib --target=wasm32-unknown-unknown --release
 	cargo rustc --manifest-path=pool-factory/Cargo.toml --crate-type=cdylib --target=wasm32-unknown-unknown --release
 	cargo rustc --manifest-path=backstop/Cargo.toml --crate-type=cdylib --target=wasm32-unknown-unknown --release
 	cargo rustc --manifest-path=emitter/Cargo.toml --crate-type=cdylib --target=wasm32-unknown-unknown --release

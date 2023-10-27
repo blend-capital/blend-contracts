@@ -1,6 +1,6 @@
 [package]
 name = "blend-interfaces"
-version = "0.0.1"
+version = "0.0.2"
 description = "Traits, clients, and types for the Blend Protocol"
 homepage = "https://github.com/blend-capital/blend-contracts"
 repository = "https://github.com/blend-capital/blend-contracts"

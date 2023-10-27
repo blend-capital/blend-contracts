@@ -1,6 +1,6 @@
 use soroban_sdk::{map, panic_with_error, unwrap::UnwrapOptimized, vec, Address, Env, Map, Vec};
 
-use oracle::OracleClient;
+use sep_40_oracle::{Asset, PriceFeedClient};
 
 use crate::{
     errors::PoolError,
@@ -81,7 +81,7 @@ impl Pool {
         if let Some(decimals) = self.price_decimals {
             return decimals;
         }
-        let oracle_client = OracleClient::new(e, &self.config.oracle);
+        let oracle_client = PriceFeedClient::new(e, &self.config.oracle);
         let decimals = oracle_client.decimals();
         self.price_decimals = Some(decimals);
         decimals
@@ -98,8 +98,9 @@ impl Pool {
         if let Some(price) = self.prices.get(asset.clone()) {
             return price;
         }
-        let oracle_client = OracleClient::new(e, &self.config.oracle);
-        let price_data = oracle_client.lastprice(asset).unwrap_optimized();
+        let oracle_client = PriceFeedClient::new(e, &self.config.oracle);
+        let oracle_asset = Asset::Stellar(asset.clone());
+        let price_data = oracle_client.lastprice(&oracle_asset).unwrap_optimized();
         if price_data.timestamp + 24 * 60 * 60 < e.ledger().timestamp() {
             panic_with_error!(e, PoolError::StalePrice);
         }
@@ -110,7 +111,11 @@ impl Pool {
 
 #[cfg(test)]
 mod tests {
-    use soroban_sdk::testutils::{Address as _, Ledger, LedgerInfo};
+    use sep_40_oracle::testutils::Asset;
+    use soroban_sdk::{
+        testutils::{Address as _, Ledger, LedgerInfo},
+        Symbol,
+    };
 
     use crate::{storage::ReserveData, testutils};
 
@@ -357,9 +362,17 @@ mod tests {
     #[test]
     fn test_load_price_decimals() {
         let e = Env::default();
+        e.mock_all_auths();
 
         let pool = testutils::create_pool(&e);
-        let (oracle, _) = testutils::create_mock_oracle(&e);
+        let (oracle, oracle_client) = testutils::create_mock_oracle(&e);
+        oracle_client.set_data(
+            &Address::random(&e),
+            &Asset::Stellar(Address::random(&e)),
+            &vec![&e, Asset::Stellar(Address::random(&e))],
+            &7,
+            &300,
+        );
         let pool_config = PoolConfig {
             oracle,
             bstop_rate: 0_200_000_000,
@@ -377,13 +390,27 @@ mod tests {
     #[test]
     fn test_load_price() {
         let e = Env::default();
+        e.mock_all_auths_allowing_non_root_auth();
 
+        let bombadil = Address::random(&e);
         let pool = testutils::create_pool(&e);
         let asset_0 = Address::random(&e);
         let asset_1 = Address::random(&e);
         let (oracle, oracle_client) = testutils::create_mock_oracle(&e);
-        oracle_client.set_price(&asset_0, &123);
-        oracle_client.set_price(&asset_1, &456);
+
+        oracle_client.set_data(
+            &bombadil,
+            &Asset::Other(Symbol::new(&e, "USD")),
+            &vec![
+                &e,
+                Asset::Stellar(asset_0.clone()),
+                Asset::Stellar(asset_1.clone()),
+            ],
+            &7,
+            &300,
+        );
+        oracle_client.set_price_stable(&vec![&e, 123, 456]);
+
         let pool_config = PoolConfig {
             oracle,
             bstop_rate: 0_200_000_000,
@@ -400,7 +427,7 @@ mod tests {
             assert_eq!(price, 456);
 
             // verify the price is cached
-            oracle_client.set_price(&asset_0, &789);
+            oracle_client.set_price_stable(&vec![&e, 789, 101112]);
             let price = pool.load_price(&e, &asset_0);
             assert_eq!(price, 123);
         });
@@ -410,6 +437,7 @@ mod tests {
     #[should_panic(expected = "Error(Contract, #30)")]
     fn test_load_price_panics_if_stale() {
         let e = Env::default();
+        e.mock_all_auths_allowing_non_root_auth();
 
         e.ledger().set(LedgerInfo {
             timestamp: 1000 + 24 * 60 * 60 + 1,
@@ -422,10 +450,18 @@ mod tests {
             max_entry_expiration: 2000000,
         });
 
+        let bombadil = Address::random(&e);
         let pool = testutils::create_pool(&e);
         let asset = Address::random(&e);
         let (oracle, oracle_client) = testutils::create_mock_oracle(&e);
-        oracle_client.set_price_timestamp(&asset, &123, &1000);
+        oracle_client.set_data(
+            &bombadil,
+            &Asset::Other(Symbol::new(&e, "USD")),
+            &vec![&e, Asset::Stellar(asset.clone())],
+            &7,
+            &300,
+        );
+        oracle_client.set_price(&vec![&e, 123], &1000);
         let pool_config = PoolConfig {
             oracle,
             bstop_rate: 0_200_000_000,

@@ -6,10 +6,7 @@ members = [
     "blend-interfaces",
     "emitter",
     "pool",
-    "mocks/mock-oracle",
-    "mocks/mock-pool",
     "mocks/mock-pool-factory",
-    "oracle",
     "pool-factory",
     "test-suites"
 ]
@@ -37,3 +34,12 @@ version = "0.0.2"
 [workspace.dependencies.cast]
 version = "0.3.0"
 default-features = false
+
+[workspace.dependencies.sep-40-oracle]
+version = "0.1.1"
+
+[workspace.dependencies.sep-41-token]
+version = "0.2.1"
+
+[workspace.dependencies.blend-interfaces]
+path = "./blend-interfaces"

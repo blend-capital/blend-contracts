@@ -142,7 +142,11 @@ mod tests {
     };
 
     use super::*;
-    use soroban_sdk::testutils::{Address as AddressTestTrait, Ledger, LedgerInfo};
+    use sep_40_oracle::testutils::Asset;
+    use soroban_sdk::{
+        testutils::{Address as AddressTestTrait, Ledger, LedgerInfo},
+        vec, Symbol,
+    };
 
     #[test]
     #[should_panic(expected = "Error(Contract, #103)")]
@@ -257,9 +261,19 @@ mod tests {
             &reserve_data_2,
         );
 
-        oracle_client.set_price(&underlying_0, &2_0000000);
-        oracle_client.set_price(&underlying_1, &4_0000000);
-        oracle_client.set_price(&underlying_2, &50_0000000);
+        oracle_client.set_data(
+            &bombadil,
+            &Asset::Other(Symbol::new(&e, "USD")),
+            &vec![
+                &e,
+                Asset::Stellar(underlying_0.clone()),
+                Asset::Stellar(underlying_1.clone()),
+                Asset::Stellar(underlying_2.clone()),
+            ],
+            &7,
+            &300,
+        );
+        oracle_client.set_price_stable(&vec![&e, 2_0000000, 4_0000000, 50_0000000]);
 
         let liq_pct = 45;
         let positions: Positions = Positions {
@@ -361,9 +375,19 @@ mod tests {
         );
         e.budget().reset_unlimited();
 
-        oracle_client.set_price(&underlying_0, &2_0000000);
-        oracle_client.set_price(&underlying_1, &4_0000000);
-        oracle_client.set_price(&underlying_2, &50_0000000);
+        oracle_client.set_data(
+            &bombadil,
+            &Asset::Other(Symbol::new(&e, "USD")),
+            &vec![
+                &e,
+                Asset::Stellar(underlying_0),
+                Asset::Stellar(underlying_1),
+                Asset::Stellar(underlying_2),
+            ],
+            &7,
+            &300,
+        );
+        oracle_client.set_price_stable(&vec![&e, 2_0000000, 4_0000000, 50_0000000]);
 
         let liq_pct = 100;
         let pool_config = PoolConfig {
@@ -458,9 +482,19 @@ mod tests {
         );
         e.budget().reset_unlimited();
 
-        oracle_client.set_price(&underlying_0, &2_0000000);
-        oracle_client.set_price(&underlying_1, &4_0000000);
-        oracle_client.set_price(&underlying_2, &50_0000000);
+        oracle_client.set_data(
+            &bombadil,
+            &Asset::Other(Symbol::new(&e, "USD")),
+            &vec![
+                &e,
+                Asset::Stellar(underlying_0),
+                Asset::Stellar(underlying_1),
+                Asset::Stellar(underlying_2),
+            ],
+            &7,
+            &300,
+        );
+        oracle_client.set_price_stable(&vec![&e, 2_0000000, 4_0000000, 50_0000000]);
 
         let liq_pct = 46;
         let pool_config = PoolConfig {
@@ -556,9 +590,19 @@ mod tests {
         );
         e.budget().reset_unlimited();
 
-        oracle_client.set_price(&underlying_0, &2_0000000);
-        oracle_client.set_price(&underlying_1, &4_0000000);
-        oracle_client.set_price(&underlying_2, &50_0000000);
+        oracle_client.set_data(
+            &bombadil,
+            &Asset::Other(Symbol::new(&e, "USD")),
+            &vec![
+                &e,
+                Asset::Stellar(underlying_0),
+                Asset::Stellar(underlying_1),
+                Asset::Stellar(underlying_2),
+            ],
+            &7,
+            &300,
+        );
+        oracle_client.set_price_stable(&vec![&e, 2_0000000, 4_0000000, 50_0000000]);
 
         let liq_pct = 25;
         let pool_config = PoolConfig {
@@ -595,9 +639,9 @@ mod tests {
             sequence_number: 175,
             network_id: Default::default(),
             base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
+            min_temp_entry_expiration: 17280,
+            min_persistent_entry_expiration: 17280,
+            max_entry_expiration: u32::MAX,
         });
 
         let bombadil = Address::random(&e);
@@ -654,9 +698,19 @@ mod tests {
         );
         e.budget().reset_unlimited();
 
-        oracle_client.set_price(&underlying_0, &2_0000000);
-        oracle_client.set_price(&underlying_1, &4_0000000);
-        oracle_client.set_price(&underlying_2, &50_0000000);
+        oracle_client.set_data(
+            &bombadil,
+            &Asset::Other(Symbol::new(&e, "USD")),
+            &vec![
+                &e,
+                Asset::Stellar(underlying_0.clone()),
+                Asset::Stellar(underlying_1.clone()),
+                Asset::Stellar(underlying_2.clone()),
+            ],
+            &7,
+            &300,
+        );
+        oracle_client.set_price_stable(&vec![&e, 2_0000000, 4_0000000, 50_0000000]);
 
         reserve_2_asset.mint(&frodo, &0_8000000);
         reserve_2_asset.approve(&frodo, &pool_address, &i128::MAX, &1000000);
@@ -694,9 +748,9 @@ mod tests {
                 sequence_number: 176 + 200,
                 network_id: Default::default(),
                 base_reserve: 10,
-                min_temp_entry_expiration: 10,
-                min_persistent_entry_expiration: 10,
-                max_entry_expiration: 2000000,
+                min_temp_entry_expiration: 17280,
+                min_persistent_entry_expiration: 17280,
+                max_entry_expiration: u32::MAX,
             });
             e.budget().reset_unlimited();
             let mut pool = Pool::load(&e);
@@ -760,9 +814,9 @@ mod tests {
             sequence_number: 175,
             network_id: Default::default(),
             base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
+            min_temp_entry_expiration: 17280,
+            min_persistent_entry_expiration: 17280,
+            max_entry_expiration: u32::MAX,
         });
 
         let bombadil = Address::random(&e);
@@ -819,9 +873,19 @@ mod tests {
         );
         e.budget().reset_unlimited();
 
-        oracle_client.set_price(&underlying_0, &2_0000000);
-        oracle_client.set_price(&underlying_1, &4_0000000);
-        oracle_client.set_price(&underlying_2, &50_0000000);
+        oracle_client.set_data(
+            &bombadil,
+            &Asset::Other(Symbol::new(&e, "USD")),
+            &vec![
+                &e,
+                Asset::Stellar(underlying_0.clone()),
+                Asset::Stellar(underlying_1.clone()),
+                Asset::Stellar(underlying_2.clone()),
+            ],
+            &7,
+            &300,
+        );
+        oracle_client.set_price_stable(&vec![&e, 2_0000000, 4_0000000, 50_0000000]);
 
         reserve_2_asset.mint(&frodo, &0_8000000);
         reserve_2_asset.approve(&frodo, &pool_address, &i128::MAX, &1000000);
@@ -859,9 +923,9 @@ mod tests {
                 sequence_number: 176 + 200,
                 network_id: Default::default(),
                 base_reserve: 10,
-                min_temp_entry_expiration: 10,
-                min_persistent_entry_expiration: 10,
-                max_entry_expiration: 2000000,
+                min_temp_entry_expiration: 17280,
+                min_persistent_entry_expiration: 17280,
+                max_entry_expiration: u32::MAX,
             });
             e.budget().reset_unlimited();
             let mut pool = Pool::load(&e);

@@ -1,10 +1,10 @@
 use cast::{i128, u64};
 use fixed_point_math::FixedPoint;
+use sep_41_token::TokenClient;
 use soroban_sdk::{panic_with_error, unwrap::UnwrapOptimized, vec, Address, Env, Vec};
 
 use crate::{
     constants::{BACKSTOP_EPOCH, SCALAR_7},
-    dependencies::TokenClient,
     errors::BackstopError,
     storage::{self, BackstopEmissionConfig, BackstopEmissionsData},
 };

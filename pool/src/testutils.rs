@@ -2,18 +2,18 @@
 
 use crate::{
     constants::{SCALAR_7, SCALAR_9},
-    dependencies::{TokenClient, TOKEN_WASM},
     pool::Reserve,
     storage::{self, ReserveConfig, ReserveData},
     PoolContract,
 };
 use fixed_point_math::FixedPoint;
+use sep_40_oracle::testutils::{MockPriceOracleClient, MockPriceOracleWASM};
+use sep_41_token::testutils::{MockTokenClient, MockTokenWASM};
 use soroban_sdk::{
     map, testutils::Address as _, unwrap::UnwrapOptimized, vec, Address, Env, IntoVal,
 };
 
 use backstop::{BackstopClient, BackstopContract};
-use mock_oracle::{MockOracle, MockOracleClient};
 use mock_pool_factory::{MockPoolFactory, MockPoolFactoryClient};
 
 pub(crate) fn create_pool(e: &Env) -> Address {
@@ -26,10 +26,13 @@ pub(crate) fn create_pool(e: &Env) -> Address {
 
 // ***** Token *****
 
-pub(crate) fn create_token_contract<'a>(e: &Env, admin: &Address) -> (Address, TokenClient<'a>) {
+pub(crate) fn create_token_contract<'a>(
+    e: &Env,
+    admin: &Address,
+) -> (Address, MockTokenClient<'a>) {
     let contract_address = Address::random(e);
-    e.register_contract_wasm(&contract_address, TOKEN_WASM);
-    let client = TokenClient::new(e, &contract_address);
+    e.register_contract_wasm(&contract_address, MockTokenWASM);
+    let client = MockTokenClient::new(e, &contract_address);
     client.initialize(admin, &7, &"unit".into_val(e), &"test".into_val(e));
     (contract_address, client)
 }
@@ -38,7 +41,7 @@ pub(crate) fn create_blnd_token<'a>(
     e: &Env,
     pool_address: &Address,
     admin: &Address,
-) -> (Address, TokenClient<'a>) {
+) -> (Address, MockTokenClient<'a>) {
     let (contract_address, client) = create_token_contract(e, admin);
 
     e.as_contract(pool_address, || {
@@ -51,7 +54,7 @@ pub(crate) fn create_usdc_token<'a>(
     e: &Env,
     pool_address: &Address,
     admin: &Address,
-) -> (Address, TokenClient<'a>) {
+) -> (Address, MockTokenClient<'a>) {
     let (contract_address, client) = create_token_contract(e, admin);
 
     e.as_contract(pool_address, || {
@@ -62,11 +65,11 @@ pub(crate) fn create_usdc_token<'a>(
 
 //***** Oracle ******
 
-pub(crate) fn create_mock_oracle(e: &Env) -> (Address, MockOracleClient) {
-    let contract_address = e.register_contract(None, MockOracle {});
+pub(crate) fn create_mock_oracle(e: &Env) -> (Address, MockPriceOracleClient) {
+    let contract_address = e.register_contract_wasm(None, MockPriceOracleWASM);
     (
         contract_address.clone(),
-        MockOracleClient::new(e, &contract_address),
+        MockPriceOracleClient::new(e, &contract_address),
     )
 }
 
@@ -133,8 +136,8 @@ pub(crate) fn create_comet_lp_pool<'a>(
     e.register_contract_wasm(&contract_address, comet::WASM);
     let client = comet::Client::new(e, &contract_address);
 
-    let blnd_client = TokenClient::new(e, blnd_token);
-    let usdc_client = TokenClient::new(e, usdc_token);
+    let blnd_client = MockTokenClient::new(e, blnd_token);
+    let usdc_client = MockTokenClient::new(e, usdc_token);
     blnd_client.mint(&admin, &1_000_0000000);
     usdc_client.mint(&admin, &25_0000000);
     let exp_ledger = e.ledger().sequence() + 100;
@@ -225,7 +228,7 @@ pub(crate) fn create_reserve(
         storage::set_res_config(e, &token_address, &new_reserve_config);
         storage::set_res_data(e, &token_address, &reserve_data);
     });
-    let underlying_client = TokenClient::new(e, token_address);
+    let underlying_client = MockTokenClient::new(e, token_address);
 
     // mint pool assets to set expected b_rate
     let total_supply = reserve_data

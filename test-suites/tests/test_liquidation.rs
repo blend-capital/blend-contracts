@@ -369,11 +369,17 @@ fn test_liquidations() {
             )
         ]
     );
+
     //tank eth price
-    fixture.oracle.set_price(
-        &fixture.tokens[TokenIndex::WETH].address.clone(),
-        &(500 * SCALAR_7),
-    );
+    fixture.oracle.set_price_stable(&vec![
+        &fixture.env,
+        0_0500000,   // blnd
+        500_0000000, // eth
+        1_0000000,   // usdc
+        0_1000000,   // xlm
+        1_0000000,   // stable
+    ]);
+
     //fully liquidate user
     let blank_requests: Vec<Request> = vec![&fixture.env];
     pool_fixture
@@ -742,11 +748,16 @@ fn test_liquidations() {
     let sam_positions = pool_fixture
         .pool
         .submit(&samwise, &samwise, &samwise, &sam_requests);
+
     // Nuke eth price more
-    fixture.oracle.set_price(
-        &fixture.tokens[TokenIndex::WETH].address.clone(),
-        &(10 * SCALAR_7),
-    );
+    fixture.oracle.set_price_stable(&vec![
+        &fixture.env,
+        0_0500000,  // blnd
+        10_0000000, // eth
+        1_0000000,  // usdc
+        0_1000000,  // xlm
+        1_0000000,  // stable
+    ]);
 
     // Liquidate sam
     let liq_pct: u64 = 100;

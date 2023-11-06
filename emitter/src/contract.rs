@@ -66,7 +66,6 @@ impl Emitter for EmitterContract {
     fn distribute(e: Env) -> i128 {
         storage::bump_instance(&e);
         let backstop_address = storage::get_backstop(&e);
-        backstop_address.require_auth();
 
         let distribution_amount = emitter::execute_distribute(&e, &backstop_address);
 

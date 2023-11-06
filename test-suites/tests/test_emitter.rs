@@ -1,7 +1,7 @@
 #![cfg(test)]
 
 use soroban_sdk::{
-    testutils::{Address as _, AuthorizedFunction, AuthorizedInvocation, Events},
+    testutils::{Address as _, Events},
     vec, Address, IntoVal, Symbol,
 };
 use test_suites::{
@@ -41,20 +41,7 @@ fn test_emitter() {
     fixture.jump(6 * 24 * 60 * 60);
     let result = fixture.emitter.distribute();
     backstop_blnd_balance += result;
-    assert_eq!(
-        fixture.env.auths()[0],
-        (
-            fixture.backstop.address.clone(),
-            AuthorizedInvocation {
-                function: AuthorizedFunction::Contract((
-                    fixture.emitter.address.clone(),
-                    Symbol::new(&fixture.env, "distribute"),
-                    vec![&fixture.env,]
-                )),
-                sub_invocations: std::vec![]
-            }
-        )
-    );
+    assert_eq!(fixture.env.auths().len(), 0);
     assert_eq!(result, (6 * 24 * 60 * 60 + 61 * 60) * SCALAR_7); // 1 token per second are emitted
     assert_eq!(
         blnd_token.balance(&fixture.emitter.address),

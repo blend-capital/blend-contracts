@@ -60,9 +60,9 @@ pub fn create_fixture_with_data<'a>(wasm: bool) -> TestFixture<'a> {
 
     // mint LP tokens with whale
     fixture.tokens[TokenIndex::BLND].mint(&frodo, &(500_001 * SCALAR_7));
-    fixture.tokens[TokenIndex::BLND].approve(&frodo, &fixture.lp.address, &i128::MAX, &99999);
+    // fixture.tokens[TokenIndex::BLND].approve(&frodo, &fixture.lp.address, &i128::MAX, &99999);
     fixture.tokens[TokenIndex::USDC].mint(&frodo, &(12_501 * SCALAR_7));
-    fixture.tokens[TokenIndex::USDC].approve(&frodo, &fixture.lp.address, &i128::MAX, &99999);
+    // fixture.tokens[TokenIndex::USDC].approve(&frodo, &fixture.lp.address, &i128::MAX, &99999);
     fixture.lp.join_pool(
         &(50_000 * SCALAR_7),
         &vec![&fixture.env, 500_001 * SCALAR_7, 12_501 * SCALAR_7],

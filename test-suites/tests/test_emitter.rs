@@ -72,7 +72,13 @@ fn test_emitter() {
     // Mint enough tokens to a new backstop address to perform a swap, then swap the backstops
     let old_backstop_balance = bstop_token.balance(&fixture.backstop.address);
     let new_backstop = Address::random(&fixture.env);
-    bstop_token.mint(&new_backstop, &(old_backstop_balance + 1));
+    fixture.tokens[TokenIndex::BLND].mint(&new_backstop, &(505_001 * SCALAR_7));
+    fixture.tokens[TokenIndex::USDC].mint(&new_backstop, &(13_501 * SCALAR_7));
+    fixture.lp.join_pool(
+        &(old_backstop_balance + 1),
+        &vec![&fixture.env, 505_001 * SCALAR_7, 13_501 * SCALAR_7],
+        &new_backstop,
+    );
     fixture.emitter.swap_backstop(&new_backstop);
     assert_eq!(fixture.env.auths().len(), 0);
     assert_eq!(fixture.emitter.get_backstop(), new_backstop.clone());

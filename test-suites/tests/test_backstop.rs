@@ -39,13 +39,17 @@ fn test_backstop() {
     // Mint some backstop tokens
     // assumes Sam makes up 20% of the backstop after depositing (50k / 0.8 * 0.2 = 12.5k)
     //  -> mint 12.5k LP tokens to sam
-    fixture.tokens[TokenIndex::BLND].mint(&sam, &(125_001 * SCALAR_7)); // 10 BLND per LP token
+    fixture.tokens[TokenIndex::BLND].mint(&sam, &(125_001_000_0000_0000_000_000 * SCALAR_7)); // 10 BLND per LP token
     fixture.tokens[TokenIndex::BLND].approve(&sam, &bstop_token.address, &i128::MAX, &99999);
-    fixture.tokens[TokenIndex::USDC].mint(&sam, &(3_126 * SCALAR_7)); // 0.25 USDC per LP token
+    fixture.tokens[TokenIndex::USDC].mint(&sam, &(3_126_000_0000_0000_000_000 * SCALAR_7)); // 0.25 USDC per LP token
     fixture.tokens[TokenIndex::USDC].approve(&sam, &bstop_token.address, &i128::MAX, &99999);
     bstop_token.join_pool(
         &(12_500 * SCALAR_7),
-        &vec![&fixture.env, 125_001 * SCALAR_7, 3_126 * SCALAR_7],
+        &vec![
+            &fixture.env,
+            125_001_000_0000_0000_000 * SCALAR_7,
+            3_126_000_0000_0000_000 * SCALAR_7,
+        ],
         &sam,
     );
 
@@ -410,8 +414,8 @@ fn test_backstop() {
     );
 
     // Sam claims emissions earned on the backstop deposit
-    let sam_blnd_balance = &fixture.tokens[TokenIndex::BLND].balance(&sam);
     let bstop_blend_balance = &fixture.tokens[TokenIndex::BLND].balance(&fixture.backstop.address);
+    let comet_blend_balance = &fixture.tokens[TokenIndex::BLND].balance(&fixture.lp.address);
     fixture
         .backstop
         .claim(&sam, &vec![&fixture.env, pool.address.clone()], &sam);
@@ -447,8 +451,8 @@ fn test_backstop() {
         .unwrap();
 
     assert_approx_eq_abs(
-        fixture.tokens[TokenIndex::BLND].balance(&sam),
-        sam_blnd_balance + emitted_blnd_1 + emitted_blnd_2,
+        fixture.tokens[TokenIndex::BLND].balance(&fixture.lp.address),
+        comet_blend_balance + emitted_blnd_1 + emitted_blnd_2,
         SCALAR_7,
     );
     assert_approx_eq_abs(

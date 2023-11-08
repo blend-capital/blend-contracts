@@ -1,5 +1,6 @@
 #![cfg(test)]
 
+use backstop::{BackstopDataKey, PoolBalance, PoolUserKey, UserBalance};
 use fixed_point_math::FixedPoint;
 use pool::Request;
 use soroban_sdk::{testutils::Address as _, vec, Address};
@@ -178,25 +179,27 @@ fn test_wasm_happy_path() {
     // claim frodo's setup emissions (1h1m passes during setup)
     // - Frodo should receive 60 * 61 * .3 = 1098 BLND from the pool claim
     // - Frodo should receive 60 * 61 * .7 = 2562 BLND from the backstop claim
-    let mut frodo_blnd_balance = fixture.tokens[TokenIndex::BLND].balance(&frodo);
+    let mut backstop_blnd_balance =
+        fixture.tokens[TokenIndex::BLND].balance(&fixture.backstop.address);
     let claim_amount = pool_fixture
         .pool
         .claim(&frodo, &vec![&fixture.env, 0, 3], &frodo);
-    frodo_blnd_balance += claim_amount;
+    backstop_blnd_balance -= claim_amount;
     assert_eq!(claim_amount, 1098_0000000);
     assert_eq!(
-        fixture.tokens[TokenIndex::BLND].balance(&frodo),
-        frodo_blnd_balance
+        fixture.tokens[TokenIndex::BLND].balance(&fixture.backstop.address),
+        backstop_blnd_balance
     );
-    fixture.backstop.claim(
+    let claim_amount = fixture.backstop.claim(
         &frodo,
         &vec![&fixture.env, pool_fixture.pool.address.clone()],
         &frodo,
     );
-    frodo_blnd_balance += 2562_0000000;
+    assert_eq!(claim_amount, 2562_0000000);
+    backstop_blnd_balance -= 2562_0000000;
     assert_eq!(
-        fixture.tokens[TokenIndex::BLND].balance(&frodo),
-        frodo_blnd_balance
+        fixture.tokens[TokenIndex::BLND].balance(&fixture.backstop.address),
+        backstop_blnd_balance
     );
 
     // Let three days pass
@@ -205,26 +208,35 @@ fn test_wasm_happy_path() {
     // Claim 3 day emissions
 
     // Claim frodo's three day pool emissions
+    let frodo_balance = fixture.tokens[TokenIndex::BLND].balance(&frodo);
     let claim_amount = pool_fixture
         .pool
         .claim(&frodo, &vec![&fixture.env, 0, 3], &frodo);
-    frodo_blnd_balance += claim_amount;
+    backstop_blnd_balance -= claim_amount;
     assert_eq!(claim_amount, 4665_6384000);
     assert_eq!(
+        fixture.tokens[TokenIndex::BLND].balance(&fixture.backstop.address),
+        backstop_blnd_balance
+    );
+    assert_eq!(
         fixture.tokens[TokenIndex::BLND].balance(&frodo),
-        frodo_blnd_balance
+        frodo_balance + claim_amount
     );
 
     // Claim sam's three day pool emissions
-    let mut sam_blnd_balance = 0;
+    let sam_balance = fixture.tokens[TokenIndex::BLND].balance(&sam);
     let claim_amount = pool_fixture
         .pool
         .claim(&sam, &vec![&fixture.env, 0, 3], &sam);
-    sam_blnd_balance += claim_amount;
+    backstop_blnd_balance -= claim_amount;
     assert_eq!(claim_amount, 730943066650);
     assert_eq!(
+        fixture.tokens[TokenIndex::BLND].balance(&fixture.backstop.address),
+        backstop_blnd_balance
+    );
+    assert_eq!(
         fixture.tokens[TokenIndex::BLND].balance(&sam),
-        sam_blnd_balance
+        sam_balance + claim_amount
     );
 
     // Sam repays some of his STABLE loan
@@ -358,35 +370,49 @@ fn test_wasm_happy_path() {
     pool_fixture.pool.update_emissions();
 
     // Frodo claim emissions
+    let mut backstop_blnd_balance =
+        fixture.tokens[TokenIndex::BLND].balance(&fixture.backstop.address);
+    let frodo_balance = fixture.tokens[TokenIndex::BLND].balance(&frodo);
     let claim_amount = pool_fixture
         .pool
         .claim(&frodo, &vec![&fixture.env, 0, 3], &frodo);
-    frodo_blnd_balance += claim_amount;
+    backstop_blnd_balance -= claim_amount;
     assert_eq!(claim_amount, 116731656000);
     assert_eq!(
-        fixture.tokens[TokenIndex::BLND].balance(&frodo),
-        frodo_blnd_balance
+        fixture.tokens[TokenIndex::BLND].balance(&fixture.backstop.address),
+        backstop_blnd_balance
     );
-    fixture.backstop.claim(
+    assert_eq!(
+        fixture.tokens[TokenIndex::BLND].balance(&frodo),
+        frodo_balance + claim_amount
+    );
+    let claim_amount = fixture.backstop.claim(
         &frodo,
         &vec![&fixture.env, pool_fixture.pool.address.clone()],
         &frodo,
     );
-    frodo_blnd_balance += 420798_0000000;
+
+    assert_eq!(claim_amount, 420798_0000000);
+    backstop_blnd_balance -= claim_amount;
     assert_eq!(
-        fixture.tokens[TokenIndex::BLND].balance(&frodo),
-        frodo_blnd_balance
+        fixture.tokens[TokenIndex::BLND].balance(&fixture.backstop.address),
+        backstop_blnd_balance
     );
 
     // Sam claim emissions
+    let sam_balance = fixture.tokens[TokenIndex::BLND].balance(&sam);
     let claim_amount = pool_fixture
         .pool
         .claim(&sam, &vec![&fixture.env, 0, 3], &sam);
-    sam_blnd_balance += claim_amount;
+    backstop_blnd_balance -= claim_amount;
     assert_eq!(claim_amount, 90908_8243315);
     assert_eq!(
+        fixture.tokens[TokenIndex::BLND].balance(&fixture.backstop.address),
+        backstop_blnd_balance
+    );
+    assert_eq!(
         fixture.tokens[TokenIndex::BLND].balance(&sam),
-        sam_blnd_balance
+        sam_balance + claim_amount
     );
 
     // Let a year go by and call update every week
@@ -400,37 +426,62 @@ fn test_wasm_happy_path() {
     }
 
     // Frodo claims a year worth of backstop emissions
-    fixture.backstop.claim(
+    let mut backstop_blnd_balance =
+        fixture.tokens[TokenIndex::BLND].balance(&fixture.backstop.address);
+    fixture.env.as_contract(&fixture.backstop.address, || {
+        let key = BackstopDataKey::UserBalance(PoolUserKey {
+            pool: fixture.pools[0].pool.address.clone(),
+            user: frodo.clone(),
+        });
+        let shares: UserBalance = fixture.env.storage().persistent().get(&key).unwrap();
+        println!("shares: {:?}", shares.shares);
+        let key = BackstopDataKey::PoolBalance(fixture.pools[0].pool.address.clone());
+        let shares: PoolBalance = fixture.env.storage().persistent().get(&key).unwrap();
+        println!("shares: {:?}", shares.shares);
+    });
+    let claim_amount = fixture.backstop.claim(
         &frodo,
         &vec![&fixture.env, pool_fixture.pool.address.clone()],
         &frodo,
     );
-    frodo_blnd_balance += 22014720_0000000;
+    fixture.env.as_contract(&fixture.backstop.address, || {
+        let key = BackstopDataKey::UserBalance(PoolUserKey {
+            pool: fixture.pools[0].pool.address.clone(),
+            user: frodo.clone(),
+        });
+        let shares: UserBalance = fixture.env.storage().persistent().get(&key).unwrap();
+        println!("shares: {:?}", shares.shares);
+        let key = BackstopDataKey::PoolBalance(fixture.pools[0].pool.address.clone());
+        let shares: PoolBalance = fixture.env.storage().persistent().get(&key).unwrap();
+        println!("shares: {:?}", shares.shares);
+    });
+    assert_eq!(claim_amount, 22014720_0000000);
+    backstop_blnd_balance -= 22014720_0000000;
     assert_eq!(
-        fixture.tokens[TokenIndex::BLND].balance(&frodo),
-        frodo_blnd_balance
+        fixture.tokens[TokenIndex::BLND].balance(&fixture.backstop.address),
+        backstop_blnd_balance
     );
 
     // Frodo claims a year worth of pool emissions
     let claim_amount = pool_fixture
         .pool
         .claim(&frodo, &vec![&fixture.env, 0, 3], &frodo);
-    frodo_blnd_balance += claim_amount;
+    backstop_blnd_balance -= claim_amount;
     assert_eq!(claim_amount, 1073627_6928000);
     assert_eq!(
-        fixture.tokens[TokenIndex::BLND].balance(&frodo),
-        frodo_blnd_balance
+        fixture.tokens[TokenIndex::BLND].balance(&fixture.backstop.address),
+        backstop_blnd_balance
     );
 
     // Sam claims a year worth of pool emissions
     let claim_amount = pool_fixture
         .pool
         .claim(&sam, &vec![&fixture.env, 0, 3], &sam);
-    sam_blnd_balance += claim_amount;
+    backstop_blnd_balance -= claim_amount;
     assert_eq!(claim_amount, 8361247_4076689);
     assert_eq!(
-        fixture.tokens[TokenIndex::BLND].balance(&sam),
-        sam_blnd_balance
+        fixture.tokens[TokenIndex::BLND].balance(&fixture.backstop.address),
+        backstop_blnd_balance
     );
 
     // Sam repays his STABLE loan

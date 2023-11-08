@@ -21,10 +21,6 @@ fn test_emitter() {
     let emitter_blnd_balance = blnd_token.balance(&fixture.emitter.address);
     let mut backstop_blnd_balance = blnd_token.balance(&fixture.backstop.address);
 
-    // println!("checking events...");
-    // let events = fixture.env.events().all();
-    // println!("events: {:?}", events);
-
     // Verify initialization can't be re-run
     let result = fixture.emitter.try_initialize(
         &Address::random(&fixture.env),

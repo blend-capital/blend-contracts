@@ -41,8 +41,8 @@ pub struct UserEmissionData {
 #[derive(Clone)]
 #[contracttype]
 pub struct PoolUserKey {
-    pool: Address,
-    user: Address,
+    pub pool: Address,
+    pub user: Address,
 }
 
 #[derive(Clone)]

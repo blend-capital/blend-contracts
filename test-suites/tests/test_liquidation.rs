@@ -501,7 +501,6 @@ fn test_liquidations() {
     // create a bad debt auction
     let auction_type: u32 = 1;
     let bad_debt_auction_data = pool_fixture.pool.new_auction(&auction_type);
-    let pool_backstop_data = fixture.backstop.pool_data(&pool_fixture.pool.address);
 
     assert_eq!(bad_debt_auction_data.bid.len(), 2);
     assert_eq!(bad_debt_auction_data.lot.len(), 1);

@@ -1,7 +1,9 @@
 use crate::{dependencies::CometClient, errors::BackstopError, storage};
 use fixed_point_math::FixedPoint;
-use sep_41_token::TokenClient;
-use soroban_sdk::{panic_with_error, Address, Env, Map, Symbol, Vec};
+use soroban_sdk::{
+    auth::{ContractContext, InvokerContractAuthEntry, SubContractInvocation},
+    panic_with_error, vec, Address, Env, IntoVal, Map, Symbol, Val, Vec,
+};
 
 use super::update_emissions;
 
@@ -27,12 +29,23 @@ pub fn execute_claim(e: &Env, from: &Address, pool_addresses: &Vec<Address>, to:
     if claimed > 0 {
         let blnd_id = storage::get_blnd_token(e);
         let lp_id = storage::get_backstop_token(e);
-        TokenClient::new(e, &blnd_id).approve(
-            &e.current_contract_address(),
-            &lp_id,
-            &claimed,
-            &(e.ledger().sequence() + 10),
-        );
+        let args: Vec<Val> = vec![
+            e,
+            (&e.current_contract_address()).into_val(e),
+            (&lp_id).into_val(e),
+            (&claimed).into_val(e),
+        ];
+        e.authorize_as_current_contract(vec![
+            &e,
+            InvokerContractAuthEntry::Contract(SubContractInvocation {
+                context: ContractContext {
+                    contract: blnd_id.clone(),
+                    fn_name: Symbol::new(e, "transfer"),
+                    args: args.clone(),
+                },
+                sub_invocations: vec![e],
+            }),
+        ]);
         let lp_tokens_out = CometClient::new(e, &lp_id).dep_tokn_amt_in_get_lp_tokns_out(
             &blnd_id,
             &claimed,

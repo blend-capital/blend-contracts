@@ -535,7 +535,7 @@ fn test_pool_user() {
 /// Does not test internal state management of the lending pool, only external effects.
 #[test]
 fn test_pool_config() {
-    let fixture = create_fixture_with_data(true);
+    let fixture = create_fixture_with_data(false);
 
     let pool_fixture = &fixture.pools[0];
 
@@ -682,12 +682,46 @@ fn test_pool_config() {
         ]
     );
 
+    // Set admin (admin only)
+    let new_admin = Address::random(&fixture.env);
+    pool_fixture.pool.set_admin(&new_admin);
+    assert_eq!(
+        fixture.env.auths()[0],
+        (
+            fixture.bombadil.clone(),
+            AuthorizedInvocation {
+                function: AuthorizedFunction::Contract((
+                    pool_fixture.pool.address.clone(),
+                    Symbol::new(&fixture.env, "set_admin"),
+                    vec![&fixture.env, new_admin.to_val(),]
+                )),
+                sub_invocations: std::vec![]
+            }
+        )
+    );
+    let event = vec![&fixture.env, fixture.env.events().all().last_unchecked()];
+    assert_eq!(
+        event,
+        vec![
+            &fixture.env,
+            (
+                pool_fixture.pool.address.clone(),
+                (
+                    Symbol::new(&fixture.env, "set_admin"),
+                    fixture.bombadil.clone()
+                )
+                    .into_val(&fixture.env),
+                new_admin.into_val(&fixture.env)
+            )
+        ]
+    );
+
     // Set status (admin only)
     pool_fixture.pool.set_status(&1);
     assert_eq!(
         fixture.env.auths()[0],
         (
-            fixture.bombadil.clone(),
+            new_admin.clone(),
             AuthorizedInvocation {
                 function: AuthorizedFunction::Contract((
                     pool_fixture.pool.address.clone(),
@@ -707,11 +741,7 @@ fn test_pool_config() {
             &fixture.env,
             (
                 pool_fixture.pool.address.clone(),
-                (
-                    Symbol::new(&fixture.env, "set_status"),
-                    fixture.bombadil.clone()
-                )
-                    .into_val(&fixture.env),
+                (Symbol::new(&fixture.env, "set_status"), new_admin.clone()).into_val(&fixture.env),
                 1u32.into_val(&fixture.env)
             )
         ]
@@ -758,7 +788,7 @@ fn test_pool_config() {
     assert_eq!(
         fixture.env.auths()[0],
         (
-            fixture.bombadil.clone(),
+            new_admin.clone(),
             AuthorizedInvocation {
                 function: AuthorizedFunction::Contract((
                     pool_fixture.pool.address.clone(),

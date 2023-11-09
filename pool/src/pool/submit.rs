@@ -1,4 +1,4 @@
-use crate::dependencies::TokenClient;
+use sep_41_token::TokenClient;
 use soroban_sdk::{Address, Env, Vec};
 
 use super::{
@@ -61,9 +61,10 @@ mod tests {
     };
 
     use super::*;
+    use sep_40_oracle::testutils::Asset;
     use soroban_sdk::{
         testutils::{Address as _, Ledger, LedgerInfo},
-        vec,
+        vec, Symbol,
     };
 
     #[test]
@@ -100,8 +101,18 @@ mod tests {
 
         underlying_0_client.mint(&frodo, &16_0000000);
 
-        oracle_client.set_price(&underlying_0, &1_0000000);
-        oracle_client.set_price(&underlying_1, &5_0000000);
+        oracle_client.set_data(
+            &bombadil,
+            &Asset::Other(Symbol::new(&e, "USD")),
+            &vec![
+                &e,
+                Asset::Stellar(underlying_0.clone()),
+                Asset::Stellar(underlying_1.clone()),
+            ],
+            &7,
+            &300,
+        );
+        oracle_client.set_price_stable(&vec![&e, 1_0000000, 5_0000000]);
 
         let pool_config = PoolConfig {
             oracle,
@@ -173,8 +184,18 @@ mod tests {
 
         underlying_0_client.mint(&frodo, &16_0000000);
 
-        oracle_client.set_price(&underlying_0, &1_0000000);
-        oracle_client.set_price(&underlying_1, &5_0000000);
+        oracle_client.set_data(
+            &bombadil,
+            &Asset::Other(Symbol::new(&e, "USD")),
+            &vec![
+                &e,
+                Asset::Stellar(underlying_0.clone()),
+                Asset::Stellar(underlying_1.clone()),
+            ],
+            &7,
+            &300,
+        );
+        oracle_client.set_price_stable(&vec![&e, 1_0000000, 5_0000000]);
 
         e.ledger().set(LedgerInfo {
             timestamp: 600,

@@ -259,10 +259,11 @@ mod tests {
     };
 
     use super::*;
+    use sep_40_oracle::testutils::Asset;
     use soroban_sdk::{
         map,
         testutils::{Address as _, Ledger, LedgerInfo},
-        vec,
+        vec, Symbol,
     };
 
     #[test]
@@ -352,12 +353,28 @@ mod tests {
             &reserve_config_2,
             &reserve_data_2,
         );
-
-        oracle_client.set_price(&underlying_0, &2_0000000);
-        oracle_client.set_price(&underlying_1, &4_0000000);
-        oracle_client.set_price(&underlying_2, &100_0000000);
-        oracle_client.set_price(&usdc, &1_0000000);
-        oracle_client.set_price(&blnd, &0_1000000);
+        oracle_client.set_data(
+            &bombadil,
+            &Asset::Other(Symbol::new(&e, "USD1")),
+            &vec![
+                &e,
+                Asset::Stellar(underlying_0),
+                Asset::Stellar(underlying_1),
+                Asset::Stellar(underlying_2),
+                Asset::Stellar(usdc),
+                Asset::Stellar(blnd),
+            ],
+            &7,
+            &300,
+        );
+        oracle_client.set_price_stable(&vec![
+            &e,
+            2_0000000,
+            4_0000000,
+            100_0000000,
+            1_0000000,
+            0_1000000,
+        ]);
 
         let positions: Positions = Positions {
             collateral: map![&e],
@@ -454,10 +471,20 @@ mod tests {
             &reserve_data_2,
         );
 
-        oracle_client.set_price(&underlying_0, &2_0000000);
-        oracle_client.set_price(&underlying_1, &4_0000000);
-        oracle_client.set_price(&underlying_2, &100_0000000);
-        oracle_client.set_price(&usdc_id, &1_0000000);
+        oracle_client.set_data(
+            &bombadil,
+            &Asset::Other(Symbol::new(&e, "USD")),
+            &vec![
+                &e,
+                Asset::Stellar(underlying_0.clone()),
+                Asset::Stellar(underlying_1.clone()),
+                Asset::Stellar(underlying_2),
+                Asset::Stellar(usdc_id),
+            ],
+            &7,
+            &300,
+        );
+        oracle_client.set_price_stable(&vec![&e, 2_0000000, 4_0000000, 100_0000000, 1_0000000]);
 
         let pool_config = PoolConfig {
             oracle: oracle_id,
@@ -545,9 +572,19 @@ mod tests {
             &reserve_data_2,
         );
 
-        oracle_client.set_price(&underlying_0, &2_0000000);
-        oracle_client.set_price(&underlying_1, &4_0000000);
-        oracle_client.set_price(&underlying_2, &50_0000000);
+        oracle_client.set_data(
+            &bombadil,
+            &Asset::Other(Symbol::new(&e, "USD")),
+            &vec![
+                &e,
+                Asset::Stellar(underlying_0),
+                Asset::Stellar(underlying_1),
+                Asset::Stellar(underlying_2),
+            ],
+            &7,
+            &300,
+        );
+        oracle_client.set_price_stable(&vec![&e, 2_0000000, 4_0000000, 50_0000000]);
 
         let liq_pct = 45;
         let positions: Positions = Positions {
@@ -618,8 +655,18 @@ mod tests {
         );
 
         let (oracle_id, oracle_client) = testutils::create_mock_oracle(&e);
-        oracle_client.set_price(&underlying_0, &10_0000000);
-        oracle_client.set_price(&underlying_1, &5_0000000);
+        oracle_client.set_data(
+            &bombadil,
+            &Asset::Other(Symbol::new(&e, "USD")),
+            &vec![
+                &e,
+                Asset::Stellar(underlying_0),
+                Asset::Stellar(underlying_1),
+            ],
+            &7,
+            &300,
+        );
+        oracle_client.set_price_stable(&vec![&e, 10_0000000, 5_0000000]);
 
         // setup user (collateralize reserve 0 and borrow reserve 1)
         let collateral_amount = 17_8000000;
@@ -690,8 +737,18 @@ mod tests {
         );
 
         let (oracle_id, oracle_client) = testutils::create_mock_oracle(&e);
-        oracle_client.set_price(&underlying_0, &10_0000000);
-        oracle_client.set_price(&underlying_1, &5_0000000);
+        oracle_client.set_data(
+            &bombadil,
+            &Asset::Other(Symbol::new(&e, "USD")),
+            &vec![
+                &e,
+                Asset::Stellar(underlying_0),
+                Asset::Stellar(underlying_1),
+            ],
+            &7,
+            &300,
+        );
+        oracle_client.set_price_stable(&vec![&e, 10_0000000, 5_0000000]);
 
         // setup user (collateralize reserve 0 and borrow reserve 1)
         let collateral_amount = 15_0000000;
@@ -748,9 +805,9 @@ mod tests {
             sequence_number: 175,
             network_id: Default::default(),
             base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
+            min_temp_entry_expiration: 172800,
+            min_persistent_entry_expiration: 172800,
+            max_entry_expiration: u32::MAX,
         });
 
         let bombadil = Address::random(&e);
@@ -831,9 +888,9 @@ mod tests {
                 sequence_number: 176 + 200,
                 network_id: Default::default(),
                 base_reserve: 10,
-                min_temp_entry_expiration: 10,
-                min_persistent_entry_expiration: 10,
-                max_entry_expiration: 2000000,
+                min_temp_entry_expiration: 172800,
+                min_persistent_entry_expiration: 172800,
+                max_entry_expiration: u32::MAX,
             });
             e.budget().reset_unlimited();
             let mut pool = Pool::load(&e);
@@ -855,9 +912,9 @@ mod tests {
             sequence_number: 175,
             network_id: Default::default(),
             base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
+            min_temp_entry_expiration: 172800,
+            min_persistent_entry_expiration: 172800,
+            max_entry_expiration: u32::MAX,
         });
 
         let bombadil = Address::random(&e);
@@ -938,9 +995,9 @@ mod tests {
                 sequence_number: 176 + 200,
                 network_id: Default::default(),
                 base_reserve: 10,
-                min_temp_entry_expiration: 10,
-                min_persistent_entry_expiration: 10,
-                max_entry_expiration: 2000000,
+                min_temp_entry_expiration: 172800,
+                min_persistent_entry_expiration: 172800,
+                max_entry_expiration: u32::MAX,
             });
             e.budget().reset_unlimited();
             let mut pool = Pool::load(&e);
@@ -975,9 +1032,9 @@ mod tests {
             sequence_number: 175,
             network_id: Default::default(),
             base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
+            min_temp_entry_expiration: 172800,
+            min_persistent_entry_expiration: 172800,
+            max_entry_expiration: u32::MAX,
         });
 
         let bombadil = Address::random(&e);
@@ -1059,9 +1116,9 @@ mod tests {
                 sequence_number: 176 + 100,
                 network_id: Default::default(),
                 base_reserve: 10,
-                min_temp_entry_expiration: 10,
-                min_persistent_entry_expiration: 10,
-                max_entry_expiration: 2000000,
+                min_temp_entry_expiration: 172800,
+                min_persistent_entry_expiration: 172800,
+                max_entry_expiration: u32::MAX,
             });
             let mut pool = Pool::load(&e);
             let mut frodo_state = User::load(&e, &frodo);
@@ -1089,9 +1146,9 @@ mod tests {
                 sequence_number: 176 + 200,
                 network_id: Default::default(),
                 base_reserve: 10,
-                min_temp_entry_expiration: 10,
-                min_persistent_entry_expiration: 10,
-                max_entry_expiration: 2000000,
+                min_temp_entry_expiration: 172800,
+                min_persistent_entry_expiration: 172800,
+                max_entry_expiration: u32::MAX,
             });
             let mut pool = Pool::load(&e);
             let mut frodo_state = User::load(&e, &frodo);
@@ -1118,9 +1175,9 @@ mod tests {
                 sequence_number: 176 + 300,
                 network_id: Default::default(),
                 base_reserve: 10,
-                min_temp_entry_expiration: 10,
-                min_persistent_entry_expiration: 10,
-                max_entry_expiration: 2000000,
+                min_temp_entry_expiration: 172800,
+                min_persistent_entry_expiration: 172800,
+                max_entry_expiration: u32::MAX,
             });
             let mut pool = Pool::load(&e);
             let mut frodo_state = User::load(&e, &frodo);
@@ -1164,9 +1221,9 @@ mod tests {
             sequence_number: 175,
             network_id: Default::default(),
             base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
+            min_temp_entry_expiration: 172800,
+            min_persistent_entry_expiration: 172800,
+            max_entry_expiration: u32::MAX,
         });
 
         let bombadil = Address::random(&e);
@@ -1246,9 +1303,9 @@ mod tests {
                 sequence_number: 176 + 200,
                 network_id: Default::default(),
                 base_reserve: 10,
-                min_temp_entry_expiration: 10,
-                min_persistent_entry_expiration: 10,
-                max_entry_expiration: 2000000,
+                min_temp_entry_expiration: 172800,
+                min_persistent_entry_expiration: 172800,
+                max_entry_expiration: u32::MAX,
             });
             e.budget().reset_unlimited();
             let mut pool = Pool::load(&e);
@@ -1283,9 +1340,9 @@ mod tests {
             sequence_number: 175,
             network_id: Default::default(),
             base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
+            min_temp_entry_expiration: 172800,
+            min_persistent_entry_expiration: 172800,
+            max_entry_expiration: u32::MAX,
         });
 
         let bombadil = Address::random(&e);
@@ -1367,9 +1424,9 @@ mod tests {
                 sequence_number: 176 + 200,
                 network_id: Default::default(),
                 base_reserve: 10,
-                min_temp_entry_expiration: 10,
-                min_persistent_entry_expiration: 10,
-                max_entry_expiration: 2000000,
+                min_temp_entry_expiration: 172800,
+                min_persistent_entry_expiration: 172800,
+                max_entry_expiration: u32::MAX,
             });
             e.budget().reset_unlimited();
             let mut pool = Pool::load(&e);
@@ -1412,9 +1469,9 @@ mod tests {
             sequence_number: 1000,
             network_id: Default::default(),
             base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
+            min_temp_entry_expiration: 172800,
+            min_persistent_entry_expiration: 172800,
+            max_entry_expiration: u32::MAX,
         });
         let (scaled_auction, remaining_auction) = scale_auction(&e, &base_auction_data, 100);
         assert_eq!(
@@ -1431,9 +1488,9 @@ mod tests {
             sequence_number: 1100,
             network_id: Default::default(),
             base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
+            min_temp_entry_expiration: 172800,
+            min_persistent_entry_expiration: 172800,
+            max_entry_expiration: u32::MAX,
         });
         let (scaled_auction, remaining_auction) = scale_auction(&e, &base_auction_data, 100);
         assert_eq!(
@@ -1453,9 +1510,9 @@ mod tests {
             sequence_number: 1200,
             network_id: Default::default(),
             base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
+            min_temp_entry_expiration: 172800,
+            min_persistent_entry_expiration: 172800,
+            max_entry_expiration: u32::MAX,
         });
         let (scaled_auction, remaining_auction) = scale_auction(&e, &base_auction_data, 100);
         assert_eq!(
@@ -1475,9 +1532,9 @@ mod tests {
             sequence_number: 1300,
             network_id: Default::default(),
             base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
+            min_temp_entry_expiration: 172800,
+            min_persistent_entry_expiration: 172800,
+            max_entry_expiration: u32::MAX,
         });
         let (scaled_auction, remaining_auction) = scale_auction(&e, &base_auction_data, 100);
         assert_eq!(
@@ -1497,9 +1554,9 @@ mod tests {
             sequence_number: 1400,
             network_id: Default::default(),
             base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
+            min_temp_entry_expiration: 172800,
+            min_persistent_entry_expiration: 172800,
+            max_entry_expiration: u32::MAX,
         });
         let (scaled_auction, remaining_auction) = scale_auction(&e, &base_auction_data, 100);
         assert_eq!(scaled_auction.bid.len(), 0);
@@ -1531,9 +1588,9 @@ mod tests {
             sequence_number: 1000,
             network_id: Default::default(),
             base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
+            min_temp_entry_expiration: 172800,
+            min_persistent_entry_expiration: 172800,
+            max_entry_expiration: u32::MAX,
         });
         let (scaled_auction, remaining_auction_option) = scale_auction(&e, &base_auction_data, 50);
         let remaining_auction = remaining_auction_option.unwrap();
@@ -1558,9 +1615,9 @@ mod tests {
             sequence_number: 1100,
             network_id: Default::default(),
             base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
+            min_temp_entry_expiration: 172800,
+            min_persistent_entry_expiration: 172800,
+            max_entry_expiration: u32::MAX,
         });
 
         let (scaled_auction, remaining_auction_option) = scale_auction(&e, &base_auction_data, 60);
@@ -1589,9 +1646,9 @@ mod tests {
             sequence_number: 1300,
             network_id: Default::default(),
             base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
+            min_temp_entry_expiration: 172800,
+            min_persistent_entry_expiration: 172800,
+            max_entry_expiration: u32::MAX,
         });
 
         let (scaled_auction, remaining_auction_option) = scale_auction(&e, &base_auction_data, 60);
@@ -1620,9 +1677,9 @@ mod tests {
             sequence_number: 1400,
             network_id: Default::default(),
             base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
+            min_temp_entry_expiration: 172800,
+            min_persistent_entry_expiration: 172800,
+            max_entry_expiration: u32::MAX,
         });
         let (scaled_auction, remaining_auction_option) = scale_auction(&e, &base_auction_data, 50);
         let remaining_auction = remaining_auction_option.unwrap();

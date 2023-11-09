@@ -1,4 +1,5 @@
-use crate::{contract::require_nonnegative, dependencies::TokenClient, emissions, storage};
+use crate::{contract::require_nonnegative, emissions, storage};
+use sep_41_token::TokenClient;
 use soroban_sdk::{Address, Env};
 
 /// Perform a deposit into the backstop module
@@ -87,7 +88,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Error(WasmVm, InvalidAction)")]
+    #[should_panic]
     fn test_execute_deposit_too_many_tokens() {
         let e = Env::default();
         e.mock_all_auths_allowing_non_root_auth();

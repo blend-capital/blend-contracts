@@ -1,9 +1,6 @@
-use crate::{
-    dependencies::{CometClient, TokenClient},
-    errors::BackstopError,
-    storage,
-};
+use crate::{dependencies::CometClient, errors::BackstopError, storage};
 use fixed_point_math::FixedPoint;
+use sep_41_token::TokenClient;
 use soroban_sdk::{panic_with_error, Address, Env, Map, Symbol, Vec};
 
 use super::update_emissions;

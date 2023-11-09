@@ -1,12 +1,9 @@
 use crate::{
-    constants::SCALAR_7,
-    dependencies::{BackstopClient, TokenClient},
-    errors::PoolError,
-    pool::Pool,
-    storage,
+    constants::SCALAR_7, dependencies::BackstopClient, errors::PoolError, pool::Pool, storage,
 };
 use cast::i128;
 use fixed_point_math::FixedPoint;
+use sep_41_token::TokenClient;
 use soroban_sdk::{map, panic_with_error, unwrap::UnwrapOptimized, Address, Env};
 
 use super::{AuctionData, AuctionType};
@@ -99,9 +96,10 @@ mod tests {
     };
 
     use super::*;
+    use sep_40_oracle::testutils::Asset;
     use soroban_sdk::{
         testutils::{Address as _, Ledger, LedgerInfo},
-        Address,
+        vec, Address, Symbol,
     };
 
     #[test]
@@ -212,10 +210,20 @@ mod tests {
             &reserve_data_2,
         );
 
-        oracle_client.set_price(&underlying_0, &2_0000000);
-        oracle_client.set_price(&underlying_1, &4_0000000);
-        oracle_client.set_price(&underlying_2, &100_0000000);
-        oracle_client.set_price(&usdc_id, &1_0000000);
+        oracle_client.set_data(
+            &bombadil,
+            &Asset::Other(Symbol::new(&e, "USD")),
+            &vec![
+                &e,
+                Asset::Stellar(underlying_0.clone()),
+                Asset::Stellar(underlying_1.clone()),
+                Asset::Stellar(underlying_2),
+                Asset::Stellar(usdc_id.clone()),
+            ],
+            &7,
+            &300,
+        );
+        oracle_client.set_price_stable(&vec![&e, 2_0000000, 4_0000000, 100_0000000, 1_0000000]);
 
         let pool_config = PoolConfig {
             oracle: oracle_id,
@@ -313,10 +321,20 @@ mod tests {
             &reserve_data_2,
         );
 
-        oracle_client.set_price(&underlying_0, &2_0000000);
-        oracle_client.set_price(&underlying_1, &4_0000000);
-        oracle_client.set_price(&underlying_2, &100_0000000);
-        oracle_client.set_price(&usdc_id, &1_0000000);
+        oracle_client.set_data(
+            &bombadil,
+            &Asset::Other(Symbol::new(&e, "USD")),
+            &vec![
+                &e,
+                Asset::Stellar(underlying_0.clone()),
+                Asset::Stellar(underlying_1.clone()),
+                Asset::Stellar(underlying_2),
+                Asset::Stellar(usdc_id.clone()),
+            ],
+            &7,
+            &300,
+        );
+        oracle_client.set_price_stable(&vec![&e, 2_0000000, 4_0000000, 100_0000000, 1_0000000]);
 
         let pool_config = PoolConfig {
             oracle: oracle_id,
@@ -414,10 +432,20 @@ mod tests {
             &reserve_data_2,
         );
 
-        oracle_client.set_price(&underlying_0, &2_0000000);
-        oracle_client.set_price(&underlying_1, &4_0000000);
-        oracle_client.set_price(&underlying_2, &100_0000000);
-        oracle_client.set_price(&usdc_id, &1_0000000);
+        oracle_client.set_data(
+            &bombadil,
+            &Asset::Other(Symbol::new(&e, "USD")),
+            &vec![
+                &e,
+                Asset::Stellar(underlying_0.clone()),
+                Asset::Stellar(underlying_1.clone()),
+                Asset::Stellar(underlying_2.clone()),
+                Asset::Stellar(usdc_id.clone()),
+            ],
+            &7,
+            &300,
+        );
+        oracle_client.set_price_stable(&vec![&e, 2_0000000, 4_0000000, 100_0000000, 1_0000000]);
 
         let pool_config = PoolConfig {
             oracle: oracle_id,

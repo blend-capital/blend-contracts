@@ -109,10 +109,11 @@ impl PositionData {
 mod tests {
     use super::*;
     use crate::{storage::PoolConfig, testutils};
+    use sep_40_oracle::testutils::Asset;
     use soroban_sdk::{
         map,
         testutils::{Address as _, Ledger, LedgerInfo},
-        Address,
+        vec, Address, Symbol,
     };
 
     #[test]
@@ -151,9 +152,19 @@ mod tests {
         reserve_data.d_rate = 1_001_200_000;
         testutils::create_reserve(&e, &pool, &underlying_2, &reserve_config, &reserve_data);
 
-        oracle_client.set_price(&underlying_0, &1_0000000);
-        oracle_client.set_price(&underlying_1, &2_5000000);
-        oracle_client.set_price(&underlying_2, &1000_0000000);
+        oracle_client.set_data(
+            &bombadil,
+            &Asset::Other(Symbol::new(&e, "USD")),
+            &vec![
+                &e,
+                Asset::Stellar(underlying_0),
+                Asset::Stellar(underlying_1),
+                Asset::Stellar(underlying_2),
+            ],
+            &7,
+            &300,
+        );
+        oracle_client.set_price_stable(&vec![&e, 1_0000000, 2_5000000, 1000_0000000]);
 
         e.ledger().set(LedgerInfo {
             timestamp: 0,

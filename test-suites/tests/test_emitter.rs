@@ -1,7 +1,7 @@
 #![cfg(test)]
 
 use soroban_sdk::{
-    testutils::{Address as _, AuthorizedFunction, AuthorizedInvocation, Events},
+    testutils::{Address as _, Events},
     vec, Address, IntoVal, Symbol,
 };
 use test_suites::{
@@ -37,20 +37,7 @@ fn test_emitter() {
     fixture.jump(6 * 24 * 60 * 60);
     let result = fixture.emitter.distribute();
     backstop_blnd_balance += result;
-    assert_eq!(
-        fixture.env.auths()[0],
-        (
-            fixture.backstop.address.clone(),
-            AuthorizedInvocation {
-                function: AuthorizedFunction::Contract((
-                    fixture.emitter.address.clone(),
-                    Symbol::new(&fixture.env, "distribute"),
-                    vec![&fixture.env,]
-                )),
-                sub_invocations: std::vec![]
-            }
-        )
-    );
+    assert_eq!(fixture.env.auths().len(), 0);
     assert_eq!(result, (6 * 24 * 60 * 60 + 61 * 60) * SCALAR_7); // 1 token per second are emitted
     assert_eq!(
         blnd_token.balance(&fixture.emitter.address),
@@ -81,7 +68,13 @@ fn test_emitter() {
     // Mint enough tokens to a new backstop address to perform a swap, then swap the backstops
     let old_backstop_balance = bstop_token.balance(&fixture.backstop.address);
     let new_backstop = Address::random(&fixture.env);
-    bstop_token.mint(&new_backstop, &(old_backstop_balance + 1));
+    fixture.tokens[TokenIndex::BLND].mint(&new_backstop, &(505_001 * SCALAR_7));
+    fixture.tokens[TokenIndex::USDC].mint(&new_backstop, &(13_501 * SCALAR_7));
+    fixture.lp.join_pool(
+        &(old_backstop_balance + 1),
+        &vec![&fixture.env, 505_001 * SCALAR_7, 13_501 * SCALAR_7],
+        &new_backstop,
+    );
     fixture.emitter.swap_backstop(&new_backstop);
     assert_eq!(fixture.env.auths().len(), 0);
     assert_eq!(fixture.emitter.get_backstop(), new_backstop.clone());

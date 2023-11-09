@@ -1,6 +1,5 @@
 #![cfg(test)]
 
-use backstop::{BackstopDataKey, PoolBalance, PoolUserKey, UserBalance};
 use fixed_point_math::FixedPoint;
 use pool::Request;
 use soroban_sdk::{testutils::Address as _, vec, Address};
@@ -428,35 +427,13 @@ fn test_wasm_happy_path() {
     // Frodo claims a year worth of backstop emissions
     let mut backstop_blnd_balance =
         fixture.tokens[TokenIndex::BLND].balance(&fixture.backstop.address);
-    fixture.env.as_contract(&fixture.backstop.address, || {
-        let key = BackstopDataKey::UserBalance(PoolUserKey {
-            pool: fixture.pools[0].pool.address.clone(),
-            user: frodo.clone(),
-        });
-        let shares: UserBalance = fixture.env.storage().persistent().get(&key).unwrap();
-        println!("shares: {:?}", shares.shares);
-        let key = BackstopDataKey::PoolBalance(fixture.pools[0].pool.address.clone());
-        let shares: PoolBalance = fixture.env.storage().persistent().get(&key).unwrap();
-        println!("shares: {:?}", shares.shares);
-    });
     let claim_amount = fixture.backstop.claim(
         &frodo,
         &vec![&fixture.env, pool_fixture.pool.address.clone()],
         &frodo,
     );
-    fixture.env.as_contract(&fixture.backstop.address, || {
-        let key = BackstopDataKey::UserBalance(PoolUserKey {
-            pool: fixture.pools[0].pool.address.clone(),
-            user: frodo.clone(),
-        });
-        let shares: UserBalance = fixture.env.storage().persistent().get(&key).unwrap();
-        println!("shares: {:?}", shares.shares);
-        let key = BackstopDataKey::PoolBalance(fixture.pools[0].pool.address.clone());
-        let shares: PoolBalance = fixture.env.storage().persistent().get(&key).unwrap();
-        println!("shares: {:?}", shares.shares);
-    });
-    assert_eq!(claim_amount, 22014720_0000000);
-    backstop_blnd_balance -= 22014720_0000000;
+    assert_eq!(claim_amount, 22014719_9998450); //actual amount is 22014720_0000000 but get's rounded down
+    backstop_blnd_balance -= 22014719_9998450;
     assert_eq!(
         fixture.tokens[TokenIndex::BLND].balance(&fixture.backstop.address),
         backstop_blnd_balance

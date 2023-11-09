@@ -64,7 +64,7 @@ pub fn create_fixture_with_data<'a>(wasm: bool) -> TestFixture<'a> {
     fixture.tokens[TokenIndex::USDC].mint(&frodo, &(12_5010_000_0000_0000 * SCALAR_7));
     fixture.tokens[TokenIndex::USDC].approve(&frodo, &fixture.lp.address, &i128::MAX, &99999);
     fixture.lp.join_pool(
-        &(500_000_00000 * SCALAR_7),
+        &(500_000_0000 * SCALAR_7),
         &vec![
             &fixture.env,
             500_0010_000_0000_0000 * SCALAR_7,

@@ -373,7 +373,7 @@ fn test_liquidations() {
     //tank eth price
     fixture.oracle.set_price_stable(&vec![
         &fixture.env,
-        0_0500000,   // blnd
+        0_0250000,   // blnd
         500_0000000, // eth
         1_0000000,   // usdc
         0_1000000,   // xlm
@@ -501,25 +501,56 @@ fn test_liquidations() {
     // create a bad debt auction
     let auction_type: u32 = 1;
     let bad_debt_auction_data = pool_fixture.pool.new_auction(&auction_type);
+    let pool_backstop_data = fixture.backstop.pool_data(&pool_fixture.pool.address);
+    println!(
+        "backstop usdc {}",
+        backstop_positions.liabilities.get(0).unwrap()
+    );
+    println!(
+        "backstop xlm {}",
+        backstop_positions.liabilities.get(1).unwrap()
+    );
+    println!("usdc: {:?}", pool_backstop_data.usdc);
+    println!("tokens: {:?}", pool_backstop_data.tokens);
+
     assert_eq!(bad_debt_auction_data.bid.len(), 2);
     assert_eq!(bad_debt_auction_data.lot.len(), 1);
+    println!(
+        "bid usdc {}",
+        bad_debt_auction_data
+            .bid
+            .get_unchecked(fixture.tokens[TokenIndex::STABLE].address.clone())
+    );
+    println!(
+        "bid xlm {}",
+        bad_debt_auction_data
+            .bid
+            .get_unchecked(fixture.tokens[TokenIndex::XLM].address.clone())
+    );
+    println!(
+        "lot lp {}",
+        bad_debt_auction_data
+            .lot
+            .get_unchecked(fixture.lp.address.clone())
+    );
+
     assert_eq!(
         bad_debt_auction_data
             .bid
             .get_unchecked(fixture.tokens[TokenIndex::STABLE].address.clone()),
-        samwise_positions_pre_bd.liabilities.get(0).unwrap()
+        samwise_positions_pre_bd.liabilities.get(0).unwrap() //d rate 1.071330239
     );
     assert_eq!(
         bad_debt_auction_data
             .bid
             .get_unchecked(fixture.tokens[TokenIndex::XLM].address.clone()),
-        samwise_positions_pre_bd.liabilities.get(1).unwrap()
+        samwise_positions_pre_bd.liabilities.get(1).unwrap() //d rate 1.013853805
     );
     assert_approx_eq_abs(
         bad_debt_auction_data
             .lot
             .get_unchecked(fixture.lp.address.clone()),
-        1195_17392182, // lp_token value is $0.75 each
+        7171_0435309, // lp_token value is $1.25 each
         SCALAR_7,
     );
     let events = fixture.env.events().all();
@@ -577,12 +608,12 @@ fn test_liquidations() {
     );
     assert_approx_eq_abs(
         fixture.lp.balance(&frodo),
-        frodo_bstop_pre_fill + 1195_1739218,
+        frodo_bstop_pre_fill + 717_1043530,
         SCALAR_7,
     );
     assert_approx_eq_abs(
         fixture.lp.balance(&fixture.backstop.address),
-        backstop_bstop_pre_fill - 1195_1739218,
+        backstop_bstop_pre_fill - 717_1043531,
         SCALAR_7,
     );
     let new_auction = pool_fixture
@@ -617,7 +648,7 @@ fn test_liquidations() {
         bad_debt_auction_data
             .lot
             .get_unchecked(fixture.lp.address.clone())
-            - 2390_3478436,
+            - 1434_2087060,
         SCALAR_7,
     );
     assert_eq!(new_auction.block, bad_debt_auction_data.block);
@@ -676,12 +707,12 @@ fn test_liquidations() {
     );
     assert_approx_eq_abs(
         fixture.lp.balance(&frodo),
-        frodo_bstop_pre_fill + 7171_0435309,
+        frodo_bstop_pre_fill + 4302_6261190,
         SCALAR_7,
     );
     assert_approx_eq_abs(
         fixture.lp.balance(&fixture.backstop.address),
-        backstop_bstop_pre_fill - 7171_0435309,
+        backstop_bstop_pre_fill - 4302_6261190,
         SCALAR_7,
     );
     let events = fixture.env.events().all();
@@ -722,7 +753,7 @@ fn test_liquidations() {
         .withdraw(&frodo, &pool_fixture.pool.address, &original_deposit);
     assert_approx_eq_abs(
         fixture.lp.balance(&frodo) - pre_withdraw_frodo_bstp,
-        original_deposit - 7171_0435309 - 1195_1739218,
+        original_deposit - 717_1043530 - 4302_6261190,
         SCALAR_7,
     );
     fixture
@@ -752,7 +783,7 @@ fn test_liquidations() {
     // Nuke eth price more
     fixture.oracle.set_price_stable(&vec![
         &fixture.env,
-        0_0500000,  // blnd
+        0_2500000,  // blnd
         10_0000000, // eth
         1_0000000,  // usdc
         0_1000000,  // xlm

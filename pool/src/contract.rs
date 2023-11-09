@@ -39,6 +39,15 @@ pub trait Pool {
         usdc_id: Address,
     );
 
+    /// (Admin only) Set a new address as the admin of this pool
+    ///
+    /// ### Arguments
+    /// * `new_admin` - The new admin address
+    ///
+    /// ### Panics
+    /// If the caller is not the admin
+    fn set_admin(e: Env, new_admin: Address);
+
     /// (Admin only) Update the pool
     ///
     /// ### Arguments
@@ -46,7 +55,7 @@ pub trait Pool {
     ///
     /// ### Panics
     /// If the caller is not the admin
-    fn update_pool(e: Env, backstiop_take_rate: u64);
+    fn update_pool(e: Env, backstop_take_rate: u64);
 
     /// (Admin only) Initialize a reserve in the pool
     ///
@@ -231,6 +240,17 @@ impl Pool for PoolContract {
             &blnd_id,
             &usdc_id,
         );
+    }
+
+    fn set_admin(e: Env, new_admin: Address) {
+        storage::bump_instance(&e);
+        let admin = storage::get_admin(&e);
+        admin.require_auth();
+
+        storage::set_admin(&e, &new_admin);
+
+        e.events()
+            .publish((Symbol::new(&e, "set_admin"), admin), new_admin);
     }
 
     fn update_pool(e: Env, backstop_take_rate: u64) {

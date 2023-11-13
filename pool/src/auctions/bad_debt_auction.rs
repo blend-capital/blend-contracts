@@ -285,19 +285,11 @@ mod tests {
                 Asset::Stellar(underlying_1.clone()),
                 Asset::Stellar(underlying_2),
                 Asset::Stellar(usdc),
-                Asset::Stellar(blnd),
             ],
             &7,
             &300,
         );
-        oracle_client.set_price_stable(&vec![
-            &e,
-            2_0000000,
-            4_0000000,
-            100_0000000,
-            1_0000000,
-            0_1000000,
-        ]);
+        oracle_client.set_price_stable(&vec![&e, 2_0000000, 4_0000000, 100_0000000, 1_0000000]);
 
         let positions: Positions = Positions {
             collateral: map![&e],
@@ -426,19 +418,11 @@ mod tests {
                 Asset::Stellar(underlying_1.clone()),
                 Asset::Stellar(underlying_2),
                 Asset::Stellar(usdc),
-                Asset::Stellar(blnd),
             ],
             &7,
             &300,
         );
-        oracle_client.set_price_stable(&vec![
-            &e,
-            2_0000000,
-            4_0000000,
-            100_0000000,
-            1_0000000,
-            0_1000000,
-        ]);
+        oracle_client.set_price_stable(&vec![&e, 2_0000000, 4_0000000, 100_0000000, 1_0000000]);
 
         let positions: Positions = Positions {
             collateral: map![&e],
@@ -568,19 +552,11 @@ mod tests {
                 Asset::Stellar(underlying_1.clone()),
                 Asset::Stellar(underlying_2),
                 Asset::Stellar(usdc),
-                Asset::Stellar(blnd),
             ],
             &7,
             &300,
         );
-        oracle_client.set_price_stable(&vec![
-            &e,
-            2_0000000,
-            4_0000000,
-            100_0000000,
-            1_0000000,
-            0_1000000,
-        ]);
+        oracle_client.set_price_stable(&vec![&e, 2_0000000, 4_0000000, 100_0000000, 1_0000000]);
 
         let positions: Positions = Positions {
             collateral: map![&e],

@@ -131,7 +131,7 @@ impl TestFixture<'_> {
         );
         mock_oracle_client.set_price_stable(&svec![
             &e,
-            0_0500000,    // blnd
+            0_2500000,    // blnd
             2000_0000000, // eth
             1_0000000,    // usdc
             0_1000000,    // xlm

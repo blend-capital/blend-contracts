@@ -122,7 +122,7 @@ pub fn get_drop_status(e: &Env, backstop: &Address) -> bool {
     e.storage()
         .instance()
         .get::<EmitterDataKey, bool>(&EmitterDataKey::Dropped(backstop.clone()))
-        .is_some()
+        .unwrap_or(false)
 }
 
 /// Set whether the emitter has performed the drop distribution or not for the current backstop

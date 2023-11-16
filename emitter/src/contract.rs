@@ -58,8 +58,6 @@ impl Emitter for EmitterContract {
         storage::set_backstop(&e, &backstop);
         storage::set_blend_id(&e, &blnd_token_id);
         storage::set_last_fork(&e, 0); // We set the block 45 days in the past to allow for an immediate initial drop
-        storage::set_drop_status(&e, false);
-        // TODO: Determine if setting the last distro time here is appropriate, since it means tokens immediately start being distributed
         storage::set_last_distro_time(&e, &(e.ledger().timestamp() - 7 * 24 * 60 * 60));
     }
 

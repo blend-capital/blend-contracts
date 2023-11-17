@@ -19,8 +19,8 @@ pub enum EmitterDataKey {
     BlendLPId,
     // The last timestamp distribution was ran on
     LastDistro,
-    // The drop status for the current backstop
-    DropStatus,
+    // Stores the list of backstop addresses that have dropped
+    Dropped(Address),
     // The last block emissions were forked
     LastFork,
 }
@@ -118,21 +118,21 @@ pub fn set_last_distro_time(e: &Env, last_distro: &u64) {
 /// Get whether the emitter has performed the drop distribution or not for the current backstop
 ///
 /// Returns true if the emitter has dropped
-pub fn get_drop_status(e: &Env) -> bool {
+pub fn get_drop_status(e: &Env, backstop: &Address) -> bool {
     e.storage()
         .instance()
-        .get(&EmitterDataKey::DropStatus)
-        .unwrap_optimized()
+        .get::<EmitterDataKey, bool>(&EmitterDataKey::Dropped(backstop.clone()))
+        .unwrap_or(false)
 }
 
 /// Set whether the emitter has performed the drop distribution or not for the current backstop
 ///
 /// ### Arguments
 /// * `new_status` - new drop status
-pub fn set_drop_status(e: &Env, new_status: bool) {
+pub fn set_drop_status(e: &Env, backstop: &Address) {
     e.storage()
         .instance()
-        .set::<EmitterDataKey, bool>(&EmitterDataKey::DropStatus, &new_status);
+        .set::<EmitterDataKey, bool>(&EmitterDataKey::Dropped(backstop.clone()), &true);
 }
 
 /// Get the last block an emission fork was executed

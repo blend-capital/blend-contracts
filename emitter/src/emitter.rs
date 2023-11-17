@@ -27,7 +27,6 @@ pub fn execute_swap_backstop(e: &Env, new_backstop_id: Address) {
     let new_backstop_balance = backstop_token_client.balance(&new_backstop_id);
     if new_backstop_balance > backstop_balance {
         storage::set_backstop(e, &new_backstop_id);
-        storage::set_drop_status(e, false);
         storage::set_last_fork(e, e.ledger().sequence());
     } else {
         panic_with_error!(e, EmitterError::InsufficientBackstopSize);
@@ -36,7 +35,8 @@ pub fn execute_swap_backstop(e: &Env, new_backstop_id: Address) {
 
 /// Perform drop BLND distribution
 pub fn execute_drop(e: &Env) -> Map<Address, i128> {
-    if storage::get_drop_status(e) {
+    let backstop = storage::get_backstop(e);
+    if storage::get_drop_status(e, &backstop) {
         panic_with_error!(e, EmitterError::BadDrop);
     }
     if storage::get_last_fork(e) + 777600 > e.ledger().sequence() {
@@ -61,7 +61,7 @@ pub fn execute_drop(e: &Env) -> Map<Address, i128> {
     for (addr, amt) in drop_list.iter() {
         blnd_client.mint(&addr, &amt);
     }
-    storage::set_drop_status(e, true);
+    storage::set_drop_status(e, &backstop);
     drop_list
 }
 
@@ -152,11 +152,11 @@ mod tests {
         e.as_contract(&emitter, || {
             storage::set_last_distro_time(&e, &1000);
             storage::set_backstop(&e, &backstop);
-            storage::set_drop_status(&e, true);
+            storage::set_drop_status(&e, &backstop);
 
             execute_swap_backstop(&e, new_backstop.clone());
             assert_eq!(storage::get_backstop(&e), new_backstop);
-            assert_eq!(storage::get_drop_status(&e), false);
+            assert_eq!(storage::get_drop_status(&e, &new_backstop), false);
         });
     }
 
@@ -246,11 +246,10 @@ mod tests {
             storage::set_last_distro_time(&e, &1000);
             storage::set_backstop(&e, &backstop);
             storage::set_blend_id(&e, &blnd_id);
-            storage::set_drop_status(&e, false);
             storage::set_last_fork(&e, 4000000);
 
             let list = execute_drop(&e);
-            assert_eq!(storage::get_drop_status(&e), true);
+            assert_eq!(storage::get_drop_status(&e, &backstop), true);
             assert_eq!(list.len(), 2);
             assert_eq!(blnd_client.balance(&frodo), 20_000_000 * SCALAR_7);
             assert_eq!(blnd_client.balance(&samwise), 30_000_000 * SCALAR_7);
@@ -298,11 +297,11 @@ mod tests {
             storage::set_last_distro_time(&e, &1000);
             storage::set_backstop(&e, &backstop);
             storage::set_blend_id(&e, &blnd_id);
-            storage::set_drop_status(&e, true);
+            storage::set_drop_status(&e, &backstop);
             storage::set_last_fork(&e, 4000000);
 
             execute_drop(&e);
-            assert_eq!(storage::get_drop_status(&e), true);
+            assert_eq!(storage::get_drop_status(&e, &backstop), true);
         });
     }
 
@@ -347,11 +346,10 @@ mod tests {
             storage::set_last_distro_time(&e, &1000);
             storage::set_backstop(&e, &backstop);
             storage::set_blend_id(&e, &blnd_id);
-            storage::set_drop_status(&e, false);
             storage::set_last_fork(&e, 4000000);
 
             execute_drop(&e);
-            assert_eq!(storage::get_drop_status(&e), false);
+            assert_eq!(storage::get_drop_status(&e, &backstop), false);
         });
     }
 
@@ -398,7 +396,6 @@ mod tests {
             storage::set_backstop(&e, &backstop);
             storage::set_blend_id(&e, &blnd_id);
             storage::set_last_fork(&e, 5000000);
-            storage::set_drop_status(&e, false);
 
             execute_drop(&e);
         });

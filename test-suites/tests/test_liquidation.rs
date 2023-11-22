@@ -4,7 +4,7 @@ use fixed_point_math::FixedPoint;
 use pool::{PoolDataKey, Positions, Request, ReserveConfig, ReserveData};
 use soroban_sdk::{
     testutils::{Address as AddressTestTrait, Events},
-    vec, Address, IntoVal, Symbol, Val, Vec,
+    vec, Address, Error, IntoVal, Symbol, Val, Vec,
 };
 use test_suites::{
     assertions::assert_approx_eq_abs,
@@ -373,7 +373,6 @@ fn test_liquidations() {
     //tank eth price
     fixture.oracle.set_price_stable(&vec![
         &fixture.env,
-        0_0250000,   // blnd
         500_0000000, // eth
         1_0000000,   // usdc
         0_1000000,   // xlm
@@ -754,7 +753,6 @@ fn test_liquidations() {
     // Nuke eth price more
     fixture.oracle.set_price_stable(&vec![
         &fixture.env,
-        0_2500000,  // blnd
         10_0000000, // eth
         1_0000000,  // usdc
         0_1000000,  // xlm
@@ -930,4 +928,143 @@ fn test_liquidations() {
             )
         ]
     );
+}
+
+#[test]
+fn test_user_restore_position_and_delete_liquidation() {
+    let fixture = create_fixture_with_data(false);
+    let pool_fixture = &fixture.pools[0];
+    let stable_pool_index = pool_fixture.reserves[&TokenIndex::STABLE];
+    let xlm_pool_index = pool_fixture.reserves[&TokenIndex::XLM];
+
+    // Create a user that is supply STABLE (cf = 90%, $1) and borrowing XLM (lf = 75%, $0.10)
+    let samwise = Address::random(&fixture.env);
+    fixture.tokens[TokenIndex::STABLE].mint(&samwise, &(1100 * 10i128.pow(6)));
+
+    // deposit $1k stable and borrow to 90% borrow limit ($810)
+    let setup_request: Vec<Request> = vec![
+        &fixture.env,
+        Request {
+            request_type: 2,
+            address: fixture.tokens[TokenIndex::STABLE].address.clone(),
+            amount: 1000 * 10i128.pow(6),
+        },
+        Request {
+            request_type: 4,
+            address: fixture.tokens[TokenIndex::XLM].address.clone(),
+            amount: 6075 * SCALAR_7,
+        },
+    ];
+    pool_fixture
+        .pool
+        .submit(&samwise, &samwise, &samwise, &setup_request);
+
+    // simulate 20% XLM price increase ($972 liabilities, $900 limit) and create user liquidation
+    fixture.oracle.set_price_stable(&vec![
+        &fixture.env,
+        2000_0000000, // eth
+        1_0000000,    // usdc
+        0_1200000,    // xlm
+        1_0000000,    // stable
+    ]);
+    pool_fixture.pool.new_liquidation_auction(&samwise, &50);
+    assert!(pool_fixture.pool.try_get_auction(&0, &samwise).is_ok());
+
+    // jump 200 blocks
+    fixture.jump_with_sequence(200 * 5);
+
+    // validate liquidation can't be deleted without restoring position
+    let delete_only_request: Vec<Request> = vec![
+        &fixture.env,
+        Request {
+            request_type: 9,
+            address: Address::random(&fixture.env),
+            amount: i128::MAX,
+        },
+    ];
+    let delete_only =
+        pool_fixture
+            .pool
+            .try_submit(&samwise, &samwise, &samwise, &delete_only_request);
+    assert_eq!(delete_only.err(), Some(Ok(Error::from_contract_error(10))));
+
+    // validate health factor must be fully restored before deleting position
+    let short_supply_delete_request: Vec<Request> = vec![
+        &fixture.env,
+        Request {
+            request_type: 2,
+            address: fixture.tokens[TokenIndex::STABLE].address.clone(),
+            amount: 79 * 10i128.pow(6), // need $80 more collateral
+        },
+        Request {
+            request_type: 9,
+            address: Address::random(&fixture.env),
+            amount: i128::MAX,
+        },
+    ];
+    let short_supply_delete =
+        pool_fixture
+            .pool
+            .try_submit(&samwise, &samwise, &samwise, &short_supply_delete_request);
+    assert_eq!(
+        short_supply_delete.err(),
+        Some(Ok(Error::from_contract_error(10)))
+    );
+
+    let short_repay_delete_request: Vec<Request> = vec![
+        &fixture.env,
+        Request {
+            request_type: 9,
+            address: Address::random(&fixture.env),
+            amount: i128::MAX,
+        },
+        Request {
+            request_type: 5,
+            address: fixture.tokens[TokenIndex::XLM].address.clone(),
+            amount: 449 * SCALAR_7, // need to repay 450 XLM
+        },
+    ];
+    let short_repay_delete =
+        pool_fixture
+            .pool
+            .try_submit(&samwise, &samwise, &samwise, &short_repay_delete_request);
+    assert_eq!(
+        short_repay_delete.err(),
+        Some(Ok(Error::from_contract_error(10)))
+    );
+
+    // validate liquidation can be deleted after restoring position
+    let delete_request: Vec<Request> = vec![
+        &fixture.env,
+        Request {
+            request_type: 2,
+            address: fixture.tokens[TokenIndex::STABLE].address.clone(),
+            amount: 41 * 10i128.pow(6),
+        },
+        Request {
+            request_type: 9,
+            address: Address::random(&fixture.env),
+            amount: i128::MAX,
+        },
+        Request {
+            request_type: 5,
+            address: fixture.tokens[TokenIndex::XLM].address.clone(),
+            amount: 226 * SCALAR_7,
+        },
+    ];
+    let sam_positions = pool_fixture
+        .pool
+        .submit(&samwise, &samwise, &samwise, &delete_request);
+    // fuzz assert wide to account for b and d rates (only verify actions occurred)
+    assert_approx_eq_abs(
+        sam_positions.collateral.get_unchecked(stable_pool_index),
+        1041 * 10i128.pow(6),
+        10000,
+    );
+    assert_approx_eq_abs(
+        sam_positions.liabilities.get_unchecked(xlm_pool_index),
+        5849 * SCALAR_7,
+        SCALAR_7,
+    );
+    assert!(pool_fixture.pool.try_get_auction(&0, &samwise).is_err());
 }

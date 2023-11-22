@@ -1,7 +1,7 @@
 use crate::{
     constants::SCALAR_7,
     errors::PoolError,
-    pool::{Pool, PositionData, User},
+    pool::{Pool, User},
     storage,
 };
 use cast::i128;
@@ -90,22 +90,19 @@ pub fn create_liquidation(e: &Env, user: &Address, percent_liquidated: u64) -> A
     auction_data
 }
 
-/// Delete a liquidation auction if the user being liquidated is no longer eligible for liquidation.
+/// Delete a liquidation auction if the user being liquidated
+///
+/// NOTE: Does not verify if the user's positions are healthy. This must be done before calling.
 ///
 /// ### Arguments
 /// * `auction_type` - The type of auction being created
 ///
 /// ### Panics
-/// If no auction exists for the user or if the user is still eligible for liquidation.
+/// If no auction exists for the user
 pub fn delete_liquidation(e: &Env, user: &Address) {
     if !storage::has_auction(e, &(AuctionType::UserLiquidation as u32), user) {
         panic_with_error!(e, PoolError::BadRequest);
     }
-
-    let mut pool = Pool::load(e);
-    let positions = storage::get_user_positions(e, user);
-    let position_data = PositionData::calculate_from_positions(e, &mut pool, &positions);
-    position_data.require_healthy(e);
     storage::del_auction(e, &(AuctionType::UserLiquidation as u32), user);
 }
 
@@ -629,66 +626,16 @@ mod tests {
     fn test_delete_user_liquidation() {
         let e = Env::default();
         e.mock_all_auths();
+
         let pool_id = create_pool(&e);
-
-        let bombadil = Address::random(&e);
         let samwise = Address::random(&e);
-        let (underlying_0, _) = testutils::create_token_contract(&e, &bombadil);
-        let (reserve_config_0, reserve_data_0) = testutils::default_reserve_meta();
-        testutils::create_reserve(
-            &e,
-            &pool_id,
-            &underlying_0,
-            &reserve_config_0,
-            &reserve_data_0,
-        );
 
-        let (underlying_1, _) = testutils::create_token_contract(&e, &bombadil);
-        let (mut reserve_config_1, reserve_data_1) = testutils::default_reserve_meta();
-        reserve_config_1.index = 1;
-        testutils::create_reserve(
-            &e,
-            &pool_id,
-            &underlying_1,
-            &reserve_config_1,
-            &reserve_data_1,
-        );
-
-        let (oracle_id, oracle_client) = testutils::create_mock_oracle(&e);
-        oracle_client.set_data(
-            &bombadil,
-            &Asset::Other(Symbol::new(&e, "USD")),
-            &vec![
-                &e,
-                Asset::Stellar(underlying_0),
-                Asset::Stellar(underlying_1),
-            ],
-            &7,
-            &300,
-        );
-        oracle_client.set_price_stable(&vec![&e, 10_0000000, 5_0000000]);
-
-        // setup user (collateralize reserve 0 and borrow reserve 1)
-        let collateral_amount = 17_8000000;
-        let liability_amount = 20_0000000;
-        let positions: Positions = Positions {
-            collateral: map![&e, (reserve_config_0.index, collateral_amount)],
-            liabilities: map![&e, (reserve_config_1.index, liability_amount)],
-            supply: map![&e],
-        };
         let auction_data = AuctionData {
             bid: map![&e],
             lot: map![&e],
             block: 100,
         };
-        let pool_config = PoolConfig {
-            oracle: oracle_id,
-            bstop_rate: 0_100_000_000,
-            status: 0,
-        };
         e.as_contract(&pool_id, || {
-            storage::set_pool_config(&e, &pool_config);
-            storage::set_user_positions(&e, &samwise, &positions);
             storage::set_auction(
                 &e,
                 &(AuctionType::UserLiquidation as u32),
@@ -706,91 +653,16 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Error(Contract, #10)")]
-    fn test_delete_user_liquidation_invalid_hf() {
+    #[should_panic(expected = "Error(Contract, #2)")]
+    fn test_delete_user_liquidation_does_not_exist() {
         let e = Env::default();
         e.mock_all_auths();
         let pool_id = create_pool(&e);
 
-        let bombadil = Address::random(&e);
         let samwise = Address::random(&e);
 
-        let (underlying_0, _) = testutils::create_token_contract(&e, &bombadil);
-        let (reserve_config_0, reserve_data_0) = testutils::default_reserve_meta();
-        testutils::create_reserve(
-            &e,
-            &pool_id,
-            &underlying_0,
-            &reserve_config_0,
-            &reserve_data_0,
-        );
-
-        let (underlying_1, _) = testutils::create_token_contract(&e, &bombadil);
-        let (mut reserve_config_1, reserve_data_1) = testutils::default_reserve_meta();
-        reserve_config_1.index = 1;
-        testutils::create_reserve(
-            &e,
-            &pool_id,
-            &underlying_1,
-            &reserve_config_1,
-            &reserve_data_1,
-        );
-
-        let (oracle_id, oracle_client) = testutils::create_mock_oracle(&e);
-        oracle_client.set_data(
-            &bombadil,
-            &Asset::Other(Symbol::new(&e, "USD")),
-            &vec![
-                &e,
-                Asset::Stellar(underlying_0),
-                Asset::Stellar(underlying_1),
-            ],
-            &7,
-            &300,
-        );
-        oracle_client.set_price_stable(&vec![&e, 10_0000000, 5_0000000]);
-
-        // setup user (collateralize reserve 0 and borrow reserve 1)
-        let collateral_amount = 15_0000000;
-        let liability_amount = 20_0000000;
-        let positions: Positions = Positions {
-            collateral: map![&e, (reserve_config_0.index, collateral_amount)],
-            liabilities: map![&e, (reserve_config_1.index, liability_amount)],
-            supply: map![&e],
-        };
-        let auction_data = AuctionData {
-            bid: map![&e],
-            lot: map![&e],
-            block: 100,
-        };
-        let pool_config = PoolConfig {
-            oracle: oracle_id,
-            bstop_rate: 0_100_000_000,
-            status: 0,
-        };
         e.as_contract(&pool_id, || {
-            storage::set_pool_config(&e, &pool_config);
-            storage::set_user_positions(&e, &samwise, &positions);
-
-            storage::set_auction(
-                &e,
-                &(AuctionType::UserLiquidation as u32),
-                &samwise,
-                &auction_data,
-            );
-            storage::set_auction(
-                &e,
-                &(AuctionType::UserLiquidation as u32),
-                &samwise,
-                &auction_data,
-            );
-
             delete_liquidation(&e, &samwise);
-            assert!(storage::has_auction(
-                &e,
-                &(AuctionType::UserLiquidation as u32),
-                &samwise
-            ));
         });
     }
 

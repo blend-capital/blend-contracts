@@ -1,57 +1,46 @@
 use crate::{
     constants::SCALAR_7,
     dependencies::{BackstopClient, PoolBackstopData},
-    errors::PoolError,
     storage,
 };
-use soroban_sdk::{panic_with_error, Env};
+use soroban_sdk::{Env, Symbol};
 
 /// Update the pool status based on the backstop module
 #[allow(clippy::zero_prefixed_literal)]
 #[allow(clippy::inconsistent_digit_grouping)]
-pub fn execute_update_pool_status(e: &Env) -> u32 {
+pub fn execute_update_pool_status(e: &Env, pool_status: u32) -> u32 {
     let mut pool_config = storage::get_pool_config(e);
-    if pool_config.status > 2 {
-        // pool has been admin frozen and can only be restored by the admin
-        panic_with_error!(e, PoolError::InvalidPoolStatus);
-    }
 
+    // check the pool has met minimum backstop deposits
     let backstop_id = storage::get_backstop(e);
     let backstop_client = BackstopClient::new(e, &backstop_id);
 
     let pool_backstop_data = backstop_client.pool_data(&e.current_contract_address());
-    if pool_backstop_data.q4w_pct >= 0_5000000 {
-        pool_config.status = 2;
-    } else if pool_backstop_data.q4w_pct >= 0_2500000
-        || calc_pool_backstop_threshold(&pool_backstop_data) < SCALAR_7
-    {
-        pool_config.status = 1;
+    let threshold = calc_pool_backstop_threshold(&pool_backstop_data);
+    let mut met_threshold = true;
+    if threshold < SCALAR_7 {
+        met_threshold = false;
+    }
+    // we only care about admin status' if the pool has met the threshold - otherwise default takes over
+    if (pool_config.status % 2 == 0 || pool_status % 2 == 0) && met_threshold {
+        let admin = storage::get_admin(&e);
+        // admin auth required to set or change admin status'
+        admin.require_auth();
+        pool_config.status = pool_status;
+        e.events()
+            .publish((Symbol::new(&e, "set_status"), admin), pool_status);
     } else {
-        pool_config.status = 0;
+        if pool_backstop_data.q4w_pct >= 0_5000000 {
+            pool_config.status = 5;
+        } else if pool_backstop_data.q4w_pct >= 0_2500000 || !met_threshold {
+            pool_config.status = 3;
+        } else {
+            pool_config.status = 1;
+        }
     }
     storage::set_pool_config(e, &pool_config);
 
     pool_config.status
-}
-
-/// Update the pool status
-#[allow(clippy::inconsistent_digit_grouping)]
-pub fn set_pool_status(e: &Env, pool_status: u32) {
-    if pool_status == 0 {
-        // check the pool has met minimum backstop deposits before being turned on
-        let backstop_id = storage::get_backstop(e);
-        let backstop_client = BackstopClient::new(e, &backstop_id);
-
-        let pool_backstop_data = backstop_client.pool_data(&e.current_contract_address());
-        let threshold = calc_pool_backstop_threshold(&pool_backstop_data);
-        if threshold < SCALAR_7 {
-            panic_with_error!(e, PoolError::InvalidPoolStatus);
-        }
-    }
-
-    let mut pool_config = storage::get_pool_config(e);
-    pool_config.status = pool_status;
-    storage::set_pool_config(e, &pool_config);
 }
 
 /// Calculate the threshold for the pool's backstop balance

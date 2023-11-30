@@ -313,7 +313,7 @@ impl Pool for PoolContract {
 
     fn update_status(e: Env) -> u32 {
         storage::bump_instance(&e);
-        let new_status = pool::execute_update_pool_status(&e);
+        let new_status = pool::execute_update_pool_status(&e, 11); //status input is not used here
 
         e.events()
             .publish((Symbol::new(&e, "set_status"),), new_status);
@@ -322,13 +322,7 @@ impl Pool for PoolContract {
 
     fn set_status(e: Env, pool_status: u32) {
         storage::bump_instance(&e);
-        let admin = storage::get_admin(&e);
-        admin.require_auth();
-
-        pool::set_pool_status(&e, pool_status);
-
-        e.events()
-            .publish((Symbol::new(&e, "set_status"), admin), pool_status);
+        pool::execute_update_pool_status(&e, pool_status);
     }
 
     /********* Emission Functions **********/

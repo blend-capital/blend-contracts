@@ -717,7 +717,7 @@ fn test_pool_config() {
     );
 
     // Set status (admin only)
-    pool_fixture.pool.set_status(&1);
+    pool_fixture.pool.set_status(&2);
     assert_eq!(
         fixture.env.auths()[0],
         (
@@ -726,12 +726,60 @@ fn test_pool_config() {
                 function: AuthorizedFunction::Contract((
                     pool_fixture.pool.address.clone(),
                     Symbol::new(&fixture.env, "set_status"),
-                    vec![&fixture.env, 1u32.into_val(&fixture.env)]
+                    vec![&fixture.env, 2u32.into_val(&fixture.env)]
                 )),
                 sub_invocations: std::vec![]
             }
         )
     );
+    let new_pool_config = fixture.read_pool_config(0);
+    assert_eq!(new_pool_config.status, 2);
+    let event = vec![&fixture.env, fixture.env.events().all().last_unchecked()];
+    assert_eq!(
+        event,
+        vec![
+            &fixture.env,
+            (
+                pool_fixture.pool.address.clone(),
+                (Symbol::new(&fixture.env, "set_status"), new_admin.clone()).into_val(&fixture.env),
+                2u32.into_val(&fixture.env)
+            )
+        ]
+    );
+    //revert to standard status (admin only)
+    pool_fixture.pool.set_status(&3);
+    assert_eq!(
+        fixture.env.auths()[0],
+        (
+            new_admin.clone(),
+            AuthorizedInvocation {
+                function: AuthorizedFunction::Contract((
+                    pool_fixture.pool.address.clone(),
+                    Symbol::new(&fixture.env, "set_status"),
+                    vec![&fixture.env, 3u32.into_val(&fixture.env)]
+                )),
+                sub_invocations: std::vec![]
+            }
+        )
+    );
+    let new_pool_config = fixture.read_pool_config(0);
+    assert_eq!(new_pool_config.status, 3);
+    let event = vec![&fixture.env, fixture.env.events().all().last_unchecked()];
+    assert_eq!(
+        event,
+        vec![
+            &fixture.env,
+            (
+                pool_fixture.pool.address.clone(),
+                (Symbol::new(&fixture.env, "set_status"), new_admin.clone()).into_val(&fixture.env),
+                3u32.into_val(&fixture.env)
+            )
+        ]
+    );
+
+    // Update status (backstop is healthy, so this should update to active)
+    pool_fixture.pool.update_status();
+    assert_eq!(fixture.env.auths().len(), 0);
     let new_pool_config = fixture.read_pool_config(0);
     assert_eq!(new_pool_config.status, 1);
     let event = vec![&fixture.env, fixture.env.events().all().last_unchecked()];
@@ -741,26 +789,8 @@ fn test_pool_config() {
             &fixture.env,
             (
                 pool_fixture.pool.address.clone(),
-                (Symbol::new(&fixture.env, "set_status"), new_admin.clone()).into_val(&fixture.env),
-                1u32.into_val(&fixture.env)
-            )
-        ]
-    );
-
-    // Update status (backstop is healthy, so this should update to active)
-    pool_fixture.pool.update_status();
-    assert_eq!(fixture.env.auths().len(), 0);
-    let new_pool_config = fixture.read_pool_config(0);
-    assert_eq!(new_pool_config.status, 0);
-    let event = vec![&fixture.env, fixture.env.events().all().last_unchecked()];
-    assert_eq!(
-        event,
-        vec![
-            &fixture.env,
-            (
-                pool_fixture.pool.address.clone(),
                 (Symbol::new(&fixture.env, "set_status"),).into_val(&fixture.env),
-                0u32.into_val(&fixture.env)
+                1u32.into_val(&fixture.env)
             )
         ]
     );

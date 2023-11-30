@@ -267,7 +267,7 @@ mod tests {
         let pool_config = PoolConfig {
             oracle,
             bstop_rate: 0_200_000_000,
-            status: 1,
+            status: 3,
         };
         e.as_contract(&pool, || {
             storage::set_pool_config(&e, &pool_config);
@@ -298,6 +298,45 @@ mod tests {
 
     #[test]
     #[should_panic(expected = "Error(Contract, #11)")]
+    fn test_require_action_allowed_cancel_liquidation_while_on_ice_panics() {
+        let e = Env::default();
+
+        let pool = testutils::create_pool(&e);
+        let oracle = Address::random(&e);
+        let pool_config = PoolConfig {
+            oracle,
+            bstop_rate: 0_200_000_000,
+            status: 3,
+        };
+        e.as_contract(&pool, || {
+            storage::set_pool_config(&e, &pool_config);
+            let pool = Pool::load(&e);
+
+            pool.require_action_allowed(&e, 9);
+        });
+    }
+
+    #[test]
+    fn test_require_action_allowed_cancel_liquidation_while_active() {
+        let e = Env::default();
+
+        let pool = testutils::create_pool(&e);
+        let oracle = Address::random(&e);
+        let pool_config = PoolConfig {
+            oracle,
+            bstop_rate: 0_200_000_000,
+            status: 0,
+        };
+        e.as_contract(&pool, || {
+            storage::set_pool_config(&e, &pool_config);
+            let pool = Pool::load(&e);
+
+            pool.require_action_allowed(&e, 9);
+        });
+    }
+
+    #[test]
+    #[should_panic(expected = "Error(Contract, #11)")]
     fn test_require_action_allowed_supply_while_frozen() {
         let e = Env::default();
 
@@ -306,7 +345,7 @@ mod tests {
         let pool_config = PoolConfig {
             oracle,
             bstop_rate: 0_200_000_000,
-            status: 2,
+            status: 5,
         };
         e.as_contract(&pool, || {
             storage::set_pool_config(&e, &pool_config);
@@ -326,7 +365,7 @@ mod tests {
         let pool_config = PoolConfig {
             oracle,
             bstop_rate: 0_200_000_000,
-            status: 2,
+            status: 5,
         };
         e.as_contract(&pool, || {
             storage::set_pool_config(&e, &pool_config);

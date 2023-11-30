@@ -219,7 +219,7 @@ mod tests {
 
             let new_pool_config = storage::get_pool_config(&e);
             assert_eq!(new_pool_config.status, status);
-            assert_eq!(status, 0);
+            assert_eq!(status, 1);
         });
     }
 
@@ -266,7 +266,7 @@ mod tests {
 
             let new_pool_config = storage::get_pool_config(&e);
             assert_eq!(new_pool_config.status, status);
-            assert_eq!(status, 1);
+            assert_eq!(status, 3);
         });
     }
 
@@ -304,7 +304,7 @@ mod tests {
         let pool_config = PoolConfig {
             oracle: oracle_id,
             bstop_rate: 0,
-            status: 0,
+            status: 1,
         };
         e.as_contract(&pool_id, || {
             storage::set_admin(&e, &bombadil);
@@ -314,7 +314,7 @@ mod tests {
 
             let new_pool_config = storage::get_pool_config(&e);
             assert_eq!(new_pool_config.status, status);
-            assert_eq!(status, 1);
+            assert_eq!(status, 3);
         });
     }
 
@@ -352,7 +352,7 @@ mod tests {
         let pool_config = PoolConfig {
             oracle: oracle_id,
             bstop_rate: 0,
-            status: 0,
+            status: 1,
         };
         e.as_contract(&pool_id, || {
             storage::set_admin(&e, &bombadil);
@@ -362,13 +362,105 @@ mod tests {
 
             let new_pool_config = storage::get_pool_config(&e);
             assert_eq!(new_pool_config.status, status);
-            assert_eq!(status, 2);
+            assert_eq!(status, 5);
         });
     }
 
     #[test]
-    #[should_panic(expected = "Error(Contract, #11)")]
+    #[should_panic(expected = "Error(Auth, InvalidAction)")]
     fn test_update_pool_status_admin_frozen() {
+        let e = Env::default();
+        e.budget().reset_unlimited();
+        // e.mock_all_auths_allowing_non_root_auth();
+        let pool_id = create_pool(&e);
+        let oracle_id = Address::random(&e);
+
+        let bombadil = Address::random(&e);
+        let samwise = Address::random(&e);
+
+        let (blnd, blnd_client) = create_token_contract(&e, &bombadil);
+        let (usdc, usdc_client) = create_token_contract(&e, &bombadil);
+        let (lp_token, lp_token_client) = create_comet_lp_pool(&e, &bombadil, &blnd, &usdc);
+        let (backstop_id, backstop_client) = create_backstop(&e);
+        setup_backstop(&e, &pool_id, &backstop_id, &lp_token, &usdc, &blnd);
+
+        // mint lp tokens
+        blnd_client.mint(&samwise, &500_001_0000000);
+        blnd_client.approve(&samwise, &lp_token, &i128::MAX, &99999);
+        usdc_client.mint(&samwise, &12_501_0000000);
+        usdc_client.approve(&samwise, &lp_token, &i128::MAX, &99999);
+        lp_token_client.join_pool(
+            &50_000_0000000,
+            &vec![&e, 500_001_0000000, 12_501_0000000],
+            &samwise,
+        );
+        backstop_client.deposit(&samwise, &pool_id, &50_000_0000000);
+        backstop_client.update_tkn_val();
+
+        let pool_config = PoolConfig {
+            oracle: oracle_id,
+            bstop_rate: 0,
+            status: 4,
+        };
+        e.as_contract(&pool_id, || {
+            storage::set_admin(&e, &bombadil);
+            storage::set_pool_config(&e, &pool_config);
+
+            execute_update_pool_status(&e, 11);
+        });
+    }
+
+    #[test]
+    fn test_admin_update_pool_status_unfreeze() {
+        let e = Env::default();
+        e.budget().reset_unlimited();
+        e.mock_all_auths_allowing_non_root_auth();
+
+        let pool_id = create_pool(&e);
+        let oracle_id = Address::random(&e);
+
+        let bombadil = Address::random(&e);
+        let samwise = Address::random(&e);
+
+        let (blnd, blnd_client) = create_token_contract(&e, &bombadil);
+        let (usdc, usdc_client) = create_token_contract(&e, &bombadil);
+        let (lp_token, lp_token_client) = create_comet_lp_pool(&e, &bombadil, &blnd, &usdc);
+        let (backstop_id, backstop_client) = create_backstop(&e);
+        setup_backstop(&e, &pool_id, &backstop_id, &lp_token, &usdc, &blnd);
+
+        // mint lp tokens
+        blnd_client.mint(&samwise, &500_001_0000000);
+        blnd_client.approve(&samwise, &lp_token, &i128::MAX, &99999);
+        usdc_client.mint(&samwise, &12_501_0000000);
+        usdc_client.approve(&samwise, &lp_token, &i128::MAX, &99999);
+        lp_token_client.join_pool(
+            &50_000_0000000,
+            &vec![&e, 500_001_0000000, 12_501_0000000],
+            &samwise,
+        );
+        backstop_client.deposit(&samwise, &pool_id, &50_000_0000000);
+        backstop_client.update_tkn_val();
+        backstop_client.queue_withdrawal(&samwise, &pool_id, &25_000_0000000);
+
+        let pool_config = PoolConfig {
+            oracle: oracle_id,
+            bstop_rate: 0,
+            status: 5,
+        };
+        e.as_contract(&pool_id, || {
+            storage::set_admin(&e, &bombadil);
+            storage::set_pool_config(&e, &pool_config);
+
+            let status = execute_update_pool_status(&e, 0);
+
+            let new_pool_config = storage::get_pool_config(&e);
+            assert_eq!(new_pool_config.status, status);
+            assert_eq!(status, 0);
+        });
+    }
+
+    #[test]
+    fn test_admin_update_pool_status_freeze() {
         let e = Env::default();
         e.budget().reset_unlimited();
         e.mock_all_auths_allowing_non_root_auth();
@@ -400,13 +492,17 @@ mod tests {
         let pool_config = PoolConfig {
             oracle: oracle_id,
             bstop_rate: 0,
-            status: 3,
+            status: 1,
         };
         e.as_contract(&pool_id, || {
             storage::set_admin(&e, &bombadil);
             storage::set_pool_config(&e, &pool_config);
 
-            execute_update_pool_status(&e, 11);
+            let status = execute_update_pool_status(&e, 4);
+
+            let new_pool_config = storage::get_pool_config(&e);
+            assert_eq!(new_pool_config.status, status);
+            assert_eq!(status, 4);
         });
     }
 

@@ -268,6 +268,16 @@ pub fn build_actions_from_request(
                     (from.clone(), request.amount),
                 );
             }
+            9 => {
+                // delete liquidation auction
+                // Note: request object is ignored besides type
+                auctions::delete_liquidation(e, &from);
+                check_health = true;
+                e.events().publish(
+                    (Symbol::new(&e, "delete_liquidation_auction"), from.clone()),
+                    (),
+                );
+            }
             _ => panic_with_error!(e, PoolError::BadRequest),
         }
     }
@@ -1410,6 +1420,79 @@ mod tests {
                     &(AuctionType::InterestAuction as u32),
                     &backstop_address
                 ),
+                false
+            );
+            assert_eq!(actions.pool_transfer.len(), 0);
+            assert_eq!(actions.spender_transfer.len(), 0);
+        });
+    }
+
+    /***** delete liquidation auction *****/
+
+    #[test]
+    fn test_delete_liquidation_auction() {
+        let e = Env::default();
+        e.budget().reset_unlimited();
+        e.mock_all_auths_allowing_non_root_auth();
+
+        e.ledger().set(LedgerInfo {
+            timestamp: 12345,
+            protocol_version: 20,
+            sequence_number: 51 + 200,
+            network_id: Default::default(),
+            base_reserve: 10,
+            min_temp_entry_expiration: 10,
+            min_persistent_entry_expiration: 10,
+            max_entry_expiration: 2000000,
+        });
+
+        let samwise = Address::random(&e);
+        let underlying_0 = Address::random(&e);
+        let underlying_1 = Address::random(&e);
+
+        let pool_address = create_pool(&e);
+
+        let pool_config = PoolConfig {
+            oracle: Address::random(&e),
+            bstop_rate: 0_100_000_000,
+            status: 0,
+        };
+        let auction_data = AuctionData {
+            bid: map![&e, (underlying_0.clone(), 952_0000000)],
+            lot: map![
+                &e,
+                (underlying_0.clone(), 100_0000000),
+                (underlying_1.clone(), 25_0000000)
+            ],
+            block: 51,
+        };
+
+        e.as_contract(&pool_address, || {
+            e.mock_all_auths_allowing_non_root_auth();
+            storage::set_pool_config(&e, &pool_config);
+            storage::set_auction(
+                &e,
+                &(AuctionType::UserLiquidation as u32),
+                &samwise,
+                &auction_data,
+            );
+
+            let mut pool = Pool::load(&e);
+
+            let requests = vec![
+                &e,
+                Request {
+                    request_type: 9,
+                    address: Address::random(&e),
+                    amount: 0,
+                },
+            ];
+            let (actions, _, health_check) =
+                build_actions_from_request(&e, &mut pool, &samwise, requests);
+
+            assert_eq!(health_check, true);
+            assert_eq!(
+                storage::has_auction(&e, &(AuctionType::UserLiquidation as u32), &samwise),
                 false
             );
             assert_eq!(actions.pool_transfer.len(), 0);

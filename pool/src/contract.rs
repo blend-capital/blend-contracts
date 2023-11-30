@@ -186,15 +186,6 @@ pub trait Pool {
     /// If the user liquidation auction was unable to be created
     fn new_liquidation_auction(e: Env, user: Address, percent_liquidated: u64) -> AuctionData;
 
-    /// Delete a user liquidation auction if the user is no longer eligible to be liquidated.
-    ///
-    /// ### Arguments
-    /// * `user` - The user getting liquidated through the auction
-    ///
-    /// ### Panics
-    /// If the user is still eligible to be liquidated state or the auction doesn't exist
-    fn del_liquidation_auction(e: Env, user: Address);
-
     /// Fetch an auction from the ledger. Returns a quote based on the current block.
     ///
     /// ### Arguments
@@ -367,13 +358,6 @@ impl Pool for PoolContract {
             auction_data.clone(),
         );
         auction_data
-    }
-
-    fn del_liquidation_auction(e: Env, user: Address) {
-        auctions::delete_liquidation(&e, &user);
-
-        e.events()
-            .publish((Symbol::new(&e, "delete_liquidation_auction"), user), ());
     }
 
     fn get_auction(e: Env, auction_type: u32, user: Address) -> AuctionData {

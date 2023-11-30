@@ -125,7 +125,7 @@ mod tests {
             storage::set_admin(&e, &bombadil);
             storage::set_pool_config(&e, &pool_config);
 
-            set_pool_status(&e, 0);
+            execute_update_pool_status(&e, 0);
 
             let new_pool_config = storage::get_pool_config(&e);
             assert_eq!(new_pool_config.status, 0);
@@ -215,7 +215,7 @@ mod tests {
             storage::set_admin(&e, &bombadil);
             storage::set_pool_config(&e, &pool_config);
 
-            let status = execute_update_pool_status(&e);
+            let status = execute_update_pool_status(&e, 11);
 
             let new_pool_config = storage::get_pool_config(&e);
             assert_eq!(new_pool_config.status, status);
@@ -262,7 +262,7 @@ mod tests {
             storage::set_admin(&e, &bombadil);
             storage::set_pool_config(&e, &pool_config);
 
-            let status = execute_update_pool_status(&e);
+            let status = execute_update_pool_status(&e, 11);
 
             let new_pool_config = storage::get_pool_config(&e);
             assert_eq!(new_pool_config.status, status);
@@ -310,7 +310,7 @@ mod tests {
             storage::set_admin(&e, &bombadil);
             storage::set_pool_config(&e, &pool_config);
 
-            let status = execute_update_pool_status(&e);
+            let status = execute_update_pool_status(&e, 11);
 
             let new_pool_config = storage::get_pool_config(&e);
             assert_eq!(new_pool_config.status, status);
@@ -358,7 +358,7 @@ mod tests {
             storage::set_admin(&e, &bombadil);
             storage::set_pool_config(&e, &pool_config);
 
-            let status = execute_update_pool_status(&e);
+            let status = execute_update_pool_status(&e, 11);
 
             let new_pool_config = storage::get_pool_config(&e);
             assert_eq!(new_pool_config.status, status);
@@ -406,7 +406,7 @@ mod tests {
             storage::set_admin(&e, &bombadil);
             storage::set_pool_config(&e, &pool_config);
 
-            execute_update_pool_status(&e);
+            execute_update_pool_status(&e, 11);
         });
     }
 

@@ -24,4 +24,5 @@ sep-41-token = { workspace = true }
 [dev_dependencies]
 soroban-sdk = { workspace = true, features = ["testutils"] }
 mock-pool-factory = { path = "../mocks/mock-pool-factory", features = ["testutils"] }
+emitter = { path = "../emitter", features = ["testutils"] }
 sep-41-token = { workspace = true, features = ["testutils"] }

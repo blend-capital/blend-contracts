@@ -8,11 +8,14 @@ use crate::{
 };
 
 use soroban_sdk::{
-    testutils::Address as _, unwrap::UnwrapOptimized, vec, Address, Env, IntoVal, Vec,
+    testutils::{Address as _, Ledger, LedgerInfo},
+    unwrap::UnwrapOptimized,
+    vec, Address, Env, IntoVal, Vec,
 };
 
 use sep_41_token::testutils::{MockTokenClient, MockTokenWASM};
 
+use emitter::{EmitterClient, EmitterContract};
 use mock_pool_factory::{MockPoolFactory, MockPoolFactoryClient};
 
 pub(crate) fn create_backstop(e: &Env) -> Address {
@@ -78,6 +81,44 @@ pub(crate) fn create_mock_pool_factory<'a>(
         contract_address.clone(),
         MockPoolFactoryClient::new(e, &contract_address),
     )
+}
+
+pub(crate) fn create_emitter<'a>(
+    e: &Env,
+    backstop: &Address,
+    backstop_token: &Address,
+    blnd_token: &Address,
+    emitter_last_distro: u64,
+) -> (Address, EmitterClient<'a>) {
+    let contract_address = e.register_contract(None, EmitterContract {});
+
+    let prev_timestamp = e.ledger().timestamp();
+    e.ledger().set(LedgerInfo {
+        timestamp: emitter_last_distro,
+        protocol_version: 20,
+        sequence_number: 0,
+        network_id: Default::default(),
+        base_reserve: 10,
+        min_temp_entry_expiration: 10,
+        min_persistent_entry_expiration: 10,
+        max_entry_expiration: 2000000,
+    });
+    e.as_contract(backstop, || {
+        storage::set_emitter(e, &contract_address);
+    });
+    let client = EmitterClient::new(e, &contract_address);
+    client.initialize(&blnd_token, &backstop, &backstop_token);
+    e.ledger().set(LedgerInfo {
+        timestamp: prev_timestamp,
+        protocol_version: 20,
+        sequence_number: 0,
+        network_id: Default::default(),
+        base_reserve: 10,
+        min_temp_entry_expiration: 10,
+        min_persistent_entry_expiration: 10,
+        max_entry_expiration: 2000000,
+    });
+    (contract_address.clone(), client)
 }
 
 /// Deploy a test Comet LP pool of 80% BLND / 20% USDC and set it as the backstop token.

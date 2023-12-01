@@ -6,6 +6,7 @@ use crate::{
     storage::{self, ReserveConfig, ReserveData},
     PoolContract,
 };
+use emitter::{EmitterClient, EmitterContract};
 use fixed_point_math::FixedPoint;
 use sep_40_oracle::testutils::{MockPriceOracleClient, MockPriceOracleWASM};
 use sep_41_token::testutils::{MockTokenClient, MockTokenWASM};
@@ -83,6 +84,20 @@ pub(crate) fn create_mock_pool_factory(e: &Env) -> (Address, MockPoolFactoryClie
     )
 }
 
+//***** Pool Factory ******
+
+pub(crate) fn create_emitter<'a>(
+    e: &Env,
+    backstop_id: &Address,
+    backstop_token: &Address,
+    blnd_token: &Address,
+) -> (Address, EmitterClient<'a>) {
+    let contract_address = e.register_contract(None, EmitterContract {});
+    let client = EmitterClient::new(e, &contract_address);
+    client.initialize(blnd_token, backstop_id, backstop_token);
+    (contract_address.clone(), client)
+}
+
 //***** Backstop ******
 
 mod comet {
@@ -107,8 +122,10 @@ pub(crate) fn setup_backstop(
 ) {
     let (pool_factory, mock_pool_factory_client) = create_mock_pool_factory(e);
     mock_pool_factory_client.set_pool(pool_address);
+    let (emitter, _) = create_emitter(e, backstop_id, backstop_token, blnd_token);
     BackstopClient::new(e, backstop_id).initialize(
         backstop_token,
+        &emitter,
         usdc_token,
         blnd_token,
         &pool_factory,

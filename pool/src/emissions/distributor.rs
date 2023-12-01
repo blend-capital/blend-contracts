@@ -7,6 +7,7 @@ use crate::{
     errors::PoolError,
     pool::User,
     storage::{self, ReserveEmissionsData, UserEmissionData},
+    ReserveEmissionsConfig,
 };
 
 /// Performs a claim against the given "reserve_token_ids" for "from"
@@ -117,28 +118,43 @@ pub fn update_emission_data(
     supply: i128,
     supply_scalar: i128,
 ) -> Option<ReserveEmissionsData> {
-    let token_emission_config = match storage::get_res_emis_config(e, &res_token_id) {
-        Some(res) => res,
+    match storage::get_res_emis_config(e, &res_token_id) {
+        Some(emis_config) => Some(update_emission_data_with_config(
+            e,
+            res_token_id,
+            supply,
+            supply_scalar,
+            &emis_config,
+        )),
         None => return None, // no emission exist, no update is required
-    };
+    }
+}
+
+pub(super) fn update_emission_data_with_config(
+    e: &Env,
+    res_token_id: u32,
+    supply: i128,
+    supply_scalar: i128,
+    emis_config: &ReserveEmissionsConfig,
+) -> ReserveEmissionsData {
     let token_emission_data = storage::get_res_emis_data(e, &res_token_id).unwrap_optimized(); // exists if config is written to
 
-    if token_emission_data.last_time >= token_emission_config.expiration
+    if token_emission_data.last_time >= emis_config.expiration
         || e.ledger().timestamp() == token_emission_data.last_time
-        || token_emission_config.eps == 0
+        || emis_config.eps == 0
         || supply == 0
     {
-        return Some(token_emission_data);
+        return token_emission_data;
     }
 
-    let ledger_timestamp = if e.ledger().timestamp() > token_emission_config.expiration {
-        token_emission_config.expiration
+    let ledger_timestamp = if e.ledger().timestamp() > emis_config.expiration {
+        emis_config.expiration
     } else {
         e.ledger().timestamp()
     };
 
     let additional_idx = (i128(ledger_timestamp - token_emission_data.last_time)
-        * i128(token_emission_config.eps))
+        * i128(emis_config.eps))
     .fixed_div_floor(supply, supply_scalar)
     .unwrap_optimized();
     let new_data = ReserveEmissionsData {
@@ -146,7 +162,7 @@ pub fn update_emission_data(
         last_time: ledger_timestamp,
     };
     storage::set_res_emis_data(e, &res_token_id, &new_data);
-    Some(new_data)
+    new_data
 }
 
 fn update_user_emissions(

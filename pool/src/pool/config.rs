@@ -1,11 +1,8 @@
 use crate::{
-    dependencies::BackstopClient,
-    emissions,
     errors::PoolError,
     storage::{self, PoolConfig, ReserveConfig, ReserveData},
 };
-use cast::u64;
-use soroban_sdk::{panic_with_error, unwrap::UnwrapOptimized, Address, Env, Symbol};
+use soroban_sdk::{panic_with_error, Address, Env, Symbol};
 
 use super::pool::Pool;
 
@@ -111,14 +108,6 @@ pub fn execute_update_reserve(e: &Env, asset: &Address, config: &ReserveConfig) 
     new_config.index = reserve.index;
 
     storage::set_res_config(e, asset, &new_config);
-}
-
-// Update the pool emission information from the backstop
-pub fn update_pool_emissions(e: &Env) -> u64 {
-    let backstop_address = storage::get_backstop(e);
-    let backstop_client = BackstopClient::new(e, &backstop_address);
-    let (pool_eps, next_exp) = backstop_client.pool_eps(&e.current_contract_address());
-    emissions::update_emissions_cycle(e, next_exp, u64(pool_eps).unwrap_optimized())
 }
 
 #[allow(clippy::zero_prefixed_literal)]

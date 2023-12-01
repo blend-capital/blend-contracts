@@ -145,12 +145,11 @@ pub trait Pool {
 
     /********* Emission Functions **********/
 
-    /// Update emissions for reserves for the next emission cycle
+    /// Consume emissions from the backstop and distribute to the reserves based
+    /// on the reserve emission configuration.
     ///
-    /// Needs to be performed each emission cycle, as determined by the expiration
-    ///
-    /// Returns the expiration timestamp
-    fn update_emissions(e: Env) -> u64;
+    /// Returns amount of new tokens emitted
+    fn gulp_emissions(e: Env) -> i128;
 
     /// (Admin only) Set the emission configuration for the pool
     ///
@@ -324,9 +323,9 @@ impl Pool for PoolContract {
 
     /********* Emission Functions **********/
 
-    fn update_emissions(e: Env) -> u64 {
+    fn gulp_emissions(e: Env) -> i128 {
         storage::bump_instance(&e);
-        let next_expiration = pool::update_pool_emissions(&e);
+        let next_expiration = emissions::gulp_emissions(&e);
 
         e.events()
             .publish((Symbol::new(&e, "update_emissions"),), next_expiration);

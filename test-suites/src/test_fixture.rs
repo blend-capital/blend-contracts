@@ -73,7 +73,7 @@ impl TestFixture<'_> {
         e.ledger().set(LedgerInfo {
             timestamp: 1441065600, // Sept 1st, 2015 (backstop epoch)
             protocol_version: 20,
-            sequence_number: 5000000,
+            sequence_number: 150,
             network_id: Default::default(),
             base_reserve: 10,
             min_temp_entry_expiration: 999999,
@@ -93,14 +93,23 @@ impl TestFixture<'_> {
         let (emitter_id, emitter_client) = create_emitter(&e, wasm);
         let (pool_factory_id, _) = create_pool_factory(&e, wasm);
 
+        // deploy external contracts
+        let (lp, lp_client) = create_lp_pool(&e, &bombadil, &blnd_id, &usdc_id);
+
         // initialize emitter
         blnd_client.mint(&bombadil, &(10_000_000 * SCALAR_7));
         blnd_client.set_admin(&emitter_id);
-        emitter_client.initialize(&backstop_id, &blnd_id);
+        emitter_client.initialize(&blnd_id, &backstop_id, &lp);
 
         // initialize backstop
-        let (lp, lp_client) = create_lp_pool(&e, &bombadil, &blnd_id, &usdc_id);
-        backstop_client.initialize(&lp, &usdc_id, &blnd_id, &pool_factory_id, &Map::new(&e));
+        backstop_client.initialize(
+            &lp,
+            &emitter_id,
+            &usdc_id,
+            &blnd_id,
+            &pool_factory_id,
+            &Map::new(&e),
+        );
 
         // initialize pool factory
         let pool_hash = e.deployer().upload_contract_wasm(POOL_WASM);
@@ -136,19 +145,7 @@ impl TestFixture<'_> {
             1_0000000     // stable
         ]);
 
-        // pass 1 day
-        e.ledger().set(LedgerInfo {
-            timestamp: 1441152000,
-            protocol_version: 20,
-            sequence_number: 150,
-            network_id: Default::default(),
-            base_reserve: 10,
-            min_temp_entry_expiration: 999999,
-            min_persistent_entry_expiration: 999999,
-            max_entry_expiration: u32::MAX,
-        });
-
-        TestFixture {
+        let fixture = TestFixture {
             env: e,
             bombadil,
             users: vec![],
@@ -165,7 +162,9 @@ impl TestFixture<'_> {
                 xlm_client,
                 stable_client,
             ],
-        }
+        };
+        fixture.jump(7 * 24 * 60 * 60);
+        fixture
     }
 
     pub fn create_pool(&mut self, name: Symbol, backstop_take_rate: u64) {
@@ -205,7 +204,7 @@ impl TestFixture<'_> {
             self.env
                 .storage()
                 .instance()
-                .get(&Symbol::new(&self.env, "PoolConfig"))
+                .get(&Symbol::new(&self.env, "Config"))
                 .unwrap()
         })
     }

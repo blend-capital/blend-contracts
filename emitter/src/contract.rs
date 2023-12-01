@@ -112,8 +112,7 @@ impl Emitter for EmitterContract {
         let swap =
             backstop_manager::execute_queue_swap_backstop(&e, &new_backstop, &new_backstop_token);
 
-        e.events()
-            .publish((Symbol::new(&e, "queue_swap_backstop"),), swap);
+        e.events().publish((Symbol::new(&e, "q_swap"),), swap);
     }
 
     fn get_queued_swap(e: Env) -> Option<backstop_manager::Swap> {
@@ -124,8 +123,7 @@ impl Emitter for EmitterContract {
         storage::bump_instance(&e);
         let swap = backstop_manager::execute_cancel_swap_backstop(&e);
 
-        e.events()
-            .publish((Symbol::new(&e, "cancel_swap_backstop"),), swap);
+        e.events().publish((Symbol::new(&e, "del_swap"),), swap);
     }
 
     fn swap_backstop(e: Env) {

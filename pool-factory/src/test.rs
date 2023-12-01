@@ -87,7 +87,7 @@ fn test_pool_factory() {
         assert_eq!(
             e.storage()
                 .instance()
-                .get::<_, pool::PoolConfig>(&Symbol::new(&e, "PoolConfig"))
+                .get::<_, pool::PoolConfig>(&Symbol::new(&e, "Config"))
                 .unwrap(),
             pool::PoolConfig {
                 oracle: oracle,

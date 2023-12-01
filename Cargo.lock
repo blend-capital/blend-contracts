@@ -52,6 +52,7 @@ name = "backstop"
 version = "0.0.1"
 dependencies = [
  "cast",
+ "emitter",
  "fixed-point-math",
  "mock-pool-factory",
  "sep-41-token",
@@ -401,7 +402,6 @@ dependencies = [
 name = "emitter"
 version = "0.0.1"
 dependencies = [
- "backstop",
  "sep-41-token",
  "soroban-sdk",
 ]
@@ -735,6 +735,7 @@ version = "0.0.1"
 dependencies = [
  "backstop",
  "cast",
+ "emitter",
  "fixed-point-math",
  "mock-pool-factory",
  "sep-40-oracle",

@@ -8,4 +8,8 @@ pub enum EmitterError {
     NotAuthorized = 20,
     InsufficientBackstopSize = 30,
     BadDrop = 40,
+    SwapNotQueued = 50,
+    SwapAlreadyExists = 60,
+    SwapNotUnlocked = 70,
+    SwapCannotBeCanceled = 80,
 }

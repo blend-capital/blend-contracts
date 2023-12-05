@@ -357,8 +357,8 @@ fn test_pool_user() {
     // allow the rest of the emissions period to pass (6 days - 5d23h59m emitted for XLM supply)
     fixture.jump(6 * 24 * 60 * 60);
     fixture.emitter.distribute();
-    fixture.backstop.update_emission_cycle();
-    pool_fixture.pool.update_emissions();
+    fixture.backstop.gulp_emissions();
+    pool_fixture.pool.gulp_emissions();
     assert_eq!(fixture.env.auths().len(), 0); // no auth required to update emissions
 
     // Sam repay and withdrawal positions

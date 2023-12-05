@@ -85,24 +85,24 @@ pub fn create_fixture_with_data<'a>(wasm: bool) -> TestFixture<'a> {
 
     // enable emissions
     fixture.emitter.distribute();
-    fixture.backstop.update_emission_cycle();
-    pool_fixture.pool.update_emissions();
+    fixture.backstop.gulp_emissions();
+    pool_fixture.pool.gulp_emissions();
 
     fixture.jump(60);
 
-    fixture.tokens[TokenIndex::STABLE].approve(
-        &frodo,
-        &pool_fixture.pool.address,
-        &i128::MAX,
-        &50000,
-    );
-    fixture.tokens[TokenIndex::WETH].approve(
-        &frodo,
-        &pool_fixture.pool.address,
-        &i128::MAX,
-        &50000,
-    );
-    fixture.tokens[TokenIndex::XLM].approve(&frodo, &pool_fixture.pool.address, &i128::MAX, &50000);
+    // fixture.tokens[TokenIndex::STABLE].approve(
+    //     &frodo,
+    //     &pool_fixture.pool.address,
+    //     &i128::MAX,
+    //     &(fixture.env.ledger().sequence() + 100),
+    // );
+    // fixture.tokens[TokenIndex::WETH].approve(
+    //     &frodo,
+    //     &pool_fixture.pool.address,
+    //     &i128::MAX,
+    //     &(fixture.env.ledger().sequence() + 100),
+    // );
+    // fixture.tokens[TokenIndex::XLM].approve(&frodo, &pool_fixture.pool.address, &i128::MAX, &50000);
 
     // supply and borrow STABLE for 80% utilization (close to target)
     let requests: Vec<Request> = vec![
@@ -205,13 +205,6 @@ mod tests {
         );
 
         // validate emissions are turned on
-        assert_eq!(
-            (
-                0_300_0000,
-                fixture.env.ledger().timestamp() - 60 * 61 + 7 * 24 * 60 * 60
-            ),
-            fixture.backstop.pool_eps(&pool_fixture.pool.address)
-        );
         let (emis_config, emis_data) = fixture.read_reserve_emissions(0, TokenIndex::STABLE, 0);
         assert_eq!(
             emis_data.last_time,
@@ -219,6 +212,10 @@ mod tests {
         );
         assert_eq!(emis_data.index, 0);
         assert_eq!(0_180_0000, emis_config.eps);
+        assert_eq!(
+            fixture.env.ledger().timestamp() + 7 * 24 * 60 * 60 - 60 * 61,
+            emis_config.expiration
+        )
     }
 
     #[test]
@@ -261,13 +258,6 @@ mod tests {
         );
 
         // validate emissions are turned on
-        assert_eq!(
-            (
-                0_300_0000,
-                fixture.env.ledger().timestamp() - 60 * 61 + 7 * 24 * 60 * 60
-            ),
-            fixture.backstop.pool_eps(&pool_fixture.pool.address)
-        );
         let (emis_config, emis_data) = fixture.read_reserve_emissions(0, TokenIndex::STABLE, 0);
         assert_eq!(
             emis_data.last_time,
@@ -275,5 +265,9 @@ mod tests {
         );
         assert_eq!(emis_data.index, 0);
         assert_eq!(0_180_0000, emis_config.eps);
+        assert_eq!(
+            fixture.env.ledger().timestamp() + 7 * 24 * 60 * 60 - 60 * 61,
+            emis_config.expiration
+        )
     }
 }

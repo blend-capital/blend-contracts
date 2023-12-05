@@ -1,5 +1,6 @@
 use crate::{
     backstop::{self, load_pool_backstop_data, PoolBackstopData, UserBalance, Q4W},
+    dependencies::EmitterClient,
     emissions,
     errors::BackstopError,
     storage,
@@ -18,8 +19,11 @@ pub struct BackstopContract;
 pub trait Backstop {
     /// Initialize the backstop
     ///
+    /// This function requires that the Emitter has already been initialized
+    ///
     /// ### Arguments
     /// * `backstop_token` - The backstop token ID - an LP token with the pair BLND:USDC
+    /// * `emitter` - The Emitter contract ID
     /// * `blnd_token` - The BLND token ID
     /// * `usdc_token` - The USDC token ID
     /// * `pool_factory` - The pool factory ID
@@ -30,6 +34,7 @@ pub trait Backstop {
     fn initialize(
         e: Env,
         backstop_token: Address,
+        emitter: Address,
         blnd_token: Address,
         usdc_token: Address,
         pool_factory: Address,
@@ -96,8 +101,8 @@ pub trait Backstop {
 
     /********** Emissions **********/
 
-    /// Update the backstop for the next emissions cycle from the Emitter
-    fn update_emission_cycle(e: Env);
+    /// Consume emissions from the Emitter and distribute them to backstops and pools in the reward zone
+    fn gulp_emissions(e: Env);
 
     /// Add a pool to the reward zone, and if the reward zone is full, a pool to remove
     ///
@@ -109,9 +114,8 @@ pub trait Backstop {
     /// If the pool to remove has more tokens, or if distribution occurred in the last 48 hours
     fn add_reward(e: Env, to_add: Address, to_remove: Address);
 
-    /// Fetch the EPS (emissions per second) and expiration for the current distribution window of a pool
-    /// in a tuple where (EPS, expiration)
-    fn pool_eps(e: Env, pool_address: Address) -> (i128, u64);
+    /// Consume the emissions for a pool and approve
+    fn gulp_pool_emissions(e: Env, pool_address: Address) -> i128;
 
     /// Claim backstop deposit emissions from a list of pools for `from`
     ///
@@ -126,8 +130,8 @@ pub trait Backstop {
     /// If an invalid pool address is included
     fn claim(e: Env, from: Address, pool_addresses: Vec<Address>, to: Address) -> i128;
 
-    /// Fetch the drop list
-    fn drop_list(e: Env) -> Map<Address, i128>;
+    /// Drop initial BLND to a list of addresses through the emitter
+    fn drop(e: Env);
 
     /********** Fund Management *********/
 
@@ -196,6 +200,7 @@ impl Backstop for BackstopContract {
     fn initialize(
         e: Env,
         backstop_token: Address,
+        emitter: Address,
         usdc_token: Address,
         blnd_token: Address,
         pool_factory: Address,
@@ -211,6 +216,14 @@ impl Backstop for BackstopContract {
         storage::set_usdc_token(&e, &usdc_token);
         storage::set_pool_factory(&e, &pool_factory);
         storage::set_drop_list(&e, &drop_list);
+        storage::set_emitter(&e, &emitter);
+
+        // fetch last distribution time from emitter
+        // NOTE: For a replacement backstop, this must be fetched after the swap is completed, but this is
+        //       a shortcut for the first backstop.
+        let last_distribution_time =
+            EmitterClient::new(&e, &emitter).get_last_distro(&e.current_contract_address());
+        storage::set_last_distribution_time(&e, &last_distribution_time);
     }
 
     /********** Core **********/
@@ -280,9 +293,12 @@ impl Backstop for BackstopContract {
 
     /********** Emissions **********/
 
-    fn update_emission_cycle(e: Env) {
+    fn gulp_emissions(e: Env) {
         storage::bump_instance(&e);
-        emissions::update_emission_cycle(&e);
+        let new_tokens_emitted = emissions::gulp_emissions(&e);
+
+        e.events()
+            .publish((Symbol::new(&e, "gulp_emissions"),), new_tokens_emitted);
     }
 
     fn add_reward(e: Env, to_add: Address, to_remove: Address) {
@@ -293,11 +309,10 @@ impl Backstop for BackstopContract {
             .publish((Symbol::new(&e, "rw_zone"),), (to_add, to_remove));
     }
 
-    fn pool_eps(e: Env, pool_address: Address) -> (i128, u64) {
-        (
-            storage::get_pool_eps(&e, &pool_address),
-            storage::get_next_emission_cycle(&e),
-        )
+    fn gulp_pool_emissions(e: Env, pool_address: Address) -> i128 {
+        storage::bump_instance(&e);
+        pool_address.require_auth();
+        emissions::gulp_pool_emissions(&e, &pool_address)
     }
 
     fn claim(e: Env, from: Address, pool_addresses: Vec<Address>, to: Address) -> i128 {
@@ -310,8 +325,8 @@ impl Backstop for BackstopContract {
         amount
     }
 
-    fn drop_list(e: Env) -> Map<Address, i128> {
-        storage::get_drop_list(&e)
+    fn drop(e: Env) {
+        EmitterClient::new(&e, &storage::get_emitter(&e)).drop(&storage::get_drop_list(&e))
     }
 
     /********** Fund Management *********/

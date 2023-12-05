@@ -76,7 +76,9 @@ mod tests {
 
     use crate::{
         backstop::{execute_deposit, execute_donate},
-        testutils::{assert_eq_vec_q4w, create_backstop, create_backstop_token},
+        testutils::{
+            assert_eq_vec_q4w, create_backstop, create_backstop_token, create_mock_pool_factory,
+        },
     };
 
     use super::*;
@@ -93,6 +95,9 @@ mod tests {
 
         let (_, backstop_token_client) = create_backstop_token(&e, &backstop_address, &bombadil);
         backstop_token_client.mint(&samwise, &100_0000000);
+
+        let (_, mock_pool_factory_client) = create_mock_pool_factory(&e, &backstop_address);
+        mock_pool_factory_client.set_pool(&pool_address);
 
         // setup pool with deposits
         e.as_contract(&backstop_address, || {
@@ -151,6 +156,9 @@ mod tests {
         let (_, backstop_token_client) = create_backstop_token(&e, &backstop_address, &bombadil);
         backstop_token_client.mint(&samwise, &100_0000000);
 
+        let (_, mock_pool_factory_client) = create_mock_pool_factory(&e, &backstop_address);
+        mock_pool_factory_client.set_pool(&pool_address);
+
         // setup pool with deposits
         e.as_contract(&backstop_address, || {
             execute_deposit(&e, &samwise, &pool_address, 100_0000000);
@@ -184,6 +192,9 @@ mod tests {
 
         let (_, backstop_token_client) = create_backstop_token(&e, &backstop_address, &bombadil);
         backstop_token_client.mint(&samwise, &100_0000000);
+
+        let (_, mock_pool_factory_client) = create_mock_pool_factory(&e, &backstop_address);
+        mock_pool_factory_client.set_pool(&pool_address);
 
         // queue shares for withdraw
         e.as_contract(&backstop_address, || {
@@ -249,6 +260,9 @@ mod tests {
         let (_, backstop_token_client) = create_backstop_token(&e, &backstop_address, &bombadil);
         backstop_token_client.mint(&samwise, &100_0000000);
 
+        let (_, mock_pool_factory_client) = create_mock_pool_factory(&e, &backstop_address);
+        mock_pool_factory_client.set_pool(&pool_address);
+
         // queue shares for withdraw
         e.as_contract(&backstop_address, || {
             execute_deposit(&e, &samwise, &pool_address, 75_0000000);
@@ -296,6 +310,9 @@ mod tests {
 
         let (_, backstop_token_client) = create_backstop_token(&e, &backstop_address, &bombadil);
         backstop_token_client.mint(&samwise, &150_0000000);
+
+        let (_, mock_pool_factory_client) = create_mock_pool_factory(&e, &backstop_address);
+        mock_pool_factory_client.set_pool(&pool_address);
 
         e.ledger().set(LedgerInfo {
             protocol_version: 20,
@@ -359,6 +376,9 @@ mod tests {
 
         let (_, backstop_token_client) = create_backstop_token(&e, &backstop_address, &bombadil);
         backstop_token_client.mint(&samwise, &150_0000000);
+
+        let (_, mock_pool_factory_client) = create_mock_pool_factory(&e, &backstop_address);
+        mock_pool_factory_client.set_pool(&pool_address);
 
         e.ledger().set(LedgerInfo {
             protocol_version: 20,

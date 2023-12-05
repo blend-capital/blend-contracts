@@ -1,5 +1,7 @@
-use crate::{emitter, errors::EmitterError, storage};
-use soroban_sdk::{contract, contractclient, contractimpl, panic_with_error, Address, Env, Symbol};
+use crate::{backstop_manager, emitter, errors::EmitterError, storage};
+use soroban_sdk::{
+    contract, contractclient, contractimpl, panic_with_error, Address, Env, Map, Symbol,
+};
 
 /// ### Emitter
 ///
@@ -12,53 +14,76 @@ pub trait Emitter {
     /// Initialize the Emitter
     ///
     /// ### Arguments
-    /// * `backstop_id` - The backstop module Address ID
-    /// * `blnd_token_id` - The Blend token Address ID
-    fn initialize(e: Env, backstop: Address, blnd_token_id: Address);
+    /// * `blnd_token` - The Blend token Address the Emitter will distribute
+    /// * `backstop` - The backstop module address to emit to
+    /// * `backstop_token` - The token the backstop takes deposits in
+    fn initialize(e: Env, blnd_token: Address, backstop: Address, backstop_token: Address);
 
     /// Distributes BLND tokens to the listed backstop module
     ///
     /// Returns the amount of BLND tokens distributed
-    ///
-    /// ### Errors
-    /// If the caller is not the listed backstop module
     fn distribute(e: Env) -> i128;
+
+    /// Fetch the last time the Emitter distributed to the backstop module
+    ///
+    /// ### Arguments
+    /// * `backstop` - The backstop module Address ID
+    fn get_last_distro(e: Env, backstop_id: Address) -> u64;
 
     /// Fetch the current backstop
     fn get_backstop(e: Env) -> Address;
 
-    /// Switches the listed backstop module to one with more effective backstop deposits
-    ///
-    /// Returns OK or an error
+    /// Queues up a swap of the listed backstop module and token to new addresses.
     ///
     /// ### Arguments
-    /// * `new_backstop_id` - The Address ID of the new backstop module
+    /// * `new_backstop` - The Address of the new backstop module
+    /// * `new_backstop_token` - The address of the new backstop token
     ///
     /// ### Errors
-    /// If the input contract does not have more backstop deposits than the listed backstop module
-    fn swap_backstop(e: Env, new_backstop_id: Address);
+    /// If the input contract does not have more backstop deposits than the listed backstop module of the
+    /// current backstop token.
+    fn queue_swap_backstop(e: Env, new_backstop: Address, new_backstop_token: Address);
 
-    /// Distributes initial BLND post-backstop swap or protocol launch
-    ///
-    /// Returns OK or an error
+    /// Fetch the queued backstop swap, or None if nothing is queued.
+    fn get_queued_swap(e: Env) -> Option<backstop_manager::Swap>;
+
+    /// Verifies that a queued swap still meets the requirements to be executed. If not,
+    /// the queued swap is cancelled and must be recreated.
     ///
     /// ### Errors
-    /// If drop has already been called for this backstop
-    fn drop(e: Env);
+    /// If the queued swap is still valid.
+    fn cancel_swap_backstop(e: Env);
+
+    /// Executes a queued swap of the listed backstop module to one with more effective backstop deposits
+    ///
+    /// ### Errors
+    /// If the input contract does not have more backstop deposits than the listed backstop module,
+    /// or if the queued swap has not been unlocked.
+    fn swap_backstop(e: Env);
+
+    /// Distributes initial BLND after a new backstop is set
+    ///
+    /// ### Arguments
+    /// * `list` - The list of address and amounts to distribute too
+    ///
+    /// ### Errors
+    /// If drop has already been called for the backstop, the backstop is not the caller,
+    /// or the list exceeds the drop amount maximum.
+    fn drop(e: Env, list: Map<Address, i128>);
 }
 
 #[contractimpl]
 impl Emitter for EmitterContract {
-    fn initialize(e: Env, backstop: Address, blnd_token_id: Address) {
+    fn initialize(e: Env, blnd_token: Address, backstop: Address, backstop_token: Address) {
         storage::bump_instance(&e);
-        if storage::has_backstop(&e) {
+        if storage::has_blnd_token(&e) {
             panic_with_error!(&e, EmitterError::AlreadyInitialized)
         }
 
+        storage::set_blnd_token(&e, &blnd_token);
         storage::set_backstop(&e, &backstop);
-        storage::set_blend_id(&e, &blnd_token_id);
-        storage::set_last_fork(&e, 0); // We set the block 45 days in the past to allow for an immediate initial drop
-        storage::set_last_distro_time(&e, &(e.ledger().timestamp() - 7 * 24 * 60 * 60));
+        storage::set_backstop_token(&e, &backstop_token);
+        storage::set_last_distro_time(&e, &backstop, e.ledger().timestamp());
     }
 
     fn distribute(e: Env) -> i128 {
@@ -74,22 +99,44 @@ impl Emitter for EmitterContract {
         distribution_amount
     }
 
+    fn get_last_distro(e: Env, backstop_id: Address) -> u64 {
+        storage::get_last_distro_time(&e, &backstop_id)
+    }
+
     fn get_backstop(e: Env) -> Address {
         storage::get_backstop(&e)
     }
 
-    fn swap_backstop(e: Env, new_backstop_id: Address) {
+    fn queue_swap_backstop(e: Env, new_backstop: Address, new_backstop_token: Address) {
         storage::bump_instance(&e);
-        emitter::execute_swap_backstop(&e, new_backstop_id.clone());
+        let swap =
+            backstop_manager::execute_queue_swap_backstop(&e, &new_backstop, &new_backstop_token);
 
-        e.events()
-            .publish((Symbol::new(&e, "swap"),), (new_backstop_id,));
+        e.events().publish((Symbol::new(&e, "q_swap"),), swap);
     }
 
-    fn drop(e: Env) {
-        storage::bump_instance(&e);
-        let drop_list = emitter::execute_drop(&e);
+    fn get_queued_swap(e: Env) -> Option<backstop_manager::Swap> {
+        storage::get_queued_swap(&e)
+    }
 
-        e.events().publish((Symbol::new(&e, "drop"),), drop_list);
+    fn cancel_swap_backstop(e: Env) {
+        storage::bump_instance(&e);
+        let swap = backstop_manager::execute_cancel_swap_backstop(&e);
+
+        e.events().publish((Symbol::new(&e, "del_swap"),), swap);
+    }
+
+    fn swap_backstop(e: Env) {
+        storage::bump_instance(&e);
+        let swap = backstop_manager::execute_swap_backstop(&e);
+
+        e.events().publish((Symbol::new(&e, "swap"),), swap);
+    }
+
+    fn drop(e: Env, list: Map<Address, i128>) {
+        storage::bump_instance(&e);
+        emitter::execute_drop(&e, &list);
+
+        e.events().publish((Symbol::new(&e, "drop"),), list);
     }
 }

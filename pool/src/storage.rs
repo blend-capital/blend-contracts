@@ -557,7 +557,8 @@ pub fn get_pool_emissions(e: &Env) -> Map<u32, u64> {
 /// Set the pool reserve emissions
 ///
 /// ### Arguments
-/// * `emissions` - The map of emissions by reserve token id to EPS
+/// * `emissions` - The map of emissions by reserve token id to share of emissions as
+///                 a percentage of 1e7 (e.g. 15% = 1500000)
 pub fn set_pool_emissions(e: &Env, emissions: &Map<u32, u64>) {
     e.storage()
         .persistent()

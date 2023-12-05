@@ -244,16 +244,6 @@ pub fn set_user_balance(e: &Env, pool: &Address, user: &Address, balance: &UserB
 /// * `pool` - The pool the deposit is associated with
 pub fn get_pool_balance(e: &Env, pool: &Address) -> PoolBalance {
     let key = BackstopDataKey::PoolBalance(pool.clone());
-    // if let Some(result) = e.storage().persistent().get::<BackstopDataKey, PoolBalance>(&key) {
-    //     e.storage()
-    //         .persistent()
-    //         .bump(&key, LEDGER_THRESHOLD_SHARED, LEDGER_BUMP_SHARED);
-    //     result
-    // } else {
-    //     // @dev: Required to use "new" to require that "pool" was deployed from the factory
-    //     PoolBalance::new(e, pool)
-    // }
-
     get_persistent_default(
         e,
         &key,
@@ -362,7 +352,7 @@ pub fn set_reward_zone(e: &Env, reward_zone: &Vec<Address>) {
     );
 }
 
-/// Get current emissions EPS the backstop is distributing to the pool
+/// Get the current emissions accrued for the pool
 ///
 /// ### Arguments
 /// * `pool` - The pool
@@ -371,11 +361,11 @@ pub fn get_pool_emissions(e: &Env, pool: &Address) -> i128 {
     get_persistent_default(e, &key, 0i128, LEDGER_THRESHOLD_SHARED, LEDGER_BUMP_SHARED)
 }
 
-/// Set the current emissions EPS the backstop is distributing to the pool
+/// Set the current emissions accrued for the pool
 ///
 /// ### Arguments
 /// * `pool` - The pool
-/// * `emissions` - The eps being distributed to the pool
+/// * `emissions` - The number of tokens to distribute to the pool
 pub fn set_pool_emissions(e: &Env, pool: &Address, emissions: i128) {
     let key = BackstopDataKey::PoolEmis(pool.clone());
     e.storage()

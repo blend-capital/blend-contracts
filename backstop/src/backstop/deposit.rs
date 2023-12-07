@@ -2,10 +2,13 @@ use crate::{contract::require_nonnegative, emissions, storage};
 use sep_41_token::TokenClient;
 use soroban_sdk::{Address, Env};
 
+use super::require_is_from_pool_factory;
+
 /// Perform a deposit into the backstop module
 pub fn execute_deposit(e: &Env, from: &Address, pool_address: &Address, amount: i128) -> i128 {
     require_nonnegative(e, amount);
     let mut pool_balance = storage::get_pool_balance(e, pool_address);
+    require_is_from_pool_factory(e, pool_address, pool_balance.shares);
     let mut user_balance = storage::get_user_balance(e, pool_address, from);
 
     emissions::update_emissions(e, pool_address, &pool_balance, from, &user_balance, false);
@@ -29,7 +32,7 @@ mod tests {
 
     use crate::{
         backstop::execute_donate,
-        testutils::{create_backstop, create_backstop_token},
+        testutils::{create_backstop, create_backstop_token, create_mock_pool_factory},
     };
 
     use super::*;
@@ -41,15 +44,19 @@ mod tests {
         e.mock_all_auths_allowing_non_root_auth();
 
         let backstop_address = create_backstop(&e);
-        let bombadil = Address::random(&e);
-        let samwise = Address::random(&e);
-        let frodo = Address::random(&e);
-        let pool_0_id = Address::random(&e);
-        let pool_1_id = Address::random(&e);
+        let bombadil = Address::generate(&e);
+        let samwise = Address::generate(&e);
+        let frodo = Address::generate(&e);
+        let pool_0_id = Address::generate(&e);
+        let pool_1_id = Address::generate(&e);
 
         let (_, backstop_token_client) = create_backstop_token(&e, &backstop_address, &bombadil);
         backstop_token_client.mint(&samwise, &100_0000000);
         backstop_token_client.mint(&frodo, &100_0000000);
+
+        let (_, mock_pool_factory_client) = create_mock_pool_factory(&e, &backstop_address);
+        mock_pool_factory_client.set_pool(&pool_0_id);
+        mock_pool_factory_client.set_pool(&pool_1_id);
 
         // initialize pool 0 with funds + some profit
         e.as_contract(&backstop_address, || {
@@ -94,12 +101,15 @@ mod tests {
         e.mock_all_auths_allowing_non_root_auth();
 
         let backstop_address = create_backstop(&e);
-        let pool_0_id = Address::random(&e);
-        let bombadil = Address::random(&e);
-        let samwise = Address::random(&e);
+        let pool_0_id = Address::generate(&e);
+        let bombadil = Address::generate(&e);
+        let samwise = Address::generate(&e);
 
         let (_, backstop_token_client) = create_backstop_token(&e, &backstop_address, &bombadil);
         backstop_token_client.mint(&samwise, &100_0000000);
+
+        let (_, mock_pool_factory_client) = create_mock_pool_factory(&e, &backstop_address);
+        mock_pool_factory_client.set_pool(&pool_0_id);
 
         e.as_contract(&backstop_address, || {
             execute_deposit(&e, &samwise, &pool_0_id, 100_0000001);
@@ -116,15 +126,39 @@ mod tests {
         e.mock_all_auths_allowing_non_root_auth();
 
         let backstop_address = create_backstop(&e);
-        let pool_0_id = Address::random(&e);
-        let bombadil = Address::random(&e);
-        let samwise = Address::random(&e);
+        let pool_0_id = Address::generate(&e);
+        let bombadil = Address::generate(&e);
+        let samwise = Address::generate(&e);
 
         let (_, backstop_token_client) = create_backstop_token(&e, &backstop_address, &bombadil);
         backstop_token_client.mint(&samwise, &100_0000000);
 
+        let (_, mock_pool_factory_client) = create_mock_pool_factory(&e, &backstop_address);
+        mock_pool_factory_client.set_pool(&pool_0_id);
+
         e.as_contract(&backstop_address, || {
             execute_deposit(&e, &samwise, &pool_0_id, -100);
+        });
+    }
+
+    #[test]
+    #[should_panic(expected = "Error(Contract, #10)")]
+    fn text_execute_deposit_not_pool() {
+        let e = Env::default();
+        e.mock_all_auths_allowing_non_root_auth();
+
+        let backstop_address = create_backstop(&e);
+        let pool_0_id = Address::generate(&e);
+        let bombadil = Address::generate(&e);
+        let samwise = Address::generate(&e);
+
+        let (_, backstop_token_client) = create_backstop_token(&e, &backstop_address, &bombadil);
+        backstop_token_client.mint(&samwise, &100_0000000);
+
+        create_mock_pool_factory(&e, &backstop_address);
+
+        e.as_contract(&backstop_address, || {
+            execute_deposit(&e, &samwise, &pool_0_id, 100);
         });
     }
 }

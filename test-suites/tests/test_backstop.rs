@@ -1,6 +1,6 @@
 #![cfg(test)]
 
-use fixed_point_math::FixedPoint;
+use soroban_fixed_point_math::FixedPoint;
 use soroban_sdk::{
     testutils::{Address as _, AuthorizedFunction, AuthorizedInvocation, Events},
     vec, Address, IntoVal, Map, Symbol, Val, Vec,
@@ -20,14 +20,15 @@ fn test_backstop() {
 
     let pool = &fixture.pools[0].pool;
     let bstop_token = &fixture.lp;
-    let sam = Address::random(&fixture.env);
+    let sam = Address::generate(&fixture.env);
 
     // Verify initialization can't be re-run
     let result = fixture.backstop.try_initialize(
-        &Address::random(&fixture.env),
-        &Address::random(&fixture.env),
-        &Address::random(&fixture.env),
-        &Address::random(&fixture.env),
+        &Address::generate(&fixture.env),
+        &Address::generate(&fixture.env),
+        &Address::generate(&fixture.env),
+        &Address::generate(&fixture.env),
+        &Address::generate(&fixture.env),
         &Map::new(&fixture.env),
     );
     assert!(result.is_err());
@@ -197,7 +198,7 @@ fn test_backstop() {
 
     // Start the next emission cycle
     fixture.emitter.distribute();
-    fixture.backstop.update_emission_cycle();
+    fixture.backstop.gulp_emissions();
     assert_eq!(fixture.env.auths().len(), 0);
 
     // Sam queues 100% of position for withdrawal
@@ -260,7 +261,7 @@ fn test_backstop() {
     // Start the next emission cycle and jump 7 days (13d23hr total emissions for sam)
     fixture.jump(60 * 60 * 24 * 7);
     fixture.emitter.distribute();
-    fixture.backstop.update_emission_cycle();
+    fixture.backstop.gulp_emissions();
 
     // Sam dequeues half of the withdrawal
     let amount = 6_250 * SCALAR_7; // shares
@@ -312,7 +313,7 @@ fn test_backstop() {
     // Start the next emission cycle and jump 7 days (20d23hr total emissions for sam)
     fixture.jump(60 * 60 * 24 * 7);
     fixture.emitter.distribute();
-    fixture.backstop.update_emission_cycle();
+    fixture.backstop.gulp_emissions();
 
     // Backstop loses money
     let amount = 1_000 * SCALAR_7;

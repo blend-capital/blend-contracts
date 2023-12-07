@@ -1,4 +1,4 @@
-use fixed_point_math::FixedPoint;
+use soroban_fixed_point_math::FixedPoint;
 use soroban_sdk::{contracttype, panic_with_error, unwrap::UnwrapOptimized, Address, Env};
 
 use crate::{constants::SCALAR_7, dependencies::PoolFactoryClient, errors::BackstopError, storage};
@@ -38,14 +38,55 @@ pub fn load_pool_backstop_data(e: &Env, address: &Address) -> PoolBackstopData {
     }
 }
 
-/// Verify the pool address was deployed by the Pool Factory
+/// Verify the pool address was deployed by the Pool Factory.
 ///
-/// Panics if the pool address cannot be verified
-pub fn require_is_from_pool_factory(e: &Env, address: &Address) {
-    let pool_factory_client = PoolFactoryClient::new(e, &storage::get_pool_factory(e));
-    if !pool_factory_client.is_pool(address) {
-        panic_with_error!(e, BackstopError::NotPool);
+/// If the pool has an outstanding balance, it is assumed that it was verified before.
+///
+/// ### Arguments
+/// * `address` - The pool address to verify
+/// * `balance` - The balance of the pool. A balance of 0 indicates the pool has not been initialized.
+///
+/// ### Panics
+/// If the pool address cannot be verified
+pub fn require_is_from_pool_factory(e: &Env, address: &Address, balance: i128) {
+    if balance == 0 {
+        let pool_factory_client = PoolFactoryClient::new(e, &storage::get_pool_factory(e));
+        if !pool_factory_client.is_pool(address) {
+            panic_with_error!(e, BackstopError::NotPool);
+        }
     }
+}
+
+/// TODO: Duplicated from pool/pool/status.rs. Can this be moved to a common location?
+///
+/// Calculate the threshold for the pool's backstop balance
+///
+/// Returns true if the pool's backstop balance is above the threshold
+/// NOTE: The calculation is the percentage^5 to simplify the calculation of the pools product constant.
+///       Some useful calculation results:
+///         - greater than 1 = 100+%
+///         - 1_0000000 = 100%
+///         - 0_0000100 = ~10%
+///         - 0_0000003 = ~5%
+///         - 0_0000000 = ~0-4%
+pub fn require_pool_above_threshold(pool_backstop_data: &PoolBackstopData) -> bool {
+    // @dev: Calculation for pools product constant of underlying will often overflow i128
+    //       so saturating mul is used. This is safe because the threshold is below i128::MAX and the
+    //       protocol does not need to differentiate between pools over the threshold product constant.
+    //       The calculation is:
+    //        - Threshold % = (bal_blnd^4 * bal_usdc) / PC^5 such that PC is 200k
+    let threshold_pc = 320_000_000_000_000_000_000_000_000i128; // 3.2e26 (200k^5)
+                                                                // floor balances to nearest full unit and calculate saturated pool product constant
+                                                                // and scale to SCALAR_7 to get final division result in SCALAR_7 points
+    let bal_blnd = pool_backstop_data.blnd / SCALAR_7;
+    let bal_usdc = pool_backstop_data.usdc / SCALAR_7;
+    let saturating_pool_pc = bal_blnd
+        .saturating_mul(bal_blnd)
+        .saturating_mul(bal_blnd)
+        .saturating_mul(bal_blnd)
+        .saturating_mul(bal_usdc)
+        .saturating_mul(SCALAR_7); // 10^7 * 10^7
+    saturating_pool_pc / threshold_pc >= 1_0000000
 }
 
 /// The pool's backstop balances
@@ -58,20 +99,11 @@ pub struct PoolBalance {
 }
 
 impl PoolBalance {
-    #[allow(clippy::should_implement_trait)]
-    pub fn default() -> PoolBalance {
-        PoolBalance {
-            shares: 0,
-            tokens: 0,
-            q4w: 0,
-        }
-    }
-
     /// Convert a token balance to a share balance based on the current pool state
     ///
     /// ### Arguments
     /// * `tokens` - the token balance to convert
-    pub fn convert_to_shares(&mut self, tokens: i128) -> i128 {
+    pub fn convert_to_shares(&self, tokens: i128) -> i128 {
         if self.shares == 0 {
             return tokens;
         }
@@ -85,7 +117,7 @@ impl PoolBalance {
     ///
     /// ### Arguments
     /// * `shares` - the pool share balance to convert
-    pub fn convert_to_tokens(&mut self, shares: i128) -> i128 {
+    pub fn convert_to_tokens(&self, shares: i128) -> i128 {
         if self.shares == 0 {
             return shares;
         }
@@ -95,7 +127,14 @@ impl PoolBalance {
             .unwrap_optimized()
     }
 
+    /// Determine the amount of effective tokens (not queued for withdrawal) in the pool
+    pub fn non_queued_tokens(&self) -> i128 {
+        self.tokens - self.convert_to_tokens(self.q4w)
+    }
+
     /// Deposit tokens and shares into the pool
+    ///
+    /// If this is the first time
     ///
     /// ### Arguments
     /// * `tokens` - The amount of tokens to add
@@ -152,7 +191,7 @@ mod tests {
         let e = Env::default();
 
         let backstop_address = create_backstop(&e);
-        let pool = Address::random(&e);
+        let pool = Address::generate(&e);
 
         e.as_contract(&backstop_address, || {
             storage::set_pool_balance(
@@ -182,13 +221,28 @@ mod tests {
         let e = Env::default();
 
         let backstop_address = create_backstop(&e);
-        let pool_address = Address::random(&e);
+        let pool_address = Address::generate(&e);
 
         let (_, mock_pool_factory) = create_mock_pool_factory(&e, &backstop_address);
         mock_pool_factory.set_pool(&pool_address);
 
         e.as_contract(&backstop_address, || {
-            require_is_from_pool_factory(&e, &pool_address);
+            require_is_from_pool_factory(&e, &pool_address, 0);
+            assert!(true);
+        });
+    }
+
+    #[test]
+    fn test_require_is_from_pool_factory_skips_if_balance() {
+        let e = Env::default();
+
+        let backstop_address = create_backstop(&e);
+        let pool_address = Address::generate(&e);
+
+        // don't initialize factory to force failure if pool_address is checked
+
+        e.as_contract(&backstop_address, || {
+            require_is_from_pool_factory(&e, &pool_address, 1);
             assert!(true);
         });
     }
@@ -199,23 +253,89 @@ mod tests {
         let e = Env::default();
 
         let backstop_address = create_backstop(&e);
-        let pool_address = Address::random(&e);
-        let not_pool_address = Address::random(&e);
+        let pool_address = Address::generate(&e);
+        let not_pool_address = Address::generate(&e);
 
         let (_, mock_pool_factory) = create_mock_pool_factory(&e, &backstop_address);
         mock_pool_factory.set_pool(&pool_address);
 
         e.as_contract(&backstop_address, || {
-            require_is_from_pool_factory(&e, &not_pool_address);
+            require_is_from_pool_factory(&e, &not_pool_address, 0);
             assert!(false);
         });
+    }
+
+    /********** require_pool_above_threshold **********/
+
+    #[test]
+    fn test_require_pool_above_threshold_under() {
+        let e = Env::default();
+        e.budget().reset_unlimited();
+
+        let pool_backstop_data = PoolBackstopData {
+            blnd: 300_000_0000000,
+            q4w_pct: 0,
+            tokens: 20_000_0000000,
+            usdc: 25_000_0000000,
+        }; // ~91.2% threshold
+
+        let result = require_pool_above_threshold(&pool_backstop_data);
+        assert!(!result);
+    }
+
+    #[test]
+    fn test_require_pool_above_threshold_zero() {
+        let e = Env::default();
+        e.budget().reset_unlimited();
+
+        let pool_backstop_data = PoolBackstopData {
+            blnd: 5_000_0000000,
+            q4w_pct: 0,
+            tokens: 500_0000000,
+            usdc: 1_000_0000000,
+        }; // ~3.6% threshold - rounds to zero in calc
+
+        let result = require_pool_above_threshold(&pool_backstop_data);
+        assert!(!result);
+    }
+
+    #[test]
+    fn test_require_pool_above_threshold_over() {
+        let e = Env::default();
+        e.budget().reset_unlimited();
+
+        let pool_backstop_data = PoolBackstopData {
+            blnd: 364_643_0000000,
+            q4w_pct: 0,
+            tokens: 15_000_0000000,
+            usdc: 18_100_0000000,
+        }; // 100% threshold
+
+        let result = require_pool_above_threshold(&pool_backstop_data);
+        assert!(result);
+    }
+
+    #[test]
+    fn test_require_pool_above_threshold_saturates() {
+        let e = Env::default();
+        e.budget().reset_unlimited();
+
+        let pool_backstop_data = PoolBackstopData {
+            blnd: 50_000_000_0000000,
+            q4w_pct: 0,
+            tokens: 999_999_0000000,
+            usdc: 10_000_000_0000000,
+        }; // 181x threshold
+
+        let result = require_pool_above_threshold(&pool_backstop_data);
+        assert!(result);
     }
 
     /********** Logic **********/
 
     #[test]
     fn test_convert_to_shares_no_shares() {
-        let mut pool_balance = PoolBalance {
+        let pool_balance = PoolBalance {
             shares: 0,
             tokens: 0,
             q4w: 0,
@@ -228,7 +348,7 @@ mod tests {
 
     #[test]
     fn test_convert_to_shares() {
-        let mut pool_balance = PoolBalance {
+        let pool_balance = PoolBalance {
             shares: 80321,
             tokens: 103302,
             q4w: 0,
@@ -241,7 +361,7 @@ mod tests {
 
     #[test]
     fn test_convert_to_tokens_no_shares() {
-        let mut pool_balance = PoolBalance {
+        let pool_balance = PoolBalance {
             shares: 0,
             tokens: 0,
             q4w: 0,
@@ -254,7 +374,7 @@ mod tests {
 
     #[test]
     fn test_convert_to_tokens() {
-        let mut pool_balance = PoolBalance {
+        let pool_balance = PoolBalance {
             shares: 80321,
             tokens: 103302,
             q4w: 0,

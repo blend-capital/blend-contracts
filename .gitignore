@@ -2,6 +2,8 @@
 .DS_Store
 /emitter/.DS_Store
 
+test_snapshots/
+
 # JS
 */node_modules
 local.*

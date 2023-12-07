@@ -1,11 +1,14 @@
+//! Methods for distributing backstop emissions to depositors
+
 use cast::i128;
-use fixed_point_math::FixedPoint;
+use soroban_fixed_point_math::FixedPoint;
 use soroban_sdk::{unwrap::UnwrapOptimized, Address, Env};
 
 use crate::{
     backstop::{PoolBalance, UserBalance},
     constants::SCALAR_7,
     storage::{self, BackstopEmissionsData, UserEmissionData},
+    BackstopEmissionConfig,
 };
 
 /// Update the backstop emissions index for the user and pool
@@ -33,10 +36,23 @@ pub fn update_emission_data(
     pool_id: &Address,
     pool_balance: &PoolBalance,
 ) -> Option<BackstopEmissionsData> {
-    let emis_config = match storage::get_backstop_emis_config(e, pool_id) {
-        Some(res) => res,
+    match storage::get_backstop_emis_config(e, pool_id) {
+        Some(config) => Some(update_emission_data_with_config(
+            e,
+            pool_id,
+            pool_balance,
+            &config,
+        )),
         None => return None, // no emission exist, no update is required
-    };
+    }
+}
+
+pub fn update_emission_data_with_config(
+    e: &Env,
+    pool_id: &Address,
+    pool_balance: &PoolBalance,
+    emis_config: &BackstopEmissionConfig,
+) -> BackstopEmissionsData {
     let emis_data = storage::get_backstop_emis_data(e, pool_id).unwrap_optimized(); // exists if config is written to
 
     if emis_data.last_time >= emis_config.expiration
@@ -45,7 +61,7 @@ pub fn update_emission_data(
         || pool_balance.shares == 0
     {
         // emis_data already updated or expired
-        return Some(emis_data);
+        return emis_data;
     }
 
     let max_timestamp = if e.ledger().timestamp() > emis_config.expiration {
@@ -62,7 +78,7 @@ pub fn update_emission_data(
         last_time: e.ledger().timestamp(),
     };
     storage::set_backstop_emis_data(e, pool_id, &new_data);
-    Some(new_data)
+    new_data
 }
 
 fn update_user_emissions(
@@ -139,14 +155,14 @@ mod tests {
             sequence_number: 0,
             network_id: Default::default(),
             base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2000000,
         });
 
         let backstop_id = create_backstop(&e);
-        let pool_1 = Address::random(&e);
-        let samwise = Address::random(&e);
+        let pool_1 = Address::generate(&e);
+        let samwise = Address::generate(&e);
 
         let backstop_emissions_config = BackstopEmissionConfig {
             expiration: BACKSTOP_EPOCH + 7 * 24 * 60 * 60,
@@ -161,7 +177,7 @@ mod tests {
             accrued: 3,
         };
         e.as_contract(&backstop_id, || {
-            storage::set_next_emission_cycle(&e, &(BACKSTOP_EPOCH + 7 * 24 * 60 * 60));
+            storage::set_last_distribution_time(&e, &BACKSTOP_EPOCH);
             storage::set_backstop_emis_config(&e, &pool_1, &backstop_emissions_config);
             storage::set_backstop_emis_data(&e, &pool_1, &backstop_emissions_data);
             storage::set_user_emis_data(&e, &pool_1, &samwise, &user_emissions_data);
@@ -200,17 +216,17 @@ mod tests {
             sequence_number: 0,
             network_id: Default::default(),
             base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2000000,
         });
 
         let backstop_id = create_backstop(&e);
-        let pool_1 = Address::random(&e);
-        let samwise = Address::random(&e);
+        let pool_1 = Address::generate(&e);
+        let samwise = Address::generate(&e);
 
         e.as_contract(&backstop_id, || {
-            storage::set_next_emission_cycle(&e, &(BACKSTOP_EPOCH + 7 * 24 * 60 * 60));
+            storage::set_last_distribution_time(&e, &BACKSTOP_EPOCH);
 
             let pool_balance = PoolBalance {
                 shares: 150_0000000,
@@ -243,14 +259,14 @@ mod tests {
             sequence_number: 0,
             network_id: Default::default(),
             base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2000000,
         });
 
         let backstop_id = create_backstop(&e);
-        let pool_1 = Address::random(&e);
-        let samwise = Address::random(&e);
+        let pool_1 = Address::generate(&e);
+        let samwise = Address::generate(&e);
 
         let backstop_emissions_config = BackstopEmissionConfig {
             expiration: BACKSTOP_EPOCH + 7 * 24 * 60 * 60,
@@ -265,7 +281,7 @@ mod tests {
             accrued: 3,
         };
         e.as_contract(&backstop_id, || {
-            storage::set_next_emission_cycle(&e, &(BACKSTOP_EPOCH + 7 * 24 * 60 * 60));
+            storage::set_last_distribution_time(&e, &BACKSTOP_EPOCH);
             storage::set_backstop_emis_config(&e, &pool_1, &backstop_emissions_config);
             storage::set_backstop_emis_data(&e, &pool_1, &backstop_emissions_data);
             storage::set_user_emis_data(&e, &pool_1, &samwise, &user_emissions_data);
@@ -304,14 +320,14 @@ mod tests {
             sequence_number: 0,
             network_id: Default::default(),
             base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2000000,
         });
 
         let backstop_id = create_backstop(&e);
-        let pool_1 = Address::random(&e);
-        let samwise = Address::random(&e);
+        let pool_1 = Address::generate(&e);
+        let samwise = Address::generate(&e);
 
         let backstop_emissions_config = BackstopEmissionConfig {
             expiration: BACKSTOP_EPOCH + 7 * 24 * 60 * 60,
@@ -322,7 +338,7 @@ mod tests {
             last_time: BACKSTOP_EPOCH,
         };
         e.as_contract(&backstop_id, || {
-            storage::set_next_emission_cycle(&e, &(BACKSTOP_EPOCH + 7 * 24 * 60 * 60));
+            storage::set_last_distribution_time(&e, &BACKSTOP_EPOCH);
             storage::set_backstop_emis_config(&e, &pool_1, &backstop_emissions_config);
             storage::set_backstop_emis_data(&e, &pool_1, &backstop_emissions_data);
 
@@ -360,14 +376,14 @@ mod tests {
             sequence_number: 0,
             network_id: Default::default(),
             base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2000000,
         });
 
         let backstop_id = create_backstop(&e);
-        let pool_1 = Address::random(&e);
-        let samwise = Address::random(&e);
+        let pool_1 = Address::generate(&e);
+        let samwise = Address::generate(&e);
 
         let backstop_emissions_config = BackstopEmissionConfig {
             expiration: BACKSTOP_EPOCH + 7 * 24 * 60 * 60,
@@ -378,7 +394,7 @@ mod tests {
             last_time: BACKSTOP_EPOCH,
         };
         e.as_contract(&backstop_id, || {
-            storage::set_next_emission_cycle(&e, &(BACKSTOP_EPOCH + 7 * 24 * 60 * 60));
+            storage::set_last_distribution_time(&e, &BACKSTOP_EPOCH);
             storage::set_backstop_emis_config(&e, &pool_1, &backstop_emissions_config);
             storage::set_backstop_emis_data(&e, &pool_1, &backstop_emissions_data);
 
@@ -415,14 +431,14 @@ mod tests {
             sequence_number: 0,
             network_id: Default::default(),
             base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2000000,
         });
 
         let backstop_id = create_backstop(&e);
-        let pool_1 = Address::random(&e);
-        let samwise = Address::random(&e);
+        let pool_1 = Address::generate(&e);
+        let samwise = Address::generate(&e);
 
         let backstop_emissions_config = BackstopEmissionConfig {
             expiration: BACKSTOP_EPOCH + 7 * 24 * 60 * 60,
@@ -437,7 +453,7 @@ mod tests {
             accrued: 3,
         };
         e.as_contract(&backstop_id, || {
-            storage::set_next_emission_cycle(&e, &(BACKSTOP_EPOCH + 7 * 24 * 60 * 60));
+            storage::set_last_distribution_time(&e, &BACKSTOP_EPOCH);
             storage::set_backstop_emis_config(&e, &pool_1, &backstop_emissions_config);
             storage::set_backstop_emis_data(&e, &pool_1, &backstop_emissions_data);
             storage::set_user_emis_data(&e, &pool_1, &samwise, &user_emissions_data);

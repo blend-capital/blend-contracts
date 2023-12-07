@@ -22,7 +22,7 @@ pub(crate) fn create_lp_pool<'a>(
     token_1: &Address,
     token_2: &Address,
 ) -> (Address, LPClient<'a>) {
-    let contract_address = Address::random(e);
+    let contract_address = Address::generate(e);
     e.register_contract_wasm(&contract_address, LP_WASM);
     let client = LPClient::new(e, &contract_address);
 
@@ -33,7 +33,7 @@ pub(crate) fn create_lp_pool<'a>(
     token_1_client.approve(&admin, &contract_address, &1_000_0000000, &5356700);
     token_2_client.approve(&admin, &contract_address, &1_000_0000000, &5356700);
 
-    client.init(&Address::random(e), &admin);
+    client.init(&Address::generate(e), &admin);
     client.bundle_bind(
         &vec![e, token_1.clone(), token_2.clone()],
         &vec![e, 1_000_0000000, 25_0000000],

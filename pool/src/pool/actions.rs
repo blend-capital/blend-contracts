@@ -310,8 +310,8 @@ mod tests {
         let e = Env::default();
         e.mock_all_auths();
 
-        let bombadil = Address::random(&e);
-        let samwise = Address::random(&e);
+        let bombadil = Address::generate(&e);
+        let samwise = Address::generate(&e);
         let pool = testutils::create_pool(&e);
 
         let (underlying, _) = testutils::create_token_contract(&e, &bombadil);
@@ -324,12 +324,12 @@ mod tests {
             sequence_number: 1234,
             network_id: Default::default(),
             base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2000000,
         });
         let pool_config = PoolConfig {
-            oracle: Address::random(&e),
+            oracle: Address::generate(&e),
             bstop_rate: 0_100_000_000,
             status: 0,
         };
@@ -378,8 +378,8 @@ mod tests {
         let e = Env::default();
         e.mock_all_auths();
 
-        let bombadil = Address::random(&e);
-        let samwise = Address::random(&e);
+        let bombadil = Address::generate(&e);
+        let samwise = Address::generate(&e);
         let pool = testutils::create_pool(&e);
 
         let (underlying, _) = testutils::create_token_contract(&e, &bombadil);
@@ -392,12 +392,12 @@ mod tests {
             sequence_number: 1234,
             network_id: Default::default(),
             base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2000000,
         });
         let pool_config = PoolConfig {
-            oracle: Address::random(&e),
+            oracle: Address::generate(&e),
             bstop_rate: 0_200_000_000,
             status: 0,
         };
@@ -451,8 +451,8 @@ mod tests {
         let e = Env::default();
         e.mock_all_auths();
 
-        let bombadil = Address::random(&e);
-        let samwise = Address::random(&e);
+        let bombadil = Address::generate(&e);
+        let samwise = Address::generate(&e);
         let pool = testutils::create_pool(&e);
 
         let (underlying, _) = testutils::create_token_contract(&e, &bombadil);
@@ -465,12 +465,12 @@ mod tests {
             sequence_number: 1234,
             network_id: Default::default(),
             base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2000000,
         });
         let pool_config = PoolConfig {
-            oracle: Address::random(&e),
+            oracle: Address::generate(&e),
             bstop_rate: 0_200_000_000,
             status: 0,
         };
@@ -521,8 +521,8 @@ mod tests {
         let e = Env::default();
         e.mock_all_auths();
 
-        let bombadil = Address::random(&e);
-        let samwise = Address::random(&e);
+        let bombadil = Address::generate(&e);
+        let samwise = Address::generate(&e);
         let pool = testutils::create_pool(&e);
 
         let (underlying, _) = testutils::create_token_contract(&e, &bombadil);
@@ -535,12 +535,12 @@ mod tests {
             sequence_number: 1234,
             network_id: Default::default(),
             base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2000000,
         });
         let pool_config = PoolConfig {
-            oracle: Address::random(&e),
+            oracle: Address::generate(&e),
             bstop_rate: 0_100_000_000,
             status: 0,
         };
@@ -592,8 +592,8 @@ mod tests {
         let e = Env::default();
         e.mock_all_auths();
 
-        let bombadil = Address::random(&e);
-        let samwise = Address::random(&e);
+        let bombadil = Address::generate(&e);
+        let samwise = Address::generate(&e);
         let pool = testutils::create_pool(&e);
 
         let (underlying, _) = testutils::create_token_contract(&e, &bombadil);
@@ -606,12 +606,12 @@ mod tests {
             sequence_number: 1234,
             network_id: Default::default(),
             base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2000000,
         });
         let pool_config = PoolConfig {
-            oracle: Address::random(&e),
+            oracle: Address::generate(&e),
             bstop_rate: 0_200_000_000,
             status: 0,
         };
@@ -664,8 +664,8 @@ mod tests {
         let e = Env::default();
         e.mock_all_auths();
 
-        let bombadil = Address::random(&e);
-        let samwise = Address::random(&e);
+        let bombadil = Address::generate(&e);
+        let samwise = Address::generate(&e);
         let pool = testutils::create_pool(&e);
 
         let (underlying, _) = testutils::create_token_contract(&e, &bombadil);
@@ -678,12 +678,12 @@ mod tests {
             sequence_number: 1234,
             network_id: Default::default(),
             base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2000000,
         });
         let pool_config = PoolConfig {
-            oracle: Address::random(&e),
+            oracle: Address::generate(&e),
             bstop_rate: 0_200_000_000,
             status: 0,
         };
@@ -734,8 +734,8 @@ mod tests {
         let e = Env::default();
         e.mock_all_auths();
 
-        let bombadil = Address::random(&e);
-        let samwise = Address::random(&e);
+        let bombadil = Address::generate(&e);
+        let samwise = Address::generate(&e);
         let pool = testutils::create_pool(&e);
 
         let (underlying, _) = testutils::create_token_contract(&e, &bombadil);
@@ -747,12 +747,12 @@ mod tests {
             sequence_number: 1234,
             network_id: Default::default(),
             base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2000000,
         });
         let pool_config = PoolConfig {
-            oracle: Address::random(&e),
+            oracle: Address::generate(&e),
             bstop_rate: 0_200_000_000,
             status: 0,
         };
@@ -797,8 +797,8 @@ mod tests {
         let e = Env::default();
         e.mock_all_auths();
 
-        let bombadil = Address::random(&e);
-        let samwise = Address::random(&e);
+        let bombadil = Address::generate(&e);
+        let samwise = Address::generate(&e);
         let pool = testutils::create_pool(&e);
 
         let (underlying, _) = testutils::create_token_contract(&e, &bombadil);
@@ -811,12 +811,12 @@ mod tests {
             sequence_number: 1234,
             network_id: Default::default(),
             base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2000000,
         });
         let pool_config = PoolConfig {
-            oracle: Address::random(&e),
+            oracle: Address::generate(&e),
             bstop_rate: 0_200_000_000,
             status: 0,
         };
@@ -870,8 +870,8 @@ mod tests {
         let e = Env::default();
         e.mock_all_auths();
 
-        let bombadil = Address::random(&e);
-        let samwise = Address::random(&e);
+        let bombadil = Address::generate(&e);
+        let samwise = Address::generate(&e);
         let pool = testutils::create_pool(&e);
 
         let (underlying, _) = testutils::create_token_contract(&e, &bombadil);
@@ -884,12 +884,12 @@ mod tests {
             sequence_number: 1234,
             network_id: Default::default(),
             base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2000000,
         });
         let pool_config = PoolConfig {
-            oracle: Address::random(&e),
+            oracle: Address::generate(&e),
             bstop_rate: 0_200_000_000,
             status: 0,
         };
@@ -942,8 +942,8 @@ mod tests {
         let e = Env::default();
         e.mock_all_auths();
 
-        let bombadil = Address::random(&e);
-        let samwise = Address::random(&e);
+        let bombadil = Address::generate(&e);
+        let samwise = Address::generate(&e);
         let pool = testutils::create_pool(&e);
 
         let (underlying, _) = testutils::create_token_contract(&e, &bombadil);
@@ -963,12 +963,12 @@ mod tests {
             sequence_number: 1234,
             network_id: Default::default(),
             base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2000000,
         });
         let pool_config = PoolConfig {
-            oracle: Address::random(&e),
+            oracle: Address::generate(&e),
             bstop_rate: 0_200_000_000,
             status: 0,
         };
@@ -1050,14 +1050,14 @@ mod tests {
             sequence_number: 176 + 200,
             network_id: Default::default(),
             base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2000000,
         });
 
-        let bombadil = Address::random(&e);
-        let samwise = Address::random(&e);
-        let frodo = Address::random(&e);
+        let bombadil = Address::generate(&e);
+        let samwise = Address::generate(&e);
+        let frodo = Address::generate(&e);
 
         let pool_address = create_pool(&e);
 
@@ -1185,14 +1185,14 @@ mod tests {
             sequence_number: 51 + 200,
             network_id: Default::default(),
             base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2000000,
         });
 
-        let bombadil = Address::random(&e);
-        let samwise = Address::random(&e);
-        let frodo = Address::random(&e);
+        let bombadil = Address::generate(&e);
+        let samwise = Address::generate(&e);
+        let frodo = Address::generate(&e);
 
         let pool_address = create_pool(&e);
 
@@ -1208,8 +1208,8 @@ mod tests {
             &pool_address,
             &backstop_address,
             &backstop_token_id,
-            &Address::random(&e),
-            &Address::random(&e),
+            &Address::generate(&e),
+            &Address::generate(&e),
         );
         let (underlying_0, _) = testutils::create_token_contract(&e, &bombadil);
         let (mut reserve_config_0, mut reserve_data_0) = testutils::default_reserve_meta();
@@ -1307,13 +1307,13 @@ mod tests {
             sequence_number: 51 + 200,
             network_id: Default::default(),
             base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2000000,
         });
 
-        let bombadil = Address::random(&e);
-        let samwise = Address::random(&e);
+        let bombadil = Address::generate(&e);
+        let samwise = Address::generate(&e);
 
         let pool_address = create_pool(&e);
         let (usdc_id, usdc_client) = testutils::create_usdc_token(&e, &pool_address, &bombadil);
@@ -1322,9 +1322,9 @@ mod tests {
             &e,
             &pool_address,
             &backstop_address,
-            &Address::random(&e),
+            &Address::generate(&e),
             &usdc_id,
-            &Address::random(&e),
+            &Address::generate(&e),
         );
 
         let (underlying_0, underlying_0_client) = testutils::create_token_contract(&e, &bombadil);
@@ -1370,7 +1370,7 @@ mod tests {
         underlying_2_client.mint(&pool_address, &1_000_0000000);
 
         let pool_config = PoolConfig {
-            oracle: Address::random(&e),
+            oracle: Address::generate(&e),
             bstop_rate: 0_100_000_000,
             status: 0,
         };
@@ -1441,19 +1441,19 @@ mod tests {
             sequence_number: 51 + 200,
             network_id: Default::default(),
             base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2000000,
         });
 
-        let samwise = Address::random(&e);
-        let underlying_0 = Address::random(&e);
-        let underlying_1 = Address::random(&e);
+        let samwise = Address::generate(&e);
+        let underlying_0 = Address::generate(&e);
+        let underlying_1 = Address::generate(&e);
 
         let pool_address = create_pool(&e);
 
         let pool_config = PoolConfig {
-            oracle: Address::random(&e),
+            oracle: Address::generate(&e),
             bstop_rate: 0_100_000_000,
             status: 0,
         };
@@ -1483,7 +1483,7 @@ mod tests {
                 &e,
                 Request {
                     request_type: 9,
-                    address: Address::random(&e),
+                    address: Address::generate(&e),
                     amount: 0,
                 },
             ];

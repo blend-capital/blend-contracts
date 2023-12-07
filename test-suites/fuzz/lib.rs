@@ -2,7 +2,7 @@
 #![allow(unused)]
 #![no_main]
 
-use fixed_point_math::FixedPoint;
+use soroban_fixed_point_math::FixedPoint;
 use lending_pool::{PoolState, PositionData, Request};
 use libfuzzer_sys::fuzz_target;
 use soroban_sdk::arbitrary::arbitrary::{self, Arbitrary, Unstructured};

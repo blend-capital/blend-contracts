@@ -1,7 +1,7 @@
 #![cfg(test)]
 
-use fixed_point_math::FixedPoint;
 use pool::{Request, ReserveEmissionMetadata};
+use soroban_fixed_point_math::FixedPoint;
 use soroban_sdk::{
     testutils::{Address as _, AuthorizedFunction, AuthorizedInvocation, Events},
     vec, Address, IntoVal, Symbol, Val,
@@ -25,7 +25,7 @@ fn test_pool_user() {
     let weth = &fixture.tokens[TokenIndex::WETH];
     let weth_scalar: i128 = 10i128.pow(weth.decimals());
 
-    let sam = Address::random(&fixture.env);
+    let sam = Address::generate(&fixture.env);
 
     // Mint sam tokens
     let mut sam_xlm_balance = 10_000 * SCALAR_7;
@@ -357,8 +357,8 @@ fn test_pool_user() {
     // allow the rest of the emissions period to pass (6 days - 5d23h59m emitted for XLM supply)
     fixture.jump(6 * 24 * 60 * 60);
     fixture.emitter.distribute();
-    fixture.backstop.update_emission_cycle();
-    pool_fixture.pool.update_emissions();
+    fixture.backstop.gulp_emissions();
+    pool_fixture.pool.gulp_emissions();
     assert_eq!(fixture.env.auths().len(), 0); // no auth required to update emissions
 
     // Sam repay and withdrawal positions
@@ -541,13 +541,13 @@ fn test_pool_config() {
 
     // Verify initialize can't be run again
     let result = pool_fixture.pool.try_initialize(
-        &Address::random(&fixture.env),
+        &Address::generate(&fixture.env),
         &Symbol::new(&fixture.env, "teapot"),
-        &Address::random(&fixture.env),
+        &Address::generate(&fixture.env),
         &10000,
-        &Address::random(&fixture.env),
-        &Address::random(&fixture.env),
-        &Address::random(&fixture.env),
+        &Address::generate(&fixture.env),
+        &Address::generate(&fixture.env),
+        &Address::generate(&fixture.env),
     );
     assert!(result.is_err());
 
@@ -683,7 +683,7 @@ fn test_pool_config() {
     );
 
     // Set admin (admin only)
-    let new_admin = Address::random(&fixture.env);
+    let new_admin = Address::generate(&fixture.env);
     pool_fixture.pool.set_admin(&new_admin);
     assert_eq!(
         fixture.env.auths()[0],

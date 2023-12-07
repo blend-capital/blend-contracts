@@ -1,86 +1,138 @@
-use soroban_sdk::{contracttype, unwrap::UnwrapOptimized, Address, Env};
+use soroban_sdk::{contracttype, unwrap::UnwrapOptimized, Address, Env, Symbol};
+
+use crate::backstop_manager::Swap;
 
 pub(crate) const LEDGER_THRESHOLD_SHARED: u32 = 172800; // ~ 10 days
 pub(crate) const LEDGER_BUMP_SHARED: u32 = 241920; // ~ 14 days
 
 /********** Storage **********/
 
+const BACKSTOP_KEY: &str = "Backstop";
+const BACKSTOP_TOKEN_KEY: &str = "BToken";
+const BLND_TOKEN_KEY: &str = "BLNDTkn";
+const LAST_FORK_KEY: &str = "LastFork";
+const SWAP_KEY: &str = "Swap";
+
 // Emitter Data Keys
 #[derive(Clone)]
 #[contracttype]
 pub enum EmitterDataKey {
-    // The address of the backstop module contract
-    Backstop,
-    /// TODO: Delete after address <-> bytesN support,
-    BstopId,
-    // The address of the blend token contract
-    BlendId,
-    // The address of the blend lp token contract
-    BlendLPId,
     // The last timestamp distribution was ran on
-    LastDistro,
+    LastDistro(Address),
     // Stores the list of backstop addresses that have dropped
     Dropped(Address),
-    // The last block emissions were forked
-    LastFork,
 }
 
 /// Bump the instance rent for the contract. Bumps for 10 days due to the 7-day cycle window of this contract
-pub fn bump_instance(e: &Env) {
+pub fn extend_instance(e: &Env) {
     e.storage()
         .instance()
-        .bump(LEDGER_THRESHOLD_SHARED, LEDGER_BUMP_SHARED);
+        .extend_ttl(LEDGER_THRESHOLD_SHARED, LEDGER_BUMP_SHARED);
 }
 
 /********** Backstop **********/
 
-/// Fetch the current backstop id
+/// Fetch the current backstop address
 ///
 /// Returns current backstop module contract address
 pub fn get_backstop(e: &Env) -> Address {
     e.storage()
         .instance()
-        .get(&EmitterDataKey::Backstop)
+        .get(&Symbol::new(e, BACKSTOP_KEY))
         .unwrap_optimized()
 }
 
-/// Set a new backstop id
+/// Set a new backstop address
 ///
 /// ### Arguments
-/// * `new_backstop_id` - The id for the new backstop
-pub fn set_backstop(e: &Env, new_backstop_id: &Address) {
+/// * `new_backstop` - The new backstop module contract address
+pub fn set_backstop(e: &Env, new_backstop: &Address) {
     e.storage()
         .instance()
-        .set::<EmitterDataKey, Address>(&EmitterDataKey::Backstop, new_backstop_id);
+        .set::<Symbol, Address>(&Symbol::new(e, BACKSTOP_KEY), new_backstop);
 }
 
-/// Check if a backstop has been set
+/// Fetch the current backstop token address
 ///
-/// Returns true if a backstop has been set
-pub fn has_backstop(e: &Env) -> bool {
-    e.storage().instance().has(&EmitterDataKey::Backstop)
+/// Returns current backstop module contract address
+pub fn get_backstop_token(e: &Env) -> Address {
+    e.storage()
+        .instance()
+        .get(&Symbol::new(e, BACKSTOP_TOKEN_KEY))
+        .unwrap_optimized()
+}
+
+/// Set a new backstop token address
+///
+/// ### Arguments
+/// * `new_backstop_token` - The new backstop token contract address
+pub fn set_backstop_token(e: &Env, new_backstop_token: &Address) {
+    e.storage()
+        .instance()
+        .set::<Symbol, Address>(&Symbol::new(e, BACKSTOP_TOKEN_KEY), new_backstop_token);
+}
+
+/// Fetch the current queued backstop swap, or None
+pub fn get_queued_swap(e: &Env) -> Option<Swap> {
+    if let Some(result) = e.storage().persistent().get(&Symbol::new(e, SWAP_KEY)) {
+        e.storage().persistent().extend_ttl(
+            &Symbol::new(e, SWAP_KEY),
+            LEDGER_THRESHOLD_SHARED,
+            LEDGER_BUMP_SHARED,
+        );
+        Some(result)
+    } else {
+        None
+    }
+}
+
+/// Set a new swap in the queue
+///
+/// ### Arguments
+/// * `swap` - The swap to queue
+pub fn set_queued_swap(e: &Env, swap: &Swap) {
+    e.storage()
+        .persistent()
+        .set::<Symbol, Swap>(&Symbol::new(e, SWAP_KEY), swap);
+    e.storage().persistent().extend_ttl(
+        &Symbol::new(e, SWAP_KEY),
+        LEDGER_THRESHOLD_SHARED,
+        LEDGER_BUMP_SHARED,
+    );
+}
+
+/// Fetch the current queued backstop swap, or None
+pub fn del_queued_swap(e: &Env) {
+    e.storage().persistent().remove(&Symbol::new(e, SWAP_KEY));
 }
 
 /********** Blend **********/
 
-/// Fetch the blend token address
+/// Fetch the BLND token address
 ///
 /// Returns blend token address
-pub fn get_blend_id(e: &Env) -> Address {
+pub fn get_blnd_token(e: &Env) -> Address {
     e.storage()
         .instance()
-        .get(&EmitterDataKey::BlendId)
+        .get(&Symbol::new(e, BLND_TOKEN_KEY))
         .unwrap_optimized()
 }
 
-/// Set the blend token address
+/// Set the BLND token address
 ///
 /// ### Arguments
-/// * `blend_id` - The blend token address
-pub fn set_blend_id(e: &Env, blend_id: &Address) {
+/// * `BLND` - The blend token address
+pub fn set_blnd_token(e: &Env, blnd_token: &Address) {
     e.storage()
         .instance()
-        .set::<EmitterDataKey, Address>(&EmitterDataKey::BlendId, blend_id);
+        .set::<Symbol, Address>(&Symbol::new(e, BLND_TOKEN_KEY), blnd_token);
+}
+
+/// Check if the BLND token has been set
+///
+/// Returns true if a BLND token has been set
+pub fn has_blnd_token(e: &Env) -> bool {
+    e.storage().instance().has(&Symbol::new(e, BLND_TOKEN_KEY))
 }
 
 /********** Blend Distributions **********/
@@ -88,31 +140,30 @@ pub fn set_blend_id(e: &Env, blend_id: &Address) {
 /// Fetch the last timestamp distribution was ran on
 ///
 /// Returns the last timestamp distribution was ran on
-pub fn get_last_distro_time(e: &Env) -> u64 {
-    e.storage().persistent().bump(
-        &EmitterDataKey::LastDistro,
-        LEDGER_THRESHOLD_SHARED,
-        LEDGER_BUMP_SHARED,
-    );
+///
+/// ### Arguments
+/// * `backstop` - The backstop module Address
+pub fn get_last_distro_time(e: &Env, backstop: &Address) -> u64 {
+    // don't need to bump while reading since this value is set on every distribution
     e.storage()
         .persistent()
-        .get(&EmitterDataKey::LastDistro)
+        .get(&EmitterDataKey::LastDistro(backstop.clone()))
         .unwrap_optimized()
 }
 
 /// Set the last timestamp distribution was ran on
 ///
 /// ### Arguments
+/// * `backstop` - The backstop module Address
 /// * `last_distro` - The last timestamp distribution was ran on
-pub fn set_last_distro_time(e: &Env, last_distro: &u64) {
+pub fn set_last_distro_time(e: &Env, backstop: &Address, last_distro: u64) {
+    let key = EmitterDataKey::LastDistro(backstop.clone());
     e.storage()
         .persistent()
-        .set::<EmitterDataKey, u64>(&EmitterDataKey::LastDistro, last_distro);
-    e.storage().persistent().bump(
-        &EmitterDataKey::LastDistro,
-        LEDGER_THRESHOLD_SHARED,
-        LEDGER_BUMP_SHARED,
-    );
+        .set::<EmitterDataKey, u64>(&key, &last_distro);
+    e.storage()
+        .persistent()
+        .extend_ttl(&key, LEDGER_THRESHOLD_SHARED, LEDGER_BUMP_SHARED);
 }
 
 /// Get whether the emitter has performed the drop distribution or not for the current backstop
@@ -141,7 +192,7 @@ pub fn set_drop_status(e: &Env, backstop: &Address) {
 pub fn get_last_fork(e: &Env) -> u32 {
     e.storage()
         .instance()
-        .get(&EmitterDataKey::LastFork)
+        .get(&Symbol::new(e, LAST_FORK_KEY))
         .unwrap_optimized()
 }
 
@@ -152,5 +203,5 @@ pub fn get_last_fork(e: &Env) -> u32 {
 pub fn set_last_fork(e: &Env, block: u32) {
     e.storage()
         .instance()
-        .set::<EmitterDataKey, u32>(&EmitterDataKey::LastFork, &block);
+        .set::<Symbol, u32>(&Symbol::new(e, LAST_FORK_KEY), &block);
 }

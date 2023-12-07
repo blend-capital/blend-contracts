@@ -145,12 +145,11 @@ pub trait Pool {
 
     /********* Emission Functions **********/
 
-    /// Update emissions for reserves for the next emission cycle
+    /// Consume emissions from the backstop and distribute to the reserves based
+    /// on the reserve emission configuration.
     ///
-    /// Needs to be performed each emission cycle, as determined by the expiration
-    ///
-    /// Returns the expiration timestamp
-    fn update_emissions(e: Env) -> u64;
+    /// Returns amount of new tokens emitted
+    fn gulp_emissions(e: Env) -> i128;
 
     /// (Admin only) Set the emission configuration for the pool
     ///
@@ -219,7 +218,7 @@ impl Pool for PoolContract {
         blnd_id: Address,
         usdc_id: Address,
     ) {
-        storage::bump_instance(&e);
+        storage::extend_instance(&e);
 
         pool::execute_initialize(
             &e,
@@ -234,7 +233,7 @@ impl Pool for PoolContract {
     }
 
     fn set_admin(e: Env, new_admin: Address) {
-        storage::bump_instance(&e);
+        storage::extend_instance(&e);
         let admin = storage::get_admin(&e);
         admin.require_auth();
 
@@ -245,7 +244,7 @@ impl Pool for PoolContract {
     }
 
     fn update_pool(e: Env, backstop_take_rate: u64) {
-        storage::bump_instance(&e);
+        storage::extend_instance(&e);
         let admin = storage::get_admin(&e);
         admin.require_auth();
 
@@ -256,7 +255,7 @@ impl Pool for PoolContract {
     }
 
     fn init_reserve(e: Env, asset: Address, config: ReserveConfig) -> u32 {
-        storage::bump_instance(&e);
+        storage::extend_instance(&e);
         let admin = storage::get_admin(&e);
         admin.require_auth();
 
@@ -268,7 +267,7 @@ impl Pool for PoolContract {
     }
 
     fn update_reserve(e: Env, asset: Address, config: ReserveConfig) {
-        storage::bump_instance(&e);
+        storage::extend_instance(&e);
         let admin = storage::get_admin(&e);
         admin.require_auth();
 
@@ -289,7 +288,7 @@ impl Pool for PoolContract {
         to: Address,
         requests: Vec<Request>,
     ) -> Positions {
-        storage::bump_instance(&e);
+        storage::extend_instance(&e);
         spender.require_auth();
         if from != spender {
             from.require_auth();
@@ -318,9 +317,9 @@ impl Pool for PoolContract {
 
     /********* Emission Functions **********/
 
-    fn update_emissions(e: Env) -> u64 {
-        storage::bump_instance(&e);
-        let next_expiration = pool::update_pool_emissions(&e);
+    fn gulp_emissions(e: Env) -> i128 {
+        storage::extend_instance(&e);
+        let next_expiration = emissions::gulp_emissions(&e);
 
         e.events()
             .publish((Symbol::new(&e, "update_emissions"),), next_expiration);
@@ -335,7 +334,7 @@ impl Pool for PoolContract {
     }
 
     fn claim(e: Env, from: Address, reserve_token_ids: Vec<u32>, to: Address) -> i128 {
-        storage::bump_instance(&e);
+        storage::extend_instance(&e);
         from.require_auth();
 
         let amount_claimed = emissions::execute_claim(&e, &from, &reserve_token_ids, &to);
@@ -365,7 +364,7 @@ impl Pool for PoolContract {
     }
 
     fn new_auction(e: Env, auction_type: u32) -> AuctionData {
-        storage::bump_instance(&e);
+        storage::extend_instance(&e);
         let auction_data = auctions::create(&e, auction_type);
 
         e.events().publish(

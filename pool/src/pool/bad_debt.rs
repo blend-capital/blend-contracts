@@ -92,16 +92,16 @@ mod tests {
             sequence_number: 123,
             network_id: Default::default(),
             base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2000000,
         });
 
         let pool = testutils::create_pool(&e);
-        let backstop = Address::random(&e);
+        let backstop = Address::generate(&e);
 
-        let samwise = Address::random(&e);
-        let bombadil = Address::random(&e);
+        let samwise = Address::generate(&e);
+        let bombadil = Address::generate(&e);
 
         let (underlying_0, _) = testutils::create_token_contract(&e, &bombadil);
         let (reserve_config, reserve_data) = testutils::default_reserve_meta();
@@ -113,7 +113,7 @@ mod tests {
         testutils::create_reserve(&e, &pool, &underlying_1, &reserve_config, &reserve_data);
 
         let pool_config = PoolConfig {
-            oracle: Address::random(&e),
+            oracle: Address::generate(&e),
             bstop_rate: 0_100_000_000,
             status: 0,
         };
@@ -158,16 +158,16 @@ mod tests {
             sequence_number: 123,
             network_id: Default::default(),
             base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2000000,
         });
 
         let pool = testutils::create_pool(&e);
-        let backstop = Address::random(&e);
+        let backstop = Address::generate(&e);
 
-        let samwise = Address::random(&e);
-        let bombadil = Address::random(&e);
+        let samwise = Address::generate(&e);
+        let bombadil = Address::generate(&e);
 
         let (underlying_0, _) = testutils::create_token_contract(&e, &bombadil);
         let (reserve_config, reserve_data) = testutils::default_reserve_meta();
@@ -179,7 +179,7 @@ mod tests {
         testutils::create_reserve(&e, &pool, &underlying_1, &reserve_config, &reserve_data);
 
         let pool_config = PoolConfig {
-            oracle: Address::random(&e),
+            oracle: Address::generate(&e),
             bstop_rate: 0_100_000_000,
             status: 0,
         };
@@ -210,16 +210,16 @@ mod tests {
             sequence_number: 123,
             network_id: Default::default(),
             base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2000000,
         });
 
         let pool = testutils::create_pool(&e);
-        let backstop = Address::random(&e);
+        let backstop = Address::generate(&e);
 
-        let samwise = Address::random(&e);
-        let bombadil = Address::random(&e);
+        let samwise = Address::generate(&e);
+        let bombadil = Address::generate(&e);
 
         let (underlying_1, _) = testutils::create_token_contract(&e, &bombadil);
         let (reserve_config, reserve_data) = testutils::default_reserve_meta();
@@ -231,7 +231,7 @@ mod tests {
         testutils::create_reserve(&e, &pool, &underlying_2, &reserve_config, &reserve_data);
 
         let pool_config = PoolConfig {
-            oracle: Address::random(&e),
+            oracle: Address::generate(&e),
             bstop_rate: 0_100_000_000,
             status: 0,
         };
@@ -258,16 +258,16 @@ mod tests {
             sequence_number: 123,
             network_id: Default::default(),
             base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2000000,
         });
 
         let pool = testutils::create_pool(&e);
-        let backstop = Address::random(&e);
+        let backstop = Address::generate(&e);
 
-        let samwise = Address::random(&e);
-        let bombadil = Address::random(&e);
+        let samwise = Address::generate(&e);
+        let bombadil = Address::generate(&e);
 
         let (underlying_0, _) = testutils::create_token_contract(&e, &bombadil);
         let (reserve_config, reserve_data) = testutils::default_reserve_meta();
@@ -279,7 +279,7 @@ mod tests {
         testutils::create_reserve(&e, &pool, &underlying_1, &reserve_config, &reserve_data);
 
         let pool_config = PoolConfig {
-            oracle: Address::random(&e),
+            oracle: Address::generate(&e),
             bstop_rate: 0_100_000_000,
             status: 0,
         };
@@ -309,14 +309,14 @@ mod tests {
             sequence_number: 123,
             network_id: Default::default(),
             base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2000000,
         });
 
-        let bombadil = Address::random(&e);
+        let bombadil = Address::generate(&e);
         let pool = testutils::create_pool(&e);
-        let backstop = Address::random(&e);
+        let backstop = Address::generate(&e);
 
         let (_, blnd_client) = testutils::create_blnd_token(&e, &pool, &bombadil);
 
@@ -334,7 +334,7 @@ mod tests {
         blnd_client.mint(&backstop, &123);
 
         let pool_config = PoolConfig {
-            oracle: Address::random(&e),
+            oracle: Address::generate(&e),
             bstop_rate: 0_100_000_000,
             status: 0,
         };

@@ -211,7 +211,7 @@ mod tests {
     use crate::{
         storage, testutils, ReserveEmissionsConfig, ReserveEmissionsData, UserEmissionData,
     };
-    use fixed_point_math::FixedPoint;
+    use soroban_fixed_point_math::FixedPoint;
     use soroban_sdk::{
         map,
         testutils::{Address as _, Ledger, LedgerInfo},
@@ -220,7 +220,7 @@ mod tests {
     #[test]
     fn test_load_and_store() {
         let e = Env::default();
-        let samwise = Address::random(&e);
+        let samwise = Address::generate(&e);
         let pool = testutils::create_pool(&e);
 
         let user = User {
@@ -245,7 +245,7 @@ mod tests {
     #[test]
     fn test_liabilities() {
         let e = Env::default();
-        let samwise = Address::random(&e);
+        let samwise = Address::generate(&e);
         let pool = testutils::create_pool(&e);
 
         let mut reserve_0 = testutils::default_reserve(&e);
@@ -285,7 +285,7 @@ mod tests {
     #[test]
     fn test_add_liabilities_accrues_emissions() {
         let e = Env::default();
-        let samwise = Address::random(&e);
+        let samwise = Address::generate(&e);
         let pool = testutils::create_pool(&e);
 
         e.ledger().set(LedgerInfo {
@@ -294,9 +294,9 @@ mod tests {
             timestamp: 10001000,
             network_id: Default::default(),
             base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2000000,
         });
 
         let mut reserve_0 = testutils::default_reserve(&e);
@@ -354,7 +354,7 @@ mod tests {
     #[test]
     fn test_remove_liabilities_accrues_emissions() {
         let e = Env::default();
-        let samwise = Address::random(&e);
+        let samwise = Address::generate(&e);
         let pool = testutils::create_pool(&e);
 
         e.ledger().set(LedgerInfo {
@@ -363,9 +363,9 @@ mod tests {
             timestamp: 10001000,
             network_id: Default::default(),
             base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2000000,
         });
 
         let mut reserve_0 = testutils::default_reserve(&e);
@@ -422,7 +422,7 @@ mod tests {
     #[should_panic(expected = "Error(Contract, #4)")]
     fn test_remove_liabilities_over_balance_panics() {
         let e = Env::default();
-        let samwise = Address::random(&e);
+        let samwise = Address::generate(&e);
         let pool = testutils::create_pool(&e);
 
         let mut reserve_0 = testutils::default_reserve(&e);
@@ -441,7 +441,7 @@ mod tests {
     #[test]
     fn test_collateral() {
         let e = Env::default();
-        let samwise = Address::random(&e);
+        let samwise = Address::generate(&e);
         let pool = testutils::create_pool(&e);
 
         let mut reserve_0 = testutils::default_reserve(&e);
@@ -481,7 +481,7 @@ mod tests {
     #[test]
     fn test_add_collateral_accrues_emissions() {
         let e = Env::default();
-        let samwise = Address::random(&e);
+        let samwise = Address::generate(&e);
         let pool = testutils::create_pool(&e);
 
         e.ledger().set(LedgerInfo {
@@ -490,9 +490,9 @@ mod tests {
             timestamp: 10001000,
             network_id: Default::default(),
             base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2000000,
         });
 
         let mut reserve_0 = testutils::default_reserve(&e);
@@ -549,7 +549,7 @@ mod tests {
     #[test]
     fn test_remove_collateral_accrues_emissions() {
         let e = Env::default();
-        let samwise = Address::random(&e);
+        let samwise = Address::generate(&e);
         let pool = testutils::create_pool(&e);
 
         e.ledger().set(LedgerInfo {
@@ -558,9 +558,9 @@ mod tests {
             timestamp: 10001000,
             network_id: Default::default(),
             base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2000000,
         });
 
         let mut reserve_0 = testutils::default_reserve(&e);
@@ -618,7 +618,7 @@ mod tests {
     #[should_panic(expected = "Error(Contract, #4)")]
     fn test_remove_collateral_over_balance_panics() {
         let e = Env::default();
-        let samwise = Address::random(&e);
+        let samwise = Address::generate(&e);
         let pool = testutils::create_pool(&e);
 
         let mut reserve_0 = testutils::default_reserve(&e);
@@ -638,7 +638,7 @@ mod tests {
     #[test]
     fn test_supply() {
         let e = Env::default();
-        let samwise = Address::random(&e);
+        let samwise = Address::generate(&e);
         let pool = testutils::create_pool(&e);
 
         let mut reserve_0 = testutils::default_reserve(&e);
@@ -678,7 +678,7 @@ mod tests {
     #[test]
     fn test_add_supply_accrues_emissions() {
         let e = Env::default();
-        let samwise = Address::random(&e);
+        let samwise = Address::generate(&e);
         let pool = testutils::create_pool(&e);
 
         e.ledger().set(LedgerInfo {
@@ -687,9 +687,9 @@ mod tests {
             timestamp: 10001000,
             network_id: Default::default(),
             base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2000000,
         });
 
         let mut reserve_0 = testutils::default_reserve(&e);
@@ -746,7 +746,7 @@ mod tests {
     #[test]
     fn test_remove_supply_accrues_emissions() {
         let e = Env::default();
-        let samwise = Address::random(&e);
+        let samwise = Address::generate(&e);
         let pool = testutils::create_pool(&e);
 
         e.ledger().set(LedgerInfo {
@@ -755,9 +755,9 @@ mod tests {
             timestamp: 10001000,
             network_id: Default::default(),
             base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2000000,
         });
 
         let mut reserve_0 = testutils::default_reserve(&e);
@@ -815,7 +815,7 @@ mod tests {
     #[should_panic(expected = "Error(Contract, #4)")]
     fn test_remove_supply_over_balance_panics() {
         let e = Env::default();
-        let samwise = Address::random(&e);
+        let samwise = Address::generate(&e);
         let pool = testutils::create_pool(&e);
 
         let mut reserve_0 = testutils::default_reserve(&e);
@@ -835,7 +835,7 @@ mod tests {
     #[test]
     fn test_total_supply() {
         let e = Env::default();
-        let samwise = Address::random(&e);
+        let samwise = Address::generate(&e);
         let pool = testutils::create_pool(&e);
 
         let mut reserve_0 = testutils::default_reserve(&e);

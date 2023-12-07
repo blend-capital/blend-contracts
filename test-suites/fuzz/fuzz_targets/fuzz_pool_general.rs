@@ -1,7 +1,7 @@
 #![allow(unused)]
 #![no_main]
 
-use fixed_point_math::FixedPoint;
+use soroban_fixed_point_math::FixedPoint;
 use fuzz_common::{
     verify_contract_result, Borrow, ClaimPool, NatI128, PassTime, Repay, Supply, Withdraw,
 };
@@ -51,9 +51,9 @@ fuzz_target!(|input: Input| {
     let mut fixture = create_fixture_with_data(false);
 
     // Create two new users
-    let sam = Address::random(&fixture.env);
+    let sam = Address::generate(&fixture.env);
     fixture.users.push(sam.clone());
-    let merry = Address::random(&fixture.env);
+    let merry = Address::generate(&fixture.env);
     fixture.users.push(merry.clone());
 
     // Mint users tokens

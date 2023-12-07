@@ -1,6 +1,6 @@
 use cast::{i128, u64};
-use fixed_point_math::FixedPoint;
 use sep_41_token::TokenClient;
+use soroban_fixed_point_math::FixedPoint;
 use soroban_sdk::{panic_with_error, unwrap::UnwrapOptimized, vec, Address, Env, Vec};
 
 use crate::{
@@ -188,7 +188,7 @@ mod tests {
     use super::*;
     use soroban_sdk::{
         testutils::{Address as _, Ledger, LedgerInfo},
-        vec, BytesN, Vec,
+        vec, Vec,
     };
 
     use crate::{
@@ -210,9 +210,9 @@ mod tests {
             sequence_number: 0,
             network_id: Default::default(),
             base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2000000,
         });
 
         let backstop = create_backstop(&e);
@@ -220,13 +220,13 @@ mod tests {
         create_emitter(
             &e,
             &backstop,
-            &Address::random(&e),
-            &Address::random(&e),
+            &Address::generate(&e),
+            &Address::generate(&e),
             emitter_distro_time,
         );
-        let pool_1 = Address::random(&e);
-        let pool_2 = Address::random(&e);
-        let pool_3 = Address::random(&e);
+        let pool_1 = Address::generate(&e);
+        let pool_2 = Address::generate(&e);
+        let pool_3 = Address::generate(&e);
         let reward_zone: Vec<Address> = vec![&e, pool_1.clone(), pool_2.clone(), pool_3.clone()];
 
         // setup pool 1 to have ongoing emissions
@@ -353,9 +353,9 @@ mod tests {
             sequence_number: 0,
             network_id: Default::default(),
             base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2000000,
         });
 
         let backstop = create_backstop(&e);
@@ -363,13 +363,13 @@ mod tests {
         create_emitter(
             &e,
             &backstop,
-            &Address::random(&e),
-            &Address::random(&e),
+            &Address::generate(&e),
+            &Address::generate(&e),
             emitter_distro_time,
         );
-        let pool_1 = Address::random(&e);
-        let pool_2 = Address::random(&e);
-        let pool_3 = Address::random(&e);
+        let pool_1 = Address::generate(&e);
+        let pool_2 = Address::generate(&e);
+        let pool_3 = Address::generate(&e);
         let reward_zone: Vec<Address> = vec![&e, pool_1.clone(), pool_2.clone(), pool_3.clone()];
 
         // setup pool 1 to have ongoing emissions
@@ -445,14 +445,14 @@ mod tests {
             sequence_number: 0,
             network_id: Default::default(),
             base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2000000,
         });
 
-        let bombadil = Address::random(&e);
+        let bombadil = Address::generate(&e);
         let backstop = create_backstop(&e);
-        let pool_1 = Address::random(&e);
+        let pool_1 = Address::generate(&e);
         let (_, blnd_token_client) = create_blnd_token(&e, &backstop, &bombadil);
 
         e.as_contract(&backstop, || {
@@ -479,14 +479,14 @@ mod tests {
             sequence_number: 0,
             network_id: Default::default(),
             base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2000000,
         });
 
-        let bombadil = Address::random(&e);
+        let bombadil = Address::generate(&e);
         let backstop = create_backstop(&e);
-        let pool_1 = Address::random(&e);
+        let pool_1 = Address::generate(&e);
         let (_, blnd_token_client) = create_blnd_token(&e, &backstop, &bombadil);
 
         e.as_contract(&backstop, || {
@@ -516,14 +516,14 @@ mod tests {
             sequence_number: 0,
             network_id: Default::default(),
             base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2000000,
         });
 
-        let bombadil = Address::random(&e);
+        let bombadil = Address::generate(&e);
         let backstop = create_backstop(&e);
-        let pool_1 = Address::random(&e);
+        let pool_1 = Address::generate(&e);
         create_blnd_token(&e, &backstop, &bombadil);
 
         e.as_contract(&backstop, || {
@@ -542,13 +542,13 @@ mod tests {
             sequence_number: 0,
             base_reserve: 10,
             network_id: Default::default(),
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2000000,
         });
 
         let backstop_id = create_backstop(&e);
-        let to_add = Address::random(&e);
+        let to_add = Address::generate(&e);
 
         e.as_contract(&backstop_id, || {
             storage::set_pool_balance(
@@ -562,11 +562,7 @@ mod tests {
             );
             storage::set_lp_token_val(&e, &(5_0000000, 0_1000000));
 
-            add_to_reward_zone(
-                &e,
-                to_add.clone(),
-                Address::from_contract_id(&BytesN::from_array(&e, &[0u8; 32])),
-            );
+            add_to_reward_zone(&e, to_add.clone(), Address::generate(&e));
             let actual_rz = storage::get_reward_zone(&e);
             let expected_rz: Vec<Address> = vec![&e, to_add];
             assert_eq!(actual_rz, expected_rz);
@@ -583,13 +579,13 @@ mod tests {
             sequence_number: 0,
             base_reserve: 10,
             network_id: Default::default(),
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2000000,
         });
 
         let backstop_id = create_backstop(&e);
-        let to_add = Address::random(&e);
+        let to_add = Address::generate(&e);
 
         e.as_contract(&backstop_id, || {
             storage::set_pool_balance(
@@ -603,11 +599,7 @@ mod tests {
             );
             storage::set_lp_token_val(&e, &(5_0000000, 0_1000000));
 
-            add_to_reward_zone(
-                &e,
-                to_add.clone(),
-                Address::from_contract_id(&BytesN::from_array(&e, &[0u8; 32])),
-            );
+            add_to_reward_zone(&e, to_add.clone(), Address::generate(&e));
             let actual_rz = storage::get_reward_zone(&e);
             let expected_rz: Vec<Address> = vec![&e, to_add];
             assert_eq!(actual_rz, expected_rz);
@@ -623,25 +615,25 @@ mod tests {
             sequence_number: 0,
             network_id: Default::default(),
             base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2000000,
         });
 
         let backstop_id = create_backstop(&e);
-        let to_add = Address::random(&e);
+        let to_add = Address::generate(&e);
         let mut reward_zone: Vec<Address> = vec![
             &e,
-            Address::random(&e),
-            Address::random(&e),
-            Address::random(&e),
-            Address::random(&e),
-            Address::random(&e),
-            Address::random(&e),
-            Address::random(&e),
-            Address::random(&e),
-            Address::random(&e),
-            Address::random(&e),
+            Address::generate(&e),
+            Address::generate(&e),
+            Address::generate(&e),
+            Address::generate(&e),
+            Address::generate(&e),
+            Address::generate(&e),
+            Address::generate(&e),
+            Address::generate(&e),
+            Address::generate(&e),
+            Address::generate(&e),
         ];
 
         e.as_contract(&backstop_id, || {
@@ -657,11 +649,7 @@ mod tests {
             );
             storage::set_lp_token_val(&e, &(5_0000000, 0_1000000));
 
-            add_to_reward_zone(
-                &e,
-                to_add.clone(),
-                Address::from_contract_id(&BytesN::from_array(&e, &[0u8; 32])),
-            );
+            add_to_reward_zone(&e, to_add.clone(), Address::generate(&e));
             let actual_rz = storage::get_reward_zone(&e);
             reward_zone.push_front(to_add);
             assert_eq!(actual_rz, reward_zone);
@@ -677,25 +665,25 @@ mod tests {
             sequence_number: 0,
             network_id: Default::default(),
             base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2000000,
         });
 
         let backstop_id = create_backstop(&e);
-        let to_add = Address::random(&e);
+        let to_add = Address::generate(&e);
         let reward_zone: Vec<Address> = vec![
             &e,
-            Address::random(&e),
-            Address::random(&e),
-            Address::random(&e),
-            Address::random(&e),
-            Address::random(&e),
-            Address::random(&e),
-            Address::random(&e),
-            Address::random(&e),
-            Address::random(&e),
-            Address::random(&e),
+            Address::generate(&e),
+            Address::generate(&e),
+            Address::generate(&e),
+            Address::generate(&e),
+            Address::generate(&e),
+            Address::generate(&e),
+            Address::generate(&e),
+            Address::generate(&e),
+            Address::generate(&e),
+            Address::generate(&e),
         ];
 
         e.as_contract(&backstop_id, || {
@@ -711,11 +699,7 @@ mod tests {
             );
             storage::set_lp_token_val(&e, &(5_0000000, 0_1000000));
 
-            add_to_reward_zone(
-                &e,
-                to_add.clone(),
-                Address::from_contract_id(&BytesN::from_array(&e, &[0u8; 32])),
-            );
+            add_to_reward_zone(&e, to_add.clone(), Address::generate(&e));
         });
     }
 
@@ -728,26 +712,26 @@ mod tests {
             sequence_number: 0,
             network_id: Default::default(),
             base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2000000,
         });
 
         let backstop_id = create_backstop(&e);
-        let to_add = Address::random(&e);
-        let to_remove = Address::random(&e);
+        let to_add = Address::generate(&e);
+        let to_remove = Address::generate(&e);
         let mut reward_zone: Vec<Address> = vec![
             &e,
-            Address::random(&e),
-            Address::random(&e),
-            Address::random(&e),
-            Address::random(&e),
-            Address::random(&e),
-            Address::random(&e),
-            Address::random(&e),
+            Address::generate(&e),
+            Address::generate(&e),
+            Address::generate(&e),
+            Address::generate(&e),
+            Address::generate(&e),
+            Address::generate(&e),
+            Address::generate(&e),
             to_remove.clone(), // index 7
-            Address::random(&e),
-            Address::random(&e),
+            Address::generate(&e),
+            Address::generate(&e),
         ];
 
         e.as_contract(&backstop_id, || {
@@ -795,26 +779,26 @@ mod tests {
             sequence_number: 0,
             network_id: Default::default(),
             base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2000000,
         });
 
         let backstop_id = create_backstop(&e);
-        let to_add = Address::random(&e);
-        let to_remove = Address::random(&e);
+        let to_add = Address::generate(&e);
+        let to_remove = Address::generate(&e);
         let reward_zone: Vec<Address> = vec![
             &e,
-            Address::random(&e),
-            Address::random(&e),
-            Address::random(&e),
-            Address::random(&e),
-            Address::random(&e),
-            Address::random(&e),
-            Address::random(&e),
+            Address::generate(&e),
+            Address::generate(&e),
+            Address::generate(&e),
+            Address::generate(&e),
+            Address::generate(&e),
+            Address::generate(&e),
+            Address::generate(&e),
             to_remove.clone(), // index 7
-            Address::random(&e),
-            Address::random(&e),
+            Address::generate(&e),
+            Address::generate(&e),
         ];
 
         e.as_contract(&backstop_id, || {
@@ -855,26 +839,26 @@ mod tests {
             sequence_number: 0,
             network_id: Default::default(),
             base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2000000,
         });
 
         let backstop_id = create_backstop(&e);
-        let to_add = Address::random(&e);
-        let to_remove = Address::random(&e);
+        let to_add = Address::generate(&e);
+        let to_remove = Address::generate(&e);
         let reward_zone: Vec<Address> = vec![
             &e,
-            Address::random(&e),
-            Address::random(&e),
-            Address::random(&e),
-            Address::random(&e),
-            Address::random(&e),
-            Address::random(&e),
-            Address::random(&e),
+            Address::generate(&e),
+            Address::generate(&e),
+            Address::generate(&e),
+            Address::generate(&e),
+            Address::generate(&e),
+            Address::generate(&e),
+            Address::generate(&e),
             to_remove.clone(), // index 7
-            Address::random(&e),
-            Address::random(&e),
+            Address::generate(&e),
+            Address::generate(&e),
         ];
 
         e.as_contract(&backstop_id, || {
@@ -915,26 +899,26 @@ mod tests {
             sequence_number: 0,
             network_id: Default::default(),
             base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2000000,
         });
 
         let backstop_id = create_backstop(&e);
-        let to_add = Address::random(&e);
-        let to_remove = Address::random(&e);
+        let to_add = Address::generate(&e);
+        let to_remove = Address::generate(&e);
         let reward_zone: Vec<Address> = vec![
             &e,
-            Address::random(&e),
-            Address::random(&e),
-            Address::random(&e),
-            Address::random(&e),
-            Address::random(&e),
-            Address::random(&e),
-            Address::random(&e),
-            Address::random(&e),
-            Address::random(&e),
-            Address::random(&e),
+            Address::generate(&e),
+            Address::generate(&e),
+            Address::generate(&e),
+            Address::generate(&e),
+            Address::generate(&e),
+            Address::generate(&e),
+            Address::generate(&e),
+            Address::generate(&e),
+            Address::generate(&e),
+            Address::generate(&e),
         ];
 
         e.as_contract(&backstop_id, || {
@@ -975,26 +959,26 @@ mod tests {
             sequence_number: 0,
             network_id: Default::default(),
             base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2000000,
         });
 
         let backstop_id = create_backstop(&e);
-        let to_add = Address::random(&e);
-        let to_remove = Address::random(&e);
+        let to_add = Address::generate(&e);
+        let to_remove = Address::generate(&e);
         let reward_zone: Vec<Address> = vec![
             &e,
-            Address::random(&e),
+            Address::generate(&e),
             to_remove.clone(),
-            Address::random(&e),
-            Address::random(&e),
-            Address::random(&e),
-            Address::random(&e),
-            Address::random(&e),
+            Address::generate(&e),
+            Address::generate(&e),
+            Address::generate(&e),
+            Address::generate(&e),
+            Address::generate(&e),
             to_add.clone(),
-            Address::random(&e),
-            Address::random(&e),
+            Address::generate(&e),
+            Address::generate(&e),
         ];
 
         e.as_contract(&backstop_id, || {

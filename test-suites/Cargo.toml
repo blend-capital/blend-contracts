@@ -13,7 +13,7 @@ doctest = false
 [dependencies]
 soroban-sdk = { workspace = true, features = ["testutils"] }
 rand = { version = "0.7.3" }
-fixed-point-math = { workspace = true }
+soroban-fixed-point-math = { workspace = true }
 pool = { path = "../pool", features = ["testutils"] }
 backstop = { path = "../backstop", features = ["testutils"] }
 pool-factory = { path = "../pool-factory", features = ["testutils"] }

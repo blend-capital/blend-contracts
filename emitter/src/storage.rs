@@ -24,10 +24,10 @@ pub enum EmitterDataKey {
 }
 
 /// Bump the instance rent for the contract. Bumps for 10 days due to the 7-day cycle window of this contract
-pub fn bump_instance(e: &Env) {
+pub fn extend_instance(e: &Env) {
     e.storage()
         .instance()
-        .bump(LEDGER_THRESHOLD_SHARED, LEDGER_BUMP_SHARED);
+        .extend_ttl(LEDGER_THRESHOLD_SHARED, LEDGER_BUMP_SHARED);
 }
 
 /********** Backstop **********/
@@ -75,7 +75,7 @@ pub fn set_backstop_token(e: &Env, new_backstop_token: &Address) {
 /// Fetch the current queued backstop swap, or None
 pub fn get_queued_swap(e: &Env) -> Option<Swap> {
     if let Some(result) = e.storage().persistent().get(&Symbol::new(e, SWAP_KEY)) {
-        e.storage().persistent().bump(
+        e.storage().persistent().extend_ttl(
             &Symbol::new(e, SWAP_KEY),
             LEDGER_THRESHOLD_SHARED,
             LEDGER_BUMP_SHARED,
@@ -94,7 +94,7 @@ pub fn set_queued_swap(e: &Env, swap: &Swap) {
     e.storage()
         .persistent()
         .set::<Symbol, Swap>(&Symbol::new(e, SWAP_KEY), swap);
-    e.storage().persistent().bump(
+    e.storage().persistent().extend_ttl(
         &Symbol::new(e, SWAP_KEY),
         LEDGER_THRESHOLD_SHARED,
         LEDGER_BUMP_SHARED,
@@ -163,7 +163,7 @@ pub fn set_last_distro_time(e: &Env, backstop: &Address, last_distro: u64) {
         .set::<EmitterDataKey, u64>(&key, &last_distro);
     e.storage()
         .persistent()
-        .bump(&key, LEDGER_THRESHOLD_SHARED, LEDGER_BUMP_SHARED);
+        .extend_ttl(&key, LEDGER_THRESHOLD_SHARED, LEDGER_BUMP_SHARED);
 }
 
 /// Get whether the emitter has performed the drop distribution or not for the current backstop

@@ -68,7 +68,7 @@ impl TestFixture<'_> {
         e.mock_all_auths();
         e.budget().reset_unlimited();
 
-        let bombadil = Address::random(&e);
+        let bombadil = Address::generate(&e);
 
         e.ledger().set(LedgerInfo {
             timestamp: 1441065600, // Sept 1st, 2015 (backstop epoch)
@@ -76,9 +76,9 @@ impl TestFixture<'_> {
             sequence_number: 150,
             network_id: Default::default(),
             base_reserve: 10,
-            min_temp_entry_expiration: 999999,
-            min_persistent_entry_expiration: 999999,
-            max_entry_expiration: u32::MAX,
+            min_temp_entry_ttl: 500000,
+            min_persistent_entry_ttl: 500000,
+            max_entry_ttl: 9999999,
         });
 
         // deploy tokens
@@ -281,9 +281,9 @@ impl TestFixture<'_> {
             sequence_number: self.env.ledger().sequence(),
             network_id: Default::default(),
             base_reserve: 10,
-            min_temp_entry_expiration: 999999,
-            min_persistent_entry_expiration: 999999,
-            max_entry_expiration: u32::MAX,
+            min_temp_entry_ttl: 999999,
+            min_persistent_entry_ttl: 999999,
+            max_entry_ttl: 9999999,
         });
     }
 
@@ -295,9 +295,9 @@ impl TestFixture<'_> {
             sequence_number: self.env.ledger().sequence().saturating_add(blocks as u32),
             network_id: Default::default(),
             base_reserve: 10,
-            min_temp_entry_expiration: 999999,
-            min_persistent_entry_expiration: 999999,
-            max_entry_expiration: u32::MAX,
+            min_temp_entry_ttl: 999999,
+            min_persistent_entry_ttl: 999999,
+            max_entry_ttl: 9999999,
         });
     }
 }

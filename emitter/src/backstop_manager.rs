@@ -113,19 +113,19 @@ mod tests {
             sequence_number: 50,
             network_id: Default::default(),
             base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2000000,
         });
 
-        let bombadil = Address::random(&e);
+        let bombadil = Address::generate(&e);
         let emitter = create_emitter(&e);
-        let backstop = Address::random(&e);
-        let new_backstop = Address::random(&e);
+        let backstop = Address::generate(&e);
+        let new_backstop = Address::generate(&e);
 
         let backstop_token = e.register_stellar_asset_contract(bombadil.clone());
         let backstop_token_client = MockTokenClient::new(&e, &backstop_token);
-        let new_backstop_token = Address::random(&e);
+        let new_backstop_token = Address::generate(&e);
 
         backstop_token_client.mint(&backstop, &(1_000_000 * SCALAR_7));
         backstop_token_client.mint(&new_backstop, &(1_000_001 * SCALAR_7));
@@ -166,19 +166,19 @@ mod tests {
             sequence_number: 50,
             network_id: Default::default(),
             base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2000000,
         });
 
-        let bombadil = Address::random(&e);
+        let bombadil = Address::generate(&e);
         let emitter = create_emitter(&e);
-        let backstop = Address::random(&e);
-        let new_backstop = Address::random(&e);
+        let backstop = Address::generate(&e);
+        let new_backstop = Address::generate(&e);
 
         let backstop_token = e.register_stellar_asset_contract(bombadil.clone());
         let backstop_token_client = MockTokenClient::new(&e, &backstop_token);
-        let new_backstop_token = Address::random(&e);
+        let new_backstop_token = Address::generate(&e);
 
         backstop_token_client.mint(&backstop, &(1_000_000 * SCALAR_7));
         backstop_token_client.mint(&new_backstop, &(1_000_000 * SCALAR_7));
@@ -207,26 +207,26 @@ mod tests {
             sequence_number: 50,
             network_id: Default::default(),
             base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2000000,
         });
 
-        let bombadil = Address::random(&e);
+        let bombadil = Address::generate(&e);
         let emitter = create_emitter(&e);
-        let backstop = Address::random(&e);
-        let new_backstop = Address::random(&e);
+        let backstop = Address::generate(&e);
+        let new_backstop = Address::generate(&e);
 
         let backstop_token = e.register_stellar_asset_contract(bombadil.clone());
         let backstop_token_client = MockTokenClient::new(&e, &backstop_token);
-        let new_backstop_token = Address::random(&e);
+        let new_backstop_token = Address::generate(&e);
 
         backstop_token_client.mint(&backstop, &(1_000_000 * SCALAR_7));
         backstop_token_client.mint(&new_backstop, &(1_000_001 * SCALAR_7));
 
         let swap = Swap {
-            new_backstop: Address::random(&e),
-            new_backstop_token: Address::random(&e),
+            new_backstop: Address::generate(&e),
+            new_backstop_token: Address::generate(&e),
             unlock_time: 0,
         };
 
@@ -256,19 +256,19 @@ mod tests {
             sequence_number: 50,
             network_id: Default::default(),
             base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2000000,
         });
 
-        let bombadil = Address::random(&e);
+        let bombadil = Address::generate(&e);
         let emitter = create_emitter(&e);
-        let backstop = Address::random(&e);
-        let new_backstop = Address::random(&e);
+        let backstop = Address::generate(&e);
+        let new_backstop = Address::generate(&e);
 
         let backstop_token = e.register_stellar_asset_contract(bombadil.clone());
         let backstop_token_client = MockTokenClient::new(&e, &backstop_token);
-        let new_backstop_token = Address::random(&e);
+        let new_backstop_token = Address::generate(&e);
 
         backstop_token_client.mint(&backstop, &(1_000_000 * SCALAR_7));
         backstop_token_client.mint(&new_backstop, &(1_000_000 * SCALAR_7));
@@ -312,19 +312,19 @@ mod tests {
             sequence_number: 50,
             network_id: Default::default(),
             base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2000000,
         });
 
-        let bombadil = Address::random(&e);
+        let bombadil = Address::generate(&e);
         let emitter = create_emitter(&e);
-        let backstop = Address::random(&e);
-        let new_backstop = Address::random(&e);
+        let backstop = Address::generate(&e);
+        let new_backstop = Address::generate(&e);
 
         let backstop_token = e.register_stellar_asset_contract(bombadil.clone());
         let backstop_token_client = MockTokenClient::new(&e, &backstop_token);
-        let new_backstop_token = Address::random(&e);
+        let new_backstop_token = Address::generate(&e);
 
         backstop_token_client.mint(&backstop, &(1_000_000 * SCALAR_7));
         backstop_token_client.mint(&new_backstop, &(1_000_001 * SCALAR_7));
@@ -360,15 +360,15 @@ mod tests {
             sequence_number: 50,
             network_id: Default::default(),
             base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2000000,
         });
 
-        let bombadil = Address::random(&e);
+        let bombadil = Address::generate(&e);
         let emitter = create_emitter(&e);
-        let backstop = Address::random(&e);
-        let new_backstop = Address::random(&e);
+        let backstop = Address::generate(&e);
+        let new_backstop = Address::generate(&e);
 
         let backstop_token = e.register_stellar_asset_contract(bombadil.clone());
         let backstop_token_client = MockTokenClient::new(&e, &backstop_token);
@@ -401,23 +401,23 @@ mod tests {
             sequence_number: 500,
             network_id: Default::default(),
             base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2000000,
         });
 
-        let bombadil = Address::random(&e);
+        let bombadil = Address::generate(&e);
         let emitter = create_emitter(&e);
 
         let blnd_token = e.register_stellar_asset_contract(emitter.clone());
         let blnd_token_client = MockTokenClient::new(&e, &blnd_token);
 
-        let backstop = Address::random(&e);
-        let new_backstop = Address::random(&e);
+        let backstop = Address::generate(&e);
+        let new_backstop = Address::generate(&e);
 
         let backstop_token = e.register_stellar_asset_contract(bombadil.clone());
         let backstop_token_client = MockTokenClient::new(&e, &backstop_token);
-        let new_backstop_token = Address::random(&e);
+        let new_backstop_token = Address::generate(&e);
 
         backstop_token_client.mint(&backstop, &(1_000_000 * SCALAR_7));
         backstop_token_client.mint(&new_backstop, &(1_000_001 * SCALAR_7));
@@ -468,21 +468,21 @@ mod tests {
             sequence_number: 500,
             network_id: Default::default(),
             base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2000000,
         });
 
-        let bombadil = Address::random(&e);
+        let bombadil = Address::generate(&e);
         let emitter = create_emitter(&e);
 
         let blnd_token = e.register_stellar_asset_contract(emitter.clone());
-        let backstop = Address::random(&e);
-        let new_backstop = Address::random(&e);
+        let backstop = Address::generate(&e);
+        let new_backstop = Address::generate(&e);
 
         let backstop_token = e.register_stellar_asset_contract(bombadil.clone());
         let backstop_token_client = MockTokenClient::new(&e, &backstop_token);
-        let new_backstop_token = Address::random(&e);
+        let new_backstop_token = Address::generate(&e);
 
         backstop_token_client.mint(&backstop, &(1_000_000 * SCALAR_7));
         backstop_token_client.mint(&new_backstop, &(1_000_001 * SCALAR_7));
@@ -519,17 +519,17 @@ mod tests {
             sequence_number: 500,
             network_id: Default::default(),
             base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2000000,
         });
 
-        let bombadil = Address::random(&e);
+        let bombadil = Address::generate(&e);
         let emitter = create_emitter(&e);
 
         let blnd_token = e.register_stellar_asset_contract(emitter.clone());
-        let backstop = Address::random(&e);
-        let new_backstop = Address::random(&e);
+        let backstop = Address::generate(&e);
+        let new_backstop = Address::generate(&e);
 
         let backstop_token = e.register_stellar_asset_contract(bombadil.clone());
         let backstop_token_client = MockTokenClient::new(&e, &backstop_token);
@@ -562,21 +562,21 @@ mod tests {
             sequence_number: 500,
             network_id: Default::default(),
             base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2000000,
         });
 
-        let bombadil = Address::random(&e);
+        let bombadil = Address::generate(&e);
         let emitter = create_emitter(&e);
 
         let blnd_token = e.register_stellar_asset_contract(emitter.clone());
-        let backstop = Address::random(&e);
-        let new_backstop = Address::random(&e);
+        let backstop = Address::generate(&e);
+        let new_backstop = Address::generate(&e);
 
         let backstop_token = e.register_stellar_asset_contract(bombadil.clone());
         let backstop_token_client = MockTokenClient::new(&e, &backstop_token);
-        let new_backstop_token = Address::random(&e);
+        let new_backstop_token = Address::generate(&e);
 
         backstop_token_client.mint(&backstop, &(1_000_000 * SCALAR_7));
         backstop_token_client.mint(&new_backstop, &(1_000_000 * SCALAR_7));

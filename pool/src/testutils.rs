@@ -7,9 +7,9 @@ use crate::{
     PoolContract,
 };
 use emitter::{EmitterClient, EmitterContract};
-use fixed_point_math::FixedPoint;
 use sep_40_oracle::testutils::{MockPriceOracleClient, MockPriceOracleWASM};
 use sep_41_token::testutils::{MockTokenClient, MockTokenWASM};
+use soroban_fixed_point_math::FixedPoint;
 use soroban_sdk::{
     map, testutils::Address as _, unwrap::UnwrapOptimized, vec, Address, Env, IntoVal,
 };
@@ -31,7 +31,7 @@ pub(crate) fn create_token_contract<'a>(
     e: &Env,
     admin: &Address,
 ) -> (Address, MockTokenClient<'a>) {
-    let contract_address = Address::random(e);
+    let contract_address = Address::generate(e);
     e.register_contract_wasm(&contract_address, MockTokenWASM);
     let client = MockTokenClient::new(e, &contract_address);
     client.initialize(admin, &7, &"unit".into_val(e), &"test".into_val(e));
@@ -149,7 +149,7 @@ pub(crate) fn create_comet_lp_pool<'a>(
     blnd_token: &Address,
     usdc_token: &Address,
 ) -> (Address, comet::Client<'a>) {
-    let contract_address = Address::random(e);
+    let contract_address = Address::generate(e);
     e.register_contract_wasm(&contract_address, comet::WASM);
     let client = comet::Client::new(e, &contract_address);
 
@@ -161,7 +161,7 @@ pub(crate) fn create_comet_lp_pool<'a>(
     blnd_client.approve(&admin, &contract_address, &2_000_0000000, &exp_ledger);
     usdc_client.approve(&admin, &contract_address, &2_000_0000000, &exp_ledger);
 
-    client.init(&Address::random(e), &admin);
+    client.init(&Address::generate(e), &admin);
     client.bundle_bind(
         &vec![e, blnd_token.clone(), usdc_token.clone()],
         &vec![e, 1_000_0000000, 25_0000000],
@@ -183,7 +183,7 @@ pub(crate) fn create_comet_lp_pool<'a>(
 
 pub(crate) fn default_reserve(e: &Env) -> Reserve {
     Reserve {
-        asset: Address::random(e),
+        asset: Address::generate(e),
         index: 0,
         l_factor: 0_7500000,
         c_factor: 0_7500000,

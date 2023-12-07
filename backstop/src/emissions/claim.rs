@@ -1,13 +1,11 @@
 use crate::{dependencies::CometClient, errors::BackstopError, storage};
-use fixed_point_math::FixedPoint;
+use soroban_fixed_point_math::FixedPoint;
 use soroban_sdk::{
     auth::{ContractContext, InvokerContractAuthEntry, SubContractInvocation},
     panic_with_error, vec, Address, Env, IntoVal, Map, Symbol, Val, Vec,
 };
 
 use super::update_emissions;
-
-// TODO: Deposit emissions back into the backstop automatically after 80/20 BLND deposit function added
 
 /// Perform a claim for backstop deposit emissions by a user from the backstop module
 pub fn execute_claim(e: &Env, from: &Address, pool_addresses: &Vec<Address>, to: &Address) -> i128 {
@@ -106,18 +104,18 @@ mod tests {
             sequence_number: 0,
             network_id: Default::default(),
             base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2000000,
         });
         e.budget().reset_unlimited();
 
         let backstop_address = create_backstop(&e);
-        let pool_1_id = Address::random(&e);
-        let pool_2_id = Address::random(&e);
-        let bombadil = Address::random(&e);
-        let samwise = Address::random(&e);
-        let frodo = Address::random(&e);
+        let pool_1_id = Address::generate(&e);
+        let pool_2_id = Address::generate(&e);
+        let bombadil = Address::generate(&e);
+        let samwise = Address::generate(&e);
+        let frodo = Address::generate(&e);
 
         let (blnd_address, blnd_token_client) = create_blnd_token(&e, &backstop_address, &bombadil);
         let (usdc_address, _) = create_usdc_token(&e, &backstop_address, &bombadil);
@@ -267,17 +265,17 @@ mod tests {
             sequence_number: 0,
             network_id: Default::default(),
             base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2000000,
         });
 
         let backstop_address = create_backstop(&e);
-        let pool_1_id = Address::random(&e);
-        let pool_2_id = Address::random(&e);
-        let bombadil = Address::random(&e);
-        let samwise = Address::random(&e);
-        let frodo = Address::random(&e);
+        let pool_1_id = Address::generate(&e);
+        let pool_2_id = Address::generate(&e);
+        let bombadil = Address::generate(&e);
+        let samwise = Address::generate(&e);
+        let frodo = Address::generate(&e);
 
         let (blnd_address, blnd_token_client) = create_blnd_token(&e, &backstop_address, &bombadil);
         let (usdc_address, _) = create_usdc_token(&e, &backstop_address, &bombadil);
@@ -418,9 +416,9 @@ mod tests {
                 sequence_number: 0,
                 network_id: Default::default(),
                 base_reserve: 10,
-                min_temp_entry_expiration: 10,
-                min_persistent_entry_expiration: 10,
-                max_entry_expiration: 2000000,
+                min_temp_entry_ttl: 10,
+                min_persistent_entry_ttl: 10,
+                max_entry_ttl: 2000000,
             });
             let backstop_lp_balance = backstop_lp_balance + 6_5244800;
             let pre_frodo_balance_1 = storage::get_user_balance(&e, &pool_1_id, &frodo).shares;
@@ -490,17 +488,17 @@ mod tests {
             sequence_number: 0,
             network_id: Default::default(),
             base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2000000,
         });
 
         let backstop_address = create_backstop(&e);
-        let pool_1_id = Address::random(&e);
-        let pool_2_id = Address::random(&e);
-        let bombadil = Address::random(&e);
-        let samwise = Address::random(&e);
-        let frodo = Address::random(&e);
+        let pool_1_id = Address::generate(&e);
+        let pool_2_id = Address::generate(&e);
+        let bombadil = Address::generate(&e);
+        let samwise = Address::generate(&e);
+        let frodo = Address::generate(&e);
 
         let (_, blnd_token_client) = create_blnd_token(&e, &backstop_address, &bombadil);
         blnd_token_client.mint(&backstop_address, &100_0000000);

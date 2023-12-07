@@ -1,5 +1,5 @@
 use cast::i128;
-use fixed_point_math::FixedPoint;
+use soroban_fixed_point_math::FixedPoint;
 use soroban_sdk::unwrap::UnwrapOptimized;
 use soroban_sdk::{map, panic_with_error, Address, Env};
 
@@ -157,7 +157,7 @@ mod tests {
         let pool_address = create_pool(&e);
         let (oracle, _) = testutils::create_mock_oracle(&e);
 
-        let samwise = Address::random(&e);
+        let samwise = Address::generate(&e);
 
         e.ledger().set(LedgerInfo {
             timestamp: 12345,
@@ -165,9 +165,9 @@ mod tests {
             sequence_number: 100,
             network_id: Default::default(),
             base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2000000,
         });
 
         let liq_pct = 50;
@@ -205,13 +205,13 @@ mod tests {
             sequence_number: 50,
             network_id: Default::default(),
             base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2000000,
         });
 
-        let bombadil = Address::random(&e);
-        let samwise = Address::random(&e);
+        let bombadil = Address::generate(&e);
+        let samwise = Address::generate(&e);
 
         let pool_address = create_pool(&e);
         let (oracle_address, oracle_client) = testutils::create_mock_oracle(&e);
@@ -317,13 +317,13 @@ mod tests {
             sequence_number: 50,
             network_id: Default::default(),
             base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2000000,
         });
 
-        let bombadil = Address::random(&e);
-        let samwise = Address::random(&e);
+        let bombadil = Address::generate(&e);
+        let samwise = Address::generate(&e);
 
         let pool_address = create_pool(&e);
 
@@ -424,13 +424,13 @@ mod tests {
             sequence_number: 50,
             network_id: Default::default(),
             base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2000000,
         });
 
-        let bombadil = Address::random(&e);
-        let samwise = Address::random(&e);
+        let bombadil = Address::generate(&e);
+        let samwise = Address::generate(&e);
 
         let pool_address = create_pool(&e);
 
@@ -532,13 +532,13 @@ mod tests {
             sequence_number: 50,
             network_id: Default::default(),
             base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2000000,
         });
 
-        let bombadil = Address::random(&e);
-        let samwise = Address::random(&e);
+        let bombadil = Address::generate(&e);
+        let samwise = Address::generate(&e);
 
         let pool_address = create_pool(&e);
 
@@ -639,14 +639,14 @@ mod tests {
             sequence_number: 175,
             network_id: Default::default(),
             base_reserve: 10,
-            min_temp_entry_expiration: 17280,
-            min_persistent_entry_expiration: 17280,
-            max_entry_expiration: u32::MAX,
+            min_temp_entry_ttl: 17280,
+            min_persistent_entry_ttl: 17280,
+            max_entry_ttl: 9999999,
         });
 
-        let bombadil = Address::random(&e);
-        let samwise = Address::random(&e);
-        let frodo = Address::random(&e);
+        let bombadil = Address::generate(&e);
+        let samwise = Address::generate(&e);
+        let frodo = Address::generate(&e);
 
         let pool_address = create_pool(&e);
 
@@ -748,9 +748,9 @@ mod tests {
                 sequence_number: 176 + 200,
                 network_id: Default::default(),
                 base_reserve: 10,
-                min_temp_entry_expiration: 17280,
-                min_persistent_entry_expiration: 17280,
-                max_entry_expiration: u32::MAX,
+                min_temp_entry_ttl: 17280,
+                min_persistent_entry_ttl: 17280,
+                max_entry_ttl: 9999999,
             });
             e.budget().reset_unlimited();
             let mut pool = Pool::load(&e);
@@ -814,14 +814,14 @@ mod tests {
             sequence_number: 175,
             network_id: Default::default(),
             base_reserve: 10,
-            min_temp_entry_expiration: 17280,
-            min_persistent_entry_expiration: 17280,
-            max_entry_expiration: u32::MAX,
+            min_temp_entry_ttl: 17280,
+            min_persistent_entry_ttl: 17280,
+            max_entry_ttl: 9999999,
         });
 
-        let bombadil = Address::random(&e);
-        let samwise = Address::random(&e);
-        let frodo = Address::random(&e);
+        let bombadil = Address::generate(&e);
+        let samwise = Address::generate(&e);
+        let frodo = Address::generate(&e);
 
         let pool_address = create_pool(&e);
 
@@ -923,9 +923,9 @@ mod tests {
                 sequence_number: 176 + 200,
                 network_id: Default::default(),
                 base_reserve: 10,
-                min_temp_entry_expiration: 17280,
-                min_persistent_entry_expiration: 17280,
-                max_entry_expiration: u32::MAX,
+                min_temp_entry_ttl: 17280,
+                min_persistent_entry_ttl: 17280,
+                max_entry_ttl: 9999999,
             });
             e.budget().reset_unlimited();
             let mut pool = Pool::load(&e);

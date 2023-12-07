@@ -1,7 +1,7 @@
 #![cfg(test)]
 
-use fixed_point_math::FixedPoint;
 use pool::Request;
+use soroban_fixed_point_math::FixedPoint;
 use soroban_sdk::{testutils::Address as _, vec, Address};
 use test_suites::{
     assertions::assert_approx_eq_abs,
@@ -19,8 +19,8 @@ fn test_wasm_happy_path() {
     let xlm_pool_index = pool_fixture.reserves[&TokenIndex::XLM];
 
     // Create two new users
-    let sam = Address::random(&fixture.env); // sam will be supplying XLM and borrowing STABLE
-    let merry = Address::random(&fixture.env); // merry will be supplying STABLE and borrowing XLM
+    let sam = Address::generate(&fixture.env); // sam will be supplying XLM and borrowing STABLE
+    let merry = Address::generate(&fixture.env); // merry will be supplying STABLE and borrowing XLM
 
     // Mint users tokens
     let stable = &fixture.tokens[TokenIndex::STABLE];

@@ -103,10 +103,10 @@ mod tests {
         e.budget().reset_unlimited();
         e.mock_all_auths_allowing_non_root_auth();
         let pool_id = create_pool(&e);
-        let oracle_id = Address::random(&e);
+        let oracle_id = Address::generate(&e);
 
-        let bombadil = Address::random(&e);
-        let samwise = Address::random(&e);
+        let bombadil = Address::generate(&e);
+        let samwise = Address::generate(&e);
 
         let (blnd, blnd_client) = create_token_contract(&e, &bombadil);
         let (usdc, usdc_client) = create_token_contract(&e, &bombadil);
@@ -150,10 +150,10 @@ mod tests {
         e.budget().reset_unlimited();
         e.mock_all_auths_allowing_non_root_auth();
         let pool_id = create_pool(&e);
-        let oracle_id = Address::random(&e);
+        let oracle_id = Address::generate(&e);
 
-        let bombadil = Address::random(&e);
-        let samwise = Address::random(&e);
+        let bombadil = Address::generate(&e);
+        let samwise = Address::generate(&e);
 
         let (blnd, blnd_client) = create_token_contract(&e, &bombadil);
         let (usdc, usdc_client) = create_token_contract(&e, &bombadil);
@@ -193,10 +193,10 @@ mod tests {
         e.budget().reset_unlimited();
         e.mock_all_auths_allowing_non_root_auth();
         let pool_id = create_pool(&e);
-        let oracle_id = Address::random(&e);
+        let oracle_id = Address::generate(&e);
 
-        let bombadil = Address::random(&e);
-        let samwise = Address::random(&e);
+        let bombadil = Address::generate(&e);
+        let samwise = Address::generate(&e);
 
         let (blnd, blnd_client) = create_token_contract(&e, &bombadil);
         let (usdc, usdc_client) = create_token_contract(&e, &bombadil);
@@ -240,10 +240,10 @@ mod tests {
         e.budget().reset_unlimited();
         e.mock_all_auths_allowing_non_root_auth();
         let pool_id = create_pool(&e);
-        let oracle_id = Address::random(&e);
+        let oracle_id = Address::generate(&e);
 
-        let bombadil = Address::random(&e);
-        let samwise = Address::random(&e);
+        let bombadil = Address::generate(&e);
+        let samwise = Address::generate(&e);
 
         let (blnd, blnd_client) = create_token_contract(&e, &bombadil);
         let (usdc, usdc_client) = create_token_contract(&e, &bombadil);
@@ -287,10 +287,10 @@ mod tests {
         e.budget().reset_unlimited();
         e.mock_all_auths_allowing_non_root_auth();
         let pool_id = create_pool(&e);
-        let oracle_id = Address::random(&e);
+        let oracle_id = Address::generate(&e);
 
-        let bombadil = Address::random(&e);
-        let samwise = Address::random(&e);
+        let bombadil = Address::generate(&e);
+        let samwise = Address::generate(&e);
 
         let (blnd, blnd_client) = create_token_contract(&e, &bombadil);
         let (usdc, usdc_client) = create_token_contract(&e, &bombadil);
@@ -335,10 +335,10 @@ mod tests {
         e.budget().reset_unlimited();
         e.mock_all_auths_allowing_non_root_auth();
         let pool_id = create_pool(&e);
-        let oracle_id = Address::random(&e);
+        let oracle_id = Address::generate(&e);
 
-        let bombadil = Address::random(&e);
-        let samwise = Address::random(&e);
+        let bombadil = Address::generate(&e);
+        let samwise = Address::generate(&e);
 
         let (blnd, blnd_client) = create_token_contract(&e, &bombadil);
         let (usdc, usdc_client) = create_token_contract(&e, &bombadil);
@@ -384,10 +384,10 @@ mod tests {
         e.budget().reset_unlimited();
         e.mock_all_auths_allowing_non_root_auth();
         let pool_id = create_pool(&e);
-        let oracle_id = Address::random(&e);
+        let oracle_id = Address::generate(&e);
 
-        let bombadil = Address::random(&e);
-        let samwise = Address::random(&e);
+        let bombadil = Address::generate(&e);
+        let samwise = Address::generate(&e);
 
         let (blnd, blnd_client) = create_token_contract(&e, &bombadil);
         let (usdc, usdc_client) = create_token_contract(&e, &bombadil);

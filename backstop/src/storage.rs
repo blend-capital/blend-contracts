@@ -73,10 +73,10 @@ pub enum BackstopDataKey {
 ****************************/
 
 /// Bump the instance rent for the contract
-pub fn bump_instance(e: &Env) {
+pub fn extend_instance(e: &Env) {
     e.storage()
         .instance()
-        .bump(LEDGER_THRESHOLD_SHARED, LEDGER_BUMP_SHARED);
+        .extend_ttl(LEDGER_THRESHOLD_SHARED, LEDGER_BUMP_SHARED);
 }
 
 /// Fetch an entry in persistent storage that has a default value if it doesn't exist
@@ -90,7 +90,7 @@ fn get_persistent_default<K: IntoVal<Env, Val>, V: TryFromVal<Env, Val>>(
     if let Some(result) = e.storage().persistent().get::<K, V>(key) {
         e.storage()
             .persistent()
-            .bump(key, bump_threshold, bump_amount);
+            .extend_ttl(key, bump_threshold, bump_amount);
         result
     } else {
         default
@@ -269,7 +269,7 @@ pub fn set_pool_balance(e: &Env, pool: &Address, balance: &PoolBalance) {
         .set::<BackstopDataKey, PoolBalance>(&key, balance);
     e.storage()
         .persistent()
-        .bump(&key, LEDGER_THRESHOLD_SHARED, LEDGER_BUMP_SHARED);
+        .extend_ttl(&key, LEDGER_THRESHOLD_SHARED, LEDGER_BUMP_SHARED);
 }
 
 /// Fetch the balances for a given pool
@@ -293,7 +293,7 @@ pub fn set_pool_usdc(e: &Env, pool: &Address, balance: &i128) {
         .set::<BackstopDataKey, i128>(&key, balance);
     e.storage()
         .persistent()
-        .bump(&key, LEDGER_THRESHOLD_SHARED, LEDGER_BUMP_SHARED);
+        .extend_ttl(&key, LEDGER_THRESHOLD_SHARED, LEDGER_BUMP_SHARED);
 }
 
 /********** Distribution / Reward Zone **********/
@@ -317,7 +317,7 @@ pub fn set_last_distribution_time(e: &Env, timestamp: &u64) {
     e.storage()
         .persistent()
         .set::<Symbol, u64>(&Symbol::new(e, LAST_DISTRO_KEY), timestamp);
-    e.storage().persistent().bump(
+    e.storage().persistent().extend_ttl(
         &Symbol::new(e, LAST_DISTRO_KEY),
         LEDGER_THRESHOLD_SHARED,
         LEDGER_BUMP_SHARED,
@@ -345,7 +345,7 @@ pub fn set_reward_zone(e: &Env, reward_zone: &Vec<Address>) {
     e.storage()
         .persistent()
         .set::<Symbol, Vec<Address>>(&Symbol::new(e, REWARD_ZONE_KEY), reward_zone);
-    e.storage().persistent().bump(
+    e.storage().persistent().extend_ttl(
         &Symbol::new(e, REWARD_ZONE_KEY),
         LEDGER_THRESHOLD_SHARED,
         LEDGER_BUMP_SHARED,
@@ -373,7 +373,7 @@ pub fn set_pool_emissions(e: &Env, pool: &Address, emissions: i128) {
         .set::<BackstopDataKey, i128>(&key, &emissions);
     e.storage()
         .persistent()
-        .bump(&key, LEDGER_THRESHOLD_SHARED, LEDGER_BUMP_SHARED);
+        .extend_ttl(&key, LEDGER_THRESHOLD_SHARED, LEDGER_BUMP_SHARED);
 }
 
 /********** Backstop Depositor Emissions **********/
@@ -494,7 +494,7 @@ pub fn set_drop_list(e: &Env, drop_list: &Map<Address, i128>) {
     e.storage()
         .temporary()
         .set::<Symbol, Map<Address, i128>>(&Symbol::new(&e, DROP_LIST_KEY), drop_list);
-    e.storage().temporary().bump(
+    e.storage().temporary().extend_ttl(
         &Symbol::new(&e, DROP_LIST_KEY),
         LEDGER_THRESHOLD_USER,
         LEDGER_BUMP_USER,
@@ -505,7 +505,7 @@ pub fn set_drop_list(e: &Env, drop_list: &Map<Address, i128>) {
 
 /// Get the last updated token value for the LP pool
 pub fn get_lp_token_val(e: &Env) -> (i128, i128) {
-    e.storage().persistent().bump(
+    e.storage().persistent().extend_ttl(
         &Symbol::new(&e, LP_TOKEN_VAL_KEY),
         LEDGER_THRESHOLD_SHARED,
         LEDGER_BUMP_SHARED,
@@ -524,7 +524,7 @@ pub fn set_lp_token_val(e: &Env, share_val: &(i128, i128)) {
     e.storage()
         .persistent()
         .set::<Symbol, (i128, i128)>(&Symbol::new(&e, LP_TOKEN_VAL_KEY), share_val);
-    e.storage().persistent().bump(
+    e.storage().persistent().extend_ttl(
         &Symbol::new(&e, LP_TOKEN_VAL_KEY),
         LEDGER_THRESHOLD_SHARED,
         LEDGER_BUMP_SHARED,

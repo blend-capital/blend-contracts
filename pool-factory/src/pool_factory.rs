@@ -46,7 +46,7 @@ pub trait PoolFactory {
 #[contractimpl]
 impl PoolFactory for PoolFactoryContract {
     fn initialize(e: Env, pool_init_meta: PoolInitMeta) {
-        storage::bump_instance(&e);
+        storage::extend_instance(&e);
         if storage::has_pool_init_meta(&e) {
             panic_with_error!(&e, PoolFactoryError::AlreadyInitialized);
         }
@@ -62,7 +62,7 @@ impl PoolFactory for PoolFactoryContract {
         backstop_take_rate: u64,
     ) -> Address {
         admin.require_auth();
-        storage::bump_instance(&e);
+        storage::extend_instance(&e);
         let pool_init_meta = storage::get_pool_init_meta(&e);
 
         // verify backstop take rate is within [0,1) with 9 decimals
@@ -92,7 +92,7 @@ impl PoolFactory for PoolFactoryContract {
     }
 
     fn is_pool(e: Env, pool_address: Address) -> bool {
-        storage::bump_instance(&e);
+        storage::extend_instance(&e);
         storage::is_deployed(&e, &pool_address)
     }
 }

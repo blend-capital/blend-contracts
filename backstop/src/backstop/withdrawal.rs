@@ -89,9 +89,9 @@ mod tests {
         e.mock_all_auths_allowing_non_root_auth();
 
         let backstop_address = create_backstop(&e);
-        let pool_address = Address::random(&e);
-        let bombadil = Address::random(&e);
-        let samwise = Address::random(&e);
+        let pool_address = Address::generate(&e);
+        let bombadil = Address::generate(&e);
+        let samwise = Address::generate(&e);
 
         let (_, backstop_token_client) = create_backstop_token(&e, &backstop_address, &bombadil);
         backstop_token_client.mint(&samwise, &100_0000000);
@@ -110,9 +110,9 @@ mod tests {
             timestamp: 10000,
             network_id: Default::default(),
             base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2000000,
         });
 
         e.as_contract(&backstop_address, || {
@@ -149,9 +149,9 @@ mod tests {
         e.mock_all_auths_allowing_non_root_auth();
 
         let backstop_address = create_backstop(&e);
-        let pool_address = Address::random(&e);
-        let bombadil = Address::random(&e);
-        let samwise = Address::random(&e);
+        let pool_address = Address::generate(&e);
+        let bombadil = Address::generate(&e);
+        let samwise = Address::generate(&e);
 
         let (_, backstop_token_client) = create_backstop_token(&e, &backstop_address, &bombadil);
         backstop_token_client.mint(&samwise, &100_0000000);
@@ -170,9 +170,9 @@ mod tests {
             timestamp: 10000,
             network_id: Default::default(),
             base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2000000,
         });
 
         e.as_contract(&backstop_address, || {
@@ -186,9 +186,9 @@ mod tests {
         e.mock_all_auths_allowing_non_root_auth();
 
         let backstop_address = create_backstop(&e);
-        let pool_address = Address::random(&e);
-        let bombadil = Address::random(&e);
-        let samwise = Address::random(&e);
+        let pool_address = Address::generate(&e);
+        let bombadil = Address::generate(&e);
+        let samwise = Address::generate(&e);
 
         let (_, backstop_token_client) = create_backstop_token(&e, &backstop_address, &bombadil);
         backstop_token_client.mint(&samwise, &100_0000000);
@@ -207,9 +207,9 @@ mod tests {
                 timestamp: 10000,
                 network_id: Default::default(),
                 base_reserve: 10,
-                min_temp_entry_expiration: 10,
-                min_persistent_entry_expiration: 10,
-                max_entry_expiration: 2000000,
+                min_temp_entry_ttl: 10,
+                min_persistent_entry_ttl: 10,
+                max_entry_ttl: 2000000,
             });
 
             execute_queue_withdrawal(&e, &samwise, &pool_address, 40_0000000);
@@ -221,9 +221,9 @@ mod tests {
             timestamp: 20000,
             network_id: Default::default(),
             base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2000000,
         });
 
         e.as_contract(&backstop_address, || {
@@ -253,9 +253,9 @@ mod tests {
         e.mock_all_auths_allowing_non_root_auth();
 
         let backstop_address = create_backstop(&e);
-        let pool_address = Address::random(&e);
-        let bombadil = Address::random(&e);
-        let samwise = Address::random(&e);
+        let pool_address = Address::generate(&e);
+        let bombadil = Address::generate(&e);
+        let samwise = Address::generate(&e);
 
         let (_, backstop_token_client) = create_backstop_token(&e, &backstop_address, &bombadil);
         backstop_token_client.mint(&samwise, &100_0000000);
@@ -274,9 +274,9 @@ mod tests {
                 timestamp: 10000,
                 network_id: Default::default(),
                 base_reserve: 10,
-                min_temp_entry_expiration: 10,
-                min_persistent_entry_expiration: 10,
-                max_entry_expiration: 2000000,
+                min_temp_entry_ttl: 10,
+                min_persistent_entry_ttl: 10,
+                max_entry_ttl: 2000000,
             });
 
             execute_queue_withdrawal(&e, &samwise, &pool_address, 40_0000000);
@@ -288,9 +288,9 @@ mod tests {
             timestamp: 20000,
             network_id: Default::default(),
             base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2000000,
         });
 
         e.as_contract(&backstop_address, || {
@@ -304,9 +304,9 @@ mod tests {
         e.mock_all_auths_allowing_non_root_auth();
 
         let backstop_address = create_backstop(&e);
-        let pool_address = Address::random(&e);
-        let bombadil = Address::random(&e);
-        let samwise = Address::random(&e);
+        let pool_address = Address::generate(&e);
+        let bombadil = Address::generate(&e);
+        let samwise = Address::generate(&e);
 
         let (_, backstop_token_client) = create_backstop_token(&e, &backstop_address, &bombadil);
         backstop_token_client.mint(&samwise, &150_0000000);
@@ -320,9 +320,9 @@ mod tests {
             timestamp: 10000,
             network_id: Default::default(),
             base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2000000,
         });
 
         // setup pool with queue for withdrawal and allow the backstop to incur a profit
@@ -338,9 +338,9 @@ mod tests {
             timestamp: 10000 + 30 * 24 * 60 * 60 + 1,
             network_id: Default::default(),
             base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2000000,
         });
 
         e.as_contract(&backstop_address, || {
@@ -370,9 +370,9 @@ mod tests {
         e.mock_all_auths_allowing_non_root_auth();
 
         let backstop_address = create_backstop(&e);
-        let pool_address = Address::random(&e);
-        let bombadil = Address::random(&e);
-        let samwise = Address::random(&e);
+        let pool_address = Address::generate(&e);
+        let bombadil = Address::generate(&e);
+        let samwise = Address::generate(&e);
 
         let (_, backstop_token_client) = create_backstop_token(&e, &backstop_address, &bombadil);
         backstop_token_client.mint(&samwise, &150_0000000);
@@ -386,9 +386,9 @@ mod tests {
             timestamp: 10000,
             network_id: Default::default(),
             base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2000000,
         });
 
         // setup pool with queue for withdrawal and allow the backstop to incur a profit
@@ -404,9 +404,9 @@ mod tests {
             timestamp: 10000 + 30 * 24 * 60 * 60 + 1,
             network_id: Default::default(),
             base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2000000,
         });
 
         e.as_contract(&backstop_address, || {

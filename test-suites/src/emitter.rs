@@ -7,7 +7,7 @@ mod emitter_contract {
 use emitter::{EmitterClient, EmitterContract};
 
 pub fn create_emitter<'a>(e: &Env, wasm: bool) -> (Address, EmitterClient<'a>) {
-    let contract_id = Address::random(e);
+    let contract_id = Address::generate(e);
     if wasm {
         e.register_contract_wasm(&contract_id, emitter_contract::WASM);
     } else {

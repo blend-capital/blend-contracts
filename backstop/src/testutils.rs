@@ -23,7 +23,7 @@ pub(crate) fn create_backstop(e: &Env) -> Address {
 }
 
 pub(crate) fn create_token<'a>(e: &Env, admin: &Address) -> (Address, MockTokenClient<'a>) {
-    let contract_address = Address::random(e);
+    let contract_address = Address::generate(e);
     e.register_contract_wasm(&contract_address, MockTokenWASM);
     let client = MockTokenClient::new(e, &contract_address);
     client.initialize(&admin, &7, &"unit".into_val(e), &"test".into_val(e));
@@ -99,9 +99,9 @@ pub(crate) fn create_emitter<'a>(
         sequence_number: 0,
         network_id: Default::default(),
         base_reserve: 10,
-        min_temp_entry_expiration: 10,
-        min_persistent_entry_expiration: 10,
-        max_entry_expiration: 2000000,
+        min_temp_entry_ttl: 10,
+        min_persistent_entry_ttl: 10,
+        max_entry_ttl: 2000000,
     });
     e.as_contract(backstop, || {
         storage::set_emitter(e, &contract_address);
@@ -114,9 +114,9 @@ pub(crate) fn create_emitter<'a>(
         sequence_number: 0,
         network_id: Default::default(),
         base_reserve: 10,
-        min_temp_entry_expiration: 10,
-        min_persistent_entry_expiration: 10,
-        max_entry_expiration: 2000000,
+        min_temp_entry_ttl: 10,
+        min_persistent_entry_ttl: 10,
+        max_entry_ttl: 2000000,
     });
     (contract_address.clone(), client)
 }
@@ -134,7 +134,7 @@ pub(crate) fn create_comet_lp_pool<'a>(
     blnd_token: &Address,
     usdc_token: &Address,
 ) -> (Address, CometClient<'a>) {
-    let contract_address = Address::random(e);
+    let contract_address = Address::generate(e);
     e.register_contract_wasm(&contract_address, COMET_WASM);
     let client = CometClient::new(e, &contract_address);
 
@@ -146,7 +146,7 @@ pub(crate) fn create_comet_lp_pool<'a>(
     blnd_client.approve(&admin, &contract_address, &2_000_0000000, &exp_ledger);
     usdc_client.approve(&admin, &contract_address, &2_000_0000000, &exp_ledger);
 
-    client.init(&Address::random(e), &admin);
+    client.init(&Address::generate(e), &admin);
     client.bundle_bind(
         &vec![e, blnd_token.clone(), usdc_token.clone()],
         &vec![e, 1_000_0000000, 25_0000000],

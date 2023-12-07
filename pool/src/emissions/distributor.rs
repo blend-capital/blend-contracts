@@ -1,6 +1,6 @@
 use cast::i128;
-use fixed_point_math::FixedPoint;
 use sep_41_token::TokenClient;
+use soroban_fixed_point_math::FixedPoint;
 use soroban_sdk::{panic_with_error, unwrap::UnwrapOptimized, Address, Env, Vec};
 
 use crate::{
@@ -239,7 +239,7 @@ mod tests {
         e.mock_all_auths();
 
         let pool = testutils::create_pool(&e);
-        let samwise = Address::random(&e);
+        let samwise = Address::generate(&e);
 
         e.ledger().set(LedgerInfo {
             timestamp: 1501000000, // 10^6 seconds have passed
@@ -247,9 +247,9 @@ mod tests {
             sequence_number: 123,
             network_id: Default::default(),
             base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2000000,
         });
 
         let supply: i128 = 50_0000000;
@@ -303,7 +303,7 @@ mod tests {
         e.mock_all_auths();
 
         let pool = testutils::create_pool(&e);
-        let samwise = Address::random(&e);
+        let samwise = Address::generate(&e);
 
         e.ledger().set(LedgerInfo {
             timestamp: 1501000000, // 10^6 seconds have passed
@@ -311,9 +311,9 @@ mod tests {
             sequence_number: 123,
             network_id: Default::default(),
             base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2000000,
         });
 
         let supply: i128 = 100_0000000;
@@ -355,9 +355,9 @@ mod tests {
             sequence_number: 123,
             network_id: Default::default(),
             base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2000000,
         });
 
         let supply = 50_0000000;
@@ -394,9 +394,9 @@ mod tests {
             sequence_number: 123,
             network_id: Default::default(),
             base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2000000,
         });
 
         let supply = 50_0000000;
@@ -445,9 +445,9 @@ mod tests {
             sequence_number: 123,
             network_id: Default::default(),
             base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2000000,
         });
 
         let supply = 50_0000000;
@@ -496,9 +496,9 @@ mod tests {
             sequence_number: 123,
             network_id: Default::default(),
             base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2000000,
         });
 
         let supply = 50_0000000;
@@ -547,9 +547,9 @@ mod tests {
             sequence_number: 123,
             network_id: Default::default(),
             base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2000000,
         });
 
         let supply = 0;
@@ -598,9 +598,9 @@ mod tests {
             sequence_number: 123,
             network_id: Default::default(),
             base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2000000,
         });
 
         let supply = 100_0000000;
@@ -646,9 +646,9 @@ mod tests {
             sequence_number: 123,
             network_id: Default::default(),
             base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2000000,
         });
 
         let supply = 100_0001111;
@@ -689,7 +689,7 @@ mod tests {
         e.mock_all_auths();
 
         let pool = testutils::create_pool(&e);
-        let samwise = Address::random(&e);
+        let samwise = Address::generate(&e);
 
         e.ledger().set(LedgerInfo {
             timestamp: 1500000000,
@@ -697,9 +697,9 @@ mod tests {
             sequence_number: 123,
             network_id: Default::default(),
             base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2000000,
         });
 
         let supply_scalar = 1_0000000;
@@ -735,7 +735,7 @@ mod tests {
         e.mock_all_auths();
 
         let pool = testutils::create_pool(&e);
-        let samwise = Address::random(&e);
+        let samwise = Address::generate(&e);
 
         e.ledger().set(LedgerInfo {
             timestamp: 1500000000,
@@ -743,9 +743,9 @@ mod tests {
             sequence_number: 123,
             network_id: Default::default(),
             base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2000000,
         });
 
         let supply_scalar = 1_0000000;
@@ -781,7 +781,7 @@ mod tests {
         e.mock_all_auths();
         let pool = testutils::create_pool(&e);
 
-        let samwise = Address::random(&e);
+        let samwise = Address::generate(&e);
 
         e.ledger().set(LedgerInfo {
             timestamp: 1500000000,
@@ -789,9 +789,9 @@ mod tests {
             sequence_number: 123,
             network_id: Default::default(),
             base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2000000,
         });
 
         let supply_scalar = 1_0000000;
@@ -834,7 +834,7 @@ mod tests {
 
         let pool = testutils::create_pool(&e);
 
-        let samwise = Address::random(&e);
+        let samwise = Address::generate(&e);
 
         e.ledger().set(LedgerInfo {
             timestamp: 1500000000,
@@ -842,9 +842,9 @@ mod tests {
             sequence_number: 123,
             network_id: Default::default(),
             base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2000000,
         });
 
         let supply_scalar = 1_0000000;
@@ -886,7 +886,7 @@ mod tests {
         e.mock_all_auths();
 
         let pool = testutils::create_pool(&e);
-        let samwise = Address::random(&e);
+        let samwise = Address::generate(&e);
 
         e.ledger().set(LedgerInfo {
             timestamp: 1500000000,
@@ -894,9 +894,9 @@ mod tests {
             sequence_number: 123,
             network_id: Default::default(),
             base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2000000,
         });
 
         let supply_scalar = 1_0000000;
@@ -939,7 +939,7 @@ mod tests {
 
         let pool = testutils::create_pool(&e);
 
-        let samwise = Address::random(&e);
+        let samwise = Address::generate(&e);
 
         e.ledger().set(LedgerInfo {
             timestamp: 1500000000,
@@ -947,9 +947,9 @@ mod tests {
             sequence_number: 123,
             network_id: Default::default(),
             base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2000000,
         });
 
         let supply_scalar = 1_0000000;
@@ -993,7 +993,7 @@ mod tests {
 
         let pool = testutils::create_pool(&e);
 
-        let samwise = Address::random(&e);
+        let samwise = Address::generate(&e);
 
         e.ledger().set(LedgerInfo {
             timestamp: 1500000000,
@@ -1001,9 +1001,9 @@ mod tests {
             sequence_number: 123,
             network_id: Default::default(),
             base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2000000,
         });
 
         let supply_scalar = 1_0000000;
@@ -1042,9 +1042,9 @@ mod tests {
         e.budget().reset_unlimited();
 
         let pool = testutils::create_pool(&e);
-        let bombadil = Address::random(&e);
-        let samwise = Address::random(&e);
-        let merry = Address::random(&e);
+        let bombadil = Address::generate(&e);
+        let samwise = Address::generate(&e);
+        let merry = Address::generate(&e);
 
         let (_, blnd_token_client) = testutils::create_blnd_token(&e, &pool, &bombadil);
         let (backstop, _) = testutils::create_backstop(&e);
@@ -1060,9 +1060,9 @@ mod tests {
             sequence_number: 123,
             network_id: Default::default(),
             base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2000000,
         });
 
         let (underlying_0, _) = testutils::create_token_contract(&e, &bombadil);
@@ -1168,9 +1168,9 @@ mod tests {
         e.budget().reset_unlimited();
 
         let pool = testutils::create_pool(&e);
-        let bombadil = Address::random(&e);
-        let samwise = Address::random(&e);
-        let merry = Address::random(&e);
+        let bombadil = Address::generate(&e);
+        let samwise = Address::generate(&e);
+        let merry = Address::generate(&e);
         let (backstop, _) = testutils::create_backstop(&e);
 
         let (_, blnd_token_client) = testutils::create_blnd_token(&e, &pool, &bombadil);
@@ -1187,9 +1187,9 @@ mod tests {
             sequence_number: 123,
             network_id: Default::default(),
             base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2000000,
         });
 
         let (underlying_0, _) = testutils::create_token_contract(&e, &bombadil);

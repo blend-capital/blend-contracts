@@ -1,6 +1,6 @@
 use cast::i128;
-use fixed_point_math::FixedPoint;
 use sep_41_token::TokenClient;
+use soroban_fixed_point_math::FixedPoint;
 use soroban_sdk::{contracttype, panic_with_error, unwrap::UnwrapOptimized, Address, Env};
 
 use crate::{
@@ -248,14 +248,14 @@ mod tests {
             sequence_number: 123456,
             network_id: Default::default(),
             base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2000000,
         });
 
-        let bombadil = Address::random(&e);
+        let bombadil = Address::generate(&e);
         let pool = testutils::create_pool(&e);
-        let oracle = Address::random(&e);
+        let oracle = Address::generate(&e);
 
         let (underlying, _) = testutils::create_token_contract(&e, &bombadil);
         let (reserve_config, mut reserve_data) = testutils::default_reserve_meta();
@@ -296,14 +296,14 @@ mod tests {
             sequence_number: 123456,
             network_id: Default::default(),
             base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2000000,
         });
 
-        let bombadil = Address::random(&e);
+        let bombadil = Address::generate(&e);
         let pool = testutils::create_pool(&e);
-        let oracle = Address::random(&e);
+        let oracle = Address::generate(&e);
 
         let (underlying, _) = testutils::create_token_contract(&e, &bombadil);
         let (reserve_config, mut reserve_data) = testutils::default_reserve_meta();
@@ -344,14 +344,14 @@ mod tests {
             sequence_number: 123456,
             network_id: Default::default(),
             base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2000000,
         });
 
-        let bombadil = Address::random(&e);
+        let bombadil = Address::generate(&e);
         let pool = testutils::create_pool(&e);
-        let oracle = Address::random(&e);
+        let oracle = Address::generate(&e);
 
         let (underlying, _) = testutils::create_token_contract(&e, &bombadil);
         let (reserve_config, mut reserve_data) = testutils::default_reserve_meta();
@@ -392,14 +392,14 @@ mod tests {
             sequence_number: 123456,
             network_id: Default::default(),
             base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2000000,
         });
 
-        let bombadil = Address::random(&e);
+        let bombadil = Address::generate(&e);
         let pool = testutils::create_pool(&e);
-        let oracle = Address::random(&e);
+        let oracle = Address::generate(&e);
 
         let (underlying, _) = testutils::create_token_contract(&e, &bombadil);
         let (reserve_config, mut reserve_data) = testutils::default_reserve_meta();

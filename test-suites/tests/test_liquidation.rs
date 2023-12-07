@@ -1,7 +1,7 @@
 #![cfg(test)]
 use cast::i128;
-use fixed_point_math::FixedPoint;
 use pool::{PoolDataKey, Positions, Request, ReserveConfig, ReserveData};
+use soroban_fixed_point_math::FixedPoint;
 use soroban_sdk::{
     testutils::{Address as AddressTestTrait, Events},
     vec, Address, Error, IntoVal, Symbol, Val, Vec,
@@ -36,7 +36,7 @@ fn test_liquidations() {
         .update_reserve(&fixture.tokens[TokenIndex::WETH].address, &weth_config);
 
     // Create a user
-    let samwise = Address::random(&fixture.env); //sam will be supplying XLM and borrowing STABLE
+    let samwise = Address::generate(&fixture.env); //sam will be supplying XLM and borrowing STABLE
 
     // Mint users tokens
     fixture.tokens[TokenIndex::XLM].mint(&samwise, &(500_000 * SCALAR_7));
@@ -938,7 +938,7 @@ fn test_user_restore_position_and_delete_liquidation() {
     let xlm_pool_index = pool_fixture.reserves[&TokenIndex::XLM];
 
     // Create a user that is supply STABLE (cf = 90%, $1) and borrowing XLM (lf = 75%, $0.10)
-    let samwise = Address::random(&fixture.env);
+    let samwise = Address::generate(&fixture.env);
     fixture.tokens[TokenIndex::STABLE].mint(&samwise, &(1100 * 10i128.pow(6)));
 
     // deposit $1k stable and borrow to 90% borrow limit ($810)
@@ -978,7 +978,7 @@ fn test_user_restore_position_and_delete_liquidation() {
         &fixture.env,
         Request {
             request_type: 9,
-            address: Address::random(&fixture.env),
+            address: Address::generate(&fixture.env),
             amount: i128::MAX,
         },
     ];
@@ -998,7 +998,7 @@ fn test_user_restore_position_and_delete_liquidation() {
         },
         Request {
             request_type: 9,
-            address: Address::random(&fixture.env),
+            address: Address::generate(&fixture.env),
             amount: i128::MAX,
         },
     ];
@@ -1015,7 +1015,7 @@ fn test_user_restore_position_and_delete_liquidation() {
         &fixture.env,
         Request {
             request_type: 9,
-            address: Address::random(&fixture.env),
+            address: Address::generate(&fixture.env),
             amount: i128::MAX,
         },
         Request {
@@ -1043,7 +1043,7 @@ fn test_user_restore_position_and_delete_liquidation() {
         },
         Request {
             request_type: 9,
-            address: Address::random(&fixture.env),
+            address: Address::generate(&fixture.env),
             amount: i128::MAX,
         },
         Request {

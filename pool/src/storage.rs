@@ -135,10 +135,10 @@ pub enum PoolDataKey {
 /********** Storage **********/
 
 /// Bump the instance rent for the contract
-pub fn bump_instance(e: &Env) {
+pub fn extend_instance(e: &Env) {
     e.storage()
         .instance()
-        .bump(LEDGER_THRESHOLD_SHARED, LEDGER_BUMP_SHARED);
+        .extend_ttl(LEDGER_THRESHOLD_SHARED, LEDGER_BUMP_SHARED);
 }
 
 /// Fetch an entry in persistent storage that has a default value if it doesn't exist
@@ -152,7 +152,7 @@ fn get_persistent_default<K: IntoVal<Env, Val>, V: TryFromVal<Env, Val>>(
     if let Some(result) = e.storage().persistent().get::<K, V>(key) {
         e.storage()
             .persistent()
-            .bump(key, bump_threshold, bump_amount);
+            .extend_ttl(key, bump_threshold, bump_amount);
         result
     } else {
         default
@@ -188,7 +188,7 @@ pub fn set_user_positions(e: &Env, user: &Address, positions: &Positions) {
         .set::<PoolDataKey, Positions>(&key, positions);
     e.storage()
         .persistent()
-        .bump(&key, LEDGER_THRESHOLD_USER, LEDGER_BUMP_USER);
+        .extend_ttl(&key, LEDGER_THRESHOLD_USER, LEDGER_BUMP_USER);
 }
 
 /********** Admin **********/
@@ -328,7 +328,7 @@ pub fn get_res_config(e: &Env, asset: &Address) -> ReserveConfig {
     let key = PoolDataKey::ResConfig(asset.clone());
     e.storage()
         .persistent()
-        .bump(&key, LEDGER_THRESHOLD_SHARED, LEDGER_BUMP_SHARED);
+        .extend_ttl(&key, LEDGER_THRESHOLD_SHARED, LEDGER_BUMP_SHARED);
     e.storage()
         .persistent()
         .get::<PoolDataKey, ReserveConfig>(&key)
@@ -347,7 +347,7 @@ pub fn set_res_config(e: &Env, asset: &Address, config: &ReserveConfig) {
         .set::<PoolDataKey, ReserveConfig>(&key, config);
     e.storage()
         .persistent()
-        .bump(&key, LEDGER_THRESHOLD_SHARED, LEDGER_BUMP_SHARED);
+        .extend_ttl(&key, LEDGER_THRESHOLD_SHARED, LEDGER_BUMP_SHARED);
 }
 
 /// Checks if a reserve exists for an asset
@@ -372,7 +372,7 @@ pub fn get_res_data(e: &Env, asset: &Address) -> ReserveData {
     let key = PoolDataKey::ResData(asset.clone());
     e.storage()
         .persistent()
-        .bump(&key, LEDGER_THRESHOLD_SHARED, LEDGER_BUMP_SHARED);
+        .extend_ttl(&key, LEDGER_THRESHOLD_SHARED, LEDGER_BUMP_SHARED);
     e.storage()
         .persistent()
         .get::<PoolDataKey, ReserveData>(&key)
@@ -391,7 +391,7 @@ pub fn set_res_data(e: &Env, asset: &Address, data: &ReserveData) {
         .set::<PoolDataKey, ReserveData>(&key, data);
     e.storage()
         .persistent()
-        .bump(&key, LEDGER_THRESHOLD_SHARED, LEDGER_BUMP_SHARED);
+        .extend_ttl(&key, LEDGER_THRESHOLD_SHARED, LEDGER_BUMP_SHARED);
 }
 
 /********** Reserve List (ResList) **********/
@@ -426,7 +426,7 @@ pub fn push_res_list(e: &Env, asset: &Address) -> u32 {
     e.storage()
         .persistent()
         .set::<Symbol, Vec<Address>>(&Symbol::new(e, RES_LIST_KEY), &res_list);
-    e.storage().persistent().bump(
+    e.storage().persistent().extend_ttl(
         &Symbol::new(e, RES_LIST_KEY),
         LEDGER_THRESHOLD_SHARED,
         LEDGER_BUMP_SHARED,
@@ -467,7 +467,7 @@ pub fn set_res_emis_config(
         .set::<PoolDataKey, ReserveEmissionsConfig>(&key, res_emis_config);
     e.storage()
         .persistent()
-        .bump(&key, LEDGER_THRESHOLD_SHARED, LEDGER_BUMP_SHARED);
+        .extend_ttl(&key, LEDGER_THRESHOLD_SHARED, LEDGER_BUMP_SHARED);
 }
 
 /// Fetch the emission data for the reserve b or d token
@@ -497,7 +497,7 @@ pub fn set_res_emis_data(e: &Env, res_token_index: &u32, res_emis_data: &Reserve
         .set::<PoolDataKey, ReserveEmissionsData>(&key, res_emis_data);
     e.storage()
         .persistent()
-        .bump(&key, LEDGER_THRESHOLD_SHARED, LEDGER_BUMP_SHARED);
+        .extend_ttl(&key, LEDGER_THRESHOLD_SHARED, LEDGER_BUMP_SHARED);
 }
 
 /********** User Emissions **********/
@@ -563,7 +563,7 @@ pub fn set_pool_emissions(e: &Env, emissions: &Map<u32, u64>) {
     e.storage()
         .persistent()
         .set::<Symbol, Map<u32, u64>>(&Symbol::new(e, POOL_EMIS_KEY), emissions);
-    e.storage().persistent().bump(
+    e.storage().persistent().extend_ttl(
         &Symbol::new(e, POOL_EMIS_KEY),
         LEDGER_THRESHOLD_SHARED,
         LEDGER_BUMP_SHARED,
@@ -620,7 +620,7 @@ pub fn set_auction(e: &Env, auction_type: &u32, user: &Address, auction_data: &A
         .set::<PoolDataKey, AuctionData>(&key, auction_data);
     e.storage()
         .temporary()
-        .bump(&key, LEDGER_THRESHOLD_SHARED, LEDGER_BUMP_SHARED);
+        .extend_ttl(&key, LEDGER_THRESHOLD_SHARED, LEDGER_BUMP_SHARED);
 }
 
 /// Remove an auction

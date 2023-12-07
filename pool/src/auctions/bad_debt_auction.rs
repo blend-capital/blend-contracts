@@ -6,7 +6,7 @@ use crate::{
     storage,
 };
 use cast::i128;
-use fixed_point_math::FixedPoint;
+use soroban_fixed_point_math::FixedPoint;
 use soroban_sdk::{map, panic_with_error, unwrap::UnwrapOptimized, Address, Env};
 
 use super::{AuctionData, AuctionType};
@@ -131,8 +131,8 @@ mod tests {
         e.budget().reset_unlimited(); // setup exhausts budget
 
         let pool_address = create_pool(&e);
-        let bombadil = Address::random(&e);
-        let samwise = Address::random(&e);
+        let bombadil = Address::generate(&e);
+        let samwise = Address::generate(&e);
 
         let (blnd, blnd_client) = testutils::create_blnd_token(&e, &pool_address, &bombadil);
         let (usdc, usdc_client) = testutils::create_usdc_token(&e, &pool_address, &bombadil);
@@ -166,9 +166,9 @@ mod tests {
             sequence_number: 100,
             network_id: Default::default(),
             base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2000000,
         });
 
         let auction_data = AuctionData {
@@ -200,13 +200,13 @@ mod tests {
             sequence_number: 50,
             network_id: Default::default(),
             base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2000000,
         });
 
-        let bombadil = Address::random(&e);
-        let samwise = Address::random(&e);
+        let bombadil = Address::generate(&e);
+        let samwise = Address::generate(&e);
         let pool_address = create_pool(&e);
 
         let (blnd, blnd_client) = testutils::create_blnd_token(&e, &pool_address, &bombadil);
@@ -333,13 +333,13 @@ mod tests {
             sequence_number: 50,
             network_id: Default::default(),
             base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2000000,
         });
 
-        let bombadil = Address::random(&e);
-        let samwise = Address::random(&e);
+        let bombadil = Address::generate(&e);
+        let samwise = Address::generate(&e);
 
         let pool_address = create_pool(&e);
         let (blnd, blnd_client) = testutils::create_blnd_token(&e, &pool_address, &bombadil);
@@ -467,13 +467,13 @@ mod tests {
             sequence_number: 150,
             network_id: Default::default(),
             base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2000000,
         });
 
-        let bombadil = Address::random(&e);
-        let samwise = Address::random(&e);
+        let bombadil = Address::generate(&e);
+        let samwise = Address::generate(&e);
         let pool_address = create_pool(&e);
 
         let (blnd, blnd_client) = testutils::create_blnd_token(&e, &pool_address, &bombadil);
@@ -601,13 +601,13 @@ mod tests {
             sequence_number: 51,
             network_id: Default::default(),
             base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2000000,
         });
 
-        let bombadil = Address::random(&e);
-        let samwise = Address::random(&e);
+        let bombadil = Address::generate(&e);
+        let samwise = Address::generate(&e);
 
         let pool_address = create_pool(&e);
 
@@ -676,7 +676,7 @@ mod tests {
             &reserve_data_2,
         );
         let pool_config = PoolConfig {
-            oracle: Address::random(&e),
+            oracle: Address::generate(&e),
             bstop_rate: 0_100_000_000,
             status: 0,
         };
@@ -745,13 +745,13 @@ mod tests {
             sequence_number: 51,
             network_id: Default::default(),
             base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2000000,
         });
 
-        let bombadil = Address::random(&e);
-        let samwise = Address::random(&e);
+        let bombadil = Address::generate(&e);
+        let samwise = Address::generate(&e);
         let pool_address = create_pool(&e);
 
         let (blnd, blnd_client) = testutils::create_blnd_token(&e, &pool_address, &bombadil);
@@ -819,7 +819,7 @@ mod tests {
             &reserve_data_2,
         );
         let pool_config = PoolConfig {
-            oracle: Address::random(&e),
+            oracle: Address::generate(&e),
             bstop_rate: 0_100_000_000,
             status: 0,
         };
@@ -895,13 +895,13 @@ mod tests {
             sequence_number: 51,
             network_id: Default::default(),
             base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2000000,
         });
 
-        let bombadil = Address::random(&e);
-        let samwise = Address::random(&e);
+        let bombadil = Address::generate(&e);
+        let samwise = Address::generate(&e);
         let pool_address = create_pool(&e);
 
         let (blnd, blnd_client) = testutils::create_blnd_token(&e, &pool_address, &bombadil);
@@ -969,7 +969,7 @@ mod tests {
             &reserve_data_2,
         );
         let pool_config = PoolConfig {
-            oracle: Address::random(&e),
+            oracle: Address::generate(&e),
             bstop_rate: 0_100_000_000,
             status: 0,
         };

@@ -70,13 +70,13 @@ mod tests {
             sequence_number: 50,
             network_id: Default::default(),
             base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2000000,
         });
 
         let emitter = create_emitter(&e);
-        let backstop = Address::random(&e);
+        let backstop = Address::generate(&e);
 
         let blnd_id = e.register_stellar_asset_contract(emitter.clone());
         let blnd_client = MockTokenClient::new(&e, &blnd_id);
@@ -104,15 +104,15 @@ mod tests {
             sequence_number: 5000000,
             network_id: Default::default(),
             base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2000000,
         });
 
-        let frodo = Address::random(&e);
-        let samwise = Address::random(&e);
+        let frodo = Address::generate(&e);
+        let samwise = Address::generate(&e);
         let emitter = create_emitter(&e);
-        let backstop = Address::random(&e);
+        let backstop = Address::generate(&e);
 
         let blnd_id = e.register_stellar_asset_contract(emitter.clone());
         let blnd_client = MockTokenClient::new(&e, &blnd_id);
@@ -147,15 +147,15 @@ mod tests {
             sequence_number: 5000000,
             network_id: Default::default(),
             base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2000000,
         });
 
-        let frodo = Address::random(&e);
-        let samwise = Address::random(&e);
+        let frodo = Address::generate(&e);
+        let samwise = Address::generate(&e);
         let emitter = create_emitter(&e);
-        let backstop = Address::random(&e);
+        let backstop = Address::generate(&e);
 
         let blnd_id = e.register_stellar_asset_contract(emitter.clone());
         let drop_list = map![
@@ -188,15 +188,15 @@ mod tests {
             sequence_number: 5000000,
             network_id: Default::default(),
             base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2000000,
         });
 
-        let frodo = Address::random(&e);
-        let samwise = Address::random(&e);
+        let frodo = Address::generate(&e);
+        let samwise = Address::generate(&e);
         let emitter = create_emitter(&e);
-        let backstop = Address::random(&e);
+        let backstop = Address::generate(&e);
 
         let blnd_id = e.register_stellar_asset_contract(emitter.clone());
         let drop_list = map![
@@ -228,16 +228,16 @@ mod tests {
             sequence_number: 5000000,
             network_id: Default::default(),
             base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2000000,
         });
 
-        let bombadil = Address::random(&e);
-        let frodo = Address::random(&e);
-        let samwise = Address::random(&e);
+        let bombadil = Address::generate(&e);
+        let frodo = Address::generate(&e);
+        let samwise = Address::generate(&e);
         let emitter = create_emitter(&e);
-        let backstop = Address::random(&e);
+        let backstop = Address::generate(&e);
 
         let blnd_id = e.register_stellar_asset_contract(bombadil.clone());
         let drop_list = map![

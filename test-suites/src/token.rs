@@ -15,7 +15,7 @@ pub fn create_token<'a>(
     decimals: u32,
     symbol: &str,
 ) -> (Address, MockTokenClient<'a>) {
-    let contract_id = Address::random(e);
+    let contract_id = Address::generate(e);
     e.register_contract_wasm(&contract_id, MockTokenWASM);
     let client = MockTokenClient::new(e, &contract_id);
     client.initialize(

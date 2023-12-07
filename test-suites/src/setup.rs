@@ -52,7 +52,7 @@ pub fn create_fixture_with_data<'a>(wasm: bool) -> TestFixture<'a> {
     pool_fixture.pool.set_emissions_config(&reserve_emissions);
 
     // mint whale tokens
-    let frodo = Address::random(&fixture.env);
+    let frodo = Address::generate(&fixture.env);
     fixture.users.push(frodo.clone());
     fixture.tokens[TokenIndex::STABLE].mint(&frodo, &(100_000 * 10i128.pow(6)));
     fixture.tokens[TokenIndex::XLM].mint(&frodo, &(1_000_000 * SCALAR_7));
@@ -80,7 +80,7 @@ pub fn create_fixture_with_data<'a>(wasm: bool) -> TestFixture<'a> {
     fixture.backstop.update_tkn_val();
     fixture
         .backstop
-        .add_reward(&pool_fixture.pool.address, &Address::random(&fixture.env));
+        .add_reward(&pool_fixture.pool.address, &Address::generate(&fixture.env));
     pool_fixture.pool.update_status();
 
     // enable emissions

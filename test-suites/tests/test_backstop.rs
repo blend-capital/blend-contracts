@@ -1,6 +1,6 @@
 #![cfg(test)]
 
-use fixed_point_math::FixedPoint;
+use soroban_fixed_point_math::FixedPoint;
 use soroban_sdk::{
     testutils::{Address as _, AuthorizedFunction, AuthorizedInvocation, Events},
     vec, Address, IntoVal, Map, Symbol, Val, Vec,
@@ -20,15 +20,15 @@ fn test_backstop() {
 
     let pool = &fixture.pools[0].pool;
     let bstop_token = &fixture.lp;
-    let sam = Address::random(&fixture.env);
+    let sam = Address::generate(&fixture.env);
 
     // Verify initialization can't be re-run
     let result = fixture.backstop.try_initialize(
-        &Address::random(&fixture.env),
-        &Address::random(&fixture.env),
-        &Address::random(&fixture.env),
-        &Address::random(&fixture.env),
-        &Address::random(&fixture.env),
+        &Address::generate(&fixture.env),
+        &Address::generate(&fixture.env),
+        &Address::generate(&fixture.env),
+        &Address::generate(&fixture.env),
+        &Address::generate(&fixture.env),
         &Map::new(&fixture.env),
     );
     assert!(result.is_err());

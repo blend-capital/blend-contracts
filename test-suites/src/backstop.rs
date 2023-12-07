@@ -6,7 +6,7 @@ mod backstop_contract_wasm {
 use backstop::{BackstopClient, BackstopContract};
 
 pub fn create_backstop<'a>(e: &Env, wasm: bool) -> (Address, BackstopClient<'a>) {
-    let contract_id = Address::random(e);
+    let contract_id = Address::generate(e);
     if wasm {
         e.register_contract_wasm(&contract_id, backstop_contract_wasm::WASM);
     } else {

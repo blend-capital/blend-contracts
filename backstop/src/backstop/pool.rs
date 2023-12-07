@@ -1,4 +1,4 @@
-use fixed_point_math::FixedPoint;
+use soroban_fixed_point_math::FixedPoint;
 use soroban_sdk::{contracttype, panic_with_error, unwrap::UnwrapOptimized, Address, Env};
 
 use crate::{constants::SCALAR_7, dependencies::PoolFactoryClient, errors::BackstopError, storage};
@@ -191,7 +191,7 @@ mod tests {
         let e = Env::default();
 
         let backstop_address = create_backstop(&e);
-        let pool = Address::random(&e);
+        let pool = Address::generate(&e);
 
         e.as_contract(&backstop_address, || {
             storage::set_pool_balance(
@@ -221,7 +221,7 @@ mod tests {
         let e = Env::default();
 
         let backstop_address = create_backstop(&e);
-        let pool_address = Address::random(&e);
+        let pool_address = Address::generate(&e);
 
         let (_, mock_pool_factory) = create_mock_pool_factory(&e, &backstop_address);
         mock_pool_factory.set_pool(&pool_address);
@@ -237,7 +237,7 @@ mod tests {
         let e = Env::default();
 
         let backstop_address = create_backstop(&e);
-        let pool_address = Address::random(&e);
+        let pool_address = Address::generate(&e);
 
         // don't initialize factory to force failure if pool_address is checked
 
@@ -253,8 +253,8 @@ mod tests {
         let e = Env::default();
 
         let backstop_address = create_backstop(&e);
-        let pool_address = Address::random(&e);
-        let not_pool_address = Address::random(&e);
+        let pool_address = Address::generate(&e);
+        let not_pool_address = Address::generate(&e);
 
         let (_, mock_pool_factory) = create_mock_pool_factory(&e, &backstop_address);
         mock_pool_factory.set_pool(&pool_address);

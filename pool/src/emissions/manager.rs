@@ -5,7 +5,7 @@ use crate::{
     storage::{self, ReserveEmissionsConfig, ReserveEmissionsData},
 };
 use cast::{i128, u64};
-use fixed_point_math::FixedPoint;
+use soroban_fixed_point_math::FixedPoint;
 use soroban_sdk::{
     contracttype, map, panic_with_error, unwrap::UnwrapOptimized, Address, Env, Map, Symbol, Vec,
 };
@@ -163,13 +163,13 @@ mod tests {
             sequence_number: 20100,
             network_id: Default::default(),
             base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2000000,
         });
 
         let pool = testutils::create_pool(&e);
-        let bombadil = Address::random(&e);
+        let bombadil = Address::generate(&e);
 
         let new_emissions: i128 = 302_400_0000000;
         let pool_emissions: Map<u32, u64> = map![&e];
@@ -202,13 +202,13 @@ mod tests {
             sequence_number: 20100,
             network_id: Default::default(),
             base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2000000,
         });
 
         let pool = testutils::create_pool(&e);
-        let bombadil = Address::random(&e);
+        let bombadil = Address::generate(&e);
 
         let new_emissions: i128 = 302_400_0000000;
         let pool_emissions: Map<u32, u64> = map![
@@ -298,13 +298,13 @@ mod tests {
             sequence_number: 20100,
             network_id: Default::default(),
             base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2000000,
         });
 
         let pool = testutils::create_pool(&e);
-        let bombadil = Address::random(&e);
+        let bombadil = Address::generate(&e);
 
         let new_emissions: i128 = 1000000;
         let pool_emissions: Map<u32, u64> = map![
@@ -368,13 +368,13 @@ mod tests {
             sequence_number: 20100,
             network_id: Default::default(),
             base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2000000,
         });
 
         let pool = testutils::create_pool(&e);
-        let bombadil = Address::random(&e);
+        let bombadil = Address::generate(&e);
 
         let (reserve_config, reserve_data) = testutils::default_reserve_meta();
         let (underlying_0, _) = testutils::create_token_contract(&e, &bombadil);
@@ -423,13 +423,13 @@ mod tests {
             sequence_number: 20100,
             network_id: Default::default(),
             base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2000000,
         });
 
         let pool = testutils::create_pool(&e);
-        let bombadil = Address::random(&e);
+        let bombadil = Address::generate(&e);
 
         let (reserve_config, reserve_data) = testutils::default_reserve_meta();
         let (underlying_0, _) = testutils::create_token_contract(&e, &bombadil);
@@ -474,13 +474,13 @@ mod tests {
             sequence_number: 20100,
             network_id: Default::default(),
             base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2000000,
         });
 
         let pool = testutils::create_pool(&e);
-        let bombadil = Address::random(&e);
+        let bombadil = Address::generate(&e);
 
         let (reserve_config, reserve_data) = testutils::default_reserve_meta();
         let (underlying_0, _) = testutils::create_token_contract(&e, &bombadil);

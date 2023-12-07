@@ -79,15 +79,15 @@ mod tests {
             sequence_number: 1234,
             network_id: Default::default(),
             base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2000000,
         });
 
-        let bombadil = Address::random(&e);
-        let samwise = Address::random(&e);
-        let frodo = Address::random(&e);
-        let merry = Address::random(&e);
+        let bombadil = Address::generate(&e);
+        let samwise = Address::generate(&e);
+        let frodo = Address::generate(&e);
+        let merry = Address::generate(&e);
         let pool = testutils::create_pool(&e);
         let (oracle, oracle_client) = testutils::create_mock_oracle(&e);
 
@@ -167,10 +167,10 @@ mod tests {
         let e = Env::default();
         e.mock_all_auths();
 
-        let bombadil = Address::random(&e);
-        let samwise = Address::random(&e);
-        let frodo = Address::random(&e);
-        let merry = Address::random(&e);
+        let bombadil = Address::generate(&e);
+        let samwise = Address::generate(&e);
+        let frodo = Address::generate(&e);
+        let merry = Address::generate(&e);
         let pool = testutils::create_pool(&e);
         let (oracle, oracle_client) = testutils::create_mock_oracle(&e);
 
@@ -203,9 +203,9 @@ mod tests {
             sequence_number: 1234,
             network_id: Default::default(),
             base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2000000,
         });
         let pool_config = PoolConfig {
             oracle,

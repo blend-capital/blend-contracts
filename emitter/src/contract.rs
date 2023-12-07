@@ -75,7 +75,7 @@ pub trait Emitter {
 #[contractimpl]
 impl Emitter for EmitterContract {
     fn initialize(e: Env, blnd_token: Address, backstop: Address, backstop_token: Address) {
-        storage::bump_instance(&e);
+        storage::extend_instance(&e);
         if storage::has_blnd_token(&e) {
             panic_with_error!(&e, EmitterError::AlreadyInitialized)
         }
@@ -87,7 +87,7 @@ impl Emitter for EmitterContract {
     }
 
     fn distribute(e: Env) -> i128 {
-        storage::bump_instance(&e);
+        storage::extend_instance(&e);
         let backstop_address = storage::get_backstop(&e);
 
         let distribution_amount = emitter::execute_distribute(&e, &backstop_address);
@@ -108,7 +108,7 @@ impl Emitter for EmitterContract {
     }
 
     fn queue_swap_backstop(e: Env, new_backstop: Address, new_backstop_token: Address) {
-        storage::bump_instance(&e);
+        storage::extend_instance(&e);
         let swap =
             backstop_manager::execute_queue_swap_backstop(&e, &new_backstop, &new_backstop_token);
 
@@ -120,21 +120,21 @@ impl Emitter for EmitterContract {
     }
 
     fn cancel_swap_backstop(e: Env) {
-        storage::bump_instance(&e);
+        storage::extend_instance(&e);
         let swap = backstop_manager::execute_cancel_swap_backstop(&e);
 
         e.events().publish((Symbol::new(&e, "del_swap"),), swap);
     }
 
     fn swap_backstop(e: Env) {
-        storage::bump_instance(&e);
+        storage::extend_instance(&e);
         let swap = backstop_manager::execute_swap_backstop(&e);
 
         e.events().publish((Symbol::new(&e, "swap"),), swap);
     }
 
     fn drop(e: Env, list: Map<Address, i128>) {
-        storage::bump_instance(&e);
+        storage::extend_instance(&e);
         emitter::execute_drop(&e, &list);
 
         e.events().publish((Symbol::new(&e, "drop"),), list);

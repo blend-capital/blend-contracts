@@ -26,20 +26,20 @@ codegen-units = 1
 lto = true
 
 [workspace.dependencies.soroban-sdk]
-version = "20.0.0-rc2"
+version = "20.0.0"
 
-[workspace.dependencies.fixed-point-math]
-version = "0.0.2"
+[workspace.dependencies.soroban-fixed-point-math]
+version = "1.0.0"
 
 [workspace.dependencies.cast]
 version = "0.3.0"
 default-features = false
 
 [workspace.dependencies.sep-40-oracle]
-version = "0.1.1"
+version = "0.2.0"
 
 [workspace.dependencies.sep-41-token]
-version = "0.2.1"
+version = "0.3.0"
 
 [workspace.dependencies.blend-interfaces]
 path = "./blend-interfaces"

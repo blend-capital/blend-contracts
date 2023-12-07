@@ -1,5 +1,5 @@
 use crate::test_fixture::SCALAR_7;
-use fixed_point_math::FixedPoint;
+use soroban_fixed_point_math::FixedPoint;
 
 pub fn assert_approx_eq_abs(a: i128, b: i128, delta: i128) {
     assert!(

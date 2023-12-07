@@ -16,7 +16,7 @@ testutils = [
 
 [dependencies]
 soroban-sdk = { workspace = true }
-fixed-point-math = { workspace = true }
+soroban-fixed-point-math = { workspace = true }
 cast = { workspace = true }
 sep-40-oracle = { workspace = true }
 sep-41-token = { workspace = true}

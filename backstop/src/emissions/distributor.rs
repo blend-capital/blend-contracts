@@ -1,7 +1,7 @@
 //! Methods for distributing backstop emissions to depositors
 
 use cast::i128;
-use fixed_point_math::FixedPoint;
+use soroban_fixed_point_math::FixedPoint;
 use soroban_sdk::{unwrap::UnwrapOptimized, Address, Env};
 
 use crate::{
@@ -155,14 +155,14 @@ mod tests {
             sequence_number: 0,
             network_id: Default::default(),
             base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2000000,
         });
 
         let backstop_id = create_backstop(&e);
-        let pool_1 = Address::random(&e);
-        let samwise = Address::random(&e);
+        let pool_1 = Address::generate(&e);
+        let samwise = Address::generate(&e);
 
         let backstop_emissions_config = BackstopEmissionConfig {
             expiration: BACKSTOP_EPOCH + 7 * 24 * 60 * 60,
@@ -216,14 +216,14 @@ mod tests {
             sequence_number: 0,
             network_id: Default::default(),
             base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2000000,
         });
 
         let backstop_id = create_backstop(&e);
-        let pool_1 = Address::random(&e);
-        let samwise = Address::random(&e);
+        let pool_1 = Address::generate(&e);
+        let samwise = Address::generate(&e);
 
         e.as_contract(&backstop_id, || {
             storage::set_last_distribution_time(&e, &BACKSTOP_EPOCH);
@@ -259,14 +259,14 @@ mod tests {
             sequence_number: 0,
             network_id: Default::default(),
             base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2000000,
         });
 
         let backstop_id = create_backstop(&e);
-        let pool_1 = Address::random(&e);
-        let samwise = Address::random(&e);
+        let pool_1 = Address::generate(&e);
+        let samwise = Address::generate(&e);
 
         let backstop_emissions_config = BackstopEmissionConfig {
             expiration: BACKSTOP_EPOCH + 7 * 24 * 60 * 60,
@@ -320,14 +320,14 @@ mod tests {
             sequence_number: 0,
             network_id: Default::default(),
             base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2000000,
         });
 
         let backstop_id = create_backstop(&e);
-        let pool_1 = Address::random(&e);
-        let samwise = Address::random(&e);
+        let pool_1 = Address::generate(&e);
+        let samwise = Address::generate(&e);
 
         let backstop_emissions_config = BackstopEmissionConfig {
             expiration: BACKSTOP_EPOCH + 7 * 24 * 60 * 60,
@@ -376,14 +376,14 @@ mod tests {
             sequence_number: 0,
             network_id: Default::default(),
             base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2000000,
         });
 
         let backstop_id = create_backstop(&e);
-        let pool_1 = Address::random(&e);
-        let samwise = Address::random(&e);
+        let pool_1 = Address::generate(&e);
+        let samwise = Address::generate(&e);
 
         let backstop_emissions_config = BackstopEmissionConfig {
             expiration: BACKSTOP_EPOCH + 7 * 24 * 60 * 60,
@@ -431,14 +431,14 @@ mod tests {
             sequence_number: 0,
             network_id: Default::default(),
             base_reserve: 10,
-            min_temp_entry_expiration: 10,
-            min_persistent_entry_expiration: 10,
-            max_entry_expiration: 2000000,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2000000,
         });
 
         let backstop_id = create_backstop(&e);
-        let pool_1 = Address::random(&e);
-        let samwise = Address::random(&e);
+        let pool_1 = Address::generate(&e);
+        let samwise = Address::generate(&e);
 
         let backstop_emissions_config = BackstopEmissionConfig {
             expiration: BACKSTOP_EPOCH + 7 * 24 * 60 * 60,

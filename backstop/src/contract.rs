@@ -206,7 +206,7 @@ impl Backstop for BackstopContract {
         pool_factory: Address,
         drop_list: Map<Address, i128>,
     ) {
-        storage::bump_instance(&e);
+        storage::extend_instance(&e);
         if storage::has_backstop_token(&e) {
             panic_with_error!(e, BackstopError::AlreadyInitialized);
         }
@@ -229,7 +229,7 @@ impl Backstop for BackstopContract {
     /********** Core **********/
 
     fn deposit(e: Env, from: Address, pool_address: Address, amount: i128) -> i128 {
-        storage::bump_instance(&e);
+        storage::extend_instance(&e);
         from.require_auth();
 
         let to_mint = backstop::execute_deposit(&e, &from, &pool_address, amount);
@@ -242,7 +242,7 @@ impl Backstop for BackstopContract {
     }
 
     fn queue_withdrawal(e: Env, from: Address, pool_address: Address, amount: i128) -> Q4W {
-        storage::bump_instance(&e);
+        storage::extend_instance(&e);
         from.require_auth();
 
         let to_queue = backstop::execute_queue_withdrawal(&e, &from, &pool_address, amount);
@@ -255,7 +255,7 @@ impl Backstop for BackstopContract {
     }
 
     fn dequeue_withdrawal(e: Env, from: Address, pool_address: Address, amount: i128) {
-        storage::bump_instance(&e);
+        storage::extend_instance(&e);
         from.require_auth();
 
         backstop::execute_dequeue_withdrawal(&e, &from, &pool_address, amount);
@@ -267,7 +267,7 @@ impl Backstop for BackstopContract {
     }
 
     fn withdraw(e: Env, from: Address, pool_address: Address, amount: i128) -> i128 {
-        storage::bump_instance(&e);
+        storage::extend_instance(&e);
         from.require_auth();
 
         let to_withdraw = backstop::execute_withdraw(&e, &from, &pool_address, amount);
@@ -294,7 +294,7 @@ impl Backstop for BackstopContract {
     /********** Emissions **********/
 
     fn gulp_emissions(e: Env) {
-        storage::bump_instance(&e);
+        storage::extend_instance(&e);
         let new_tokens_emitted = emissions::gulp_emissions(&e);
 
         e.events()
@@ -302,7 +302,7 @@ impl Backstop for BackstopContract {
     }
 
     fn add_reward(e: Env, to_add: Address, to_remove: Address) {
-        storage::bump_instance(&e);
+        storage::extend_instance(&e);
         emissions::add_to_reward_zone(&e, to_add.clone(), to_remove.clone());
 
         e.events()
@@ -310,13 +310,13 @@ impl Backstop for BackstopContract {
     }
 
     fn gulp_pool_emissions(e: Env, pool_address: Address) -> i128 {
-        storage::bump_instance(&e);
+        storage::extend_instance(&e);
         pool_address.require_auth();
         emissions::gulp_pool_emissions(&e, &pool_address)
     }
 
     fn claim(e: Env, from: Address, pool_addresses: Vec<Address>, to: Address) -> i128 {
-        storage::bump_instance(&e);
+        storage::extend_instance(&e);
         from.require_auth();
 
         let amount = emissions::execute_claim(&e, &from, &pool_addresses, &to);
@@ -332,7 +332,7 @@ impl Backstop for BackstopContract {
     /********** Fund Management *********/
 
     fn draw(e: Env, pool_address: Address, amount: i128, to: Address) {
-        storage::bump_instance(&e);
+        storage::extend_instance(&e);
         pool_address.require_auth();
 
         backstop::execute_draw(&e, &pool_address, amount, &to);
@@ -342,7 +342,7 @@ impl Backstop for BackstopContract {
     }
 
     fn donate(e: Env, from: Address, pool_address: Address, amount: i128) {
-        storage::bump_instance(&e);
+        storage::extend_instance(&e);
         from.require_auth();
 
         backstop::execute_donate(&e, &from, &pool_address, amount);
@@ -351,7 +351,7 @@ impl Backstop for BackstopContract {
     }
 
     fn donate_usdc(e: Env, from: Address, pool_address: Address, amount: i128) {
-        storage::bump_instance(&e);
+        storage::extend_instance(&e);
         from.require_auth();
 
         backstop::execute_donate_usdc(&e, &from, &pool_address, amount);
@@ -360,21 +360,15 @@ impl Backstop for BackstopContract {
     }
 
     fn gulp_usdc(e: Env, pool_address: Address) {
-        storage::bump_instance(&e);
+        storage::extend_instance(&e);
 
         backstop::execute_gulp_usdc(&e, &pool_address);
-        e.events().publish(
-            (
-                Symbol::new(&e, "gulp_usdc"),
-                pool_address,
-                e.call_stack().last_unchecked().0,
-            ),
-            (),
-        );
+        e.events()
+            .publish((Symbol::new(&e, "gulp_usdc"), pool_address), ());
     }
 
     fn update_tkn_val(e: Env) -> (i128, i128) {
-        storage::bump_instance(&e);
+        storage::extend_instance(&e);
 
         let backstop_token = storage::get_backstop_token(&e);
         let blnd_token = storage::get_blnd_token(&e);

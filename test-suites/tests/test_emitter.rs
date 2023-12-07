@@ -24,9 +24,9 @@ fn test_emitter() {
 
     // Verify initialization can't be re-run
     let result = fixture.emitter.try_initialize(
-        &Address::random(&fixture.env),
-        &Address::random(&fixture.env),
-        &Address::random(&fixture.env),
+        &Address::generate(&fixture.env),
+        &Address::generate(&fixture.env),
+        &Address::generate(&fixture.env),
     );
     assert!(result.is_err());
     assert_eq!(
@@ -69,7 +69,7 @@ fn test_emitter() {
 
     // Mint enough tokens to a new backstop address to perform a swap, then queue the swap
     let old_backstop_balance = bstop_token.balance(&fixture.backstop.address);
-    let new_backstop = Address::random(&fixture.env);
+    let new_backstop = Address::generate(&fixture.env);
     fixture.tokens[TokenIndex::BLND].mint(&new_backstop, &(600_001 * SCALAR_7));
     fixture.tokens[TokenIndex::USDC].mint(&new_backstop, &(20_501 * SCALAR_7));
     fixture.lp.join_pool(

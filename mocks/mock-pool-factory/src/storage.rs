@@ -21,14 +21,16 @@ pub struct PoolInitMeta {
 }
 
 /// Bump the instance rent for the contract
-pub fn bump_instance(e: &Env) {
-    e.storage().instance().bump(LEDGER_THRESHOLD, LEDGER_BUMP);
+pub fn extend_instance(e: &Env) {
+    e.storage()
+        .instance()
+        .extend_ttl(LEDGER_THRESHOLD, LEDGER_BUMP);
 }
 
 /// Fetch the pool initialization metadata
 pub fn get_pool_init_meta(e: &Env) -> PoolInitMeta {
     // TODO: Change to instance - https://github.com/stellar/rs-soroban-sdk/issues/1040
-    e.storage().persistent().bump(
+    e.storage().persistent().extend_ttl(
         &PoolFactoryDataKey::PoolInitMeta,
         LEDGER_THRESHOLD,
         LEDGER_BUMP,
@@ -69,7 +71,7 @@ pub fn is_deployed(e: &Env, contract_id: &Address) -> bool {
     {
         e.storage()
             .persistent()
-            .bump(&key, LEDGER_THRESHOLD, LEDGER_BUMP);
+            .extend_ttl(&key, LEDGER_THRESHOLD, LEDGER_BUMP);
         result
     } else {
         false
@@ -87,5 +89,5 @@ pub fn set_deployed(e: &Env, contract_id: &Address) {
         .set::<PoolFactoryDataKey, bool>(&key, &true);
     e.storage()
         .persistent()
-        .bump(&key, LEDGER_THRESHOLD, LEDGER_BUMP);
+        .extend_ttl(&key, LEDGER_THRESHOLD, LEDGER_BUMP);
 }

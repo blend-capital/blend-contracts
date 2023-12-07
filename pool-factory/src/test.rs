@@ -25,13 +25,13 @@ fn test_pool_factory() {
 
     let wasm_hash = e.deployer().upload_contract_wasm(pool::WASM);
 
-    let bombadil = Address::random(&e);
+    let bombadil = Address::generate(&e);
 
-    let oracle = Address::random(&e);
-    let backstop_id = Address::random(&e);
+    let oracle = Address::generate(&e);
+    let backstop_id = Address::generate(&e);
     let backstop_rate: u64 = 100000;
-    let blnd_id = Address::random(&e);
-    let usdc_id = Address::random(&e);
+    let blnd_id = Address::generate(&e);
+    let usdc_id = Address::generate(&e);
 
     let pool_init_meta = PoolInitMeta {
         backstop: backstop_id.clone(),
@@ -68,7 +68,6 @@ fn test_pool_factory() {
     let deployed_pool_address_2 =
         pool_factory_client.deploy(&bombadil, &name2, &salt, &oracle, &backstop_rate);
 
-    let zero_address = Address::from_contract_id(&BytesN::from_array(&e, &[0; 32]));
     e.as_contract(&deployed_pool_address_1, || {
         assert_eq!(
             e.storage()
@@ -110,10 +109,8 @@ fn test_pool_factory() {
             usdc_id.clone()
         );
     });
-    assert_ne!(deployed_pool_address_1, zero_address);
-    assert_ne!(deployed_pool_address_2, zero_address);
     assert_ne!(deployed_pool_address_1, deployed_pool_address_2);
     assert!(pool_factory_client.is_pool(&deployed_pool_address_1));
     assert!(pool_factory_client.is_pool(&deployed_pool_address_2));
-    assert!(!pool_factory_client.is_pool(&zero_address));
+    assert!(!pool_factory_client.is_pool(&Address::generate(&e)));
 }

@@ -1,8 +1,8 @@
 use crate::{
     constants::SCALAR_7, contract::require_nonnegative, dependencies::CometClient, storage,
 };
-use fixed_point_math::FixedPoint;
 use sep_41_token::TokenClient;
+use soroban_fixed_point_math::FixedPoint;
 use soroban_sdk::{unwrap::UnwrapOptimized, Address, Env};
 
 use super::require_is_from_pool_factory;
@@ -116,10 +116,10 @@ mod tests {
         e.budget().reset_unlimited();
 
         let backstop_id = create_backstop(&e);
-        let pool_0_id = Address::random(&e);
-        let bombadil = Address::random(&e);
-        let samwise = Address::random(&e);
-        let frodo = Address::random(&e);
+        let pool_0_id = Address::generate(&e);
+        let bombadil = Address::generate(&e);
+        let samwise = Address::generate(&e);
+        let frodo = Address::generate(&e);
 
         let (_, backstop_token_client) = create_backstop_token(&e, &backstop_id, &bombadil);
         backstop_token_client.mint(&samwise, &100_0000000);
@@ -150,10 +150,10 @@ mod tests {
         e.budget().reset_unlimited();
 
         let backstop_id = create_backstop(&e);
-        let pool_0_id = Address::random(&e);
-        let bombadil = Address::random(&e);
-        let samwise = Address::random(&e);
-        let frodo = Address::random(&e);
+        let pool_0_id = Address::generate(&e);
+        let bombadil = Address::generate(&e);
+        let samwise = Address::generate(&e);
+        let frodo = Address::generate(&e);
 
         let (_, backstop_token_client) = create_backstop_token(&e, &backstop_id, &bombadil);
         backstop_token_client.mint(&samwise, &100_0000000);
@@ -180,10 +180,10 @@ mod tests {
         e.budget().reset_unlimited();
 
         let backstop_id = create_backstop(&e);
-        let pool_0_id = Address::random(&e);
-        let bombadil = Address::random(&e);
-        let samwise = Address::random(&e);
-        let frodo = Address::random(&e);
+        let pool_0_id = Address::generate(&e);
+        let bombadil = Address::generate(&e);
+        let samwise = Address::generate(&e);
+        let frodo = Address::generate(&e);
 
         let (_, backstop_token_client) = create_backstop_token(&e, &backstop_id, &bombadil);
         backstop_token_client.mint(&samwise, &100_0000000);
@@ -203,10 +203,10 @@ mod tests {
         e.budget().reset_unlimited();
 
         let backstop_address = create_backstop(&e);
-        let pool_0_id = Address::random(&e);
-        let bombadil = Address::random(&e);
-        let samwise = Address::random(&e);
-        let frodo = Address::random(&e);
+        let pool_0_id = Address::generate(&e);
+        let bombadil = Address::generate(&e);
+        let samwise = Address::generate(&e);
+        let frodo = Address::generate(&e);
 
         let (_, backstop_token_client) = create_backstop_token(&e, &backstop_address, &bombadil);
         backstop_token_client.mint(&frodo, &100_0000000);
@@ -238,11 +238,11 @@ mod tests {
         e.budget().reset_unlimited();
 
         let backstop_id = create_backstop(&e);
-        let pool_0_id = Address::random(&e);
-        let pool_1_id = Address::random(&e);
-        let bombadil = Address::random(&e);
-        let samwise = Address::random(&e);
-        let frodo = Address::random(&e);
+        let pool_0_id = Address::generate(&e);
+        let pool_1_id = Address::generate(&e);
+        let bombadil = Address::generate(&e);
+        let samwise = Address::generate(&e);
+        let frodo = Address::generate(&e);
 
         let (_, backstop_token_client) = create_backstop_token(&e, &backstop_id, &bombadil);
         backstop_token_client.mint(&frodo, &100_0000000);
@@ -270,10 +270,10 @@ mod tests {
         e.budget().reset_unlimited();
 
         let backstop_id = create_backstop(&e);
-        let pool_0_id = Address::random(&e);
-        let bombadil = Address::random(&e);
-        let samwise = Address::random(&e);
-        let frodo = Address::random(&e);
+        let pool_0_id = Address::generate(&e);
+        let bombadil = Address::generate(&e);
+        let samwise = Address::generate(&e);
+        let frodo = Address::generate(&e);
 
         let (_, backstop_token_client) = create_backstop_token(&e, &backstop_id, &bombadil);
         backstop_token_client.mint(&frodo, &100_0000000);
@@ -298,10 +298,10 @@ mod tests {
         e.budget().reset_unlimited();
 
         let backstop_id = create_backstop(&e);
-        let pool_0_id = Address::random(&e);
-        let bombadil = Address::random(&e);
-        let samwise = Address::random(&e);
-        let frodo = Address::random(&e);
+        let pool_0_id = Address::generate(&e);
+        let bombadil = Address::generate(&e);
+        let samwise = Address::generate(&e);
+        let frodo = Address::generate(&e);
 
         let (_, usdc_token_client) = create_usdc_token(&e, &backstop_id, &bombadil);
         usdc_token_client.mint(&samwise, &100_0000000);
@@ -333,9 +333,9 @@ mod tests {
         e.budget().reset_unlimited();
 
         let backstop_id = create_backstop(&e);
-        let pool_0_id = Address::random(&e);
-        let bombadil = Address::random(&e);
-        let samwise = Address::random(&e);
+        let pool_0_id = Address::generate(&e);
+        let bombadil = Address::generate(&e);
+        let samwise = Address::generate(&e);
 
         let (_, usdc_token_client) = create_usdc_token(&e, &backstop_id, &bombadil);
         usdc_token_client.mint(&samwise, &100_0000000);
@@ -356,9 +356,9 @@ mod tests {
         e.budget().reset_unlimited();
 
         let backstop_id = create_backstop(&e);
-        let pool_0_id = Address::random(&e);
-        let bombadil = Address::random(&e);
-        let samwise = Address::random(&e);
+        let pool_0_id = Address::generate(&e);
+        let bombadil = Address::generate(&e);
+        let samwise = Address::generate(&e);
 
         let (_, usdc_token_client) = create_usdc_token(&e, &backstop_id, &bombadil);
         usdc_token_client.mint(&samwise, &100_0000000);
@@ -377,9 +377,9 @@ mod tests {
         e.budget().reset_unlimited();
 
         let backstop_id = create_backstop(&e);
-        let pool_0_id = Address::random(&e);
-        let bombadil = Address::random(&e);
-        let samwise = Address::random(&e);
+        let pool_0_id = Address::generate(&e);
+        let bombadil = Address::generate(&e);
+        let samwise = Address::generate(&e);
 
         let (usdc_token, usdc_token_client) = create_usdc_token(&e, &backstop_id, &bombadil);
         usdc_token_client.mint(&samwise, &100_0000000);
@@ -424,8 +424,8 @@ mod tests {
         e.budget().reset_unlimited();
 
         let backstop_id = create_backstop(&e);
-        let bombadil = Address::random(&e);
-        let samwise = Address::random(&e);
+        let bombadil = Address::generate(&e);
+        let samwise = Address::generate(&e);
 
         let (usdc_token, usdc_token_client) = create_usdc_token(&e, &backstop_id, &bombadil);
         usdc_token_client.mint(&samwise, &100_0000000);

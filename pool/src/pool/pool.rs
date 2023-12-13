@@ -302,7 +302,7 @@ mod tests {
         let e = Env::default();
 
         let pool = testutils::create_pool(&e);
-        let oracle = Address::random(&e);
+        let oracle = Address::generate(&e);
         let pool_config = PoolConfig {
             oracle,
             bstop_rate: 0_200_000_000,
@@ -321,7 +321,7 @@ mod tests {
         let e = Env::default();
 
         let pool = testutils::create_pool(&e);
-        let oracle = Address::random(&e);
+        let oracle = Address::generate(&e);
         let pool_config = PoolConfig {
             oracle,
             bstop_rate: 0_200_000_000,

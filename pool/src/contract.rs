@@ -119,28 +119,35 @@ pub trait Pool {
     /// If the user has collateral posted
     fn bad_debt(e: Env, user: Address);
 
-    /// Update the pool status based on the backstop state
-    /// * 0 = active - if the minimum backstop deposit has been reached
-    /// * 1 = on ice - if the minimum backstop deposit has not been reached
-    ///                or 25% of backstop deposits are queued for withdrawal
-    /// * 2 = frozen - if 50% of backstop deposits are queued for withdrawal
+    /// Update the pool status based on the backstop state - backstop triggered status' are odd numbers
+    /// * 1 = backstop active - if the minimum backstop deposit has been reached
+    ///                and 30% of backstop deposits are not queued for withdrawal
+    ///                then all pool operations are permitted
+    /// * 3 = backstop on-ice - if the minimum backstop deposit has not been reached
+    ///                or 30% of backstop deposits are queued for withdrawal and admin active isn't set
+    ///                or 50% of backstop deposits are queued for withdrawal
+    ///                then borrowing and cancelling liquidations are not permitted
+    /// * 5 = backstop frozen - if 60% of backstop deposits are queued for withdrawal and admin on-ice isn't set
+    ///                or 75% of backstop deposits are queued for withdrawal
+    ///                then all borrowing, cancelling liquidations, and supplying are not permitted
     ///
     /// ### Panics
-    /// If the pool is currently of status 3, "admin-freeze", where only the admin
+    /// If the pool is currently on status 4, "admin-freeze", where only the admin
     /// can perform a status update via `set_status`
     fn update_status(e: Env) -> u32;
 
     /// (Admin only) Pool status is changed to "pool_status"
-    /// * 0 = active
-    /// * 1 = on ice
-    /// * 2 = frozen
-    /// * 3 = admin frozen (only the admin can unfreeze)
+    /// * 0 = admin active - requires that the backstop threshold is met
+    ///                 and less than 50% of backstop deposits are queued for withdrawal
+    /// * 2 = admin on-ice - requires that less than 75% of backstop deposits are queued for withdrawal
+    /// * 4 = admin frozen - can always be set
     ///
     /// ### Arguments
     /// * 'pool_status' - The pool status to be set
     ///
     /// ### Panics
     /// If the caller is not the admin
+    /// If the specified conditions are not met for the status to be set
     fn set_status(e: Env, pool_status: u32);
 
     /********* Emission Functions **********/
@@ -302,7 +309,7 @@ impl Pool for PoolContract {
     }
 
     fn update_status(e: Env) -> u32 {
-        storage::bump_instance(&e);
+        storage::extend_instance(&e);
         let new_status = pool::execute_update_pool_status(&e, 11); //status input is not used here
 
         e.events()
@@ -311,7 +318,7 @@ impl Pool for PoolContract {
     }
 
     fn set_status(e: Env, pool_status: u32) {
-        storage::bump_instance(&e);
+        storage::extend_instance(&e);
         pool::execute_update_pool_status(&e, pool_status);
     }
 

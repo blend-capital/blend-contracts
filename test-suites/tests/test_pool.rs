@@ -747,7 +747,7 @@ fn test_pool_config() {
         ]
     );
     //revert to standard status (admin only)
-    pool_fixture.pool.set_status(&3);
+    pool_fixture.pool.set_status(&0);
     assert_eq!(
         fixture.env.auths()[0],
         (
@@ -756,12 +756,37 @@ fn test_pool_config() {
                 function: AuthorizedFunction::Contract((
                     pool_fixture.pool.address.clone(),
                     Symbol::new(&fixture.env, "set_status"),
-                    vec![&fixture.env, 3u32.into_val(&fixture.env)]
+                    vec![&fixture.env, 0u32.into_val(&fixture.env)]
                 )),
                 sub_invocations: std::vec![]
             }
         )
     );
+    let new_pool_config = fixture.read_pool_config(0);
+    assert_eq!(new_pool_config.status, 0);
+    let event = vec![&fixture.env, fixture.env.events().all().last_unchecked()];
+    assert_eq!(
+        event,
+        vec![
+            &fixture.env,
+            (
+                pool_fixture.pool.address.clone(),
+                (Symbol::new(&fixture.env, "set_status"), new_admin.clone()).into_val(&fixture.env),
+                0u32.into_val(&fixture.env)
+            )
+        ]
+    );
+
+    // Queue 50% of backstop for withdrawal
+    fixture.backstop.queue_withdrawal(
+        &fixture.users[0],
+        &pool_fixture.pool.address,
+        &(25_000 * SCALAR_7),
+    );
+
+    // Update status (backstop is unhealthy, so this should update to backstop on-ice)
+    pool_fixture.pool.update_status();
+    assert_eq!(fixture.env.auths().len(), 0);
     let new_pool_config = fixture.read_pool_config(0);
     assert_eq!(new_pool_config.status, 3);
     let event = vec![&fixture.env, fixture.env.events().all().last_unchecked()];
@@ -771,10 +796,17 @@ fn test_pool_config() {
             &fixture.env,
             (
                 pool_fixture.pool.address.clone(),
-                (Symbol::new(&fixture.env, "set_status"), new_admin.clone()).into_val(&fixture.env),
+                (Symbol::new(&fixture.env, "set_status"),).into_val(&fixture.env),
                 3u32.into_val(&fixture.env)
             )
         ]
+    );
+
+    // Dequeue 50% of backstop for withdrawal
+    fixture.backstop.dequeue_withdrawal(
+        &fixture.users[0],
+        &pool_fixture.pool.address,
+        &(25_000 * SCALAR_7),
     );
 
     // Update status (backstop is healthy, so this should update to active)

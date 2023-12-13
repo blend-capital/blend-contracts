@@ -37,7 +37,7 @@ pub fn execute_initialize(
         &PoolConfig {
             oracle: oracle.clone(),
             bstop_rate: *bstop_rate,
-            status: 1,
+            status: 3,
         },
     );
     storage::set_blnd_token(e, blnd_id);
@@ -160,7 +160,7 @@ mod tests {
             let pool_config = storage::get_pool_config(&e);
             assert_eq!(pool_config.oracle, oracle);
             assert_eq!(pool_config.bstop_rate, bstop_rate);
-            assert_eq!(pool_config.status, 1);
+            assert_eq!(pool_config.status, 3);
             assert_eq!(storage::get_backstop(&e), backstop_address);
             assert_eq!(storage::get_blnd_token(&e), blnd_id);
             assert_eq!(storage::get_usdc_token(&e), usdc_id);

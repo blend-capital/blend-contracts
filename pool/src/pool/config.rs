@@ -2,7 +2,7 @@ use crate::{
     errors::PoolError,
     storage::{self, PoolConfig, ReserveConfig, ReserveData},
 };
-use soroban_sdk::{panic_with_error, Address, Env, Symbol};
+use soroban_sdk::{panic_with_error, Address, Env, Symbol, Vec};
 
 use super::pool::Pool;
 
@@ -19,6 +19,7 @@ pub fn execute_initialize(
     backstop_address: &Address,
     blnd_id: &Address,
     usdc_id: &Address,
+    reserves: &Vec<(Address, ReserveConfig)>,
 ) {
     if storage::has_admin(e) {
         panic_with_error!(e, PoolError::AlreadyInitialized);
@@ -42,6 +43,9 @@ pub fn execute_initialize(
     );
     storage::set_blnd_token(e, blnd_id);
     storage::set_usdc_token(e, usdc_id);
+    for (asset, config) in reserves.iter() {
+        initialize_reserve(e, &asset, &config);
+    }
 }
 
 /// Update the pool
@@ -55,8 +59,25 @@ pub fn execute_update_pool(e: &Env, backstop_take_rate: u64) {
     storage::set_pool_config(e, &pool_config);
 }
 
+/// Execute a queued reserve initialization for the pool
+pub fn execute_queued_reserve_initialization(e: &Env, asset: &Address) -> u32 {
+    let queued_init = storage::get_queued_reserve_init(e, asset);
+
+    if queued_init.unlock_block > e.ledger().sequence() {
+        panic_with_error!(e, PoolError::InitNotUnlocked);
+    }
+
+    // remove queued init
+    storage::del_queued_reserve_init(e, asset);
+
+    // initialize reserve
+    let index = initialize_reserve(e, asset, &queued_init.new_config);
+
+    index
+}
+
 /// Initialize a reserve for the pool
-pub fn initialize_reserve(e: &Env, asset: &Address, config: &ReserveConfig) -> u32 {
+fn initialize_reserve(e: &Env, asset: &Address, config: &ReserveConfig) -> u32 {
     if storage::has_res(e, asset) {
         panic_with_error!(e, PoolError::AlreadyInitialized);
     }
@@ -87,6 +108,8 @@ pub fn initialize_reserve(e: &Env, asset: &Address, config: &ReserveConfig) -> u
         backstop_credit: 0,
     };
     storage::set_res_data(e, asset, &init_data);
+    e.events()
+        .publish((Symbol::new(&e, "init_reserve"),), (asset, index));
     index
 }
 
@@ -126,10 +149,12 @@ fn require_valid_reserve_metadata(e: &Env, metadata: &ReserveConfig) {
 
 #[cfg(test)]
 mod tests {
+    use crate::storage::QueuedReserveInit;
     use crate::testutils;
 
     use super::*;
     use soroban_sdk::testutils::{Address as _, Ledger, LedgerInfo};
+    use soroban_sdk::vec;
 
     #[test]
     fn test_execute_initialize() {
@@ -143,6 +168,21 @@ mod tests {
         let backstop_address = Address::generate(&e);
         let blnd_id = Address::generate(&e);
         let usdc_id = Address::generate(&e);
+        let (asset_id_0, _) = testutils::create_token_contract(&e, &admin);
+        let (asset_id_1, _) = testutils::create_token_contract(&e, &admin);
+
+        let metadata = ReserveConfig {
+            index: 0,
+            decimals: 7,
+            c_factor: 0_7500000,
+            l_factor: 0_7500000,
+            util: 0_5000000,
+            max_util: 0_9500000,
+            r_one: 0_0500000,
+            r_two: 0_5000000,
+            r_three: 1_5000000,
+            reactivity: 100,
+        };
 
         e.as_contract(&pool, || {
             execute_initialize(
@@ -154,6 +194,11 @@ mod tests {
                 &backstop_address,
                 &blnd_id,
                 &usdc_id,
+                &vec![
+                    &e,
+                    (asset_id_0.clone(), metadata.clone()),
+                    (asset_id_1.clone(), metadata.clone()),
+                ],
             );
 
             assert_eq!(storage::get_admin(&e), admin);
@@ -164,6 +209,19 @@ mod tests {
             assert_eq!(storage::get_backstop(&e), backstop_address);
             assert_eq!(storage::get_blnd_token(&e), blnd_id);
             assert_eq!(storage::get_usdc_token(&e), usdc_id);
+            let res_config_0 = storage::get_res_config(&e, &asset_id_0);
+            let res_config_1 = storage::get_res_config(&e, &asset_id_1);
+            assert_eq!(res_config_0.decimals, metadata.decimals);
+            assert_eq!(res_config_0.c_factor, metadata.c_factor);
+            assert_eq!(res_config_0.l_factor, metadata.l_factor);
+            assert_eq!(res_config_0.util, metadata.util);
+            assert_eq!(res_config_0.max_util, metadata.max_util);
+            assert_eq!(res_config_0.r_one, metadata.r_one);
+            assert_eq!(res_config_0.r_two, metadata.r_two);
+            assert_eq!(res_config_0.r_three, metadata.r_three);
+            assert_eq!(res_config_0.reactivity, metadata.reactivity);
+            assert_eq!(res_config_0.index, 0);
+            assert_eq!(res_config_1.index, 1);
         });
     }
 
@@ -206,7 +264,82 @@ mod tests {
             execute_update_pool(&e, 1_000_000_000u64);
         });
     }
+    #[test]
+    fn test_execute_queued_initialize_reserve() {
+        let e = Env::default();
+        let pool = testutils::create_pool(&e);
+        let bombadil = Address::generate(&e);
 
+        let (asset_id_0, _) = testutils::create_token_contract(&e, &bombadil);
+
+        let metadata = ReserveConfig {
+            index: 0,
+            decimals: 7,
+            c_factor: 0_7500000,
+            l_factor: 0_7500000,
+            util: 0_5000000,
+            max_util: 0_9500000,
+            r_one: 0_0500000,
+            r_two: 0_5000000,
+            r_three: 1_5000000,
+            reactivity: 100,
+        };
+        e.as_contract(&pool, || {
+            storage::set_queued_reserve_init(
+                &e,
+                &QueuedReserveInit {
+                    new_config: metadata.clone(),
+                    unlock_block: e.ledger().sequence(),
+                },
+                &asset_id_0,
+            );
+            execute_queued_reserve_initialization(&e, &asset_id_0);
+            let res_config_0 = storage::get_res_config(&e, &asset_id_0);
+            assert_eq!(res_config_0.decimals, metadata.decimals);
+            assert_eq!(res_config_0.c_factor, metadata.c_factor);
+            assert_eq!(res_config_0.l_factor, metadata.l_factor);
+            assert_eq!(res_config_0.util, metadata.util);
+            assert_eq!(res_config_0.max_util, metadata.max_util);
+            assert_eq!(res_config_0.r_one, metadata.r_one);
+            assert_eq!(res_config_0.r_two, metadata.r_two);
+            assert_eq!(res_config_0.r_three, metadata.r_three);
+            assert_eq!(res_config_0.reactivity, metadata.reactivity);
+            assert_eq!(res_config_0.index, 0);
+        });
+    }
+    #[test]
+    #[should_panic(expected = "Error(Contract, #7)")]
+    fn test_execute_queued_initialize_reserve_requires_block_passed() {
+        let e = Env::default();
+        let pool = testutils::create_pool(&e);
+        let bombadil = Address::generate(&e);
+
+        let (asset_id_0, _) = testutils::create_token_contract(&e, &bombadil);
+
+        let metadata = ReserveConfig {
+            index: 0,
+            decimals: 7,
+            c_factor: 0_7500000,
+            l_factor: 0_7500000,
+            util: 0_5000000,
+            max_util: 0_9500000,
+            r_one: 0_0500000,
+            r_two: 0_5000000,
+            r_three: 1_5000000,
+            reactivity: 100,
+        };
+        e.as_contract(&pool, || {
+            storage::set_queued_reserve_init(
+                &e,
+                &QueuedReserveInit {
+                    new_config: metadata.clone(),
+                    unlock_block: e.ledger().sequence() + 1,
+                },
+                &asset_id_0,
+            );
+            execute_queued_reserve_initialization(&e, &asset_id_0);
+        });
+    }
     #[test]
     fn test_initialize_reserve() {
         let e = Env::default();

@@ -5,7 +5,7 @@ use crate::backstop::create_backstop;
 use crate::emitter::create_emitter;
 use crate::liquidity_pool::{create_lp_pool, LPClient};
 use crate::oracle::create_mock_oracle;
-use crate::pool::POOL_WASM;
+use crate::pool::{default_reserve_metadata, POOL_WASM};
 use crate::pool_factory::create_pool_factory;
 use crate::token::{create_stellar_token, create_token};
 use backstop::BackstopClient;
@@ -174,6 +174,7 @@ impl TestFixture<'_> {
             &BytesN::<32>::random(&self.env),
             &self.oracle.address,
             &backstop_take_rate,
+            &svec![&self.env,],
         );
         self.pools.push(PoolFixture {
             pool: PoolClient::new(&self.env, &pool_id),
@@ -189,9 +190,7 @@ impl TestFixture<'_> {
     ) {
         let mut pool_fixture = self.pools.remove(pool_index);
         let token = &self.tokens[asset_index];
-        let index = pool_fixture
-            .pool
-            .init_reserve(&token.address, &reserve_config);
+        let index = pool_fixture.pool.init_reserve(&token.address);
         pool_fixture.reserves.insert(asset_index, index);
         self.pools.insert(pool_index, pool_fixture);
     }

@@ -1,8 +1,9 @@
 use crate::{
     auctions::{self, AuctionData},
+    constants::WEEK_IN_BLOCKS,
     emissions::{self, ReserveEmissionMetadata},
     pool::{self, Positions, Request},
-    storage::{self, ReserveConfig},
+    storage::{self, QueuedReserveInit, ReserveConfig},
 };
 use soroban_sdk::{contract, contractclient, contractimpl, Address, Env, Symbol, Vec};
 
@@ -37,6 +38,7 @@ pub trait Pool {
         backstop_id: Address,
         blnd_id: Address,
         usdc_id: Address,
+        reserves: Vec<(Address, ReserveConfig)>,
     );
 
     /// (Admin only) Set a new address as the admin of this pool
@@ -57,15 +59,35 @@ pub trait Pool {
     /// If the caller is not the admin
     fn update_pool(e: Env, backstop_take_rate: u64);
 
-    /// (Admin only) Initialize a reserve in the pool
+    /// (Admin only) Queues the initialization of a reserve in the pool
     ///
     /// ### Arguments
     /// * `asset` - The underlying asset to add as a reserve
     /// * `config` - The ReserveConfig for the reserve
     ///
     /// ### Panics
-    /// If the caller is not the admin or the reserve is already setup
-    fn init_reserve(e: Env, asset: Address, metadata: ReserveConfig) -> u32;
+    /// If the caller is not the admin
+    fn queue_init_reserve(e: Env, asset: Address, metadata: ReserveConfig);
+
+    /// (Admin only) Cancels the queued initialization of a reserve in the pool
+    ///
+    /// ### Arguments
+    /// * `asset` - The underlying asset to add as a reserve
+    ///
+    /// ### Panics
+    /// If the caller is not the admin or the reserve is not queued for initialization
+    fn cancel_init_reserve(e: Env, asset: Address);
+
+    /// (Admin only) Executes the queued initialization of a reserve in the pool
+    ///
+    /// ### Arguments
+    /// * `asset` - The underlying asset to add as a reserve
+    ///
+    /// ### Panics
+    /// If the reserve is not queued for initialization
+    /// or is already setup
+    /// or has invalid metadata
+    fn init_reserve(e: Env, asset: Address) -> u32;
 
     /// (Admin only) Update a reserve in the pool
     ///
@@ -224,6 +246,7 @@ impl Pool for PoolContract {
         backstop_id: Address,
         blnd_id: Address,
         usdc_id: Address,
+        reserves: Vec<(Address, ReserveConfig)>,
     ) {
         storage::extend_instance(&e);
 
@@ -236,6 +259,7 @@ impl Pool for PoolContract {
             &backstop_id,
             &blnd_id,
             &usdc_id,
+            &reserves,
         );
     }
 
@@ -261,15 +285,39 @@ impl Pool for PoolContract {
             .publish((Symbol::new(&e, "update_pool"), admin), backstop_take_rate);
     }
 
-    fn init_reserve(e: Env, asset: Address, config: ReserveConfig) -> u32 {
+    fn queue_init_reserve(e: Env, asset: Address, metadata: ReserveConfig) {
         storage::extend_instance(&e);
         let admin = storage::get_admin(&e);
         admin.require_auth();
 
-        let index = pool::initialize_reserve(&e, &asset, &config);
+        storage::set_queued_reserve_init(
+            &e,
+            &QueuedReserveInit {
+                new_config: metadata.clone(),
+                unlock_block: e.ledger().sequence() + WEEK_IN_BLOCKS,
+            },
+            &asset,
+        );
+
+        e.events().publish(
+            (Symbol::new(&e, "queue_init_reserve"), admin),
+            (asset, metadata),
+        );
+    }
+
+    fn cancel_init_reserve(e: Env, asset: Address) {
+        storage::extend_instance(&e);
+        let admin = storage::get_admin(&e);
+        admin.require_auth();
+
+        storage::del_queued_reserve_init(&e, &asset);
 
         e.events()
-            .publish((Symbol::new(&e, "init_reserve"), admin), (asset, index));
+            .publish((Symbol::new(&e, "cancel_init_reserve"), admin), asset);
+    }
+
+    fn init_reserve(e: Env, asset: Address) -> u32 {
+        let index = pool::execute_queued_reserve_initialization(&e, &asset);
         index
     }
 

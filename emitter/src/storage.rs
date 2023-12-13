@@ -101,7 +101,7 @@ pub fn set_queued_swap(e: &Env, swap: &Swap) {
     );
 }
 
-/// Fetch the current queued backstop swap, or None
+/// Delete the current queued backstop swap
 pub fn del_queued_swap(e: &Env) {
     e.storage().persistent().remove(&Symbol::new(e, SWAP_KEY));
 }

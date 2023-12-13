@@ -548,6 +548,7 @@ fn test_pool_config() {
         &Address::generate(&fixture.env),
         &Address::generate(&fixture.env),
         &Address::generate(&fixture.env),
+        &vec![&fixture.env],
     );
     assert!(result.is_err());
 
@@ -591,9 +592,7 @@ fn test_pool_config() {
     let mut reserve_config = default_reserve_metadata();
     reserve_config.l_factor = 0_500_0000;
     reserve_config.c_factor = 0_200_0000;
-    pool_fixture
-        .pool
-        .init_reserve(&blnd.address, &reserve_config);
+    pool_fixture.pool.init_reserve(&blnd.address);
     assert_eq!(
         fixture.env.auths()[0],
         (

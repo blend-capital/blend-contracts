@@ -5,7 +5,10 @@ use soroban_sdk::{
     vec, Address, BytesN, Env, IntoVal, Symbol,
 };
 
-use crate::{PoolFactoryClient, PoolFactoryContract, PoolInitMeta};
+use crate::{
+    storage::ReserveConfig, test::pool::PoolDataKey, PoolFactoryClient, PoolFactoryContract,
+    PoolInitMeta,
+};
 
 mod pool {
     soroban_sdk::contractimport!(file = "../target/wasm32-unknown-unknown/optimized/pool.wasm");
@@ -48,8 +51,27 @@ fn test_pool_factory() {
     let name1 = Symbol::new(&e, "pool1");
     let name2 = Symbol::new(&e, "pool2");
     let salt = BytesN::<32>::random(&e);
-    let deployed_pool_address_1 =
-        pool_factory_client.deploy(&bombadil, &name1, &salt, &oracle, &backstop_rate);
+    let asset_id_0 = Address::generate(&e);
+    let metadata = ReserveConfig {
+        index: 0,
+        decimals: 7,
+        c_factor: 0_7500000,
+        l_factor: 0_7500000,
+        util: 0_5000000,
+        max_util: 0_9500000,
+        r_one: 0_0500000,
+        r_two: 0_5000000,
+        r_three: 1_5000000,
+        reactivity: 100,
+    };
+    let deployed_pool_address_1 = pool_factory_client.deploy(
+        &bombadil,
+        &name1,
+        &salt,
+        &oracle,
+        &backstop_rate,
+        &vec![&e, (asset_id_0.clone(), metadata.clone())],
+    );
 
     let event = vec![&e, e.events().all().last_unchecked()];
     assert_eq!(
@@ -65,8 +87,14 @@ fn test_pool_factory() {
     );
 
     let salt = BytesN::<32>::random(&e);
-    let deployed_pool_address_2 =
-        pool_factory_client.deploy(&bombadil, &name2, &salt, &oracle, &backstop_rate);
+    let deployed_pool_address_2 = pool_factory_client.deploy(
+        &bombadil,
+        &name2,
+        &salt,
+        &oracle,
+        &backstop_rate,
+        &vec![&e, (asset_id_0.clone(), metadata.clone())],
+    );
 
     e.as_contract(&deployed_pool_address_1, || {
         assert_eq!(
@@ -108,6 +136,22 @@ fn test_pool_factory() {
                 .unwrap(),
             usdc_id.clone()
         );
+        let key = PoolDataKey::ResConfig(asset_id_0.clone());
+        let set_config = e
+            .storage()
+            .persistent()
+            .get::<_, ReserveConfig>(&key)
+            .unwrap();
+        assert_eq!(set_config.decimals, metadata.decimals);
+        assert_eq!(set_config.c_factor, metadata.c_factor);
+        assert_eq!(set_config.l_factor, metadata.l_factor);
+        assert_eq!(set_config.util, metadata.util);
+        assert_eq!(set_config.max_util, metadata.max_util);
+        assert_eq!(set_config.r_one, metadata.r_one);
+        assert_eq!(set_config.r_two, metadata.r_two);
+        assert_eq!(set_config.r_three, metadata.r_three);
+        assert_eq!(set_config.reactivity, metadata.reactivity);
+        assert_eq!(set_config.index, 0);
     });
     assert_ne!(deployed_pool_address_1, deployed_pool_address_2);
     assert!(pool_factory_client.is_pool(&deployed_pool_address_1));

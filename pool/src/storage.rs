@@ -49,7 +49,7 @@ pub struct ReserveConfig {
 #[contracttype]
 pub struct QueuedReserveInit {
     pub new_config: ReserveConfig,
-    pub unlock_block: u32,
+    pub unlock_time: u64,
 }
 
 /// The data for a reserve asset
@@ -385,7 +385,7 @@ pub fn get_queued_reserve_init(e: &Env, asset: &Address) -> QueuedReserveInit {
         .unwrap_optimized()
 }
 
-/// Set a new swap in the queue
+/// Set a new queued reserve initialization
 ///
 /// ### Arguments
 /// * `asset` - The contract address of the asset

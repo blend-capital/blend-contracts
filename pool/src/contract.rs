@@ -37,7 +37,6 @@ pub trait Pool {
         backstop_id: Address,
         blnd_id: Address,
         usdc_id: Address,
-        reserves: Vec<(Address, ReserveConfig)>,
     );
 
     /// (Admin only) Set a new address as the admin of this pool
@@ -57,6 +56,17 @@ pub trait Pool {
     /// ### Panics
     /// If the caller is not the admin
     fn update_pool(e: Env, backstop_take_rate: u64);
+
+    /// (Admin only) Initializes the first pool reserves
+    ///
+    /// ### Arguments
+    /// * `reserves` - A vector of tuples of the form `(asset, config)
+    /// * `asset` - The underlying asset to add as a reserve
+    /// * `config` - The ReserveConfig for the reserve
+    ///
+    /// ### Panics
+    /// If the caller is not the admin
+    fn init_initial_reserves(e: Env, reserves: Vec<(Address, ReserveConfig)>);
 
     /// (Admin only) Queues the initialization of a reserve in the pool
     ///
@@ -245,7 +255,6 @@ impl Pool for PoolContract {
         backstop_id: Address,
         blnd_id: Address,
         usdc_id: Address,
-        reserves: Vec<(Address, ReserveConfig)>,
     ) {
         storage::extend_instance(&e);
 
@@ -258,7 +267,6 @@ impl Pool for PoolContract {
             &backstop_id,
             &blnd_id,
             &usdc_id,
-            &reserves,
         );
     }
 
@@ -282,6 +290,14 @@ impl Pool for PoolContract {
 
         e.events()
             .publish((Symbol::new(&e, "update_pool"), admin), backstop_take_rate);
+    }
+
+    fn init_initial_reserves(e: Env, reserves: Vec<(Address, ReserveConfig)>) {
+        storage::extend_instance(&e);
+        let admin = storage::get_admin(&e);
+        admin.require_auth();
+
+        pool::execute_initialize_initial_reserves(&e, &reserves);
     }
 
     fn queue_init_reserve(e: Env, asset: Address, metadata: ReserveConfig) {

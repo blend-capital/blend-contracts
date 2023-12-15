@@ -1,5 +1,5 @@
 use pool::{Request, ReserveEmissionMetadata};
-use soroban_sdk::{testutils::Address as _, vec, Address, Symbol, Vec};
+use soroban_sdk::{testutils::Address as _, vec as svec, Address, Symbol, Vec as SVec};
 
 use crate::{
     pool::default_reserve_metadata,
@@ -10,28 +10,64 @@ use crate::{
 pub fn create_fixture_with_data<'a>(wasm: bool) -> TestFixture<'a> {
     let mut fixture = TestFixture::create(wasm);
 
+    // mint whale tokens
+    let frodo = Address::generate(&fixture.env);
+    fixture.users.push(frodo.clone());
+    fixture.tokens[TokenIndex::STABLE].mint(&frodo, &(100_000 * 10i128.pow(6)));
+    fixture.tokens[TokenIndex::XLM].mint(&frodo, &(1_000_000 * SCALAR_7));
+    fixture.tokens[TokenIndex::WETH].mint(&frodo, &(100 * 10i128.pow(9)));
+
+    // mint LP tokens with whale
+    fixture.tokens[TokenIndex::BLND].mint(&frodo, &(500_0010_000_0000_0000 * SCALAR_7));
+    // fixture.tokens[TokenIndex::BLND].approve(&frodo, &fixture.lp.address, &i128::MAX, &99999);
+    fixture.tokens[TokenIndex::USDC].mint(&frodo, &(12_5010_000_0000_0000 * SCALAR_7));
+    // fixture.tokens[TokenIndex::USDC].approve(&frodo, &fixture.lp.address, &i128::MAX, &99999);
+    fixture.lp.join_pool(
+        &(500_000_0000 * SCALAR_7),
+        &svec![
+            &fixture.env,
+            500_0010_000_0000_0000 * SCALAR_7,
+            12_5010_000_0000_0000 * SCALAR_7,
+        ],
+        &frodo,
+    );
+
     // create pool
-    fixture.create_pool(Symbol::new(&fixture.env, "Teapot"), 0_100_000_000);
 
     let mut stable_config = default_reserve_metadata();
     stable_config.decimals = 6;
     stable_config.c_factor = 0_900_0000;
     stable_config.l_factor = 0_950_0000;
     stable_config.util = 0_850_0000;
-    fixture.create_pool_reserve(0, TokenIndex::STABLE, stable_config);
 
     let mut xlm_config = default_reserve_metadata();
     xlm_config.c_factor = 0_750_0000;
     xlm_config.l_factor = 0_750_0000;
     xlm_config.util = 0_500_0000;
-    fixture.create_pool_reserve(0, TokenIndex::XLM, xlm_config);
 
     let mut weth_config = default_reserve_metadata();
     weth_config.decimals = 9;
     weth_config.c_factor = 0_800_0000;
     weth_config.l_factor = 0_800_0000;
     weth_config.util = 0_700_0000;
-    fixture.create_pool_reserve(0, TokenIndex::WETH, weth_config);
+
+    fixture.create_pool(
+        Symbol::new(&fixture.env, "Teapot"),
+        0_100_000_000,
+        svec![
+            &fixture.env,
+            (
+                fixture.tokens[TokenIndex::STABLE].address.clone(),
+                stable_config
+            ),
+            (fixture.tokens[TokenIndex::XLM].address.clone(), xlm_config),
+            (
+                fixture.tokens[TokenIndex::WETH].address.clone(),
+                weth_config
+            ),
+        ],
+        vec![TokenIndex::STABLE, TokenIndex::XLM, TokenIndex::WETH],
+    );
 
     // enable emissions for pool
     let pool_fixture = &fixture.pools[0];
@@ -50,28 +86,6 @@ pub fn create_fixture_with_data<'a>(wasm: bool) -> TestFixture<'a> {
         },
     ];
     pool_fixture.pool.set_emissions_config(&reserve_emissions);
-
-    // mint whale tokens
-    let frodo = Address::generate(&fixture.env);
-    fixture.users.push(frodo.clone());
-    fixture.tokens[TokenIndex::STABLE].mint(&frodo, &(100_000 * 10i128.pow(6)));
-    fixture.tokens[TokenIndex::XLM].mint(&frodo, &(1_000_000 * SCALAR_7));
-    fixture.tokens[TokenIndex::WETH].mint(&frodo, &(100 * 10i128.pow(9)));
-
-    // mint LP tokens with whale
-    fixture.tokens[TokenIndex::BLND].mint(&frodo, &(500_0010_000_0000_0000 * SCALAR_7));
-    // fixture.tokens[TokenIndex::BLND].approve(&frodo, &fixture.lp.address, &i128::MAX, &99999);
-    fixture.tokens[TokenIndex::USDC].mint(&frodo, &(12_5010_000_0000_0000 * SCALAR_7));
-    // fixture.tokens[TokenIndex::USDC].approve(&frodo, &fixture.lp.address, &i128::MAX, &99999);
-    fixture.lp.join_pool(
-        &(500_000_0000 * SCALAR_7),
-        &vec![
-            &fixture.env,
-            500_0010_000_0000_0000 * SCALAR_7,
-            12_5010_000_0000_0000 * SCALAR_7,
-        ],
-        &frodo,
-    );
 
     // deposit into backstop, add to reward zone
     fixture
@@ -105,7 +119,7 @@ pub fn create_fixture_with_data<'a>(wasm: bool) -> TestFixture<'a> {
     // fixture.tokens[TokenIndex::XLM].approve(&frodo, &pool_fixture.pool.address, &i128::MAX, &50000);
 
     // supply and borrow STABLE for 80% utilization (close to target)
-    let requests: Vec<Request> = vec![
+    let requests: SVec<Request> = svec![
         &fixture.env,
         Request {
             request_type: 2,
@@ -121,7 +135,7 @@ pub fn create_fixture_with_data<'a>(wasm: bool) -> TestFixture<'a> {
     pool_fixture.pool.submit(&frodo, &frodo, &frodo, &requests);
 
     // supply and borrow WETH for 50% utilization (below target)
-    let requests: Vec<Request> = vec![
+    let requests: SVec<Request> = svec![
         &fixture.env,
         Request {
             request_type: 2,
@@ -137,7 +151,7 @@ pub fn create_fixture_with_data<'a>(wasm: bool) -> TestFixture<'a> {
     pool_fixture.pool.submit(&frodo, &frodo, &frodo, &requests);
 
     // supply and borrow XLM for 65% utilization (above target)
-    let requests: Vec<Request> = vec![
+    let requests: SVec<Request> = svec![
         &fixture.env,
         Request {
             request_type: 2,
@@ -167,7 +181,7 @@ mod tests {
 
     #[test]
     fn test_create_fixture_with_data_wasm() {
-        let fixture = create_fixture_with_data(true);
+        let fixture: TestFixture<'_> = create_fixture_with_data(true);
         let frodo = fixture.users.get(0).unwrap();
         let pool_fixture: &PoolFixture = fixture.pools.get(0).unwrap();
 

@@ -5,7 +5,7 @@ use crate::backstop::create_backstop;
 use crate::emitter::create_emitter;
 use crate::liquidity_pool::{create_lp_pool, LPClient};
 use crate::oracle::create_mock_oracle;
-use crate::pool::{default_reserve_metadata, POOL_WASM};
+use crate::pool::POOL_WASM;
 use crate::pool_factory::create_pool_factory;
 use crate::token::{create_stellar_token, create_token};
 use backstop::BackstopClient;
@@ -18,7 +18,7 @@ use pool_factory::{PoolFactoryClient, PoolInitMeta};
 use sep_40_oracle::testutils::{Asset, MockPriceOracleClient};
 use sep_41_token::testutils::MockTokenClient;
 use soroban_sdk::testutils::{Address as _, BytesN as _, Ledger, LedgerInfo};
-use soroban_sdk::{vec as svec, Address, BytesN, Env, Map, Symbol};
+use soroban_sdk::{vec as svec, Address, BytesN, Env, Map, Symbol, Vec as SVec};
 
 pub const SCALAR_7: i128 = 1_000_0000;
 pub const SCALAR_9: i128 = 1_000_000_000;
@@ -167,18 +167,29 @@ impl TestFixture<'_> {
         fixture
     }
 
-    pub fn create_pool(&mut self, name: Symbol, backstop_take_rate: u64) {
+    pub fn create_pool(
+        &mut self,
+        name: Symbol,
+        backstop_take_rate: u64,
+        reserves: SVec<(Address, ReserveConfig)>,
+        asset_indexes: Vec<TokenIndex>,
+    ) {
+        let mut fixture_reserves = HashMap::new();
+        for i in 0..reserves.len() {
+            fixture_reserves.insert(*asset_indexes.get(i as usize).unwrap(), i as u32);
+        }
+
         let pool_id = self.pool_factory.deploy(
             &self.bombadil,
             &name,
             &BytesN::<32>::random(&self.env),
             &self.oracle.address,
             &backstop_take_rate,
-            &svec![&self.env,],
         );
+        PoolClient::new(&self.env, &pool_id).init_initial_reserves(&reserves);
         self.pools.push(PoolFixture {
             pool: PoolClient::new(&self.env, &pool_id),
-            reserves: HashMap::new(),
+            reserves: fixture_reserves,
         });
     }
 
@@ -186,10 +197,14 @@ impl TestFixture<'_> {
         &mut self,
         pool_index: usize,
         asset_index: TokenIndex,
-        reserve_config: ReserveConfig,
+        reserve_config: &ReserveConfig,
     ) {
         let mut pool_fixture = self.pools.remove(pool_index);
         let token = &self.tokens[asset_index];
+        pool_fixture
+            .pool
+            .queue_init_reserve(&token.address, reserve_config);
+        self.jump(604800);
         let index = pool_fixture.pool.init_reserve(&token.address);
         pool_fixture.reserves.insert(asset_index, index);
         self.pools.insert(pool_index, pool_fixture);

@@ -10,4 +10,4 @@ pub const SCALAR_7: i128 = 1_0000000;
 pub const SECONDS_PER_YEAR: i128 = 31536000;
 
 // approximate week in blocks assuming 5 seconds per block
-pub const WEEK_IN_BLOCKS: u32 = 120960;
+pub const SECONDS_PER_WEEK: u64 = 604800;

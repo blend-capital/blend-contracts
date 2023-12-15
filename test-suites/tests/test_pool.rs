@@ -548,7 +548,6 @@ fn test_pool_config() {
         &Address::generate(&fixture.env),
         &Address::generate(&fixture.env),
         &Address::generate(&fixture.env),
-        &vec![&fixture.env],
     );
     assert!(result.is_err());
 
@@ -592,7 +591,9 @@ fn test_pool_config() {
     let mut reserve_config = default_reserve_metadata();
     reserve_config.l_factor = 0_500_0000;
     reserve_config.c_factor = 0_200_0000;
-    pool_fixture.pool.init_reserve(&blnd.address);
+    pool_fixture
+        .pool
+        .queue_init_reserve(&blnd.address, &reserve_config);
     assert_eq!(
         fixture.env.auths()[0],
         (
@@ -600,7 +601,7 @@ fn test_pool_config() {
             AuthorizedInvocation {
                 function: AuthorizedFunction::Contract((
                     pool_fixture.pool.address.clone(),
-                    Symbol::new(&fixture.env, "init_reserve"),
+                    Symbol::new(&fixture.env, "queue_init_reserve"),
                     vec![
                         &fixture.env,
                         blnd.address.to_val(),
@@ -611,6 +612,9 @@ fn test_pool_config() {
             }
         )
     );
+    fixture.jump(604800); // 1 week
+    pool_fixture.pool.init_reserve(&blnd.address);
+
     let new_reserve_config = fixture.read_reserve_config(0, TokenIndex::BLND);
     assert_eq!(new_reserve_config.l_factor, 0_500_0000);
     assert_eq!(new_reserve_config.c_factor, 0_200_0000);
@@ -627,11 +631,7 @@ fn test_pool_config() {
             &fixture.env,
             (
                 pool_fixture.pool.address.clone(),
-                (
-                    Symbol::new(&fixture.env, "init_reserve"),
-                    fixture.bombadil.clone()
-                )
-                    .into_val(&fixture.env),
+                (Symbol::new(&fixture.env, "init_reserve"),).into_val(&fixture.env),
                 event_data.into_val(&fixture.env)
             )
         ]

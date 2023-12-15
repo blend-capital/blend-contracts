@@ -7,8 +7,8 @@ pub use bad_debt::{burn_backstop_bad_debt, transfer_bad_debt_to_backstop};
 mod config;
 pub use config::{
     execute_cancel_queued_reserve_initialization, execute_initialize,
-    execute_initialize_queued_reserve, execute_queue_reserve_initialization, execute_update_pool,
-    execute_update_reserve,
+    execute_initialize_initial_reserves, execute_initialize_queued_reserve,
+    execute_queue_reserve_initialization, execute_update_pool, execute_update_reserve,
 };
 
 mod health_factor;

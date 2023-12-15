@@ -1,5 +1,5 @@
 use crate::{
-    constants::WEEK_IN_BLOCKS,
+    constants::SECONDS_PER_WEEK,
     errors::PoolError,
     storage::{self, PoolConfig, QueuedReserveInit, ReserveConfig, ReserveData},
 };
@@ -20,7 +20,6 @@ pub fn execute_initialize(
     backstop_address: &Address,
     blnd_id: &Address,
     usdc_id: &Address,
-    reserves: &Vec<(Address, ReserveConfig)>,
 ) {
     if storage::has_admin(e) {
         panic_with_error!(e, PoolError::AlreadyInitialized);
@@ -44,9 +43,6 @@ pub fn execute_initialize(
     );
     storage::set_blnd_token(e, blnd_id);
     storage::set_usdc_token(e, usdc_id);
-    for (asset, config) in reserves.iter() {
-        initialize_reserve(e, &asset, &config);
-    }
 }
 
 /// Update the pool
@@ -60,13 +56,25 @@ pub fn execute_update_pool(e: &Env, backstop_take_rate: u64) {
     storage::set_pool_config(e, &pool_config);
 }
 
+/// Execute initial reserve initialization
+pub fn execute_initialize_initial_reserves(e: &Env, reserves: &Vec<(Address, ReserveConfig)>) {
+    // confirm the pool has no reserves
+    if storage::get_res_list(e).len() > 0 {
+        panic_with_error!(e, PoolError::AlreadyInitialized);
+    }
+    // initialize reserves
+    for (asset, config) in reserves.iter() {
+        initialize_reserve(e, &asset, &config);
+    }
+}
+
 /// Execute a queueing a reserve initialization for the pool
 pub fn execute_queue_reserve_initialization(e: &Env, asset: &Address, metadata: &ReserveConfig) {
     storage::set_queued_reserve_init(
         &e,
         &QueuedReserveInit {
             new_config: metadata.clone(),
-            unlock_block: e.ledger().sequence() + WEEK_IN_BLOCKS,
+            unlock_time: e.ledger().timestamp() + SECONDS_PER_WEEK,
         },
         &asset,
     );
@@ -81,7 +89,7 @@ pub fn execute_cancel_queued_reserve_initialization(e: &Env, asset: &Address) {
 pub fn execute_initialize_queued_reserve(e: &Env, asset: &Address) -> u32 {
     let queued_init = storage::get_queued_reserve_init(e, asset);
 
-    if queued_init.unlock_block > e.ledger().sequence() {
+    if queued_init.unlock_time > e.ledger().timestamp() {
         panic_with_error!(e, PoolError::InitNotUnlocked);
     }
 
@@ -212,11 +220,6 @@ mod tests {
                 &backstop_address,
                 &blnd_id,
                 &usdc_id,
-                &vec![
-                    &e,
-                    (asset_id_0.clone(), metadata.clone()),
-                    (asset_id_1.clone(), metadata.clone()),
-                ],
             );
 
             assert_eq!(storage::get_admin(&e), admin);
@@ -227,19 +230,6 @@ mod tests {
             assert_eq!(storage::get_backstop(&e), backstop_address);
             assert_eq!(storage::get_blnd_token(&e), blnd_id);
             assert_eq!(storage::get_usdc_token(&e), usdc_id);
-            let res_config_0 = storage::get_res_config(&e, &asset_id_0);
-            let res_config_1 = storage::get_res_config(&e, &asset_id_1);
-            assert_eq!(res_config_0.decimals, metadata.decimals);
-            assert_eq!(res_config_0.c_factor, metadata.c_factor);
-            assert_eq!(res_config_0.l_factor, metadata.l_factor);
-            assert_eq!(res_config_0.util, metadata.util);
-            assert_eq!(res_config_0.max_util, metadata.max_util);
-            assert_eq!(res_config_0.r_one, metadata.r_one);
-            assert_eq!(res_config_0.r_two, metadata.r_two);
-            assert_eq!(res_config_0.r_three, metadata.r_three);
-            assert_eq!(res_config_0.reactivity, metadata.reactivity);
-            assert_eq!(res_config_0.index, 0);
-            assert_eq!(res_config_1.index, 1);
         });
     }
 
@@ -283,6 +273,81 @@ mod tests {
         });
     }
     #[test]
+    fn test_initialize_initial_reserves() {
+        let e = Env::default();
+        let pool = testutils::create_pool(&e);
+        let bombadil = Address::generate(&e);
+
+        let (asset_id_0, _) = testutils::create_token_contract(&e, &bombadil);
+        let (asset_id_1, _) = testutils::create_token_contract(&e, &bombadil);
+
+        let metadata = ReserveConfig {
+            index: 0,
+            decimals: 7,
+            c_factor: 0_7500000,
+            l_factor: 0_7500000,
+            util: 0_5000000,
+            max_util: 0_9500000,
+            r_one: 0_0500000,
+            r_two: 0_5000000,
+            r_three: 1_5000000,
+            reactivity: 100,
+        };
+        e.as_contract(&pool, || {
+            execute_initialize_initial_reserves(
+                &e,
+                &vec![
+                    &e,
+                    (asset_id_0.clone(), metadata.clone()),
+                    (asset_id_1.clone(), metadata.clone()),
+                ],
+            );
+            let res_config_0 = storage::get_res_config(&e, &asset_id_0);
+            let res_config_1 = storage::get_res_config(&e, &asset_id_1);
+            assert_eq!(res_config_0.decimals, metadata.decimals);
+            assert_eq!(res_config_0.c_factor, metadata.c_factor);
+            assert_eq!(res_config_0.l_factor, metadata.l_factor);
+            assert_eq!(res_config_0.util, metadata.util);
+            assert_eq!(res_config_0.max_util, metadata.max_util);
+            assert_eq!(res_config_0.r_one, metadata.r_one);
+            assert_eq!(res_config_0.r_two, metadata.r_two);
+            assert_eq!(res_config_0.r_three, metadata.r_three);
+            assert_eq!(res_config_0.reactivity, metadata.reactivity);
+            assert_eq!(res_config_0.index, 0);
+            assert_eq!(res_config_1.index, 1);
+        });
+    }
+    #[test]
+    #[should_panic(expected = "Error(Contract, #3)")]
+    fn test_initialize_initial_reserves_panics_if_reserves_exist() {
+        let e = Env::default();
+        let pool = testutils::create_pool(&e);
+        let bombadil = Address::generate(&e);
+
+        let (asset_id_0, _) = testutils::create_token_contract(&e, &bombadil);
+        let (asset_id_1, _) = testutils::create_token_contract(&e, &bombadil);
+
+        let metadata = ReserveConfig {
+            index: 0,
+            decimals: 7,
+            c_factor: 0_7500000,
+            l_factor: 0_7500000,
+            util: 0_5000000,
+            max_util: 0_9500000,
+            r_one: 0_0500000,
+            r_two: 0_5000000,
+            r_three: 1_5000000,
+            reactivity: 100,
+        };
+        e.as_contract(&pool, || {
+            initialize_reserve(&e, &asset_id_0, &metadata);
+            execute_initialize_initial_reserves(
+                &e,
+                &vec![&e, (asset_id_1.clone(), metadata.clone())],
+            );
+        });
+    }
+    #[test]
     fn test_execute_queue_reserve_initialization() {
         let e = Env::default();
         let pool = testutils::create_pool(&e);
@@ -316,8 +381,8 @@ mod tests {
             assert_eq!(queued_init.new_config.reactivity, metadata.reactivity);
             assert_eq!(queued_init.new_config.index, 0);
             assert_eq!(
-                queued_init.unlock_block,
-                e.ledger().sequence() + WEEK_IN_BLOCKS
+                queued_init.unlock_time,
+                e.ledger().timestamp() + SECONDS_PER_WEEK
             );
         });
     }
@@ -347,7 +412,7 @@ mod tests {
                 &e,
                 &QueuedReserveInit {
                     new_config: metadata.clone(),
-                    unlock_block: e.ledger().sequence(),
+                    unlock_time: e.ledger().timestamp(),
                 },
                 &asset_id_0,
             );
@@ -380,7 +445,7 @@ mod tests {
                 &e,
                 &QueuedReserveInit {
                     new_config: metadata.clone(),
-                    unlock_block: e.ledger().sequence(),
+                    unlock_time: e.ledger().timestamp(),
                 },
                 &asset_id_0,
             );
@@ -424,7 +489,7 @@ mod tests {
                 &e,
                 &QueuedReserveInit {
                     new_config: metadata.clone(),
-                    unlock_block: e.ledger().sequence() + 1,
+                    unlock_time: e.ledger().timestamp() + 1,
                 },
                 &asset_id_0,
             );

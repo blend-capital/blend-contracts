@@ -1,6 +1,6 @@
 use crate::{
     errors::PoolFactoryError,
-    storage::{self, PoolInitMeta, ReserveConfig},
+    storage::{self, PoolInitMeta},
 };
 use soroban_sdk::{
     contract, contractclient, contractimpl, panic_with_error, vec, Address, BytesN, Env, IntoVal,
@@ -32,7 +32,6 @@ pub trait PoolFactory {
         salt: BytesN<32>,
         oracle: Address,
         backstop_take_rate: u64,
-        reserves: Vec<(Address, ReserveConfig)>,
     ) -> Address;
 
     /// Checks if contract address was deployed by the factory
@@ -61,7 +60,6 @@ impl PoolFactory for PoolFactoryContract {
         salt: BytesN<32>,
         oracle: Address,
         backstop_take_rate: u64,
-        reserves: Vec<(Address, ReserveConfig)>,
     ) -> Address {
         admin.require_auth();
         storage::extend_instance(&e);
@@ -80,7 +78,6 @@ impl PoolFactory for PoolFactoryContract {
         init_args.push_back(pool_init_meta.backstop.to_val());
         init_args.push_back(pool_init_meta.blnd_id.to_val());
         init_args.push_back(pool_init_meta.usdc_id.to_val());
-        init_args.push_back(reserves.to_val());
         let pool_address = e
             .deployer()
             .with_current_contract(salt)

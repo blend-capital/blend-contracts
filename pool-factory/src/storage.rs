@@ -4,24 +4,6 @@ use soroban_sdk::{contracttype, unwrap::UnwrapOptimized, Address, BytesN, Env, S
 pub(crate) const LEDGER_THRESHOLD: u32 = 518400; // TODO: Check on phase 1 max ledger entry bump
 pub(crate) const LEDGER_BUMP: u32 = 535670; // TODO: Check on phase 1 max ledger entry bump
 
-/// The configuration information about a reserve asset
-/// TODO: Duplicated from pool/storage.rs. Can this be moved to a common location?
-#[derive(Clone)]
-#[contracttype]
-pub struct ReserveConfig {
-    pub index: u32,      // the index of the reserve in the list
-    pub decimals: u32,   // the decimals used in both the bToken and underlying contract
-    pub c_factor: u32,   // the collateral factor for the reserve scaled expressed in 7 decimals
-    pub l_factor: u32,   // the liability factor for the reserve scaled expressed in 7 decimals
-    pub util: u32,       // the target utilization rate scaled expressed in 7 decimals
-    pub max_util: u32,   // the maximum allowed utilization rate scaled expressed in 7 decimals
-    pub r_one: u32,      // the R1 value in the interest rate formula scaled expressed in 7 decimals
-    pub r_two: u32,      // the R2 value in the interest rate formula scaled expressed in 7 decimals
-    pub r_three: u32,    // the R3 value in the interest rate formula scaled expressed in 7 decimals
-    pub reactivity: u32, // the reactivity constant for the reserve scaled expressed in 9 decimals
-}
-
-
 #[derive(Clone)]
 #[contracttype]
 pub enum PoolFactoryDataKey {

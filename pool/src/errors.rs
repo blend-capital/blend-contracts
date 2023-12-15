@@ -12,6 +12,7 @@ pub enum PoolError {
     NegativeAmount = 4,
     InvalidPoolInitArgs = 5,
     InvalidReserveMetadata = 6,
+    StatusNotAllowed = 8,
     // Pool State Errors (10-19)
     InvalidHf = 10,
     InvalidPoolStatus = 11,

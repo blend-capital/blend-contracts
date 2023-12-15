@@ -267,7 +267,7 @@ mod tests {
         let pool_config = PoolConfig {
             oracle,
             bstop_rate: 0_200_000_000,
-            status: 3,
+            status: 2,
         };
         e.as_contract(&pool, || {
             storage::set_pool_config(&e, &pool_config);
@@ -286,7 +286,7 @@ mod tests {
         let pool_config = PoolConfig {
             oracle,
             bstop_rate: 0_200_000_000,
-            status: 0,
+            status: 1,
         };
         e.as_contract(&pool, || {
             storage::set_pool_config(&e, &pool_config);
@@ -306,7 +306,7 @@ mod tests {
         let pool_config = PoolConfig {
             oracle,
             bstop_rate: 0_200_000_000,
-            status: 3,
+            status: 2,
         };
         e.as_contract(&pool, || {
             storage::set_pool_config(&e, &pool_config);
@@ -325,7 +325,7 @@ mod tests {
         let pool_config = PoolConfig {
             oracle,
             bstop_rate: 0_200_000_000,
-            status: 0,
+            status: 1,
         };
         e.as_contract(&pool, || {
             storage::set_pool_config(&e, &pool_config);
@@ -345,7 +345,7 @@ mod tests {
         let pool_config = PoolConfig {
             oracle,
             bstop_rate: 0_200_000_000,
-            status: 5,
+            status: 4,
         };
         e.as_contract(&pool, || {
             storage::set_pool_config(&e, &pool_config);
@@ -365,7 +365,7 @@ mod tests {
         let pool_config = PoolConfig {
             oracle,
             bstop_rate: 0_200_000_000,
-            status: 5,
+            status: 4,
         };
         e.as_contract(&pool, || {
             storage::set_pool_config(&e, &pool_config);
@@ -384,7 +384,7 @@ mod tests {
         let pool_config = PoolConfig {
             oracle,
             bstop_rate: 0_200_000_000,
-            status: 2,
+            status: 4,
         };
         e.as_contract(&pool, || {
             storage::set_pool_config(&e, &pool_config);

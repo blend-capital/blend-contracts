@@ -1,9 +1,8 @@
 use crate::{
     auctions::{self, AuctionData},
-    constants::WEEK_IN_BLOCKS,
     emissions::{self, ReserveEmissionMetadata},
     pool::{self, Positions, Request},
-    storage::{self, QueuedReserveInit, ReserveConfig},
+    storage::{self, ReserveConfig},
 };
 use soroban_sdk::{contract, contractclient, contractimpl, Address, Env, Symbol, Vec};
 
@@ -290,14 +289,7 @@ impl Pool for PoolContract {
         let admin = storage::get_admin(&e);
         admin.require_auth();
 
-        storage::set_queued_reserve_init(
-            &e,
-            &QueuedReserveInit {
-                new_config: metadata.clone(),
-                unlock_block: e.ledger().sequence() + WEEK_IN_BLOCKS,
-            },
-            &asset,
-        );
+        pool::execute_queue_reserve_initialization(&e, &asset, &metadata);
 
         e.events().publish(
             (Symbol::new(&e, "queue_init_reserve"), admin),
@@ -310,14 +302,14 @@ impl Pool for PoolContract {
         let admin = storage::get_admin(&e);
         admin.require_auth();
 
-        storage::del_queued_reserve_init(&e, &asset);
+        pool::execute_cancel_queued_reserve_initialization(&e, &asset);
 
         e.events()
             .publish((Symbol::new(&e, "cancel_init_reserve"), admin), asset);
     }
 
     fn init_reserve(e: Env, asset: Address) -> u32 {
-        let index = pool::execute_queued_reserve_initialization(&e, &asset);
+        let index = pool::execute_initialize_queued_reserve(&e, &asset);
         index
     }
 

@@ -67,9 +67,9 @@ impl Pool {
     /// ### Arguments
     /// * `action_type` - The type of action being performed
     pub fn require_action_allowed(&self, e: &Env, action_type: u32) {
-        // disable borrowing for any non-active pool and disable supplying for any frozen pool
-        if (self.config.status > 0 && action_type == 4)
-            || (self.config.status > 1 && (action_type == 2 || action_type == 0))
+        // disable borrowing or auction cancellation for any non-active pool and disable supplying for any frozen pool
+        if (self.config.status > 1 && (action_type == 4 || action_type == 9))
+            || (self.config.status > 3 && (action_type == 2 || action_type == 0))
         {
             panic_with_error!(e, PoolError::InvalidPoolStatus);
         }
@@ -267,7 +267,7 @@ mod tests {
         let pool_config = PoolConfig {
             oracle,
             bstop_rate: 0_200_000_000,
-            status: 1,
+            status: 2,
         };
         e.as_contract(&pool, || {
             storage::set_pool_config(&e, &pool_config);
@@ -286,13 +286,52 @@ mod tests {
         let pool_config = PoolConfig {
             oracle,
             bstop_rate: 0_200_000_000,
-            status: 0,
+            status: 1,
         };
         e.as_contract(&pool, || {
             storage::set_pool_config(&e, &pool_config);
             let pool = Pool::load(&e);
 
             pool.require_action_allowed(&e, 4);
+        });
+    }
+
+    #[test]
+    #[should_panic(expected = "Error(Contract, #11)")]
+    fn test_require_action_allowed_cancel_liquidation_while_on_ice_panics() {
+        let e = Env::default();
+
+        let pool = testutils::create_pool(&e);
+        let oracle = Address::generate(&e);
+        let pool_config = PoolConfig {
+            oracle,
+            bstop_rate: 0_200_000_000,
+            status: 2,
+        };
+        e.as_contract(&pool, || {
+            storage::set_pool_config(&e, &pool_config);
+            let pool = Pool::load(&e);
+
+            pool.require_action_allowed(&e, 9);
+        });
+    }
+
+    #[test]
+    fn test_require_action_allowed_cancel_liquidation_while_active() {
+        let e = Env::default();
+
+        let pool = testutils::create_pool(&e);
+        let oracle = Address::generate(&e);
+        let pool_config = PoolConfig {
+            oracle,
+            bstop_rate: 0_200_000_000,
+            status: 1,
+        };
+        e.as_contract(&pool, || {
+            storage::set_pool_config(&e, &pool_config);
+            let pool = Pool::load(&e);
+
+            pool.require_action_allowed(&e, 9);
         });
     }
 
@@ -306,7 +345,7 @@ mod tests {
         let pool_config = PoolConfig {
             oracle,
             bstop_rate: 0_200_000_000,
-            status: 2,
+            status: 4,
         };
         e.as_contract(&pool, || {
             storage::set_pool_config(&e, &pool_config);
@@ -326,7 +365,7 @@ mod tests {
         let pool_config = PoolConfig {
             oracle,
             bstop_rate: 0_200_000_000,
-            status: 2,
+            status: 4,
         };
         e.as_contract(&pool, || {
             storage::set_pool_config(&e, &pool_config);
@@ -345,7 +384,7 @@ mod tests {
         let pool_config = PoolConfig {
             oracle,
             bstop_rate: 0_200_000_000,
-            status: 2,
+            status: 4,
         };
         e.as_contract(&pool, || {
             storage::set_pool_config(&e, &pool_config);

@@ -19,22 +19,31 @@ fn test_liquidations() {
     let pool_fixture = &fixture.pools[0];
 
     // Disable rate modifiers
-    let mut usdc_config: ReserveConfig = fixture.read_reserve_config(0, TokenIndex::STABLE);
-    usdc_config.reactivity = 0;
-    pool_fixture
-        .pool
-        .update_reserve(&fixture.tokens[TokenIndex::STABLE].address, &usdc_config);
-    let mut xlm_config: ReserveConfig = fixture.read_reserve_config(0, TokenIndex::XLM);
-    xlm_config.reactivity = 0;
-    pool_fixture
-        .pool
-        .update_reserve(&fixture.tokens[TokenIndex::XLM].address, &xlm_config);
-    let mut weth_config: ReserveConfig = fixture.read_reserve_config(0, TokenIndex::WETH);
-    weth_config.reactivity = 0;
-    pool_fixture
-        .pool
-        .update_reserve(&fixture.tokens[TokenIndex::WETH].address, &weth_config);
-
+    // let mut usdc_config: ReserveConfig = fixture.read_reserve_config(0, TokenIndex::STABLE);
+    // usdc_config.reactivity = 0;
+    // pool_fixture
+    //     .pool
+    //     .queue_set_reserve(&fixture.tokens[TokenIndex::STABLE].address, &usdc_config);
+    // let mut xlm_config: ReserveConfig = fixture.read_reserve_config(0, TokenIndex::XLM);
+    // xlm_config.reactivity = 0;
+    // pool_fixture
+    //     .pool
+    //     .queue_set_reserve(&fixture.tokens[TokenIndex::XLM].address, &xlm_config);
+    // let mut weth_config: ReserveConfig = fixture.read_reserve_config(0, TokenIndex::WETH);
+    // weth_config.reactivity = 0;
+    // pool_fixture
+    //     .pool
+    //     .queue_set_reserve(&fixture.tokens[TokenIndex::WETH].address, &weth_config);
+    // fixture.jump(60 * 60 * 24 * 7);
+    // pool_fixture
+    //     .pool
+    //     .set_reserve(&fixture.tokens[TokenIndex::STABLE].address);
+    // pool_fixture
+    //     .pool
+    //     .set_reserve(&fixture.tokens[TokenIndex::XLM].address);
+    // pool_fixture
+    //     .pool
+    //     .set_reserve(&fixture.tokens[TokenIndex::WETH].address);
     // Create a user
     let samwise = Address::generate(&fixture.env); //sam will be supplying XLM and borrowing STABLE
 

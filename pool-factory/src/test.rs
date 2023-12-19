@@ -92,7 +92,7 @@ fn test_pool_factory() {
             pool::PoolConfig {
                 oracle: oracle,
                 bstop_rate: backstop_rate,
-                status: 3
+                status: 6
             }
         );
         assert_eq!(

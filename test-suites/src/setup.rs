@@ -33,41 +33,27 @@ pub fn create_fixture_with_data<'a>(wasm: bool) -> TestFixture<'a> {
     );
 
     // create pool
+    fixture.create_pool(Symbol::new(&fixture.env, "Teapot"), 0_100_000_000);
 
     let mut stable_config = default_reserve_metadata();
     stable_config.decimals = 6;
     stable_config.c_factor = 0_900_0000;
     stable_config.l_factor = 0_950_0000;
     stable_config.util = 0_850_0000;
+    fixture.create_pool_reserve(0, TokenIndex::STABLE, &stable_config);
 
     let mut xlm_config = default_reserve_metadata();
     xlm_config.c_factor = 0_750_0000;
     xlm_config.l_factor = 0_750_0000;
     xlm_config.util = 0_500_0000;
+    fixture.create_pool_reserve(0, TokenIndex::XLM, &xlm_config);
 
     let mut weth_config = default_reserve_metadata();
     weth_config.decimals = 9;
     weth_config.c_factor = 0_800_0000;
     weth_config.l_factor = 0_800_0000;
     weth_config.util = 0_700_0000;
-
-    fixture.create_pool(
-        Symbol::new(&fixture.env, "Teapot"),
-        0_100_000_000,
-        svec![
-            &fixture.env,
-            (
-                fixture.tokens[TokenIndex::STABLE].address.clone(),
-                stable_config
-            ),
-            (fixture.tokens[TokenIndex::XLM].address.clone(), xlm_config),
-            (
-                fixture.tokens[TokenIndex::WETH].address.clone(),
-                weth_config
-            ),
-        ],
-        vec![TokenIndex::STABLE, TokenIndex::XLM, TokenIndex::WETH],
-    );
+    fixture.create_pool_reserve(0, TokenIndex::WETH, &weth_config);
 
     // enable emissions for pool
     let pool_fixture = &fixture.pools[0];
@@ -95,6 +81,7 @@ pub fn create_fixture_with_data<'a>(wasm: bool) -> TestFixture<'a> {
     fixture
         .backstop
         .add_reward(&pool_fixture.pool.address, &Address::generate(&fixture.env));
+    pool_fixture.pool.set_status(&3);
     pool_fixture.pool.update_status();
 
     // enable emissions

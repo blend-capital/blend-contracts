@@ -593,7 +593,7 @@ fn test_pool_config() {
     reserve_config.c_factor = 0_200_0000;
     pool_fixture
         .pool
-        .queue_init_reserve(&blnd.address, &reserve_config);
+        .queue_set_reserve(&blnd.address, &reserve_config);
     assert_eq!(
         fixture.env.auths()[0],
         (
@@ -613,7 +613,7 @@ fn test_pool_config() {
         )
     );
     fixture.jump(604800); // 1 week
-    pool_fixture.pool.init_reserve(&blnd.address);
+    pool_fixture.pool.set_reserve(&blnd.address);
 
     let new_reserve_config = fixture.read_reserve_config(0, TokenIndex::BLND);
     assert_eq!(new_reserve_config.l_factor, 0_500_0000);
@@ -631,7 +631,7 @@ fn test_pool_config() {
             &fixture.env,
             (
                 pool_fixture.pool.address.clone(),
-                (Symbol::new(&fixture.env, "init_reserve"),).into_val(&fixture.env),
+                (Symbol::new(&fixture.env, "set_reserve"),).into_val(&fixture.env),
                 event_data.into_val(&fixture.env)
             )
         ]
@@ -641,7 +641,7 @@ fn test_pool_config() {
     reserve_config.c_factor = 0;
     pool_fixture
         .pool
-        .update_reserve(&blnd.address, &reserve_config);
+        .queue_set_reserve(&blnd.address, &reserve_config);
     assert_eq!(
         fixture.env.auths()[0],
         (
@@ -649,7 +649,7 @@ fn test_pool_config() {
             AuthorizedInvocation {
                 function: AuthorizedFunction::Contract((
                     pool_fixture.pool.address.clone(),
-                    Symbol::new(&fixture.env, "update_reserve"),
+                    Symbol::new(&fixture.env, "queue_set_reserve"),
                     vec![
                         &fixture.env,
                         blnd.address.to_val(),
@@ -659,6 +659,19 @@ fn test_pool_config() {
                 sub_invocations: std::vec![]
             }
         )
+    );
+    fixture.jump(604800); // 1 week
+    pool_fixture.pool.set_reserve(&blnd.address);
+    assert_eq!(
+        event,
+        vec![
+            &fixture.env,
+            (
+                pool_fixture.pool.address.clone(),
+                (Symbol::new(&fixture.env, "set_reserve"),).into_val(&fixture.env),
+                event_data.into_val(&fixture.env)
+            )
+        ]
     );
     let new_reserve_config = fixture.read_reserve_config(0, TokenIndex::BLND);
     assert_eq!(new_reserve_config.l_factor, 0_500_0000);

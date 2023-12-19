@@ -18,7 +18,7 @@ use pool_factory::{PoolFactoryClient, PoolInitMeta};
 use sep_40_oracle::testutils::{Asset, MockPriceOracleClient};
 use sep_41_token::testutils::MockTokenClient;
 use soroban_sdk::testutils::{Address as _, BytesN as _, Ledger, LedgerInfo};
-use soroban_sdk::{vec as svec, Address, BytesN, Env, Map, Symbol, Vec as SVec};
+use soroban_sdk::{vec as svec, Address, BytesN, Env, Map, Symbol};
 
 pub const SCALAR_7: i128 = 1_000_0000;
 pub const SCALAR_9: i128 = 1_000_000_000;
@@ -167,18 +167,7 @@ impl TestFixture<'_> {
         fixture
     }
 
-    pub fn create_pool(
-        &mut self,
-        name: Symbol,
-        backstop_take_rate: u64,
-        reserves: SVec<(Address, ReserveConfig)>,
-        asset_indexes: Vec<TokenIndex>,
-    ) {
-        let mut fixture_reserves = HashMap::new();
-        for i in 0..reserves.len() {
-            fixture_reserves.insert(*asset_indexes.get(i as usize).unwrap(), i as u32);
-        }
-
+    pub fn create_pool(&mut self, name: Symbol, backstop_take_rate: u64) {
         let pool_id = self.pool_factory.deploy(
             &self.bombadil,
             &name,
@@ -186,10 +175,9 @@ impl TestFixture<'_> {
             &self.oracle.address,
             &backstop_take_rate,
         );
-        PoolClient::new(&self.env, &pool_id).init_initial_reserves(&reserves);
         self.pools.push(PoolFixture {
             pool: PoolClient::new(&self.env, &pool_id),
-            reserves: fixture_reserves,
+            reserves: HashMap::new(),
         });
     }
 
@@ -203,9 +191,8 @@ impl TestFixture<'_> {
         let token = &self.tokens[asset_index];
         pool_fixture
             .pool
-            .queue_init_reserve(&token.address, reserve_config);
-        self.jump(604800);
-        let index = pool_fixture.pool.init_reserve(&token.address);
+            .queue_set_reserve(&token.address, reserve_config);
+        let index = pool_fixture.pool.set_reserve(&token.address);
         pool_fixture.reserves.insert(asset_index, index);
         self.pools.insert(pool_index, pool_fixture);
     }

@@ -57,18 +57,7 @@ pub trait Pool {
     /// If the caller is not the admin
     fn update_pool(e: Env, backstop_take_rate: u64);
 
-    /// (Admin only) Initializes the first pool reserves
-    ///
-    /// ### Arguments
-    /// * `reserves` - A vector of tuples of the form `(asset, config)
-    /// * `asset` - The underlying asset to add as a reserve
-    /// * `config` - The ReserveConfig for the reserve
-    ///
-    /// ### Panics
-    /// If the caller is not the admin
-    fn init_initial_reserves(e: Env, reserves: Vec<(Address, ReserveConfig)>);
-
-    /// (Admin only) Queues the initialization of a reserve in the pool
+    /// (Admin only) Queues setting data for a reserve in the pool
     ///
     /// ### Arguments
     /// * `asset` - The underlying asset to add as a reserve
@@ -76,18 +65,18 @@ pub trait Pool {
     ///
     /// ### Panics
     /// If the caller is not the admin
-    fn queue_init_reserve(e: Env, asset: Address, metadata: ReserveConfig);
+    fn queue_set_reserve(e: Env, asset: Address, metadata: ReserveConfig);
 
-    /// (Admin only) Cancels the queued initialization of a reserve in the pool
+    /// (Admin only) Cancels the queued set of a reserve in the pool
     ///
     /// ### Arguments
     /// * `asset` - The underlying asset to add as a reserve
     ///
     /// ### Panics
     /// If the caller is not the admin or the reserve is not queued for initialization
-    fn cancel_init_reserve(e: Env, asset: Address);
+    fn cancel_set_reserve(e: Env, asset: Address);
 
-    /// (Admin only) Executes the queued initialization of a reserve in the pool
+    /// (Admin only) Executes the queued set of a reserve in the pool
     ///
     /// ### Arguments
     /// * `asset` - The underlying asset to add as a reserve
@@ -96,17 +85,7 @@ pub trait Pool {
     /// If the reserve is not queued for initialization
     /// or is already setup
     /// or has invalid metadata
-    fn init_reserve(e: Env, asset: Address) -> u32;
-
-    /// (Admin only) Update a reserve in the pool
-    ///
-    /// ### Arguments
-    /// * `asset` - The underlying asset to add as a reserve
-    /// * `config` - The ReserveConfig for the reserve
-    ///
-    /// ### Panics
-    /// If the caller is not the admin or the reserve does not exist
-    fn update_reserve(e: Env, asset: Address, config: ReserveConfig);
+    fn set_reserve(e: Env, asset: Address) -> u32;
 
     /// Fetch the positions for an address
     ///
@@ -292,52 +271,36 @@ impl Pool for PoolContract {
             .publish((Symbol::new(&e, "update_pool"), admin), backstop_take_rate);
     }
 
-    fn init_initial_reserves(e: Env, reserves: Vec<(Address, ReserveConfig)>) {
+    fn queue_set_reserve(e: Env, asset: Address, metadata: ReserveConfig) {
         storage::extend_instance(&e);
         let admin = storage::get_admin(&e);
         admin.require_auth();
 
-        pool::execute_initialize_initial_reserves(&e, &reserves);
-    }
-
-    fn queue_init_reserve(e: Env, asset: Address, metadata: ReserveConfig) {
-        storage::extend_instance(&e);
-        let admin = storage::get_admin(&e);
-        admin.require_auth();
-
-        pool::execute_queue_reserve_initialization(&e, &asset, &metadata);
+        pool::execute_queue_set_reserve(&e, &asset, &metadata);
 
         e.events().publish(
-            (Symbol::new(&e, "queue_init_reserve"), admin),
+            (Symbol::new(&e, "queue_set_reserve"), admin),
             (asset, metadata),
         );
     }
 
-    fn cancel_init_reserve(e: Env, asset: Address) {
+    fn cancel_set_reserve(e: Env, asset: Address) {
         storage::extend_instance(&e);
         let admin = storage::get_admin(&e);
         admin.require_auth();
 
-        pool::execute_cancel_queued_reserve_initialization(&e, &asset);
+        pool::execute_cancel_queued_set_reserve(&e, &asset);
 
         e.events()
-            .publish((Symbol::new(&e, "cancel_init_reserve"), admin), asset);
+            .publish((Symbol::new(&e, "cancel_set_reserve"), admin), asset);
     }
 
-    fn init_reserve(e: Env, asset: Address) -> u32 {
-        let index = pool::execute_initialize_queued_reserve(&e, &asset);
+    fn set_reserve(e: Env, asset: Address) -> u32 {
+        let index = pool::execute_set_queued_reserve(&e, &asset);
+
+        e.events()
+            .publish((Symbol::new(&e, "set_reserve"),), (asset, index));
         index
-    }
-
-    fn update_reserve(e: Env, asset: Address, config: ReserveConfig) {
-        storage::extend_instance(&e);
-        let admin = storage::get_admin(&e);
-        admin.require_auth();
-
-        pool::execute_update_reserve(&e, &asset, &config);
-
-        e.events()
-            .publish((Symbol::new(&e, "update_reserve"), admin), asset);
     }
 
     fn get_positions(e: Env, address: Address) -> Positions {

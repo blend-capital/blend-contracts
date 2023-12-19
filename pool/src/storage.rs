@@ -367,14 +367,14 @@ pub fn has_res(e: &Env, asset: &Address) -> bool {
     e.storage().persistent().has(&key)
 }
 
-/// Fetch a queued reserve initialization
+/// Fetch a queued reserve set
 ///
 /// ### Arguments
 /// * `asset` - The contract address of the asset
 ///
 /// ### Panics
-/// If the reserve initialization has not been queued
-pub fn get_queued_reserve_init(e: &Env, asset: &Address) -> QueuedReserveInit {
+/// If the reserve set has not been queued
+pub fn get_queued_reserve_set(e: &Env, asset: &Address) -> QueuedReserveInit {
     let key = PoolDataKey::ResInit(asset.clone());
     e.storage()
         .persistent()
@@ -385,12 +385,12 @@ pub fn get_queued_reserve_init(e: &Env, asset: &Address) -> QueuedReserveInit {
         .unwrap_optimized()
 }
 
-/// Set a new queued reserve initialization
+/// Set a new queued reserve set
 ///
 /// ### Arguments
 /// * `asset` - The contract address of the asset
 /// * `config` - The reserve configuration for the asset
-pub fn set_queued_reserve_init(e: &Env, res_init: &QueuedReserveInit, asset: &Address) {
+pub fn set_queued_reserve_set(e: &Env, res_init: &QueuedReserveInit, asset: &Address) {
     let key = PoolDataKey::ResInit(asset.clone());
     e.storage()
         .persistent()
@@ -400,14 +400,14 @@ pub fn set_queued_reserve_init(e: &Env, res_init: &QueuedReserveInit, asset: &Ad
         .extend_ttl(&key, LEDGER_THRESHOLD_SHARED, LEDGER_BUMP_SHARED);
 }
 
-/// Delete a queued reserve initialization
+/// Delete a queued reserve set
 ///
 /// ### Arguments
 /// * `asset` - The contract address of the asset
 ///
 /// ### Panics
-/// If the reserve initialization has not been queued
-pub fn del_queued_reserve_init(e: &Env, asset: &Address) {
+/// If the reserve set has not been queued
+pub fn del_queued_reserve_set(e: &Env, asset: &Address) {
     let key = PoolDataKey::ResInit(asset.clone());
     e.storage().persistent().remove(&key);
 }

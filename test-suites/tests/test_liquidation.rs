@@ -19,31 +19,35 @@ fn test_liquidations() {
     let pool_fixture = &fixture.pools[0];
 
     // Disable rate modifiers
-    // let mut usdc_config: ReserveConfig = fixture.read_reserve_config(0, TokenIndex::STABLE);
-    // usdc_config.reactivity = 0;
-    // pool_fixture
-    //     .pool
-    //     .queue_set_reserve(&fixture.tokens[TokenIndex::STABLE].address, &usdc_config);
-    // let mut xlm_config: ReserveConfig = fixture.read_reserve_config(0, TokenIndex::XLM);
-    // xlm_config.reactivity = 0;
-    // pool_fixture
-    //     .pool
-    //     .queue_set_reserve(&fixture.tokens[TokenIndex::XLM].address, &xlm_config);
-    // let mut weth_config: ReserveConfig = fixture.read_reserve_config(0, TokenIndex::WETH);
-    // weth_config.reactivity = 0;
-    // pool_fixture
-    //     .pool
-    //     .queue_set_reserve(&fixture.tokens[TokenIndex::WETH].address, &weth_config);
-    // fixture.jump(60 * 60 * 24 * 7);
-    // pool_fixture
-    //     .pool
-    //     .set_reserve(&fixture.tokens[TokenIndex::STABLE].address);
-    // pool_fixture
-    //     .pool
-    //     .set_reserve(&fixture.tokens[TokenIndex::XLM].address);
-    // pool_fixture
-    //     .pool
-    //     .set_reserve(&fixture.tokens[TokenIndex::WETH].address);
+    let mut usdc_config: ReserveConfig = fixture.read_reserve_config(0, TokenIndex::STABLE);
+    usdc_config.reactivity = 0;
+
+    let mut xlm_config: ReserveConfig = fixture.read_reserve_config(0, TokenIndex::XLM);
+    xlm_config.reactivity = 0;
+    let mut weth_config: ReserveConfig = fixture.read_reserve_config(0, TokenIndex::WETH);
+    weth_config.reactivity = 0;
+
+    fixture.env.as_contract(&fixture.pools[0].pool.address, || {
+        let key = PoolDataKey::ResConfig(fixture.tokens[TokenIndex::STABLE].address.clone());
+        fixture
+            .env
+            .storage()
+            .persistent()
+            .set::<PoolDataKey, ReserveConfig>(&key, &usdc_config);
+        let key = PoolDataKey::ResConfig(fixture.tokens[TokenIndex::XLM].address.clone());
+        fixture
+            .env
+            .storage()
+            .persistent()
+            .set::<PoolDataKey, ReserveConfig>(&key, &xlm_config);
+        let key = PoolDataKey::ResConfig(fixture.tokens[TokenIndex::WETH].address.clone());
+        fixture
+            .env
+            .storage()
+            .persistent()
+            .set::<PoolDataKey, ReserveConfig>(&key, &weth_config);
+    });
+
     // Create a user
     let samwise = Address::generate(&fixture.env); //sam will be supplying XLM and borrowing STABLE
 

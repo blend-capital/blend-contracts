@@ -193,7 +193,7 @@ mod tests {
         let (reserve_config, reserve_data) = testutils::default_reserve_meta();
         testutils::create_reserve(&e, &pool, &underlying_0, &reserve_config, &reserve_data);
 
-        let (underlying_1, underlying_1_client) = testutils::create_token_contract(&e, &bombadil);
+        let (underlying_1, _) = testutils::create_token_contract(&e, &bombadil);
         let (reserve_config, reserve_data) = testutils::default_reserve_meta();
         testutils::create_reserve(&e, &pool, &underlying_1, &reserve_config, &reserve_data);
 

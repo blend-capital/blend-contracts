@@ -707,6 +707,20 @@ fn test_pool_config() {
             }
         )
     );
+    assert_eq!(
+        fixture.env.auths()[1],
+        (
+            new_admin.clone(),
+            AuthorizedInvocation {
+                function: AuthorizedFunction::Contract((
+                    pool_fixture.pool.address.clone(),
+                    Symbol::new(&fixture.env, "set_admin"),
+                    vec![&fixture.env, new_admin.to_val(),]
+                )),
+                sub_invocations: std::vec![]
+            }
+        )
+    );
     let event = vec![&fixture.env, fixture.env.events().all().last_unchecked()];
     assert_eq!(
         event,

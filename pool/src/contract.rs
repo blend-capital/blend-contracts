@@ -262,6 +262,7 @@ impl Pool for PoolContract {
         storage::extend_instance(&e);
         let admin = storage::get_admin(&e);
         admin.require_auth();
+        new_admin.require_auth();
 
         storage::set_admin(&e, &new_admin);
 

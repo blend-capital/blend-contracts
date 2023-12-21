@@ -18,6 +18,42 @@ fn test_liquidations() {
     let frodo = fixture.users.get(0).unwrap();
     let pool_fixture = &fixture.pools[0];
 
+    //accrue interest
+    let requests: Vec<Request> = vec![
+        &fixture.env,
+        Request {
+            request_type: 4,
+            address: fixture.tokens[TokenIndex::STABLE].address.clone(),
+            amount: 1,
+        },
+        Request {
+            request_type: 5,
+            address: fixture.tokens[TokenIndex::STABLE].address.clone(),
+            amount: 1,
+        },
+        Request {
+            request_type: 4,
+            address: fixture.tokens[TokenIndex::XLM].address.clone(),
+            amount: 1,
+        },
+        Request {
+            request_type: 5,
+            address: fixture.tokens[TokenIndex::XLM].address.clone(),
+            amount: 1,
+        },
+        Request {
+            request_type: 4,
+            address: fixture.tokens[TokenIndex::WETH].address.clone(),
+            amount: 1,
+        },
+        Request {
+            request_type: 5,
+            address: fixture.tokens[TokenIndex::WETH].address.clone(),
+            amount: 1,
+        },
+    ];
+    pool_fixture.pool.submit(&frodo, &frodo, &frodo, &requests);
+
     // Disable rate modifiers
     let mut usdc_config: ReserveConfig = fixture.read_reserve_config(0, TokenIndex::STABLE);
     usdc_config.reactivity = 0;
@@ -763,6 +799,16 @@ fn test_liquidations() {
         .pool
         .submit(&samwise, &samwise, &samwise, &sam_requests);
 
+    println!(
+        "samwise_positions_post borrow {:?}",
+        sam_positions.liabilities
+    );
+    println!("current ledger {}", fixture.env.ledger().sequence());
+    println!(
+        "current ledger timestamp {}",
+        fixture.env.ledger().timestamp()
+    );
+
     // Nuke eth price more
     fixture.oracle.set_price_stable(&vec![
         &fixture.env,
@@ -823,11 +869,19 @@ fn test_liquidations() {
         .pool
         .submit(&frodo, &frodo, &frodo, &bad_debt_fill_request);
     // transfer bad debt to backstop
+    let samwise_positions_pre_bd =
+        pool_fixture
+            .pool
+            .submit(&samwise, &samwise, &samwise, &blank_request);
+    println!(
+        "samwise_positions_pre_bd {:?}",
+        samwise_positions_pre_bd.liabilities
+    );
     pool_fixture.pool.bad_debt(&samwise);
 
     let events = fixture.env.events().all();
     let event = vec![&fixture.env, events.get_unchecked(events.len() - 1)];
-    let bad_debt: i128 = 92903018;
+    let bad_debt: i128 = 92587244; //92587244 //92903018
     assert_eq!(
         event,
         vec![
@@ -873,7 +927,7 @@ fn test_liquidations() {
         assert_eq!(positions.liabilities.get(0).unwrap(), bad_debt);
     });
     // check d_supply
-    let d_supply = 19104604033;
+    let d_supply = 19104301981; //19104604033
     fixture.env.as_contract(&pool_fixture.pool.address, || {
         let key = PoolDataKey::ResData(fixture.tokens[TokenIndex::STABLE].address.clone());
         let data = fixture
@@ -920,7 +974,6 @@ fn test_liquidations() {
     });
     let events = fixture.env.events().all();
     let event = vec![&fixture.env, events.get_unchecked(events.len() - 2)];
-    let bad_debt: i128 = 92903018;
     assert_eq!(
         event,
         vec![

@@ -17,7 +17,7 @@ debug-assertions = true
 
 [profile.release]
 opt-level = "z"
-overflow-checks = true
+overflow-checks = true # DEV: Do not remove this check - doing so will create vulnerabilities
 debug = 0
 strip = "symbols"
 debug-assertions = false

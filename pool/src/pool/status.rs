@@ -341,7 +341,7 @@ mod tests {
 
     #[test]
     #[should_panic(expected = "Error(Contract, #8)")]
-    fn test_set_pool_status_on_ice_blocks_with_too_high_q4w() {
+    fn test_set_pool_status_admin_on_ice_blocks_with_too_high_q4w() {
         let e = Env::default();
         e.budget().reset_unlimited();
         e.mock_all_auths_allowing_non_root_auth();
@@ -374,13 +374,57 @@ mod tests {
         let pool_config = PoolConfig {
             oracle: oracle_id,
             bstop_rate: 0,
-            status: 2,
+            status: 5,
         };
         e.as_contract(&pool_id, || {
             storage::set_admin(&e, &bombadil);
             storage::set_pool_config(&e, &pool_config);
 
             execute_set_pool_status(&e, 2);
+        });
+    }
+    #[test]
+    #[should_panic(expected = "Error(Contract, #8)")]
+    fn test_set_pool_status_backstop_on_ice_blocks_with_too_high_q4w() {
+        let e = Env::default();
+        e.budget().reset_unlimited();
+        e.mock_all_auths_allowing_non_root_auth();
+        let pool_id = create_pool(&e);
+        let oracle_id = Address::generate(&e);
+
+        let bombadil = Address::generate(&e);
+        let samwise = Address::generate(&e);
+
+        let (blnd, blnd_client) = create_token_contract(&e, &bombadil);
+        let (usdc, usdc_client) = create_token_contract(&e, &bombadil);
+        let (lp_token, lp_token_client) = create_comet_lp_pool(&e, &bombadil, &blnd, &usdc);
+        let (backstop_id, backstop_client) = create_backstop(&e);
+        setup_backstop(&e, &pool_id, &backstop_id, &lp_token, &usdc, &blnd);
+
+        // mint lp tokens
+        blnd_client.mint(&samwise, &500_001_0000000);
+        blnd_client.approve(&samwise, &lp_token, &i128::MAX, &99999);
+        usdc_client.mint(&samwise, &12_501_0000000);
+        usdc_client.approve(&samwise, &lp_token, &i128::MAX, &99999);
+        lp_token_client.join_pool(
+            &50_000_0000000,
+            &vec![&e, 500_001_0000000, 12_501_0000000],
+            &samwise,
+        );
+        backstop_client.deposit(&samwise, &pool_id, &50_000_0000000);
+        backstop_client.update_tkn_val();
+        backstop_client.queue_withdrawal(&samwise, &pool_id, &40_000_0000000);
+
+        let pool_config = PoolConfig {
+            oracle: oracle_id,
+            bstop_rate: 0,
+            status: 6,
+        };
+        e.as_contract(&pool_id, || {
+            storage::set_admin(&e, &bombadil);
+            storage::set_pool_config(&e, &pool_config);
+
+            execute_set_pool_status(&e, 3);
         });
     }
     #[test]

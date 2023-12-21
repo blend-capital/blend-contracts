@@ -94,6 +94,7 @@ pub struct UserEmissionData {
 /********** Storage Key Types **********/
 
 const ADMIN_KEY: &str = "Admin";
+const MAX_POSITIONS_KEY: &str = "MaxPos";
 const NAME_KEY: &str = "Name";
 const BACKSTOP_KEY: &str = "Backstop";
 const BLND_TOKEN_KEY: &str = "BLNDTkn";
@@ -225,6 +226,26 @@ pub fn set_admin(e: &Env, new_admin: &Address) {
 /// Checks if an admin is set
 pub fn has_admin(e: &Env) -> bool {
     e.storage().instance().has(&Symbol::new(e, ADMIN_KEY))
+}
+
+/*********** Max Positions ***********/
+// Fetch the current max posoitions
+///
+pub fn get_max_positions(e: &Env) -> u32 {
+    e.storage()
+        .instance()
+        .get(&Symbol::new(e, MAX_POSITIONS_KEY))
+        .unwrap_or(0)
+}
+
+/// Set a new admin
+///
+/// ### Arguments
+/// * `max_positions` - The max positions for the pool
+pub fn set_max_positions(e: &Env, max_positions: &u32) {
+    e.storage()
+        .instance()
+        .set::<Symbol, u32>(&Symbol::new(e, MAX_POSITIONS_KEY), max_positions);
 }
 
 /********** Metadata **********/

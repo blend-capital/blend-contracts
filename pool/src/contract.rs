@@ -48,6 +48,15 @@ pub trait Pool {
     /// If the caller is not the admin
     fn set_admin(e: Env, new_admin: Address);
 
+    /// (Admin only) Set a max number of positions a single user can have
+    ///
+    /// ### Arguments
+    /// * `max` - Max number of positions a single user can have
+    ///
+    /// ### Panics
+    /// If the caller is not the admin
+    fn set_max_positions(e: Env, max: u32);
+
     /// (Admin only) Update the pool
     ///
     /// ### Arguments
@@ -269,6 +278,17 @@ impl Pool for PoolContract {
 
         e.events()
             .publish((Symbol::new(&e, "update_pool"), admin), backstop_take_rate);
+    }
+
+    fn set_max_positions(e: Env, max: u32) {
+        storage::extend_instance(&e);
+        let admin = storage::get_admin(&e);
+        admin.require_auth();
+
+        storage::set_max_positions(&e, &max);
+
+        e.events()
+            .publish((Symbol::new(&e, "set_max_positions"), admin), max);
     }
 
     fn queue_set_reserve(e: Env, asset: Address, metadata: ReserveConfig) {

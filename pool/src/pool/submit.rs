@@ -41,6 +41,9 @@ pub fn execute_submit(
         TokenClient::new(e, &address).transfer(spender, &e.current_contract_address(), &amount);
     }
 
+    // ensure user is under max positions
+    new_from_state.positions.require_under_max(e);
+
     // store updated info to ledger
     pool.store_cached_reserves(e);
     new_from_state.store(e);
@@ -121,6 +124,7 @@ mod tests {
         };
         e.as_contract(&pool, || {
             e.mock_all_auths_allowing_non_root_auth();
+            storage::set_max_positions(&e, &2);
             storage::set_pool_config(&e, &pool_config);
 
             let pre_pool_balance_0 = underlying_0_client.balance(&pool);
@@ -160,7 +164,79 @@ mod tests {
             assert_eq!(underlying_1_client.balance(&merry), 1_5000000);
         });
     }
+    #[test]
+    #[should_panic(expected = "Error(Contract, #13)")]
+    fn test_submit_requires_positions_under_max() {
+        let e = Env::default();
+        e.budget().reset_unlimited();
+        e.mock_all_auths_allowing_non_root_auth();
 
+        e.ledger().set(LedgerInfo {
+            timestamp: 600,
+            protocol_version: 20,
+            sequence_number: 1234,
+            network_id: Default::default(),
+            base_reserve: 10,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2000000,
+        });
+
+        let bombadil = Address::generate(&e);
+        let samwise = Address::generate(&e);
+        let frodo = Address::generate(&e);
+        let merry = Address::generate(&e);
+        let pool = testutils::create_pool(&e);
+        let (oracle, oracle_client) = testutils::create_mock_oracle(&e);
+
+        let (underlying_0, underlying_0_client) = testutils::create_token_contract(&e, &bombadil);
+        let (reserve_config, reserve_data) = testutils::default_reserve_meta();
+        testutils::create_reserve(&e, &pool, &underlying_0, &reserve_config, &reserve_data);
+
+        let (underlying_1, underlying_1_client) = testutils::create_token_contract(&e, &bombadil);
+        let (reserve_config, reserve_data) = testutils::default_reserve_meta();
+        testutils::create_reserve(&e, &pool, &underlying_1, &reserve_config, &reserve_data);
+
+        underlying_0_client.mint(&frodo, &16_0000000);
+
+        oracle_client.set_data(
+            &bombadil,
+            &Asset::Other(Symbol::new(&e, "USD")),
+            &vec![
+                &e,
+                Asset::Stellar(underlying_0.clone()),
+                Asset::Stellar(underlying_1.clone()),
+            ],
+            &7,
+            &300,
+        );
+        oracle_client.set_price_stable(&vec![&e, 1_0000000, 5_0000000]);
+
+        let pool_config = PoolConfig {
+            oracle,
+            bstop_rate: 0_100_000_000,
+            status: 0,
+        };
+        e.as_contract(&pool, || {
+            e.mock_all_auths_allowing_non_root_auth();
+            storage::set_pool_config(&e, &pool_config);
+
+            let requests = vec![
+                &e,
+                Request {
+                    request_type: 2,
+                    address: underlying_0,
+                    amount: 15_0000000,
+                },
+                Request {
+                    request_type: 4,
+                    address: underlying_1,
+                    amount: 1_5000000,
+                },
+            ];
+            execute_submit(&e, &samwise, &frodo, &merry, requests);
+        });
+    }
     #[test]
     #[should_panic(expected = "Error(Contract, #10)")]
     fn test_submit_requires_healhty() {

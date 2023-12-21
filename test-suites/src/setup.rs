@@ -73,6 +73,9 @@ pub fn create_fixture_with_data<'a>(wasm: bool) -> TestFixture<'a> {
     ];
     pool_fixture.pool.set_emissions_config(&reserve_emissions);
 
+    // set max positions for pool
+    pool_fixture.pool.set_max_positions(&6);
+
     // deposit into backstop, add to reward zone
     fixture
         .backstop

@@ -18,6 +18,7 @@ pub enum PoolError {
     InvalidHf = 10,
     InvalidPoolStatus = 11,
     InvalidUtilRate = 12,
+    MaxPositionsExceeded = 13,
     // Emission Errors (20-29)
     EmissionFailure = 20,
     // Oracle Errors (30-39)

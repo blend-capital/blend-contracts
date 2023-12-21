@@ -601,7 +601,7 @@ fn test_pool_config() {
             AuthorizedInvocation {
                 function: AuthorizedFunction::Contract((
                     pool_fixture.pool.address.clone(),
-                    Symbol::new(&fixture.env, "queue_init_reserve"),
+                    Symbol::new(&fixture.env, "queue_set_reserve"),
                     vec![
                         &fixture.env,
                         blnd.address.to_val(),
@@ -684,12 +684,8 @@ fn test_pool_config() {
             &fixture.env,
             (
                 pool_fixture.pool.address.clone(),
-                (
-                    Symbol::new(&fixture.env, "update_reserve"),
-                    fixture.bombadil.clone()
-                )
-                    .into_val(&fixture.env),
-                blnd.address.to_val()
+                (Symbol::new(&fixture.env, "set_reserve"),).into_val(&fixture.env),
+                event_data.into_val(&fixture.env)
             )
         ]
     );

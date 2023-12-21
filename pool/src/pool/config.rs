@@ -101,12 +101,23 @@ fn initialize_reserve(e: &Env, asset: &Address, config: &ReserveConfig) -> u32 {
     if storage::has_res(e, asset) {
         // accrue and store reserve data to the ledger
         let pool = Pool::load(e);
-        let reserve = pool.load_reserve(e, asset);
+        let mut reserve = pool.load_reserve(e, asset);
         reserve.store(e);
         index = reserve.index;
-        if reserve.scalar != 10i128.pow(config.decimals) {
+        let reserve_config = storage::get_res_config(e, asset);
+        // decimals cannot change
+        if reserve_config.decimals != config.decimals {
             panic_with_error!(e, PoolError::InvalidReserveMetadata);
         }
+        // if any of the IR parameters were changed reset the IR modifier
+        if reserve_config.r_one != config.r_one
+            || reserve_config.r_two != config.r_two
+            || reserve_config.r_three != config.r_three
+            || reserve_config.util != config.util
+        {
+            reserve.ir_mod = 1_000_000_000;
+        }
+        reserve.store(e);
     } else {
         index = storage::push_res_list(e, asset);
         let init_data = ReserveData {
@@ -643,6 +654,63 @@ mod tests {
                 &underlying,
             );
             execute_set_queued_reserve(&e, &underlying);
+        });
+    }
+
+    #[test]
+    fn test_execute_update_reserve_resets_ir_mod() {
+        let e = Env::default();
+        e.mock_all_auths();
+        e.ledger().set(LedgerInfo {
+            timestamp: 500,
+            protocol_version: 20,
+            sequence_number: 100,
+            network_id: Default::default(),
+            base_reserve: 10,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2000000,
+        });
+
+        let pool = testutils::create_pool(&e);
+        let bombadil = Address::generate(&e);
+
+        let (underlying, _) = testutils::create_token_contract(&e, &bombadil);
+        let (reserve_config, reserve_data) = testutils::default_reserve_meta();
+        testutils::create_reserve(&e, &pool, &underlying, &reserve_config, &reserve_data);
+
+        let new_metadata = ReserveConfig {
+            index: 99,
+            decimals: 7,
+            c_factor: 0_7500000,
+            l_factor: 0_7500000,
+            util: 1_0777777,
+            max_util: 0_9500000,
+            r_one: 0_0500000,
+            r_two: 0_7500000,
+            r_three: 1_5000000,
+            reactivity: 105,
+        };
+
+        let pool_config = PoolConfig {
+            oracle: Address::generate(&e),
+            bstop_rate: 0_100_000_000,
+            status: 0,
+        };
+        e.as_contract(&pool, || {
+            storage::set_pool_config(&e, &pool_config);
+
+            storage::set_queued_reserve_set(
+                &e,
+                &QueuedReserveInit {
+                    new_config: new_metadata.clone(),
+                    unlock_time: e.ledger().timestamp(),
+                },
+                &underlying,
+            );
+            execute_set_queued_reserve(&e, &underlying);
+            let res_data = storage::get_res_data(&e, &underlying);
+            assert_eq!(res_data.ir_mod, 1_000_000_000);
         });
     }
 

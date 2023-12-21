@@ -18,22 +18,71 @@ fn test_liquidations() {
     let frodo = fixture.users.get(0).unwrap();
     let pool_fixture = &fixture.pools[0];
 
+    //accrue interest
+    let requests: Vec<Request> = vec![
+        &fixture.env,
+        Request {
+            request_type: 4,
+            address: fixture.tokens[TokenIndex::STABLE].address.clone(),
+            amount: 1,
+        },
+        Request {
+            request_type: 5,
+            address: fixture.tokens[TokenIndex::STABLE].address.clone(),
+            amount: 1,
+        },
+        Request {
+            request_type: 4,
+            address: fixture.tokens[TokenIndex::XLM].address.clone(),
+            amount: 1,
+        },
+        Request {
+            request_type: 5,
+            address: fixture.tokens[TokenIndex::XLM].address.clone(),
+            amount: 1,
+        },
+        Request {
+            request_type: 4,
+            address: fixture.tokens[TokenIndex::WETH].address.clone(),
+            amount: 1,
+        },
+        Request {
+            request_type: 5,
+            address: fixture.tokens[TokenIndex::WETH].address.clone(),
+            amount: 1,
+        },
+    ];
+    pool_fixture.pool.submit(&frodo, &frodo, &frodo, &requests);
+
     // Disable rate modifiers
     let mut usdc_config: ReserveConfig = fixture.read_reserve_config(0, TokenIndex::STABLE);
     usdc_config.reactivity = 0;
-    pool_fixture
-        .pool
-        .update_reserve(&fixture.tokens[TokenIndex::STABLE].address, &usdc_config);
+
     let mut xlm_config: ReserveConfig = fixture.read_reserve_config(0, TokenIndex::XLM);
     xlm_config.reactivity = 0;
-    pool_fixture
-        .pool
-        .update_reserve(&fixture.tokens[TokenIndex::XLM].address, &xlm_config);
     let mut weth_config: ReserveConfig = fixture.read_reserve_config(0, TokenIndex::WETH);
     weth_config.reactivity = 0;
-    pool_fixture
-        .pool
-        .update_reserve(&fixture.tokens[TokenIndex::WETH].address, &weth_config);
+
+    fixture.env.as_contract(&fixture.pools[0].pool.address, || {
+        let key = PoolDataKey::ResConfig(fixture.tokens[TokenIndex::STABLE].address.clone());
+        fixture
+            .env
+            .storage()
+            .persistent()
+            .set::<PoolDataKey, ReserveConfig>(&key, &usdc_config);
+        let key = PoolDataKey::ResConfig(fixture.tokens[TokenIndex::XLM].address.clone());
+        fixture
+            .env
+            .storage()
+            .persistent()
+            .set::<PoolDataKey, ReserveConfig>(&key, &xlm_config);
+        let key = PoolDataKey::ResConfig(fixture.tokens[TokenIndex::WETH].address.clone());
+        fixture
+            .env
+            .storage()
+            .persistent()
+            .set::<PoolDataKey, ReserveConfig>(&key, &weth_config);
+    });
 
     // Create a user
     let samwise = Address::generate(&fixture.env); //sam will be supplying XLM and borrowing STABLE
@@ -810,6 +859,11 @@ fn test_liquidations() {
         .pool
         .submit(&frodo, &frodo, &frodo, &bad_debt_fill_request);
     // transfer bad debt to backstop
+
+    pool_fixture
+        .pool
+        .submit(&samwise, &samwise, &samwise, &blank_request);
+
     pool_fixture.pool.bad_debt(&samwise);
 
     let events = fixture.env.events().all();
@@ -860,7 +914,7 @@ fn test_liquidations() {
         assert_eq!(positions.liabilities.get(0).unwrap(), bad_debt);
     });
     // check d_supply
-    let d_supply = 19104604033;
+    let d_supply = 19104604034;
     fixture.env.as_contract(&pool_fixture.pool.address, || {
         let key = PoolDataKey::ResData(fixture.tokens[TokenIndex::STABLE].address.clone());
         let data = fixture
@@ -907,7 +961,6 @@ fn test_liquidations() {
     });
     let events = fixture.env.events().all();
     let event = vec![&fixture.env, events.get_unchecked(events.len() - 2)];
-    let bad_debt: i128 = 92903018;
     assert_eq!(
         event,
         vec![

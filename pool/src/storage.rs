@@ -45,6 +45,12 @@ pub struct ReserveConfig {
     pub r_three: u32,    // the R3 value in the interest rate formula scaled expressed in 7 decimals
     pub reactivity: u32, // the reactivity constant for the reserve scaled expressed in 9 decimals
 }
+#[derive(Clone)]
+#[contracttype]
+pub struct QueuedReserveInit {
+    pub new_config: ReserveConfig,
+    pub unlock_time: u64,
+}
 
 /// The data for a reserve asset
 #[derive(Clone)]
@@ -116,6 +122,8 @@ pub struct AuctionKey {
 pub enum PoolDataKey {
     // A map of underlying asset's contract address to reserve config
     ResConfig(Address),
+    // A map of underlying asset's contract address to queued reserve init
+    ResInit(Address),
     // A map of underlying asset's contract address to reserve data
     ResData(Address),
     // The reserve's emission config
@@ -357,6 +365,51 @@ pub fn set_res_config(e: &Env, asset: &Address, config: &ReserveConfig) {
 pub fn has_res(e: &Env, asset: &Address) -> bool {
     let key = PoolDataKey::ResConfig(asset.clone());
     e.storage().persistent().has(&key)
+}
+
+/// Fetch a queued reserve set
+///
+/// ### Arguments
+/// * `asset` - The contract address of the asset
+///
+/// ### Panics
+/// If the reserve set has not been queued
+pub fn get_queued_reserve_set(e: &Env, asset: &Address) -> QueuedReserveInit {
+    let key = PoolDataKey::ResInit(asset.clone());
+    e.storage()
+        .temporary()
+        .extend_ttl(&key, LEDGER_THRESHOLD_USER, LEDGER_BUMP_USER);
+    e.storage()
+        .temporary()
+        .get::<PoolDataKey, QueuedReserveInit>(&key)
+        .unwrap_optimized()
+}
+
+/// Set a new queued reserve set
+///
+/// ### Arguments
+/// * `asset` - The contract address of the asset
+/// * `config` - The reserve configuration for the asset
+pub fn set_queued_reserve_set(e: &Env, res_init: &QueuedReserveInit, asset: &Address) {
+    let key = PoolDataKey::ResInit(asset.clone());
+    e.storage()
+        .temporary()
+        .set::<PoolDataKey, QueuedReserveInit>(&key, res_init);
+    e.storage()
+        .temporary()
+        .extend_ttl(&key, LEDGER_THRESHOLD_USER, LEDGER_BUMP_USER);
+}
+
+/// Delete a queued reserve set
+///
+/// ### Arguments
+/// * `asset` - The contract address of the asset
+///
+/// ### Panics
+/// If the reserve set has not been queued
+pub fn del_queued_reserve_set(e: &Env, asset: &Address) {
+    let key = PoolDataKey::ResInit(asset.clone());
+    e.storage().temporary().remove(&key);
 }
 
 /********** Reserve Data (ResData) **********/

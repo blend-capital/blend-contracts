@@ -48,6 +48,7 @@ fn test_pool_factory() {
     let name1 = Symbol::new(&e, "pool1");
     let name2 = Symbol::new(&e, "pool2");
     let salt = BytesN::<32>::random(&e);
+
     let deployed_pool_address_1 =
         pool_factory_client.deploy(&bombadil, &name1, &salt, &oracle, &backstop_rate);
 
@@ -91,7 +92,7 @@ fn test_pool_factory() {
             pool::PoolConfig {
                 oracle: oracle,
                 bstop_rate: backstop_rate,
-                status: 3
+                status: 6
             }
         );
         assert_eq!(

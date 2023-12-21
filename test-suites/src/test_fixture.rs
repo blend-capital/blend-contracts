@@ -185,13 +185,14 @@ impl TestFixture<'_> {
         &mut self,
         pool_index: usize,
         asset_index: TokenIndex,
-        reserve_config: ReserveConfig,
+        reserve_config: &ReserveConfig,
     ) {
         let mut pool_fixture = self.pools.remove(pool_index);
         let token = &self.tokens[asset_index];
-        let index = pool_fixture
+        pool_fixture
             .pool
-            .init_reserve(&token.address, &reserve_config);
+            .queue_set_reserve(&token.address, reserve_config);
+        let index = pool_fixture.pool.set_reserve(&token.address);
         pool_fixture.reserves.insert(asset_index, index);
         self.pools.insert(pool_index, pool_fixture);
     }

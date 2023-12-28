@@ -269,6 +269,7 @@ mod tests {
             oracle,
             bstop_rate: 0_200_000_000,
             status: 0,
+            max_positions: 5,
         };
         e.as_contract(&pool, || {
             storage::set_pool_config(&e, &pool_config);
@@ -317,6 +318,7 @@ mod tests {
             oracle,
             bstop_rate: 0_200_000_000,
             status: 0,
+            max_positions: 4,
         };
         e.as_contract(&pool, || {
             storage::set_pool_config(&e, &pool_config);
@@ -365,6 +367,7 @@ mod tests {
             oracle,
             bstop_rate: 0,
             status: 0,
+            max_positions: 4,
         };
         e.as_contract(&pool, || {
             storage::set_pool_config(&e, &pool_config);
@@ -413,6 +416,7 @@ mod tests {
             oracle,
             bstop_rate: 0_200_000_000,
             status: 0,
+            max_positions: 4,
         };
         e.as_contract(&pool, || {
             storage::set_pool_config(&e, &pool_config);

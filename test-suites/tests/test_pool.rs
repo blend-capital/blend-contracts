@@ -545,6 +545,7 @@ fn test_pool_config() {
         &Symbol::new(&fixture.env, "teapot"),
         &Address::generate(&fixture.env),
         &10000,
+        &4,
         &Address::generate(&fixture.env),
         &Address::generate(&fixture.env),
         &Address::generate(&fixture.env),
@@ -552,7 +553,13 @@ fn test_pool_config() {
     assert!(result.is_err());
 
     // Update pool config (admin only)
-    pool_fixture.pool.update_pool(&0_050_000_000);
+    pool_fixture.pool.update_pool(&0_050_000_000, &6);
+    let backstop_take_rate: u64 = 0_050_000_000u64;
+    let event_data: soroban_sdk::Vec<Val> = vec![
+        &fixture.env,
+        backstop_take_rate.into_val(&fixture.env),
+        6u32.into_val(&fixture.env),
+    ];
     assert_eq!(
         fixture.env.auths()[0],
         (
@@ -561,7 +568,7 @@ fn test_pool_config() {
                 function: AuthorizedFunction::Contract((
                     pool_fixture.pool.address.clone(),
                     Symbol::new(&fixture.env, "update_pool"),
-                    vec![&fixture.env, 0_050_000_000u64.into_val(&fixture.env)]
+                    event_data.into_val(&fixture.env)
                 )),
                 sub_invocations: std::vec![]
             }
@@ -581,7 +588,7 @@ fn test_pool_config() {
                     fixture.bombadil.clone()
                 )
                     .into_val(&fixture.env),
-                0_050_000_000u64.into_val(&fixture.env)
+                event_data.into_val(&fixture.env)
             )
         ]
     );

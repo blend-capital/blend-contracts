@@ -25,6 +25,7 @@ pub trait PoolFactory {
     /// * `name` - The name of the pool
     /// * `oracle` - The oracle address for the pool
     /// * `backstop_take_rate` - The backstop take rate for the pool
+    /// * `max_positions` - The maximum user positions supported by the pool
     fn deploy(
         e: Env,
         admin: Address,
@@ -32,6 +33,7 @@ pub trait PoolFactory {
         salt: BytesN<32>,
         oracle: Address,
         backstop_take_rate: u64,
+        max_positions: u32,
     ) -> Address;
 
     /// Checks if contract address was deployed by the factory
@@ -60,6 +62,7 @@ impl PoolFactory for PoolFactoryContract {
         salt: BytesN<32>,
         oracle: Address,
         backstop_take_rate: u64,
+        max_positions: u32,
     ) -> Address {
         admin.require_auth();
         storage::extend_instance(&e);
@@ -75,6 +78,7 @@ impl PoolFactory for PoolFactoryContract {
         init_args.push_back(name.to_val());
         init_args.push_back(oracle.to_val());
         init_args.push_back(backstop_take_rate.into_val(&e));
+        init_args.push_back(max_positions.into_val(&e));
         init_args.push_back(pool_init_meta.backstop.to_val());
         init_args.push_back(pool_init_meta.blnd_id.to_val());
         init_args.push_back(pool_init_meta.usdc_id.to_val());

@@ -305,6 +305,7 @@ mod tests {
             oracle: oracle_id,
             bstop_rate: 0_100_000_000,
             status: 0,
+            max_positions: 4,
         };
         e.as_contract(&pool_address, || {
             storage::set_pool_config(&e, &pool_config);
@@ -438,6 +439,7 @@ mod tests {
             oracle: oracle_id,
             bstop_rate: 0_100_000_000,
             status: 0,
+            max_positions: 4,
         };
         e.as_contract(&pool_address, || {
             storage::set_pool_config(&e, &pool_config);
@@ -572,6 +574,7 @@ mod tests {
             oracle: oracle_id,
             bstop_rate: 0_100_000_000,
             status: 0,
+            max_positions: 4,
         };
         e.as_contract(&pool_address, || {
             storage::set_pool_config(&e, &pool_config);
@@ -679,6 +682,7 @@ mod tests {
             oracle: Address::generate(&e),
             bstop_rate: 0_100_000_000,
             status: 0,
+            max_positions: 4,
         };
         let mut auction_data = AuctionData {
             bid: map![&e, (underlying_0, 10_0000000), (underlying_1, 2_5000000)],
@@ -822,6 +826,7 @@ mod tests {
             oracle: Address::generate(&e),
             bstop_rate: 0_100_000_000,
             status: 0,
+            max_positions: 4,
         };
         let mut auction_data = AuctionData {
             bid: map![
@@ -972,6 +977,7 @@ mod tests {
             oracle: Address::generate(&e),
             bstop_rate: 0_100_000_000,
             status: 0,
+            max_positions: 4,
         };
         let mut auction_data = AuctionData {
             bid: map![

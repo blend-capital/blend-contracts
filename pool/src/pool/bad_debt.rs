@@ -116,6 +116,7 @@ mod tests {
             oracle: Address::generate(&e),
             bstop_rate: 0_100_000_000,
             status: 0,
+            max_positions: 2,
         };
         let user_positions = Positions {
             liabilities: map![&e, (0, 24_0000000), (1, 25_0000000)],
@@ -182,6 +183,7 @@ mod tests {
             oracle: Address::generate(&e),
             bstop_rate: 0_100_000_000,
             status: 0,
+            max_positions: 2,
         };
         let user_positions = Positions {
             liabilities: map![&e, (0, 24_0000000), (1, 25_0000000)],
@@ -234,6 +236,7 @@ mod tests {
             oracle: Address::generate(&e),
             bstop_rate: 0_100_000_000,
             status: 0,
+            max_positions: 2,
         };
         let user_positions = Positions::env_default(&e);
         e.as_contract(&pool, || {
@@ -282,6 +285,7 @@ mod tests {
             oracle: Address::generate(&e),
             bstop_rate: 0_100_000_000,
             status: 0,
+            max_positions: 2,
         };
         let user_positions = Positions {
             liabilities: map![&e, (0, 24_0000000), (1, 25_0000000)],
@@ -337,6 +341,7 @@ mod tests {
             oracle: Address::generate(&e),
             bstop_rate: 0_100_000_000,
             status: 0,
+            max_positions: 2,
         };
 
         let backstop_positions = Positions {

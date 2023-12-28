@@ -280,6 +280,8 @@ pub fn build_actions_from_request(
             }
             _ => panic_with_error!(e, PoolError::BadRequest),
         }
+        // Verify max positions haven't been exceeded
+        pool.require_under_max(e, from_state.positions.clone(), request.request_type)
     }
     (actions, from_state, check_health)
 }
@@ -332,6 +334,7 @@ mod tests {
             oracle: Address::generate(&e),
             bstop_rate: 0_100_000_000,
             status: 0,
+            max_positions: 2,
         };
         e.as_contract(&pool, || {
             storage::set_pool_config(&e, &pool_config);
@@ -400,6 +403,7 @@ mod tests {
             oracle: Address::generate(&e),
             bstop_rate: 0_200_000_000,
             status: 0,
+            max_positions: 2,
         };
 
         let user_positions = Positions {
@@ -473,6 +477,7 @@ mod tests {
             oracle: Address::generate(&e),
             bstop_rate: 0_200_000_000,
             status: 0,
+            max_positions: 2,
         };
         let user_positions = Positions {
             liabilities: map![&e],
@@ -543,6 +548,7 @@ mod tests {
             oracle: Address::generate(&e),
             bstop_rate: 0_100_000_000,
             status: 0,
+            max_positions: 2,
         };
         e.as_contract(&pool, || {
             storage::set_pool_config(&e, &pool_config);
@@ -614,6 +620,7 @@ mod tests {
             oracle: Address::generate(&e),
             bstop_rate: 0_200_000_000,
             status: 0,
+            max_positions: 2,
         };
         let user_positions = Positions {
             liabilities: map![&e],
@@ -686,6 +693,7 @@ mod tests {
             oracle: Address::generate(&e),
             bstop_rate: 0_200_000_000,
             status: 0,
+            max_positions: 2,
         };
         let user_positions = Positions {
             liabilities: map![&e],
@@ -755,6 +763,7 @@ mod tests {
             oracle: Address::generate(&e),
             bstop_rate: 0_200_000_000,
             status: 0,
+            max_positions: 2,
         };
         e.as_contract(&pool, || {
             storage::set_pool_config(&e, &pool_config);
@@ -819,6 +828,7 @@ mod tests {
             oracle: Address::generate(&e),
             bstop_rate: 0_200_000_000,
             status: 0,
+            max_positions: 2,
         };
         let user_positions = Positions {
             liabilities: map![&e, (0, 20_0000000)],
@@ -892,6 +902,7 @@ mod tests {
             oracle: Address::generate(&e),
             bstop_rate: 0_200_000_000,
             status: 0,
+            max_positions: 2,
         };
         let user_positions = Positions {
             liabilities: map![&e, (0, 20_0000000)],
@@ -971,6 +982,7 @@ mod tests {
             oracle: Address::generate(&e),
             bstop_rate: 0_200_000_000,
             status: 0,
+            max_positions: 2,
         };
         let user_positions = Positions::env_default(&e);
         e.as_contract(&pool, || {
@@ -1121,6 +1133,7 @@ mod tests {
             oracle: oracle_address,
             bstop_rate: 0_100_000_000,
             status: 0,
+            max_positions: 2,
         };
         let positions: Positions = Positions {
             collateral: map![
@@ -1244,6 +1257,7 @@ mod tests {
             oracle: oracle_address,
             bstop_rate: 0_100_000_000,
             status: 0,
+            max_positions: 2,
         };
         let auction_data = AuctionData {
             bid: map![&e, (underlying_0, 10_0000000), (underlying_1, 2_5000000)],
@@ -1373,6 +1387,7 @@ mod tests {
             oracle: Address::generate(&e),
             bstop_rate: 0_100_000_000,
             status: 0,
+            max_positions: 2,
         };
         let auction_data = AuctionData {
             bid: map![&e, (usdc_id.clone(), 952_0000000)],
@@ -1456,6 +1471,7 @@ mod tests {
             oracle: Address::generate(&e),
             bstop_rate: 0_100_000_000,
             status: 0,
+            max_positions: 2,
         };
         let auction_data = AuctionData {
             bid: map![&e, (underlying_0.clone(), 952_0000000)],
@@ -1497,6 +1513,51 @@ mod tests {
             );
             assert_eq!(actions.pool_transfer.len(), 0);
             assert_eq!(actions.spender_transfer.len(), 0);
+        });
+    }
+    #[test]
+    #[should_panic(expected = "Error(Contract, #13)")]
+    fn test_actions_requires_positions_under_max() {
+        let e = Env::default();
+        e.mock_all_auths();
+
+        let bombadil = Address::generate(&e);
+        let samwise = Address::generate(&e);
+        let pool = testutils::create_pool(&e);
+
+        let (underlying, _) = testutils::create_token_contract(&e, &bombadil);
+        let (reserve_config, reserve_data) = testutils::default_reserve_meta();
+        testutils::create_reserve(&e, &pool, &underlying, &reserve_config, &reserve_data);
+        e.ledger().set(LedgerInfo {
+            timestamp: 600,
+            protocol_version: 20,
+            sequence_number: 1234,
+            network_id: Default::default(),
+            base_reserve: 10,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2000000,
+        });
+        let pool_config = PoolConfig {
+            oracle: Address::generate(&e),
+            bstop_rate: 0_200_000_000,
+            status: 0,
+            max_positions: 0,
+        };
+        e.as_contract(&pool, || {
+            storage::set_pool_config(&e, &pool_config);
+
+            let mut pool = Pool::load(&e);
+
+            let requests = vec![
+                &e,
+                Request {
+                    request_type: 4,
+                    address: underlying.clone(),
+                    amount: 10_1234567,
+                },
+            ];
+            build_actions_from_request(&e, &mut pool, &samwise, requests);
         });
     }
 }

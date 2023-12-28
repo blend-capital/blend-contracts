@@ -181,6 +181,7 @@ mod tests {
             oracle,
             bstop_rate: 0_100_000_000,
             status: 0,
+            max_positions: 4,
         };
         e.as_contract(&pool_address, || {
             storage::set_pool_config(&e, &pool_config);
@@ -289,6 +290,7 @@ mod tests {
             oracle: oracle_address,
             bstop_rate: 0_100_000_000,
             status: 0,
+            max_positions: 4,
         };
         e.as_contract(&pool_address, || {
             storage::set_user_positions(&e, &samwise, &positions);
@@ -394,6 +396,7 @@ mod tests {
             oracle: oracle_address,
             bstop_rate: 0_100_000_000,
             status: 0,
+            max_positions: 4,
         };
         let positions: Positions = Positions {
             collateral: map![
@@ -501,6 +504,7 @@ mod tests {
             oracle: oracle_address,
             bstop_rate: 0_100_000_000,
             status: 0,
+            max_positions: 4,
         };
         let positions: Positions = Positions {
             collateral: map![
@@ -609,6 +613,7 @@ mod tests {
             oracle: oracle_address,
             bstop_rate: 0_100_000_000,
             status: 0,
+            max_positions: 4,
         };
         let positions: Positions = Positions {
             collateral: map![
@@ -728,6 +733,7 @@ mod tests {
             oracle: oracle_address,
             bstop_rate: 0_100_000_000,
             status: 0,
+            max_positions: 4,
         };
         let positions: Positions = Positions {
             collateral: map![
@@ -903,6 +909,7 @@ mod tests {
             oracle: oracle_address,
             bstop_rate: 0_100_000_000,
             status: 0,
+            max_positions: 4,
         };
         let positions: Positions = Positions {
             collateral: map![

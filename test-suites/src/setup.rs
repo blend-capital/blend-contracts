@@ -33,7 +33,7 @@ pub fn create_fixture_with_data<'a>(wasm: bool) -> TestFixture<'a> {
     );
 
     // create pool
-    fixture.create_pool(Symbol::new(&fixture.env, "Teapot"), 0_100_000_000);
+    fixture.create_pool(Symbol::new(&fixture.env, "Teapot"), 0_100_000_000, 6);
 
     let mut stable_config = default_reserve_metadata();
     stable_config.decimals = 6;
@@ -72,9 +72,6 @@ pub fn create_fixture_with_data<'a>(wasm: bool) -> TestFixture<'a> {
         },
     ];
     pool_fixture.pool.set_emissions_config(&reserve_emissions);
-
-    // set max positions for pool
-    pool_fixture.pool.set_max_positions(&6);
 
     // deposit into backstop, add to reward zone
     fixture
@@ -227,7 +224,6 @@ mod tests {
         let fixture = create_fixture_with_data(false);
         let frodo = fixture.users.get(0).unwrap();
         let pool_fixture: &PoolFixture = fixture.pools.get(0).unwrap();
-
         // validate backstop deposit
         assert_eq!(
             50_000 * SCALAR_7,

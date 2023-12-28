@@ -1,6 +1,6 @@
-use soroban_sdk::{contracttype, panic_with_error, Address, Env, Map};
+use soroban_sdk::{contracttype, Address, Env, Map};
 
-use crate::{emissions, storage, validator::require_nonnegative, PoolError};
+use crate::{emissions, storage, validator::require_nonnegative};
 
 use super::{Pool, Reserve};
 
@@ -20,11 +20,6 @@ impl Positions {
             liabilities: Map::new(e),
             collateral: Map::new(e),
             supply: Map::new(e),
-        }
-    }
-    pub fn require_under_max(&self, e: &Env) {
-        if storage::get_max_positions(e) < self.liabilities.len() + self.collateral.len() as u32 {
-            panic_with_error!(e, PoolError::MaxPositionsExceeded)
         }
     }
 }
@@ -858,63 +853,6 @@ mod tests {
             user.add_collateral(&e, &mut reserve_1, 789);
             assert_eq!(user.get_total_supply(0), 123);
             assert_eq!(user.get_total_supply(1), 456 + 789);
-        });
-    }
-
-    #[test]
-    fn test_require_under_max_passes() {
-        let e = Env::default();
-        let samwise = Address::generate(&e);
-        let pool = testutils::create_pool(&e);
-
-        let mut reserve_0 = testutils::default_reserve(&e);
-
-        let mut user = User {
-            address: samwise.clone(),
-            positions: Positions::env_default(&e),
-        };
-        e.as_contract(&pool, || {
-            storage::set_max_positions(&e, &1);
-            user.add_collateral(&e, &mut reserve_0, 123);
-            user.positions.require_under_max(&e);
-        });
-    }
-    #[test]
-    #[should_panic(expected = "Error(Contract, #13)")]
-    fn test_require_under_max_fails() {
-        let e = Env::default();
-        let samwise = Address::generate(&e);
-        let pool = testutils::create_pool(&e);
-
-        let mut reserve_0 = testutils::default_reserve(&e);
-
-        let mut user = User {
-            address: samwise.clone(),
-            positions: Positions::env_default(&e),
-        };
-        e.as_contract(&pool, || {
-            storage::set_max_positions(&e, &1);
-            user.add_collateral(&e, &mut reserve_0, 123);
-            user.add_liabilities(&e, &mut reserve_0, 789);
-            user.positions.require_under_max(&e);
-        });
-    }
-    #[test]
-    #[should_panic(expected = "Error(Contract, #13)")]
-    fn test_require_under_max_fails_unset() {
-        let e = Env::default();
-        let samwise = Address::generate(&e);
-        let pool = testutils::create_pool(&e);
-
-        let mut reserve_0 = testutils::default_reserve(&e);
-
-        let mut user = User {
-            address: samwise.clone(),
-            positions: Positions::env_default(&e),
-        };
-        e.as_contract(&pool, || {
-            user.add_collateral(&e, &mut reserve_0, 123);
-            user.positions.require_under_max(&e);
         });
     }
 }

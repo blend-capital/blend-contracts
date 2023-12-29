@@ -161,7 +161,7 @@ mod tests {
             assert_eq!(underlying_1_client.balance(&merry), 1_5000000);
         });
     }
-  
+
     #[test]
     #[should_panic(expected = "Error(Contract, #10)")]
     fn test_submit_requires_healhty() {

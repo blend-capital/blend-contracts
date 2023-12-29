@@ -76,16 +76,18 @@ impl Pool {
         }
     }
 
-    /// Require that an action does not violate the maximum number of positions, or panic.
+    /// Require that a position does not violate the maximum number of positions, or panic.
     ///
     /// ### Arguments
     /// * `positions` - The user's positions
-    /// * `action_type` - The type of action being performed
-    pub fn require_under_max(&self, e: &Env, positions: Positions, action_type: u32) {
-        if self.config.max_positions
-            < positions.liabilities.len() + positions.collateral.len() as u32
-            && (action_type == 2 || action_type == 4)
-        {
+    /// * `previous_num` - The number of positions the user previously had
+    ///
+    /// ### Panics
+    /// If the user has more positions than the maximum allowed and they are not
+    /// decreasing their number of positions
+    pub fn require_under_max(&self, e: &Env, positions: &Positions, previous_num: u32) {
+        let new_num = positions.effective_count();
+        if new_num > previous_num && self.config.max_positions < new_num {
             panic_with_error!(e, PoolError::MaxPositionsExceeded)
         }
     }
@@ -541,8 +543,9 @@ mod tests {
             assert!(false);
         });
     }
+
     #[test]
-    fn test_require_under_max_passes() {
+    fn test_require_under_max_empty() {
         let e = Env::default();
         let samwise = Address::generate(&e);
         let pool = testutils::create_pool(&e);
@@ -560,21 +563,97 @@ mod tests {
             max_positions: 2,
         };
         e.as_contract(&pool, || {
-            user.add_collateral(&e, &mut reserve_0, 123);
             storage::set_pool_config(&e, &pool_config);
-            let pool = Pool::load(&e);
+            let prev_positions = user.positions.effective_count();
 
-            pool.require_under_max(&e, user.positions, 4);
+            let pool = Pool::load(&e);
+            user.add_collateral(&e, &mut reserve_0, 1);
+
+            pool.require_under_max(&e, &user.positions, prev_positions);
         });
     }
+
+    #[test]
+    fn test_require_under_max_ignores_supply() {
+        let e = Env::default();
+        let samwise = Address::generate(&e);
+        let pool = testutils::create_pool(&e);
+
+        let mut reserve_0 = testutils::default_reserve(&e);
+        let mut reserve_1 = testutils::default_reserve(&e);
+        reserve_1.index = 1;
+
+        let (oracle, _) = testutils::create_mock_oracle(&e);
+        let mut user = User {
+            address: samwise.clone(),
+            positions: Positions::env_default(&e),
+        };
+        let pool_config = PoolConfig {
+            oracle,
+            bstop_rate: 0_200_000_000,
+            status: 0,
+            max_positions: 2,
+        };
+        e.as_contract(&pool, || {
+            storage::set_pool_config(&e, &pool_config);
+            user.add_supply(&e, &mut reserve_0, 42);
+            user.add_supply(&e, &mut reserve_1, 42);
+            user.add_collateral(&e, &mut reserve_1, 1);
+            let prev_positions = user.positions.effective_count();
+
+            let pool = Pool::load(&e);
+            user.add_liabilities(&e, &mut reserve_1, 2);
+
+            pool.require_under_max(&e, &user.positions, prev_positions);
+        });
+    }
+
+    #[test]
+    fn test_require_under_max_allows_decreasing_change() {
+        let e = Env::default();
+        let samwise = Address::generate(&e);
+        let pool = testutils::create_pool(&e);
+
+        let mut reserve_0 = testutils::default_reserve(&e);
+        let mut reserve_1 = testutils::default_reserve(&e);
+        reserve_1.index = 1;
+
+        let (oracle, _) = testutils::create_mock_oracle(&e);
+        let mut user = User {
+            address: samwise.clone(),
+            positions: Positions::env_default(&e),
+        };
+        let pool_config = PoolConfig {
+            oracle,
+            bstop_rate: 0_200_000_000,
+            status: 0,
+            max_positions: 2,
+        };
+        e.as_contract(&pool, || {
+            storage::set_pool_config(&e, &pool_config);
+            user.add_collateral(&e, &mut reserve_0, 42);
+            user.add_collateral(&e, &mut reserve_1, 42);
+            user.add_liabilities(&e, &mut reserve_0, 123);
+            user.add_liabilities(&e, &mut reserve_1, 123);
+            let prev_positions = user.positions.effective_count();
+
+            let pool = Pool::load(&e);
+            user.remove_collateral(&e, &mut reserve_1, 42);
+
+            pool.require_under_max(&e, &user.positions, prev_positions);
+        });
+    }
+
     #[test]
     #[should_panic(expected = "Error(Contract, #13)")]
-    fn test_require_under_max_fails_borrow() {
+    fn test_require_under_max_panics_if_over() {
         let e = Env::default();
         let samwise = Address::generate(&e);
         let pool = testutils::create_pool(&e);
 
         let mut reserve_0 = testutils::default_reserve(&e);
+        let mut reserve_1 = testutils::default_reserve(&e);
+        reserve_1.index = 1;
 
         let mut user = User {
             address: samwise.clone(),
@@ -585,98 +664,18 @@ mod tests {
             oracle,
             bstop_rate: 0_200_000_000,
             status: 0,
-            max_positions: 1,
+            max_positions: 2,
         };
         e.as_contract(&pool, || {
             storage::set_pool_config(&e, &pool_config);
             user.add_collateral(&e, &mut reserve_0, 123);
             user.add_liabilities(&e, &mut reserve_0, 789);
+            let prev_positions = user.positions.effective_count();
+
             let pool = Pool::load(&e);
+            user.add_liabilities(&e, &mut reserve_1, 42);
 
-            pool.require_under_max(&e, user.positions, 4);
-        });
-    }
-    #[test]
-    #[should_panic(expected = "Error(Contract, #13)")]
-    fn test_require_under_max_fails_deposit() {
-        let e = Env::default();
-        let samwise = Address::generate(&e);
-        let pool = testutils::create_pool(&e);
-
-        let mut reserve_0 = testutils::default_reserve(&e);
-
-        let mut user = User {
-            address: samwise.clone(),
-            positions: Positions::env_default(&e),
-        };
-        let (oracle, _) = testutils::create_mock_oracle(&e);
-        let pool_config = PoolConfig {
-            oracle,
-            bstop_rate: 0_200_000_000,
-            status: 0,
-            max_positions: 1,
-        };
-        e.as_contract(&pool, || {
-            storage::set_pool_config(&e, &pool_config);
-            let pool = Pool::load(&e);
-            user.add_collateral(&e, &mut reserve_0, 123);
-            user.add_liabilities(&e, &mut reserve_0, 789);
-            pool.require_under_max(&e, user.positions, 2);
-        });
-    }
-    #[test]
-    fn test_require_under_max_passes_withdraw() {
-        let e = Env::default();
-        let samwise = Address::generate(&e);
-        let pool = testutils::create_pool(&e);
-
-        let mut reserve_0 = testutils::default_reserve(&e);
-
-        let mut user = User {
-            address: samwise.clone(),
-            positions: Positions::env_default(&e),
-        };
-        let (oracle, _) = testutils::create_mock_oracle(&e);
-        let pool_config = PoolConfig {
-            oracle,
-            bstop_rate: 0_200_000_000,
-            status: 0,
-            max_positions: 1,
-        };
-        e.as_contract(&pool, || {
-            storage::set_pool_config(&e, &pool_config);
-            let pool = Pool::load(&e);
-            user.add_collateral(&e, &mut reserve_0, 123);
-            user.add_liabilities(&e, &mut reserve_0, 789);
-
-            pool.require_under_max(&e, user.positions, 3);
-        });
-    }
-    #[test]
-    fn test_require_under_max_passes_repay() {
-        let e = Env::default();
-        let samwise = Address::generate(&e);
-        let pool = testutils::create_pool(&e);
-
-        let mut reserve_0 = testutils::default_reserve(&e);
-
-        let mut user = User {
-            address: samwise.clone(),
-            positions: Positions::env_default(&e),
-        };
-        let (oracle, _) = testutils::create_mock_oracle(&e);
-        let pool_config = PoolConfig {
-            oracle,
-            bstop_rate: 0_200_000_000,
-            status: 0,
-            max_positions: 1,
-        };
-        e.as_contract(&pool, || {
-            storage::set_pool_config(&e, &pool_config);
-            let pool = Pool::load(&e);
-            user.add_collateral(&e, &mut reserve_0, 123);
-            user.add_liabilities(&e, &mut reserve_0, 789);
-            pool.require_under_max(&e, user.positions, 5);
+            pool.require_under_max(&e, &user.positions, prev_positions);
         });
     }
 }

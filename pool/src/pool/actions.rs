@@ -71,6 +71,7 @@ pub fn build_actions_from_request(
 ) -> (Actions, User, bool) {
     let mut actions = Actions::new(e);
     let mut from_state = User::load(e, from);
+    let prev_positions_count = from_state.positions.effective_count();
     let mut check_health = false;
     for request in requests.iter() {
         // verify the request is allowed
@@ -280,9 +281,11 @@ pub fn build_actions_from_request(
             }
             _ => panic_with_error!(e, PoolError::BadRequest),
         }
-        // Verify max positions haven't been exceeded
-        pool.require_under_max(e, from_state.positions.clone(), request.request_type)
     }
+
+    // Verify max positions haven't been exceeded
+    pool.require_under_max(e, &from_state.positions, prev_positions_count);
+
     (actions, from_state, check_health)
 }
 
@@ -1133,7 +1136,7 @@ mod tests {
             oracle: oracle_address,
             bstop_rate: 0_100_000_000,
             status: 0,
-            max_positions: 2,
+            max_positions: 4,
         };
         let positions: Positions = Positions {
             collateral: map![
@@ -1515,6 +1518,69 @@ mod tests {
             assert_eq!(actions.spender_transfer.len(), 0);
         });
     }
+
+    /********** positions_under_max **********/
+
+    #[test]
+    fn test_actions_requires_positions_under_max_with_decrease() {
+        let e = Env::default();
+        e.mock_all_auths();
+
+        let bombadil = Address::generate(&e);
+        let samwise = Address::generate(&e);
+        let pool = testutils::create_pool(&e);
+
+        let (underlying, _) = testutils::create_token_contract(&e, &bombadil);
+        let (reserve_config, reserve_data) = testutils::default_reserve_meta();
+        testutils::create_reserve(&e, &pool, &underlying, &reserve_config, &reserve_data);
+
+        let (underlying_1, _) = testutils::create_token_contract(&e, &bombadil);
+        let (reserve_config, reserve_data) = testutils::default_reserve_meta();
+        testutils::create_reserve(&e, &pool, &underlying_1, &reserve_config, &reserve_data);
+
+        e.ledger().set(LedgerInfo {
+            timestamp: 600,
+            protocol_version: 20,
+            sequence_number: 1234,
+            network_id: Default::default(),
+            base_reserve: 10,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2000000,
+        });
+
+        let pool_config = PoolConfig {
+            oracle: Address::generate(&e),
+            bstop_rate: 0_200_000_000,
+            status: 0,
+            max_positions: 2,
+        };
+
+        let user_positions = Positions {
+            liabilities: map![&e, (0, 5_0000000), (1, 1_0000000)],
+            collateral: map![&e, (0, 20_0000000), (1, 10)],
+            supply: map![&e],
+        };
+        e.as_contract(&pool, || {
+            storage::set_pool_config(&e, &pool_config);
+            storage::set_user_positions(&e, &samwise, &user_positions);
+
+            let mut pool = Pool::load(&e);
+
+            let requests = vec![
+                &e,
+                Request {
+                    request_type: 3,
+                    address: underlying_1.clone(),
+                    amount: 20,
+                },
+            ];
+
+            let (_, user, _) = build_actions_from_request(&e, &mut pool, &samwise, requests);
+            assert_eq!(user.positions.effective_count(), 3)
+        });
+    }
+
     #[test]
     #[should_panic(expected = "Error(Contract, #13)")]
     fn test_actions_requires_positions_under_max() {
@@ -1528,6 +1594,7 @@ mod tests {
         let (underlying, _) = testutils::create_token_contract(&e, &bombadil);
         let (reserve_config, reserve_data) = testutils::default_reserve_meta();
         testutils::create_reserve(&e, &pool, &underlying, &reserve_config, &reserve_data);
+
         e.ledger().set(LedgerInfo {
             timestamp: 600,
             protocol_version: 20,
@@ -1538,14 +1605,22 @@ mod tests {
             min_persistent_entry_ttl: 10,
             max_entry_ttl: 2000000,
         });
+
         let pool_config = PoolConfig {
             oracle: Address::generate(&e),
             bstop_rate: 0_200_000_000,
             status: 0,
-            max_positions: 0,
+            max_positions: 1,
+        };
+
+        let user_positions = Positions {
+            liabilities: map![&e],
+            collateral: map![&e, (0, 20_0000000)],
+            supply: map![&e],
         };
         e.as_contract(&pool, || {
             storage::set_pool_config(&e, &pool_config);
+            storage::set_user_positions(&e, &samwise, &user_positions);
 
             let mut pool = Pool::load(&e);
 
@@ -1554,9 +1629,10 @@ mod tests {
                 Request {
                     request_type: 4,
                     address: underlying.clone(),
-                    amount: 10_1234567,
+                    amount: 1_0000000,
                 },
             ];
+
             build_actions_from_request(&e, &mut pool, &samwise, requests);
         });
     }

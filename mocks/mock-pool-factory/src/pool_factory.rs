@@ -32,6 +32,7 @@ pub trait MockPoolFactoryTrait {
         salt: BytesN<32>,
         oracle: Address,
         backstop_take_rate: u64,
+        max_positions: u32,
     ) -> Address;
 
     /// Checks if contract address was deployed by the factory
@@ -65,6 +66,7 @@ impl MockPoolFactoryTrait for MockPoolFactory {
         _salt: BytesN<32>,
         oracle: Address,
         backstop_take_rate: u64,
+        max_positions: u32,
     ) -> Address {
         storage::extend_instance(&e);
         let pool_init_meta = storage::get_pool_init_meta(&e);
@@ -79,6 +81,7 @@ impl MockPoolFactoryTrait for MockPoolFactory {
         init_args.push_back(name.to_val());
         init_args.push_back(oracle.to_val());
         init_args.push_back(backstop_take_rate.into_val(&e));
+        init_args.push_back(max_positions.into_val(&e));
         init_args.push_back(pool_init_meta.backstop.to_val());
         init_args.push_back(pool_init_meta.blnd_id.to_val());
         init_args.push_back(pool_init_meta.usdc_id.to_val());

@@ -30,6 +30,7 @@ fn test_pool_factory() {
     let oracle = Address::generate(&e);
     let backstop_id = Address::generate(&e);
     let backstop_rate: u64 = 100000;
+    let max_positions: u32 = 6;
     let blnd_id = Address::generate(&e);
     let usdc_id = Address::generate(&e);
 
@@ -49,8 +50,14 @@ fn test_pool_factory() {
     let name2 = Symbol::new(&e, "pool2");
     let salt = BytesN::<32>::random(&e);
 
-    let deployed_pool_address_1 =
-        pool_factory_client.deploy(&bombadil, &name1, &salt, &oracle, &backstop_rate);
+    let deployed_pool_address_1 = pool_factory_client.deploy(
+        &bombadil,
+        &name1,
+        &salt,
+        &oracle,
+        &backstop_rate,
+        &max_positions,
+    );
 
     let event = vec![&e, e.events().all().last_unchecked()];
     assert_eq!(
@@ -66,8 +73,14 @@ fn test_pool_factory() {
     );
 
     let salt = BytesN::<32>::random(&e);
-    let deployed_pool_address_2 =
-        pool_factory_client.deploy(&bombadil, &name2, &salt, &oracle, &backstop_rate);
+    let deployed_pool_address_2 = pool_factory_client.deploy(
+        &bombadil,
+        &name2,
+        &salt,
+        &oracle,
+        &backstop_rate,
+        &max_positions,
+    );
 
     e.as_contract(&deployed_pool_address_1, || {
         assert_eq!(
@@ -92,7 +105,8 @@ fn test_pool_factory() {
             pool::PoolConfig {
                 oracle: oracle,
                 bstop_rate: backstop_rate,
-                status: 6
+                status: 6,
+                max_positions: 6
             }
         );
         assert_eq!(

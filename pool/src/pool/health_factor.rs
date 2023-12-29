@@ -180,6 +180,7 @@ mod tests {
             oracle,
             bstop_rate: 0_200_000_000,
             status: 0,
+            max_positions: 5,
         };
 
         let positions = Positions {

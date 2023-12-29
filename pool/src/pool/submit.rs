@@ -118,6 +118,7 @@ mod tests {
             oracle,
             bstop_rate: 0_100_000_000,
             status: 0,
+            max_positions: 2,
         };
         e.as_contract(&pool, || {
             e.mock_all_auths_allowing_non_root_auth();
@@ -211,6 +212,7 @@ mod tests {
             oracle,
             bstop_rate: 0_100_000_000,
             status: 0,
+            max_positions: 2,
         };
         e.as_contract(&pool, || {
             storage::set_pool_config(&e, &pool_config);

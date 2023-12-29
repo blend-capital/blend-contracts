@@ -22,6 +22,14 @@ impl Positions {
             supply: Map::new(e),
         }
     }
+
+    /// Get the number of effective (impacts health factor) posiitons the user holds.
+    ///
+    /// This function ignores non-collateralized supply positions, as they are not relevant to the
+    /// max number of allowed positions by the pool.
+    pub fn effective_count(&self) -> u32 {
+        self.liabilities.len() + self.collateral.len()
+    }
 }
 
 /// A user / contracts position's with the pool

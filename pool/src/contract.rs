@@ -22,6 +22,7 @@ pub trait Pool {
     /// * `name` - The name of the pool
     /// * `oracle` - The contract address of the oracle
     /// * `backstop_take_rate` - The take rate for the backstop in stroops
+    /// * `max_positions` - The maximum number of positions a user is permitted to have
     ///
     /// Pool Factory supplied:
     /// * `backstop_id` - The contract address of the pool's backstop module
@@ -34,6 +35,7 @@ pub trait Pool {
         name: Symbol,
         oracle: Address,
         bstop_rate: u64,
+        max_positions: u32,
         backstop_id: Address,
         blnd_id: Address,
         usdc_id: Address,
@@ -52,10 +54,11 @@ pub trait Pool {
     ///
     /// ### Arguments
     /// * `backstop_take_rate` - The new take rate for the backstop
+    /// * `max_positions` - The new maximum number of allowed positions for a single user's account
     ///
     /// ### Panics
     /// If the caller is not the admin
-    fn update_pool(e: Env, backstop_take_rate: u64);
+    fn update_pool(e: Env, backstop_take_rate: u64, max_positions: u32);
 
     /// (Admin only) Queues setting data for a reserve in the pool
     ///
@@ -231,6 +234,7 @@ impl Pool for PoolContract {
         name: Symbol,
         oracle: Address,
         bstop_rate: u64,
+        max_postions: u32,
         backstop_id: Address,
         blnd_id: Address,
         usdc_id: Address,
@@ -243,6 +247,7 @@ impl Pool for PoolContract {
             &name,
             &oracle,
             &bstop_rate,
+            &max_postions,
             &backstop_id,
             &blnd_id,
             &usdc_id,
@@ -253,6 +258,7 @@ impl Pool for PoolContract {
         storage::extend_instance(&e);
         let admin = storage::get_admin(&e);
         admin.require_auth();
+        new_admin.require_auth();
 
         storage::set_admin(&e, &new_admin);
 
@@ -260,15 +266,17 @@ impl Pool for PoolContract {
             .publish((Symbol::new(&e, "set_admin"), admin), new_admin);
     }
 
-    fn update_pool(e: Env, backstop_take_rate: u64) {
+    fn update_pool(e: Env, backstop_take_rate: u64, max_positions: u32) {
         storage::extend_instance(&e);
         let admin = storage::get_admin(&e);
         admin.require_auth();
 
-        pool::execute_update_pool(&e, backstop_take_rate);
+        pool::execute_update_pool(&e, backstop_take_rate, max_positions);
 
-        e.events()
-            .publish((Symbol::new(&e, "update_pool"), admin), backstop_take_rate);
+        e.events().publish(
+            (Symbol::new(&e, "update_pool"), admin),
+            (backstop_take_rate, max_positions),
+        );
     }
 
     fn queue_set_reserve(e: Env, asset: Address, metadata: ReserveConfig) {

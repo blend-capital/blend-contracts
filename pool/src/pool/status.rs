@@ -193,6 +193,7 @@ mod tests {
             oracle: oracle_id,
             bstop_rate: 0,
             status: 1,
+            max_positions: 4,
         };
         e.as_contract(&pool_id, || {
             storage::set_admin(&e, &bombadil);
@@ -240,6 +241,7 @@ mod tests {
             oracle: oracle_id,
             bstop_rate: 0,
             status: 1,
+            max_positions: 4,
         };
         e.as_contract(&pool_id, || {
             storage::set_admin(&e, &bombadil);
@@ -285,6 +287,7 @@ mod tests {
             oracle: oracle_id,
             bstop_rate: 0,
             status: 2,
+            max_positions: 4,
         };
         e.as_contract(&pool_id, || {
             storage::set_admin(&e, &bombadil);
@@ -327,6 +330,7 @@ mod tests {
             oracle: oracle_id,
             bstop_rate: 0,
             status: 1,
+            max_positions: 4,
         };
         e.as_contract(&pool_id, || {
             storage::set_admin(&e, &bombadil);
@@ -375,6 +379,7 @@ mod tests {
             oracle: oracle_id,
             bstop_rate: 0,
             status: 5,
+            max_positions: 4,
         };
         e.as_contract(&pool_id, || {
             storage::set_admin(&e, &bombadil);
@@ -419,6 +424,7 @@ mod tests {
             oracle: oracle_id,
             bstop_rate: 0,
             status: 6,
+            max_positions: 4,
         };
         e.as_contract(&pool_id, || {
             storage::set_admin(&e, &bombadil);
@@ -461,6 +467,7 @@ mod tests {
             oracle: oracle_id,
             bstop_rate: 0,
             status: 1,
+            max_positions: 4,
         };
         e.as_contract(&pool_id, || {
             storage::set_admin(&e, &bombadil);
@@ -507,6 +514,7 @@ mod tests {
             oracle: oracle_id,
             bstop_rate: 0,
             status: 2,
+            max_positions: 4,
         };
         e.as_contract(&pool_id, || {
             storage::set_admin(&e, &bombadil);
@@ -550,6 +558,7 @@ mod tests {
             oracle: oracle_id,
             bstop_rate: 0,
             status: 3,
+            max_positions: 4,
         };
         e.as_contract(&pool_id, || {
             storage::set_admin(&e, &bombadil);
@@ -597,6 +606,7 @@ mod tests {
             oracle: oracle_id,
             bstop_rate: 0,
             status: 0,
+            max_positions: 4,
         };
         e.as_contract(&pool_id, || {
             storage::set_admin(&e, &bombadil);
@@ -644,6 +654,7 @@ mod tests {
             oracle: oracle_id,
             bstop_rate: 0,
             status: 1,
+            max_positions: 4,
         };
         e.as_contract(&pool_id, || {
             storage::set_admin(&e, &bombadil);
@@ -692,6 +703,7 @@ mod tests {
             oracle: oracle_id,
             bstop_rate: 0,
             status: 1,
+            max_positions: 4,
         };
         e.as_contract(&pool_id, || {
             storage::set_admin(&e, &bombadil);
@@ -740,6 +752,7 @@ mod tests {
             oracle: oracle_id,
             bstop_rate: 0,
             status: 0,
+            max_positions: 4,
         };
         e.as_contract(&pool_id, || {
             storage::set_admin(&e, &bombadil);
@@ -788,6 +801,7 @@ mod tests {
             oracle: oracle_id,
             bstop_rate: 0,
             status: 0,
+            max_positions: 4,
         };
         e.as_contract(&pool_id, || {
             storage::set_admin(&e, &bombadil);
@@ -836,6 +850,7 @@ mod tests {
             oracle: oracle_id,
             bstop_rate: 0,
             status: 1,
+            max_positions: 4,
         };
         e.as_contract(&pool_id, || {
             storage::set_admin(&e, &bombadil);
@@ -883,6 +898,7 @@ mod tests {
             oracle: oracle_id,
             bstop_rate: 0,
             status: 2,
+            max_positions: 4,
         };
         e.as_contract(&pool_id, || {
             storage::set_admin(&e, &bombadil);
@@ -931,6 +947,7 @@ mod tests {
             oracle: oracle_id,
             bstop_rate: 0,
             status: 2,
+            max_positions: 4,
         };
         e.as_contract(&pool_id, || {
             storage::set_admin(&e, &bombadil);
@@ -979,6 +996,7 @@ mod tests {
             oracle: oracle_id,
             bstop_rate: 0,
             status: 4,
+            max_positions: 4,
         };
         e.as_contract(&pool_id, || {
             storage::set_admin(&e, &bombadil);
@@ -1023,6 +1041,7 @@ mod tests {
             oracle: oracle_id,
             bstop_rate: 0,
             status: 6,
+            max_positions: 4,
         };
         e.as_contract(&pool_id, || {
             storage::set_admin(&e, &bombadil);
@@ -1068,6 +1087,7 @@ mod tests {
             oracle: oracle_id,
             bstop_rate: 0,
             status: 5,
+            max_positions: 4,
         };
         e.as_contract(&pool_id, || {
             storage::set_admin(&e, &bombadil);

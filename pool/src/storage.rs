@@ -20,6 +20,7 @@ pub struct PoolConfig {
     pub oracle: Address,
     pub bstop_rate: u64, // the rate the backstop takes on accrued debt interest, expressed in 9 decimals
     pub status: u32,
+    pub max_positions: u32,
 }
 
 /// The pool's emission config

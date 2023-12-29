@@ -167,13 +167,14 @@ impl TestFixture<'_> {
         fixture
     }
 
-    pub fn create_pool(&mut self, name: Symbol, backstop_take_rate: u64) {
+    pub fn create_pool(&mut self, name: Symbol, backstop_take_rate: u64, max_positions: u32) {
         let pool_id = self.pool_factory.deploy(
             &self.bombadil,
             &name,
             &BytesN::<32>::random(&self.env),
             &self.oracle.address,
             &backstop_take_rate,
+            &max_positions,
         );
         self.pools.push(PoolFixture {
             pool: PoolClient::new(&self.env, &pool_id),

@@ -2,12 +2,12 @@ use crate::{
     constants::SCALAR_7,
     dependencies::BackstopClient,
     errors::PoolError,
-    pool::{burn_backstop_bad_debt, calc_pool_backstop_threshold, Pool, User},
+    pool::{calc_pool_backstop_threshold, Pool, User},
     storage,
 };
 use cast::i128;
 use soroban_fixed_point_math::FixedPoint;
-use soroban_sdk::{map, panic_with_error, unwrap::UnwrapOptimized, Address, Env};
+use soroban_sdk::{map, panic_with_error, unwrap::UnwrapOptimized, Address, Env, Symbol};
 
 use super::{AuctionData, AuctionType};
 
@@ -99,7 +99,20 @@ pub fn fill_bad_debt_auction(
         let threshold = calc_pool_backstop_threshold(&pool_backstop_data);
         if threshold < 0_0000003 {
             // ~5% of threshold
-            burn_backstop_bad_debt(e, &mut backstop_state, pool);
+            let reserve_list = storage::get_res_list(e);
+            let mut rm_liabilities = map![e];
+            for (reserve_index, liability_balance) in backstop_state.positions.liabilities.iter() {
+                let res_asset_address = reserve_list.get_unchecked(reserve_index);
+                rm_liabilities.set(res_asset_address.clone(), liability_balance);
+
+                e.events().publish(
+                    (Symbol::new(e, "bad_debt"), backstop_address.clone()),
+                    (res_asset_address, liability_balance),
+                );
+            }
+            // remove liability debtTokens from backstop resulting in a shared loss for
+            // token suppliers
+            backstop_state.rm_positions(e, pool, map![e], rm_liabilities);
         }
     }
     backstop_state.store(e);
@@ -885,6 +898,8 @@ mod tests {
             );
             let backstop_positions = storage::get_user_positions(&e, &backstop_address);
             assert_eq!(backstop_positions.liabilities.len(), 0);
+            assert_eq!(backstop_positions.collateral.len(), 0);
+            assert_eq!(backstop_positions.supply.len(), 0);
         });
     }
 

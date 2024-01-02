@@ -184,7 +184,7 @@ mod tests {
         mock_pool_factory_client.set_pool(&pool_0_id);
 
         e.as_contract(&backstop_address, || {
-            execute_deposit(&e, &pool_0_id, &pool_0_id, 100);
+            execute_deposit(&e, &backstop_address, &pool_0_id, 100);
         });
     }
 

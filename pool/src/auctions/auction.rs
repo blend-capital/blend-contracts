@@ -130,10 +130,6 @@ pub fn fill(
     percent_filled: u64,
 ) {
     let auction_data = storage::get_auction(e, &auction_type, user);
-    if percent_filled > 100 || percent_filled == 0 {
-        panic_with_error!(e, PoolError::BadRequest);
-    }
-
     let (to_fill_auction, remaining_auction) = scale_auction(e, &auction_data, percent_filled);
     match AuctionType::from_u32(auction_type) {
         AuctionType::UserLiquidation => {
@@ -164,12 +160,19 @@ pub fn fill(
 /// Returns the (Scaled Auction, Remaining Auction) such that:
 /// - Scaled Auction is the auction data scaled
 /// - Remaining Auction is the leftover auction data that will be stored in the ledger, or deleted if None
+///
+/// ### Panics
+/// If the percent filled is greater than 100 or less than 0
 #[allow(clippy::zero_prefixed_literal)]
 fn scale_auction(
     e: &Env,
     auction_data: &AuctionData,
     percent_filled: u64,
 ) -> (AuctionData, Option<AuctionData>) {
+    if percent_filled > 100 || percent_filled == 0 {
+        panic_with_error!(e, PoolError::BadRequest);
+    }
+
     let mut to_fill_auction = AuctionData {
         bid: map![e],
         lot: map![e],
@@ -1576,5 +1579,61 @@ mod tests {
             remaining_auction.lot.get_unchecked(underlying_1.clone()),
             12_5000003
         );
+    }
+
+    #[test]
+    #[should_panic(expected = "Error(Contract, #2)")]
+    fn test_scale_auction_fill_percentage_zero() {
+        let e = Env::default();
+        let underlying_0 = Address::generate(&e);
+        let underlying_1 = Address::generate(&e);
+
+        let base_auction_data = AuctionData {
+            bid: map![&e, (underlying_0.clone(), 25_0000005)],
+            lot: map![&e, (underlying_1.clone(), 25_0000005)],
+            block: 1000,
+        };
+
+        // 0 blocks
+        e.ledger().set(LedgerInfo {
+            timestamp: 12345,
+            protocol_version: 20,
+            sequence_number: 1000,
+            network_id: Default::default(),
+            base_reserve: 10,
+            min_temp_entry_ttl: 172800,
+            min_persistent_entry_ttl: 172800,
+            max_entry_ttl: 9999999,
+        });
+
+        let (_, _) = scale_auction(&e, &base_auction_data, 0);
+    }
+
+    #[test]
+    #[should_panic(expected = "Error(Contract, #2)")]
+    fn test_scale_auction_fill_percentage_over_100() {
+        let e = Env::default();
+        let underlying_0 = Address::generate(&e);
+        let underlying_1 = Address::generate(&e);
+
+        let base_auction_data = AuctionData {
+            bid: map![&e, (underlying_0.clone(), 25_0000005)],
+            lot: map![&e, (underlying_1.clone(), 25_0000005)],
+            block: 1000,
+        };
+
+        // 0 blocks
+        e.ledger().set(LedgerInfo {
+            timestamp: 12345,
+            protocol_version: 20,
+            sequence_number: 1000,
+            network_id: Default::default(),
+            base_reserve: 10,
+            min_temp_entry_ttl: 172800,
+            min_persistent_entry_ttl: 172800,
+            max_entry_ttl: 9999999,
+        });
+
+        let (_, _) = scale_auction(&e, &base_auction_data, 101);
     }
 }

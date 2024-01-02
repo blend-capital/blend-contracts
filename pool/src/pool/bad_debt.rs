@@ -1,4 +1,4 @@
-use soroban_sdk::{map, panic_with_error, Address, Env, Symbol};
+use soroban_sdk::{panic_with_error, Address, Env, Symbol};
 
 use crate::{
     errors::PoolError,
@@ -49,24 +49,6 @@ pub fn transfer_bad_debt_to_backstop(e: &Env, user: &Address) {
     pool.store_cached_reserves(e);
     new_backstop_state.store(e);
     new_user_state.store(e);
-}
-
-/// Burn bad debt from the backstop. This can only occur if the backstop module has reached a critical balance
-pub fn burn_backstop_bad_debt(e: &Env, backstop: &mut User, pool: &mut Pool) {
-    let reserve_list = storage::get_res_list(e);
-    let mut rm_liabilities = map![e];
-    for (reserve_index, liability_balance) in backstop.positions.liabilities.iter() {
-        let res_asset_address = reserve_list.get_unchecked(reserve_index);
-        rm_liabilities.set(res_asset_address.clone(), liability_balance);
-
-        e.events().publish(
-            (Symbol::new(e, "bad_debt"), backstop.address.clone()),
-            (res_asset_address, liability_balance),
-        );
-    }
-    // remove liability debtTokens from backstop resulting in a shared loss for
-    // token suppliers
-    backstop.rm_positions(e, pool, map![e], rm_liabilities);
 }
 
 #[cfg(test)]
@@ -299,68 +281,6 @@ mod tests {
 
             e.budget().reset_unlimited();
             transfer_bad_debt_to_backstop(&e, &backstop);
-        });
-    }
-
-    #[test]
-    fn test_burn_backstop_bad_debt() {
-        let e = Env::default();
-        e.mock_all_auths();
-
-        e.ledger().set(LedgerInfo {
-            timestamp: 1500000000,
-            protocol_version: 20,
-            sequence_number: 123,
-            network_id: Default::default(),
-            base_reserve: 10,
-            min_temp_entry_ttl: 10,
-            min_persistent_entry_ttl: 10,
-            max_entry_ttl: 2000000,
-        });
-
-        let bombadil = Address::generate(&e);
-        let pool = testutils::create_pool(&e);
-        let backstop = Address::generate(&e);
-
-        let (_, blnd_client) = testutils::create_blnd_token(&e, &pool, &bombadil);
-
-        let (underlying_0, _) = testutils::create_token_contract(&e, &bombadil);
-        let (reserve_config, mut reserve_data) = testutils::default_reserve_meta();
-        reserve_data.last_time = 1499995000;
-        testutils::create_reserve(&e, &pool, &underlying_0, &reserve_config, &reserve_data);
-
-        let (underlying_1, _) = testutils::create_token_contract(&e, &bombadil);
-        let (mut reserve_config, mut reserve_data) = testutils::default_reserve_meta();
-        reserve_config.index = 1;
-        reserve_data.last_time = 1499995000;
-        testutils::create_reserve(&e, &pool, &underlying_1, &reserve_config, &reserve_data);
-
-        blnd_client.mint(&backstop, &123);
-
-        let pool_config = PoolConfig {
-            oracle: Address::generate(&e),
-            bstop_rate: 0_100_000_000,
-            status: 0,
-            max_positions: 2,
-        };
-
-        let backstop_positions = Positions {
-            liabilities: map![&e, (0, 24_0000000), (1, 25_0000000)],
-            collateral: map![&e],
-            supply: map![&e],
-        };
-        e.as_contract(&pool, || {
-            storage::set_pool_config(&e, &pool_config);
-            storage::set_backstop(&e, &backstop);
-            storage::set_user_positions(&e, &backstop, &backstop_positions);
-
-            let mut pool_obj = Pool::load(&e);
-            let mut backstop_user = User::load(&e, &backstop);
-            e.budget().reset_unlimited();
-            burn_backstop_bad_debt(&e, &mut backstop_user, &mut pool_obj);
-
-            assert_eq!(backstop_user.positions.collateral.len(), 0);
-            assert_eq!(backstop_user.positions.liabilities.len(), 0);
         });
     }
 }

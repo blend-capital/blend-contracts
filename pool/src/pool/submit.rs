@@ -1,5 +1,7 @@
 use sep_41_token::TokenClient;
-use soroban_sdk::{Address, Env, Vec};
+use soroban_sdk::{panic_with_error, Address, Env, Vec};
+
+use crate::PoolError;
 
 use super::{
     actions::{build_actions_from_request, Request},
@@ -25,6 +27,12 @@ pub fn execute_submit(
     to: &Address,
     requests: Vec<Request>,
 ) -> Positions {
+    if from == &e.current_contract_address()
+        || spender == &e.current_contract_address()
+        || to == &e.current_contract_address()
+    {
+        panic_with_error!(e, &PoolError::BadRequest);
+    }
     let mut pool = Pool::load(e);
 
     let (actions, new_from_state, check_health) =
@@ -231,6 +239,186 @@ mod tests {
                 },
             ];
             execute_submit(&e, &samwise, &frodo, &merry, requests);
+        });
+    }
+
+    #[test]
+    #[should_panic(expected = "Error(Contract, #2)")]
+    fn test_submit_from_is_not_self() {
+        let e = Env::default();
+        e.budget().reset_unlimited();
+        e.mock_all_auths_allowing_non_root_auth();
+
+        e.ledger().set(LedgerInfo {
+            timestamp: 600,
+            protocol_version: 20,
+            sequence_number: 1234,
+            network_id: Default::default(),
+            base_reserve: 10,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2000000,
+        });
+
+        let bombadil = Address::generate(&e);
+        let samwise = Address::generate(&e);
+        let pool = testutils::create_pool(&e);
+        let (oracle, oracle_client) = testutils::create_mock_oracle(&e);
+
+        let (underlying_0, underlying_0_client) = testutils::create_token_contract(&e, &bombadil);
+        let (reserve_config, reserve_data) = testutils::default_reserve_meta();
+        testutils::create_reserve(&e, &pool, &underlying_0, &reserve_config, &reserve_data);
+
+        underlying_0_client.mint(&samwise, &16_0000000);
+
+        oracle_client.set_data(
+            &bombadil,
+            &Asset::Other(Symbol::new(&e, "USD")),
+            &vec![&e, Asset::Stellar(underlying_0.clone())],
+            &7,
+            &300,
+        );
+        oracle_client.set_price_stable(&vec![&e, 1_0000000]);
+
+        let pool_config = PoolConfig {
+            oracle,
+            bstop_rate: 0_100_000_000,
+            status: 0,
+            max_positions: 2,
+        };
+        e.as_contract(&pool, || {
+            e.mock_all_auths_allowing_non_root_auth();
+            storage::set_pool_config(&e, &pool_config);
+
+            let requests = vec![
+                &e,
+                Request {
+                    request_type: 2,
+                    address: underlying_0,
+                    amount: 15_0000000,
+                },
+            ];
+            execute_submit(&e, &pool, &samwise, &samwise, requests);
+        });
+    }
+
+    #[test]
+    #[should_panic(expected = "Error(Contract, #2)")]
+    fn test_submit_spender_is_not_self() {
+        let e = Env::default();
+        e.budget().reset_unlimited();
+        e.mock_all_auths_allowing_non_root_auth();
+
+        e.ledger().set(LedgerInfo {
+            timestamp: 600,
+            protocol_version: 20,
+            sequence_number: 1234,
+            network_id: Default::default(),
+            base_reserve: 10,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2000000,
+        });
+
+        let bombadil = Address::generate(&e);
+        let samwise = Address::generate(&e);
+        let pool = testutils::create_pool(&e);
+        let (oracle, oracle_client) = testutils::create_mock_oracle(&e);
+
+        let (underlying_0, underlying_0_client) = testutils::create_token_contract(&e, &bombadil);
+        let (reserve_config, reserve_data) = testutils::default_reserve_meta();
+        testutils::create_reserve(&e, &pool, &underlying_0, &reserve_config, &reserve_data);
+
+        underlying_0_client.mint(&samwise, &16_0000000);
+
+        oracle_client.set_data(
+            &bombadil,
+            &Asset::Other(Symbol::new(&e, "USD")),
+            &vec![&e, Asset::Stellar(underlying_0.clone())],
+            &7,
+            &300,
+        );
+        oracle_client.set_price_stable(&vec![&e, 1_0000000]);
+
+        let pool_config = PoolConfig {
+            oracle,
+            bstop_rate: 0_100_000_000,
+            status: 0,
+            max_positions: 2,
+        };
+        e.as_contract(&pool, || {
+            e.mock_all_auths_allowing_non_root_auth();
+            storage::set_pool_config(&e, &pool_config);
+
+            let requests = vec![
+                &e,
+                Request {
+                    request_type: 2,
+                    address: underlying_0,
+                    amount: 15_0000000,
+                },
+            ];
+            execute_submit(&e, &samwise, &pool, &samwise, requests);
+        });
+    }
+
+    #[test]
+    #[should_panic(expected = "Error(Contract, #2)")]
+    fn test_submit_to_is_not_self() {
+        let e = Env::default();
+        e.budget().reset_unlimited();
+        e.mock_all_auths_allowing_non_root_auth();
+
+        e.ledger().set(LedgerInfo {
+            timestamp: 600,
+            protocol_version: 20,
+            sequence_number: 1234,
+            network_id: Default::default(),
+            base_reserve: 10,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2000000,
+        });
+
+        let bombadil = Address::generate(&e);
+        let samwise = Address::generate(&e);
+        let pool = testutils::create_pool(&e);
+        let (oracle, oracle_client) = testutils::create_mock_oracle(&e);
+
+        let (underlying_0, underlying_0_client) = testutils::create_token_contract(&e, &bombadil);
+        let (reserve_config, reserve_data) = testutils::default_reserve_meta();
+        testutils::create_reserve(&e, &pool, &underlying_0, &reserve_config, &reserve_data);
+
+        underlying_0_client.mint(&samwise, &16_0000000);
+
+        oracle_client.set_data(
+            &bombadil,
+            &Asset::Other(Symbol::new(&e, "USD")),
+            &vec![&e, Asset::Stellar(underlying_0.clone())],
+            &7,
+            &300,
+        );
+        oracle_client.set_price_stable(&vec![&e, 1_0000000]);
+
+        let pool_config = PoolConfig {
+            oracle,
+            bstop_rate: 0_100_000_000,
+            status: 0,
+            max_positions: 2,
+        };
+        e.as_contract(&pool, || {
+            e.mock_all_auths_allowing_non_root_auth();
+            storage::set_pool_config(&e, &pool_config);
+
+            let requests = vec![
+                &e,
+                Request {
+                    request_type: 2,
+                    address: underlying_0,
+                    amount: 15_0000000,
+                },
+            ];
+            execute_submit(&e, &samwise, &samwise, &pool, requests);
         });
     }
 }

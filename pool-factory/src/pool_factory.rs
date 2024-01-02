@@ -7,6 +7,8 @@ use soroban_sdk::{
     Symbol, Val, Vec,
 };
 
+const SCALAR_9: u64 = 1_000_000_000;
+
 #[contract]
 pub struct PoolFactoryContract;
 
@@ -69,7 +71,7 @@ impl PoolFactory for PoolFactoryContract {
         let pool_init_meta = storage::get_pool_init_meta(&e);
 
         // verify backstop take rate is within [0,1) with 9 decimals
-        if backstop_take_rate >= 1_000_000_000 {
+        if backstop_take_rate >= SCALAR_9 {
             panic_with_error!(&e, PoolFactoryError::InvalidPoolInitArgs);
         }
 

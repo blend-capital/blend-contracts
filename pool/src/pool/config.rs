@@ -1,5 +1,5 @@
 use crate::{
-    constants::SECONDS_PER_WEEK,
+    constants::{SCALAR_7, SCALAR_9, SECONDS_PER_WEEK},
     errors::PoolError,
     storage::{self, PoolConfig, QueuedReserveInit, ReserveConfig, ReserveData},
 };
@@ -27,7 +27,7 @@ pub fn execute_initialize(
     }
 
     // ensure backstop is [0,1)
-    if *bstop_rate >= 1_000_000_000 {
+    if *bstop_rate >= SCALAR_9 as u64 {
         panic_with_error!(e, PoolError::InvalidPoolInitArgs);
     }
 
@@ -50,7 +50,7 @@ pub fn execute_initialize(
 /// Update the pool
 pub fn execute_update_pool(e: &Env, backstop_take_rate: u64, max_positions: u32) {
     // ensure backstop is [0,1)
-    if backstop_take_rate >= 1_000_000_000 {
+    if backstop_take_rate >= SCALAR_9 as u64 {
         panic_with_error!(e, PoolError::BadRequest);
     }
     let mut pool_config = storage::get_pool_config(e);
@@ -117,15 +117,15 @@ fn initialize_reserve(e: &Env, asset: &Address, config: &ReserveConfig) -> u32 {
             || reserve_config.r_three != config.r_three
             || reserve_config.util != config.util
         {
-            reserve.ir_mod = 1_000_000_000;
+            reserve.ir_mod = SCALAR_9;
         }
         reserve.store(e);
     } else {
         index = storage::push_res_list(e, asset);
         let init_data = ReserveData {
-            b_rate: 1_000_000_000,
-            d_rate: 1_000_000_000,
-            ir_mod: 1_000_000_000,
+            b_rate: SCALAR_9,
+            d_rate: SCALAR_9,
+            ir_mod: SCALAR_9,
             d_supply: 0,
             b_supply: 0,
             last_time: e.ledger().timestamp(),
@@ -153,11 +153,12 @@ fn initialize_reserve(e: &Env, asset: &Address, config: &ReserveConfig) -> u32 {
 
 #[allow(clippy::zero_prefixed_literal)]
 fn require_valid_reserve_metadata(e: &Env, metadata: &ReserveConfig) {
+    const SCALAR_7_U32: u32 = SCALAR_7 as u32;
     if metadata.decimals > 18
-        || metadata.c_factor > 1_0000000
-        || metadata.l_factor > 1_0000000
+        || metadata.c_factor > SCALAR_7_U32
+        || metadata.l_factor > SCALAR_7_U32
         || metadata.util > 0_9500000
-        || (metadata.max_util > 1_0000000 || metadata.max_util <= metadata.util)
+        || (metadata.max_util > SCALAR_7_U32 || metadata.max_util <= metadata.util)
         || (metadata.r_one > metadata.r_two || metadata.r_two > metadata.r_three)
         || (metadata.reactivity > 0_0005000)
     {
@@ -253,6 +254,7 @@ mod tests {
             execute_update_pool(&e, 1_000_000_000u64, 4u32);
         });
     }
+
     #[test]
     fn test_queue_initial_reserve() {
         let e = Env::default();

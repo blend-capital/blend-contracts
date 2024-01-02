@@ -1,5 +1,5 @@
 mod actions;
-pub use actions::Request;
+pub use actions::{Request, RequestType};
 
 mod bad_debt;
 pub use bad_debt::transfer_bad_debt_to_backstop;

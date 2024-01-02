@@ -1,5 +1,5 @@
 #![cfg(test)]
-use pool::Request;
+use pool::{Request, RequestType};
 use soroban_sdk::{testutils::Address as AddressTestTrait, vec, Address, Vec};
 use test_suites::{
     create_fixture_with_data,
@@ -47,12 +47,12 @@ fn test_auction_underflow_panics() {
     let sam_requests: Vec<Request> = vec![
         &fixture.env,
         Request {
-            request_type: 2,
+            request_type: RequestType::SupplyCollateral as u32,
             address: fixture.tokens[TokenIndex::XLM].address.clone(),
             amount: 6_000 * SCALAR_7,
         },
         Request {
-            request_type: 4,
+            request_type: RequestType::Borrow as u32,
             address: fixture.tokens[TokenIndex::STABLE].address.clone(),
             amount: 200 * 10i128.pow(6),
         },
@@ -84,12 +84,12 @@ fn test_auction_underflow_panics() {
     let fill_requests = vec![
         &fixture.env,
         Request {
-            request_type: 6,
+            request_type: RequestType::FillUserLiquidationAuction as u32,
             address: samwise.clone(),
             amount: 1,
         },
         Request {
-            request_type: 5,
+            request_type: RequestType::Repay as u32,
             address: fixture.tokens[TokenIndex::STABLE].address.clone(),
             amount: usdc_bid_amount,
         },

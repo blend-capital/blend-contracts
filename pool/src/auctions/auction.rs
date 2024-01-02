@@ -25,12 +25,12 @@ pub enum AuctionType {
 }
 
 impl AuctionType {
-    pub fn from_u32(value: u32) -> Self {
+    pub fn from_u32(e: &Env, value: u32) -> Self {
         match value {
             0 => AuctionType::UserLiquidation,
             1 => AuctionType::BadDebtAuction,
             2 => AuctionType::InterestAuction,
-            _ => panic!("internal error"),
+            _ => panic_with_error!(e, PoolError::BadRequest),
         }
     }
 }
@@ -54,7 +54,7 @@ pub struct AuctionData {
 /// If the auction is unable to be created
 pub fn create(e: &Env, auction_type: u32) -> AuctionData {
     let backstop = storage::get_backstop(e);
-    let auction_data = match AuctionType::from_u32(auction_type) {
+    let auction_data = match AuctionType::from_u32(e, auction_type) {
         AuctionType::UserLiquidation => {
             panic_with_error!(e, PoolError::BadRequest);
         }
@@ -131,7 +131,7 @@ pub fn fill(
 ) {
     let auction_data = storage::get_auction(e, &auction_type, user);
     let (to_fill_auction, remaining_auction) = scale_auction(e, &auction_data, percent_filled);
-    match AuctionType::from_u32(auction_type) {
+    match AuctionType::from_u32(e, auction_type) {
         AuctionType::UserLiquidation => {
             fill_user_liq_auction(e, pool, &to_fill_auction, user, filler_state)
         }

@@ -137,7 +137,7 @@ impl Supply {
             &vec![
                 &fixture.env,
                 Request {
-                    request_type: 2,
+                    request_type: RequestType::SupplyCollateral as u32,
                     address: token,
                     amount: self.amount,
                 },
@@ -164,7 +164,7 @@ impl Withdraw {
             &vec![
                 &fixture.env,
                 Request {
-                    request_type: 3,
+                    request_type: RequestType::WithdrawCollateral as u32,
                     address: token,
                     amount: self.amount,
                 },
@@ -191,7 +191,7 @@ impl Borrow {
             &vec![
                 &fixture.env,
                 Request {
-                    request_type: 4,
+                    request_type: RequestType::Borrow as u32,
                     address: token,
                     amount: self.amount,
                 },
@@ -218,7 +218,7 @@ impl Repay {
             &vec![
                 &fixture.env,
                 Request {
-                    request_type: 5,
+                    request_type: RequestType::Repay as u32,
                     address: token,
                     amount: self.amount,
                 },

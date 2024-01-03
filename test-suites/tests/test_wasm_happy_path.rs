@@ -1,6 +1,6 @@
 #![cfg(test)]
 
-use pool::Request;
+use pool::{Request, RequestType};
 use soroban_fixed_point_math::FixedPoint;
 use soroban_sdk::{testutils::Address as _, vec, Address};
 use test_suites::{
@@ -51,7 +51,7 @@ fn test_wasm_happy_path() {
         &vec![
             &fixture.env,
             Request {
-                request_type: 2,
+                request_type: RequestType::SupplyCollateral as u32,
                 address: stable.address.clone(),
                 amount,
             },
@@ -83,7 +83,7 @@ fn test_wasm_happy_path() {
         &vec![
             &fixture.env,
             Request {
-                request_type: 2,
+                request_type: RequestType::SupplyCollateral as u32,
                 address: xlm.address.clone(),
                 amount,
             },
@@ -112,7 +112,7 @@ fn test_wasm_happy_path() {
         &vec![
             &fixture.env,
             Request {
-                request_type: 4,
+                request_type: RequestType::Borrow as u32,
                 address: stable.address.clone(),
                 amount,
             },
@@ -144,7 +144,7 @@ fn test_wasm_happy_path() {
         &vec![
             &fixture.env,
             Request {
-                request_type: 4,
+                request_type: RequestType::Borrow as u32,
                 address: xlm.address.clone(),
                 amount,
             },
@@ -247,7 +247,7 @@ fn test_wasm_happy_path() {
         &vec![
             &fixture.env,
             Request {
-                request_type: 5,
+                request_type: RequestType::Repay as u32,
                 address: stable.address.clone(),
                 amount,
             },
@@ -279,7 +279,7 @@ fn test_wasm_happy_path() {
         &vec![
             &fixture.env,
             Request {
-                request_type: 5,
+                request_type: RequestType::Repay as u32,
                 address: xlm.address.clone(),
                 amount,
             },
@@ -308,7 +308,7 @@ fn test_wasm_happy_path() {
         &vec![
             &fixture.env,
             Request {
-                request_type: 3,
+                request_type: RequestType::WithdrawCollateral as u32,
                 address: xlm.address.clone(),
                 amount,
             },
@@ -337,7 +337,7 @@ fn test_wasm_happy_path() {
         &vec![
             &fixture.env,
             Request {
-                request_type: 3,
+                request_type: RequestType::WithdrawCollateral as u32,
                 address: stable.address.clone(),
                 amount,
             },
@@ -473,7 +473,7 @@ fn test_wasm_happy_path() {
         &vec![
             &fixture.env,
             Request {
-                request_type: 5,
+                request_type: RequestType::Repay as u32,
                 address: stable.address.clone(),
                 amount: amount,
             },
@@ -505,7 +505,7 @@ fn test_wasm_happy_path() {
         &vec![
             &fixture.env,
             Request {
-                request_type: 5,
+                request_type: RequestType::Repay as u32,
                 address: xlm.address.clone(),
                 amount: amount,
             },
@@ -538,7 +538,7 @@ fn test_wasm_happy_path() {
         &vec![
             &fixture.env,
             Request {
-                request_type: 3,
+                request_type: RequestType::WithdrawCollateral as u32,
                 address: xlm.address.clone(),
                 amount: amount,
             },
@@ -566,7 +566,7 @@ fn test_wasm_happy_path() {
         &vec![
             &fixture.env,
             Request {
-                request_type: 3,
+                request_type: RequestType::WithdrawCollateral as u32,
                 address: stable.address.clone(),
                 amount: amount,
             },

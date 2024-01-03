@@ -1,4 +1,4 @@
-use pool::{Request, ReserveEmissionMetadata};
+use pool::{Request, RequestType, ReserveEmissionMetadata};
 use soroban_sdk::{testutils::Address as _, vec as svec, Address, Symbol, Vec as SVec};
 
 use crate::{
@@ -109,12 +109,12 @@ pub fn create_fixture_with_data<'a>(wasm: bool) -> TestFixture<'a> {
     let requests: SVec<Request> = svec![
         &fixture.env,
         Request {
-            request_type: 2,
+            request_type: RequestType::SupplyCollateral as u32,
             address: fixture.tokens[TokenIndex::STABLE].address.clone(),
             amount: 10_000 * 10i128.pow(6),
         },
         Request {
-            request_type: 4,
+            request_type: RequestType::Borrow as u32,
             address: fixture.tokens[TokenIndex::STABLE].address.clone(),
             amount: 8_000 * 10i128.pow(6),
         },
@@ -125,12 +125,12 @@ pub fn create_fixture_with_data<'a>(wasm: bool) -> TestFixture<'a> {
     let requests: SVec<Request> = svec![
         &fixture.env,
         Request {
-            request_type: 2,
+            request_type: RequestType::SupplyCollateral as u32,
             address: fixture.tokens[TokenIndex::WETH].address.clone(),
             amount: 10 * 10i128.pow(9),
         },
         Request {
-            request_type: 4,
+            request_type: RequestType::Borrow as u32,
             address: fixture.tokens[TokenIndex::WETH].address.clone(),
             amount: 5 * 10i128.pow(9),
         },
@@ -141,12 +141,12 @@ pub fn create_fixture_with_data<'a>(wasm: bool) -> TestFixture<'a> {
     let requests: SVec<Request> = svec![
         &fixture.env,
         Request {
-            request_type: 2,
+            request_type: RequestType::SupplyCollateral as u32,
             address: fixture.tokens[TokenIndex::XLM].address.clone(),
             amount: 100_000 * SCALAR_7,
         },
         Request {
-            request_type: 4,
+            request_type: RequestType::Borrow as u32,
             address: fixture.tokens[TokenIndex::XLM].address.clone(),
             amount: 65_000 * SCALAR_7,
         },

@@ -46,7 +46,7 @@ pub fn set_pool_emissions(e: &Env, res_emission_metadata: Vec<ReserveEmissionMet
         total_share += metadata.share;
     }
 
-    if total_share > 1_0000000 {
+    if total_share > SCALAR_7 as u64 {
         panic_with_error!(e, PoolError::BadRequest);
     }
 

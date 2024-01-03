@@ -86,7 +86,7 @@ pub fn require_pool_above_threshold(pool_backstop_data: &PoolBackstopData) -> bo
         .saturating_mul(bal_blnd)
         .saturating_mul(bal_usdc)
         .saturating_mul(SCALAR_7); // 10^7 * 10^7
-    saturating_pool_pc / threshold_pc >= 1_0000000
+    saturating_pool_pc / threshold_pc >= SCALAR_7
 }
 
 /// The pool's backstop balances

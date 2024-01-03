@@ -1,6 +1,6 @@
 #![cfg(test)]
 
-use pool::{Request, ReserveEmissionMetadata};
+use pool::{Request, RequestType, ReserveEmissionMetadata};
 use soroban_fixed_point_math::FixedPoint;
 use soroban_sdk::{
     testutils::{Address as _, AuthorizedFunction, AuthorizedInvocation, Events},
@@ -45,7 +45,7 @@ fn test_pool_user() {
     let requests = vec![
         &fixture.env,
         Request {
-            request_type: 0,
+            request_type: RequestType::Supply as u32,
             address: weth.address.clone(),
             amount,
         },
@@ -131,7 +131,7 @@ fn test_pool_user() {
     let requests = vec![
         &fixture.env,
         Request {
-            request_type: 1,
+            request_type: RequestType::Withdraw as u32,
             address: weth.address.clone(),
             amount,
         },
@@ -201,7 +201,7 @@ fn test_pool_user() {
     let requests = vec![
         &fixture.env,
         Request {
-            request_type: 2,
+            request_type: RequestType::SupplyCollateral as u32,
             address: xlm.address.clone(),
             amount,
         },
@@ -284,7 +284,7 @@ fn test_pool_user() {
     let requests = vec![
         &fixture.env,
         Request {
-            request_type: 4,
+            request_type: RequestType::Borrow as u32,
             address: weth.address.clone(),
             amount,
         },
@@ -367,12 +367,12 @@ fn test_pool_user() {
     let requests = vec![
         &fixture.env,
         Request {
-            request_type: 3,
+            request_type: RequestType::WithdrawCollateral as u32,
             address: xlm.address.clone(),
             amount: amount_withdrawal,
         },
         Request {
-            request_type: 5,
+            request_type: RequestType::Repay as u32,
             address: weth.address.clone(),
             amount: amount_repay,
         },

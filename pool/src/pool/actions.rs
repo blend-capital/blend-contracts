@@ -6,13 +6,51 @@ use crate::{auctions, errors::PoolError, validator::require_nonnegative};
 use super::pool::Pool;
 use super::User;
 
-/// An request a user makes against the pool
+/// A request a user makes against the pool
 #[derive(Clone)]
 #[contracttype]
 pub struct Request {
     pub request_type: u32,
     pub address: Address, // asset address or liquidatee
     pub amount: i128,
+}
+
+/// The type of request to be made against the pool
+#[derive(Clone, PartialEq)]
+#[repr(u32)]
+pub enum RequestType {
+    Supply = 0,
+    Withdraw = 1,
+    SupplyCollateral = 2,
+    WithdrawCollateral = 3,
+    Borrow = 4,
+    Repay = 5,
+    FillUserLiquidationAuction = 6,
+    FillBadDebtAuction = 7,
+    FillInterestAuction = 8,
+    DeleteLiquidationAuction = 9,
+}
+
+impl RequestType {
+    /// Convert a u32 to a RequestType
+    ///
+    /// ### Panics
+    /// If the value is not a valid RequestType
+    pub fn from_u32(e: &Env, value: u32) -> Self {
+        match value {
+            0 => RequestType::Supply,
+            1 => RequestType::Withdraw,
+            2 => RequestType::SupplyCollateral,
+            3 => RequestType::WithdrawCollateral,
+            4 => RequestType::Borrow,
+            5 => RequestType::Repay,
+            6 => RequestType::FillUserLiquidationAuction,
+            7 => RequestType::FillBadDebtAuction,
+            8 => RequestType::FillInterestAuction,
+            9 => RequestType::DeleteLiquidationAuction,
+            _ => panic_with_error!(e, PoolError::BadRequest),
+        }
+    }
 }
 
 /// Transfer actions to be taken by the sender and pool
@@ -77,8 +115,8 @@ pub fn build_actions_from_request(
         // verify the request is allowed
         require_nonnegative(e, &request.amount);
         pool.require_action_allowed(e, request.request_type);
-        match request.request_type {
-            0 => {
+        match RequestType::from_u32(e, request.request_type) {
+            RequestType::Supply => {
                 // supply
                 let mut reserve = pool.load_reserve(e, &request.address);
                 let b_tokens_minted = reserve.to_b_token_down(request.amount);
@@ -94,7 +132,7 @@ pub fn build_actions_from_request(
                     (request.amount, b_tokens_minted),
                 );
             }
-            1 => {
+            RequestType::Withdraw => {
                 // withdraw
                 let mut reserve = pool.load_reserve(e, &request.address);
                 let cur_b_tokens = from_state.get_supply(reserve.index);
@@ -116,7 +154,7 @@ pub fn build_actions_from_request(
                     (tokens_out, to_burn),
                 );
             }
-            2 => {
+            RequestType::SupplyCollateral => {
                 // supply collateral
                 let mut reserve = pool.load_reserve(e, &request.address);
                 let b_tokens_minted = reserve.to_b_token_down(request.amount);
@@ -132,7 +170,7 @@ pub fn build_actions_from_request(
                     (request.amount, b_tokens_minted),
                 );
             }
-            3 => {
+            RequestType::WithdrawCollateral => {
                 // withdraw collateral
                 let mut reserve = pool.load_reserve(e, &request.address);
                 let cur_b_tokens = from_state.get_collateral(reserve.index);
@@ -155,7 +193,7 @@ pub fn build_actions_from_request(
                     (tokens_out, to_burn),
                 );
             }
-            4 => {
+            RequestType::Borrow => {
                 // borrow
                 let mut reserve = pool.load_reserve(e, &request.address);
                 let d_tokens_minted = reserve.to_d_token_up(request.amount);
@@ -173,7 +211,7 @@ pub fn build_actions_from_request(
                     (request.amount, d_tokens_minted),
                 );
             }
-            5 => {
+            RequestType::Repay => {
                 // repay
                 let mut reserve = pool.load_reserve(e, &request.address);
                 let cur_d_tokens = from_state.get_liabilities(reserve.index);
@@ -206,7 +244,7 @@ pub fn build_actions_from_request(
                 }
                 pool.cache_reserve(reserve, true);
             }
-            6 => {
+            RequestType::FillUserLiquidationAuction => {
                 // fill user liquidation auction
                 auctions::fill(
                     e,
@@ -227,7 +265,7 @@ pub fn build_actions_from_request(
                     (from.clone(), request.amount),
                 );
             }
-            7 => {
+            RequestType::FillBadDebtAuction => {
                 // fill bad debt auction
                 // Note: will fail if input address is not the backstop since there cannot be a bad debt auction for a different address in storage
                 auctions::fill(
@@ -249,7 +287,7 @@ pub fn build_actions_from_request(
                     (from.clone(), request.amount),
                 );
             }
-            8 => {
+            RequestType::FillInterestAuction => {
                 // fill interest auction
                 // Note: will fail if input address is not the backstop since there cannot be an interest auction for a different address in storage
                 auctions::fill(
@@ -269,7 +307,7 @@ pub fn build_actions_from_request(
                     (from.clone(), request.amount),
                 );
             }
-            9 => {
+            RequestType::DeleteLiquidationAuction => {
                 // delete liquidation auction
                 // Note: request object is ignored besides type
                 auctions::delete_liquidation(e, &from);
@@ -279,7 +317,6 @@ pub fn build_actions_from_request(
                     (),
                 );
             }
-            _ => panic_with_error!(e, PoolError::BadRequest),
         }
     }
 
@@ -347,7 +384,7 @@ mod tests {
             let requests = vec![
                 &e,
                 Request {
-                    request_type: 0,
+                    request_type: RequestType::Supply as u32,
                     address: underlying.clone(),
                     amount: 10_1234567,
                 },
@@ -423,7 +460,7 @@ mod tests {
             let requests = vec![
                 &e,
                 Request {
-                    request_type: 1,
+                    request_type: RequestType::Withdraw as u32,
                     address: underlying.clone(),
                     amount: 10_1234567,
                 },
@@ -496,7 +533,7 @@ mod tests {
             let requests = vec![
                 &e,
                 Request {
-                    request_type: 1,
+                    request_type: RequestType::Withdraw as u32,
                     address: underlying.clone(),
                     amount: 21_0000000,
                 },
@@ -561,7 +598,7 @@ mod tests {
             let requests = vec![
                 &e,
                 Request {
-                    request_type: 2,
+                    request_type: RequestType::SupplyCollateral as u32,
                     address: underlying.clone(),
                     amount: 10_1234567,
                 },
@@ -639,7 +676,7 @@ mod tests {
             let requests = vec![
                 &e,
                 Request {
-                    request_type: 3,
+                    request_type: RequestType::WithdrawCollateral as u32,
                     address: underlying.clone(),
                     amount: 10_1234567,
                 },
@@ -712,7 +749,7 @@ mod tests {
             let requests = vec![
                 &e,
                 Request {
-                    request_type: 3,
+                    request_type: RequestType::WithdrawCollateral as u32,
                     address: underlying.clone(),
                     amount: 21_0000000,
                 },
@@ -776,7 +813,7 @@ mod tests {
             let requests = vec![
                 &e,
                 Request {
-                    request_type: 4,
+                    request_type: RequestType::Borrow as u32,
                     address: underlying.clone(),
                     amount: 10_1234567,
                 },
@@ -847,7 +884,7 @@ mod tests {
             let requests = vec![
                 &e,
                 Request {
-                    request_type: 5,
+                    request_type: RequestType::Repay as u32,
                     address: underlying.clone(),
                     amount: 10_1234567,
                 },
@@ -921,7 +958,7 @@ mod tests {
             let requests = vec![
                 &e,
                 Request {
-                    request_type: 5,
+                    request_type: RequestType::Repay as u32,
                     address: underlying.clone(),
                     amount: 21_0000000,
                 },
@@ -997,32 +1034,32 @@ mod tests {
             let requests = vec![
                 &e,
                 Request {
-                    request_type: 0,
+                    request_type: RequestType::Supply as u32,
                     address: underlying.clone(),
                     amount: 10_0000000,
                 },
                 Request {
-                    request_type: 1,
+                    request_type: RequestType::Withdraw as u32,
                     address: underlying.clone(),
                     amount: 5_0000000,
                 },
                 Request {
-                    request_type: 2,
+                    request_type: RequestType::SupplyCollateral as u32,
                     address: underlying.clone(),
                     amount: 10_0000000,
                 },
                 Request {
-                    request_type: 3,
+                    request_type: RequestType::WithdrawCollateral as u32,
                     address: underlying.clone(),
                     amount: 5_0000000,
                 },
                 Request {
-                    request_type: 4,
+                    request_type: RequestType::Borrow as u32,
                     address: underlying.clone(),
                     amount: 20_0000000,
                 },
                 Request {
-                    request_type: 5,
+                    request_type: RequestType::Repay as u32,
                     address: underlying.clone(),
                     amount: 21_0000000,
                 },
@@ -1162,7 +1199,7 @@ mod tests {
             let requests = vec![
                 &e,
                 Request {
-                    request_type: 6,
+                    request_type: RequestType::FillUserLiquidationAuction as u32,
                     address: samwise.clone(),
                     amount: 50,
                 },
@@ -1294,7 +1331,7 @@ mod tests {
             let requests = vec![
                 &e,
                 Request {
-                    request_type: 7,
+                    request_type: RequestType::FillBadDebtAuction as u32,
                     address: backstop_address.clone(),
                     amount: 100,
                 },
@@ -1418,7 +1455,7 @@ mod tests {
             let requests = vec![
                 &e,
                 Request {
-                    request_type: 8,
+                    request_type: RequestType::FillInterestAuction as u32,
                     address: backstop_address.clone(),
                     amount: 100,
                 },
@@ -1501,7 +1538,7 @@ mod tests {
             let requests = vec![
                 &e,
                 Request {
-                    request_type: 9,
+                    request_type: RequestType::DeleteLiquidationAuction as u32,
                     address: Address::generate(&e),
                     amount: 0,
                 },
@@ -1570,7 +1607,7 @@ mod tests {
             let requests = vec![
                 &e,
                 Request {
-                    request_type: 3,
+                    request_type: RequestType::WithdrawCollateral as u32,
                     address: underlying_1.clone(),
                     amount: 20,
                 },
@@ -1627,7 +1664,7 @@ mod tests {
             let requests = vec![
                 &e,
                 Request {
-                    request_type: 4,
+                    request_type: RequestType::Borrow as u32,
                     address: underlying.clone(),
                     amount: 1_0000000,
                 },

@@ -20,7 +20,7 @@ pub use auctions::{AuctionData, AuctionType};
 pub use contract::*;
 pub use emissions::ReserveEmissionMetadata;
 pub use errors::PoolError;
-pub use pool::{Positions, Request};
+pub use pool::{Positions, Request, RequestType};
 pub use storage::{
     AuctionKey, PoolConfig, PoolDataKey, PoolEmissionConfig, ReserveConfig, ReserveData,
     ReserveEmissionsConfig, ReserveEmissionsData, UserEmissionData, UserReserveKey,

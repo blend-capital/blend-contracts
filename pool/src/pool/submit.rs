@@ -65,7 +65,7 @@ pub fn execute_submit(
 mod tests {
     use crate::{
         storage::{self, PoolConfig},
-        testutils,
+        testutils, RequestType,
     };
 
     use super::*;
@@ -138,12 +138,12 @@ mod tests {
             let requests = vec![
                 &e,
                 Request {
-                    request_type: 2,
+                    request_type: RequestType::SupplyCollateral as u32,
                     address: underlying_0,
                     amount: 15_0000000,
                 },
                 Request {
-                    request_type: 4,
+                    request_type: RequestType::Borrow as u32,
                     address: underlying_1,
                     amount: 1_5000000,
                 },
@@ -228,12 +228,12 @@ mod tests {
             let requests = vec![
                 &e,
                 Request {
-                    request_type: 2,
+                    request_type: RequestType::SupplyCollateral as u32,
                     address: underlying_0,
                     amount: 15_0000000,
                 },
                 Request {
-                    request_type: 4,
+                    request_type: RequestType::Borrow as u32,
                     address: underlying_1,
                     amount: 1_7500000,
                 },
@@ -293,7 +293,7 @@ mod tests {
             let requests = vec![
                 &e,
                 Request {
-                    request_type: 2,
+                    request_type: RequestType::SupplyCollateral as u32,
                     address: underlying_0,
                     amount: 15_0000000,
                 },
@@ -353,7 +353,7 @@ mod tests {
             let requests = vec![
                 &e,
                 Request {
-                    request_type: 2,
+                    request_type: RequestType::SupplyCollateral as u32,
                     address: underlying_0,
                     amount: 15_0000000,
                 },
@@ -413,7 +413,7 @@ mod tests {
             let requests = vec![
                 &e,
                 Request {
-                    request_type: 2,
+                    request_type: RequestType::SupplyCollateral as u32,
                     address: underlying_0,
                     amount: 15_0000000,
                 },

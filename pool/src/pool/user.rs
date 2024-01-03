@@ -217,7 +217,8 @@ impl User {
 mod tests {
     use super::*;
     use crate::{
-        storage, testutils, ReserveEmissionsConfig, ReserveEmissionsData, UserEmissionData,
+        constants::SCALAR_7, storage, testutils, ReserveEmissionsConfig, ReserveEmissionsData,
+        UserEmissionData,
     };
     use soroban_fixed_point_math::FixedPoint;
     use soroban_sdk::{
@@ -345,7 +346,7 @@ mod tests {
             let new_emis_res_data = storage::get_res_emis_data(&e, &res_0_d_token_index).unwrap();
             let new_index = 1000
                 + (1000i128 * 0_1000000)
-                    .fixed_div_floor(starting_d_supply_0, 1_0000000)
+                    .fixed_div_floor(starting_d_supply_0, SCALAR_7)
                     .unwrap();
             assert_eq!(new_emis_res_data.last_time, 10001000);
             assert_eq!(new_emis_res_data.index, new_index);
@@ -353,7 +354,7 @@ mod tests {
                 storage::get_user_emissions(&e, &samwise, &res_0_d_token_index).unwrap();
             let new_accrual = 0
                 + (new_index - emis_user_data.index)
-                    .fixed_mul_floor(1000, 1_0000000)
+                    .fixed_mul_floor(1000, SCALAR_7)
                     .unwrap();
             assert_eq!(user_emis_data.accrued, new_accrual);
         });
@@ -412,7 +413,7 @@ mod tests {
             let new_emis_res_data = storage::get_res_emis_data(&e, &res_0_d_token_index).unwrap();
             let new_index = 1000
                 + (1000i128 * 0_1000000)
-                    .fixed_div_floor(starting_d_supply_0, 1_0000000)
+                    .fixed_div_floor(starting_d_supply_0, SCALAR_7)
                     .unwrap();
             assert_eq!(new_emis_res_data.last_time, 10001000);
             assert_eq!(new_emis_res_data.index, new_index);
@@ -420,7 +421,7 @@ mod tests {
                 storage::get_user_emissions(&e, &samwise, &res_0_d_token_index).unwrap();
             let new_accrual = 0
                 + (new_index - emis_user_data.index)
-                    .fixed_mul_floor(1000, 1_0000000)
+                    .fixed_mul_floor(1000, SCALAR_7)
                     .unwrap();
             assert_eq!(user_emis_data.accrued, new_accrual);
         });
@@ -540,7 +541,7 @@ mod tests {
             let new_emis_res_data = storage::get_res_emis_data(&e, &res_0_d_token_index).unwrap();
             let new_index = 1000
                 + (1000i128 * 0_1000000)
-                    .fixed_div_floor(starting_b_token_supply, 1_0000000)
+                    .fixed_div_floor(starting_b_token_supply, SCALAR_7)
                     .unwrap();
             assert_eq!(new_emis_res_data.last_time, 10001000);
             assert_eq!(new_emis_res_data.index, new_index);
@@ -548,7 +549,7 @@ mod tests {
                 storage::get_user_emissions(&e, &samwise, &res_0_d_token_index).unwrap();
             let new_accrual = 0
                 + (new_index - emis_user_data.index)
-                    .fixed_mul_floor(1000, 1_0000000)
+                    .fixed_mul_floor(1000, SCALAR_7)
                     .unwrap();
             assert_eq!(user_emis_data.accrued, new_accrual);
         });
@@ -608,7 +609,7 @@ mod tests {
             let new_emis_res_data = storage::get_res_emis_data(&e, &res_0_d_token_index).unwrap();
             let new_index = 1000
                 + (1000i128 * 0_1000000)
-                    .fixed_div_floor(starting_b_token_supply, 1_0000000)
+                    .fixed_div_floor(starting_b_token_supply, SCALAR_7)
                     .unwrap();
             assert_eq!(new_emis_res_data.last_time, 10001000);
             assert_eq!(new_emis_res_data.index, new_index);
@@ -616,7 +617,7 @@ mod tests {
                 storage::get_user_emissions(&e, &samwise, &res_0_d_token_index).unwrap();
             let new_accrual = 0
                 + (new_index - emis_user_data.index)
-                    .fixed_mul_floor(1000, 1_0000000)
+                    .fixed_mul_floor(1000, SCALAR_7)
                     .unwrap();
             assert_eq!(user_emis_data.accrued, new_accrual);
         });
@@ -737,7 +738,7 @@ mod tests {
             let new_emis_res_data = storage::get_res_emis_data(&e, &res_0_d_token_index).unwrap();
             let new_index = 1000
                 + (1000i128 * 0_1000000)
-                    .fixed_div_floor(starting_b_token_supply, 1_0000000)
+                    .fixed_div_floor(starting_b_token_supply, SCALAR_7)
                     .unwrap();
             assert_eq!(new_emis_res_data.last_time, 10001000);
             assert_eq!(new_emis_res_data.index, new_index);
@@ -745,7 +746,7 @@ mod tests {
                 storage::get_user_emissions(&e, &samwise, &res_0_d_token_index).unwrap();
             let new_accrual = 0
                 + (new_index - emis_user_data.index)
-                    .fixed_mul_floor(1000, 1_0000000)
+                    .fixed_mul_floor(1000, SCALAR_7)
                     .unwrap();
             assert_eq!(user_emis_data.accrued, new_accrual);
         });
@@ -805,7 +806,7 @@ mod tests {
             let new_emis_res_data = storage::get_res_emis_data(&e, &res_0_d_token_index).unwrap();
             let new_index = 1000
                 + (1000i128 * 0_1000000)
-                    .fixed_div_floor(starting_b_token_supply, 1_0000000)
+                    .fixed_div_floor(starting_b_token_supply, SCALAR_7)
                     .unwrap();
             assert_eq!(new_emis_res_data.last_time, 10001000);
             assert_eq!(new_emis_res_data.index, new_index);
@@ -813,7 +814,7 @@ mod tests {
                 storage::get_user_emissions(&e, &samwise, &res_0_d_token_index).unwrap();
             let new_accrual = 0
                 + (new_index - emis_user_data.index)
-                    .fixed_mul_floor(1000, 1_0000000)
+                    .fixed_mul_floor(1000, SCALAR_7)
                     .unwrap();
             assert_eq!(user_emis_data.accrued, new_accrual);
         });

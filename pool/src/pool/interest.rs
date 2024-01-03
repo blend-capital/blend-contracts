@@ -81,8 +81,9 @@ pub fn calc_accrual(
             .fixed_mul_floor(i128(config.reactivity), SCALAR_9)
             .unwrap_optimized();
         let next_ir_mod = ir_mod + rate_dif;
-        if next_ir_mod > 10_000_000_000 {
-            new_ir_mod = 10_000_000_000;
+        let ir_mod_max = 10 * SCALAR_9;
+        if next_ir_mod > ir_mod_max {
+            new_ir_mod = ir_mod_max;
         } else {
             new_ir_mod = next_ir_mod;
         }
@@ -95,8 +96,9 @@ pub fn calc_accrual(
             .fixed_mul_ceil(i128(config.reactivity), SCALAR_9)
             .unwrap_optimized();
         let next_ir_mod = ir_mod + rate_dif;
-        if next_ir_mod < 0_100_000_000 {
-            new_ir_mod = 0_100_000_000;
+        let ir_mod_min = SCALAR_9 / 10;
+        if next_ir_mod < ir_mod_min {
+            new_ir_mod = ir_mod_min;
         } else {
             new_ir_mod = next_ir_mod;
         }
@@ -105,7 +107,7 @@ pub fn calc_accrual(
     // calc accrual amount over blocks
     let time_weight = delta_time_scaled / SECONDS_PER_YEAR;
     (
-        1_000_000_000
+        SCALAR_9
             + time_weight
                 .fixed_mul_ceil(cur_ir * 100, SCALAR_9)
                 .unwrap_optimized(),

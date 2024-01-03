@@ -196,7 +196,7 @@ mod tests {
             assert_eq!(position_data.liability_base, 185_2368827);
             assert_eq!(position_data.collateral_raw, 350_3984567);
             assert_eq!(position_data.liability_raw, 148_0895061);
-            assert_eq!(position_data.scalar, 1_0000000);
+            assert_eq!(position_data.scalar, SCALAR_7);
         });
     }
 

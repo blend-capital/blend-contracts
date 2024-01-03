@@ -1,6 +1,6 @@
 #![cfg(test)]
 use cast::i128;
-use pool::{PoolDataKey, Positions, Request, ReserveConfig, ReserveData};
+use pool::{PoolDataKey, Positions, Request, RequestType, ReserveConfig, ReserveData};
 use soroban_fixed_point_math::FixedPoint;
 use soroban_sdk::{
     testutils::{Address as AddressTestTrait, Events},
@@ -22,32 +22,32 @@ fn test_liquidations() {
     let requests: Vec<Request> = vec![
         &fixture.env,
         Request {
-            request_type: 4,
+            request_type: RequestType::Borrow as u32,
             address: fixture.tokens[TokenIndex::STABLE].address.clone(),
             amount: 1,
         },
         Request {
-            request_type: 5,
+            request_type: RequestType::Repay as u32,
             address: fixture.tokens[TokenIndex::STABLE].address.clone(),
             amount: 1,
         },
         Request {
-            request_type: 4,
+            request_type: RequestType::Borrow as u32,
             address: fixture.tokens[TokenIndex::XLM].address.clone(),
             amount: 1,
         },
         Request {
-            request_type: 5,
+            request_type: RequestType::Repay as u32,
             address: fixture.tokens[TokenIndex::XLM].address.clone(),
             amount: 1,
         },
         Request {
-            request_type: 4,
+            request_type: RequestType::Borrow as u32,
             address: fixture.tokens[TokenIndex::WETH].address.clone(),
             amount: 1,
         },
         Request {
-            request_type: 5,
+            request_type: RequestType::Repay as u32,
             address: fixture.tokens[TokenIndex::WETH].address.clone(),
             amount: 1,
         },
@@ -95,7 +95,7 @@ fn test_liquidations() {
     let frodo_requests: Vec<Request> = vec![
         &fixture.env,
         Request {
-            request_type: 2,
+            request_type: RequestType::SupplyCollateral as u32,
             address: fixture.tokens[TokenIndex::STABLE].address.clone(),
             amount: 30_000 * 10i128.pow(6),
         },
@@ -108,23 +108,23 @@ fn test_liquidations() {
     let sam_requests: Vec<Request> = vec![
         &fixture.env,
         Request {
-            request_type: 2,
+            request_type: RequestType::SupplyCollateral as u32,
             address: fixture.tokens[TokenIndex::XLM].address.clone(),
             amount: 160_000 * SCALAR_7,
         },
         Request {
-            request_type: 2,
+            request_type: RequestType::SupplyCollateral as u32,
             address: fixture.tokens[TokenIndex::WETH].address.clone(),
             amount: 17 * 10i128.pow(9),
         },
         // Sam's max borrow is 39_200 STABLE
         Request {
-            request_type: 4,
+            request_type: RequestType::Borrow as u32,
             address: fixture.tokens[TokenIndex::STABLE].address.clone(),
             amount: 28_000 * 10i128.pow(6),
         }, // reduces Sam's max borrow to 14_526.31579 STABLE
         Request {
-            request_type: 4,
+            request_type: RequestType::Borrow as u32,
             address: fixture.tokens[TokenIndex::XLM].address.clone(),
             amount: 65_000 * SCALAR_7,
         },
@@ -252,27 +252,27 @@ fn test_liquidations() {
     let fill_requests = vec![
         &fixture.env,
         Request {
-            request_type: 6,
+            request_type: RequestType::FillUserLiquidationAuction as u32,
             address: samwise.clone(),
             amount: 25,
         },
         Request {
-            request_type: 6,
+            request_type: RequestType::FillUserLiquidationAuction as u32,
             address: samwise.clone(),
             amount: 100,
         },
         Request {
-            request_type: 8,
+            request_type: RequestType::FillInterestAuction as u32,
             address: fixture.backstop.address.clone(), //address shouldn't matter
             amount: 99,
         },
         Request {
-            request_type: 8,
+            request_type: RequestType::FillInterestAuction as u32,
             address: fixture.backstop.address.clone(), //address shouldn't matter
             amount: 100,
         },
         Request {
-            request_type: 5,
+            request_type: RequestType::Repay as u32,
             address: fixture.tokens[TokenIndex::STABLE].address.clone(),
             amount: usdc_bid_amount,
         },
@@ -463,19 +463,19 @@ fn test_liquidations() {
     let fill_requests = vec![
         &fixture.env,
         Request {
-            request_type: 6,
+            request_type: RequestType::FillUserLiquidationAuction as u32,
             address: samwise.clone(),
             amount: 100,
         },
         Request {
-            request_type: 5,
+            request_type: RequestType::Repay as u32,
             address: fixture.tokens[TokenIndex::STABLE].address.clone(),
             amount: usdc_bid_amount
                 .fixed_div_floor(2_0000000, SCALAR_7)
                 .unwrap(),
         },
         Request {
-            request_type: 5,
+            request_type: RequestType::Repay as u32,
             address: fixture.tokens[TokenIndex::XLM].address.clone(),
             amount: xlm_bid_amount.fixed_div_floor(2_0000000, SCALAR_7).unwrap(),
         },
@@ -595,7 +595,7 @@ fn test_liquidations() {
     let bad_debt_fill_request = vec![
         &fixture.env,
         Request {
-            request_type: 7,
+            request_type: RequestType::FillBadDebtAuction as u32,
             address: fixture.backstop.address.clone(),
             amount: 20,
         },
@@ -704,7 +704,7 @@ fn test_liquidations() {
     let bad_debt_fill_request = vec![
         &fixture.env,
         Request {
-            request_type: 7,
+            request_type: RequestType::FillBadDebtAuction as u32,
             address: fixture.backstop.address.clone(),
             amount: 100,
         },
@@ -784,13 +784,13 @@ fn test_liquidations() {
     let sam_requests: Vec<Request> = vec![
         &fixture.env,
         Request {
-            request_type: 2,
+            request_type: RequestType::SupplyCollateral as u32,
             address: fixture.tokens[TokenIndex::WETH].address.clone(),
             amount: 1 * 10i128.pow(9),
         },
         // Sam's max borrow is 39_200 STABLE
         Request {
-            request_type: 4,
+            request_type: RequestType::Borrow as u32,
             address: fixture.tokens[TokenIndex::STABLE].address.clone(),
             amount: 100 * 10i128.pow(6),
         }, // reduces Sam's max borrow to 14_526.31579 STABLE
@@ -849,7 +849,7 @@ fn test_liquidations() {
     let bad_debt_fill_request = vec![
         &fixture.env,
         Request {
-            request_type: 6,
+            request_type: RequestType::FillUserLiquidationAuction as u32,
             address: samwise.clone(),
             amount: 100,
         },
@@ -895,7 +895,7 @@ fn test_liquidations() {
     let bump_usdc = vec![
         &fixture.env,
         Request {
-            request_type: 4,
+            request_type: RequestType::Borrow as u32,
             address: fixture.tokens[TokenIndex::STABLE].address.clone(),
             amount: 1,
         },
@@ -928,7 +928,7 @@ fn test_liquidations() {
     let bad_debt_fill_request = vec![
         &fixture.env,
         Request {
-            request_type: 7,
+            request_type: RequestType::FillBadDebtAuction as u32,
             address: fixture.backstop.address.clone(),
             amount: 100,
         },
@@ -998,12 +998,12 @@ fn test_user_restore_position_and_delete_liquidation() {
     let setup_request: Vec<Request> = vec![
         &fixture.env,
         Request {
-            request_type: 2,
+            request_type: RequestType::SupplyCollateral as u32,
             address: fixture.tokens[TokenIndex::STABLE].address.clone(),
             amount: 1000 * 10i128.pow(6),
         },
         Request {
-            request_type: 4,
+            request_type: RequestType::Borrow as u32,
             address: fixture.tokens[TokenIndex::XLM].address.clone(),
             amount: 6075 * SCALAR_7,
         },
@@ -1030,7 +1030,7 @@ fn test_user_restore_position_and_delete_liquidation() {
     let delete_only_request: Vec<Request> = vec![
         &fixture.env,
         Request {
-            request_type: 9,
+            request_type: RequestType::DeleteLiquidationAuction as u32,
             address: Address::generate(&fixture.env),
             amount: i128::MAX,
         },
@@ -1045,12 +1045,12 @@ fn test_user_restore_position_and_delete_liquidation() {
     let short_supply_delete_request: Vec<Request> = vec![
         &fixture.env,
         Request {
-            request_type: 2,
+            request_type: RequestType::SupplyCollateral as u32,
             address: fixture.tokens[TokenIndex::STABLE].address.clone(),
             amount: 79 * 10i128.pow(6), // need $80 more collateral
         },
         Request {
-            request_type: 9,
+            request_type: RequestType::DeleteLiquidationAuction as u32,
             address: Address::generate(&fixture.env),
             amount: i128::MAX,
         },
@@ -1067,12 +1067,12 @@ fn test_user_restore_position_and_delete_liquidation() {
     let short_repay_delete_request: Vec<Request> = vec![
         &fixture.env,
         Request {
-            request_type: 9,
+            request_type: RequestType::DeleteLiquidationAuction as u32,
             address: Address::generate(&fixture.env),
             amount: i128::MAX,
         },
         Request {
-            request_type: 5,
+            request_type: RequestType::Repay as u32,
             address: fixture.tokens[TokenIndex::XLM].address.clone(),
             amount: 449 * SCALAR_7, // need to repay 450 XLM
         },
@@ -1090,17 +1090,17 @@ fn test_user_restore_position_and_delete_liquidation() {
     let delete_request: Vec<Request> = vec![
         &fixture.env,
         Request {
-            request_type: 2,
+            request_type: RequestType::SupplyCollateral as u32,
             address: fixture.tokens[TokenIndex::STABLE].address.clone(),
             amount: 41 * 10i128.pow(6),
         },
         Request {
-            request_type: 9,
+            request_type: RequestType::DeleteLiquidationAuction as u32,
             address: Address::generate(&fixture.env),
             amount: i128::MAX,
         },
         Request {
-            request_type: 5,
+            request_type: RequestType::Repay as u32,
             address: fixture.tokens[TokenIndex::XLM].address.clone(),
             amount: 226 * SCALAR_7,
         },

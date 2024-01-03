@@ -52,7 +52,7 @@ pub fn create_user_liq_auction_data(
         .fixed_div_floor(position_data.liability_raw, oracle_scalar)
         .unwrap_optimized();
     let est_incentive = (SCALAR_7 - avg_cf.fixed_div_ceil(avg_lf, SCALAR_7).unwrap_optimized())
-        .fixed_div_ceil(2_0000000, SCALAR_7)
+        .fixed_div_ceil(2 * SCALAR_7, SCALAR_7)
         .unwrap_optimized()
         + SCALAR_7;
 
@@ -65,8 +65,8 @@ pub fn create_user_liq_auction_data(
     let mut est_withdrawn_collateral_pct = est_withdrawn_collateral
         .fixed_div_ceil(position_data.collateral_raw, oracle_scalar)
         .unwrap_optimized();
-    if est_withdrawn_collateral_pct > 1_0000000 {
-        est_withdrawn_collateral_pct = 1_0000000;
+    if est_withdrawn_collateral_pct > SCALAR_7 {
+        est_withdrawn_collateral_pct = SCALAR_7;
     }
 
     for (asset, amount) in user_state.positions.collateral.iter() {

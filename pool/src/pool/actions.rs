@@ -117,12 +117,11 @@ pub fn build_actions_from_request(
         pool.require_action_allowed(e, request.request_type);
         match RequestType::from_u32(e, request.request_type) {
             RequestType::Supply => {
-                // supply
-                let mut reserve = pool.load_reserve(e, &request.address);
+                let mut reserve = pool.load_reserve(e, &request.address, true);
                 let b_tokens_minted = reserve.to_b_token_down(request.amount);
                 from_state.add_supply(e, &mut reserve, b_tokens_minted);
                 actions.add_for_spender_transfer(&reserve.asset, request.amount);
-                pool.cache_reserve(reserve, true);
+                pool.cache_reserve(reserve);
                 e.events().publish(
                     (
                         Symbol::new(e, "supply"),
@@ -133,8 +132,7 @@ pub fn build_actions_from_request(
                 );
             }
             RequestType::Withdraw => {
-                // withdraw
-                let mut reserve = pool.load_reserve(e, &request.address);
+                let mut reserve = pool.load_reserve(e, &request.address, true);
                 let cur_b_tokens = from_state.get_supply(reserve.index);
                 let mut to_burn = reserve.to_b_token_up(request.amount);
                 let mut tokens_out = request.amount;
@@ -144,7 +142,7 @@ pub fn build_actions_from_request(
                 }
                 from_state.remove_supply(e, &mut reserve, to_burn);
                 actions.add_for_pool_transfer(&reserve.asset, tokens_out);
-                pool.cache_reserve(reserve, true);
+                pool.cache_reserve(reserve);
                 e.events().publish(
                     (
                         Symbol::new(e, "withdraw"),
@@ -155,12 +153,11 @@ pub fn build_actions_from_request(
                 );
             }
             RequestType::SupplyCollateral => {
-                // supply collateral
-                let mut reserve = pool.load_reserve(e, &request.address);
+                let mut reserve = pool.load_reserve(e, &request.address, true);
                 let b_tokens_minted = reserve.to_b_token_down(request.amount);
                 from_state.add_collateral(e, &mut reserve, b_tokens_minted);
                 actions.add_for_spender_transfer(&reserve.asset, request.amount);
-                pool.cache_reserve(reserve, true);
+                pool.cache_reserve(reserve);
                 e.events().publish(
                     (
                         Symbol::new(e, "supply_collateral"),
@@ -171,8 +168,7 @@ pub fn build_actions_from_request(
                 );
             }
             RequestType::WithdrawCollateral => {
-                // withdraw collateral
-                let mut reserve = pool.load_reserve(e, &request.address);
+                let mut reserve = pool.load_reserve(e, &request.address, true);
                 let cur_b_tokens = from_state.get_collateral(reserve.index);
                 let mut to_burn = reserve.to_b_token_up(request.amount);
                 let mut tokens_out = request.amount;
@@ -183,7 +179,7 @@ pub fn build_actions_from_request(
                 from_state.remove_collateral(e, &mut reserve, to_burn);
                 actions.add_for_pool_transfer(&reserve.asset, tokens_out);
                 check_health = true;
-                pool.cache_reserve(reserve, true);
+                pool.cache_reserve(reserve);
                 e.events().publish(
                     (
                         Symbol::new(e, "withdraw_collateral"),
@@ -194,14 +190,13 @@ pub fn build_actions_from_request(
                 );
             }
             RequestType::Borrow => {
-                // borrow
-                let mut reserve = pool.load_reserve(e, &request.address);
+                let mut reserve = pool.load_reserve(e, &request.address, true);
                 let d_tokens_minted = reserve.to_d_token_up(request.amount);
                 from_state.add_liabilities(e, &mut reserve, d_tokens_minted);
                 reserve.require_utilization_below_max(e);
                 actions.add_for_pool_transfer(&reserve.asset, request.amount);
                 check_health = true;
-                pool.cache_reserve(reserve, true);
+                pool.cache_reserve(reserve);
                 e.events().publish(
                     (
                         Symbol::new(e, "borrow"),
@@ -212,8 +207,7 @@ pub fn build_actions_from_request(
                 );
             }
             RequestType::Repay => {
-                // repay
-                let mut reserve = pool.load_reserve(e, &request.address);
+                let mut reserve = pool.load_reserve(e, &request.address, true);
                 let cur_d_tokens = from_state.get_liabilities(reserve.index);
                 let d_tokens_burnt = reserve.to_d_token_down(request.amount);
                 actions.add_for_spender_transfer(&reserve.asset, request.amount);
@@ -242,10 +236,9 @@ pub fn build_actions_from_request(
                         (request.amount, d_tokens_burnt),
                     );
                 }
-                pool.cache_reserve(reserve, true);
+                pool.cache_reserve(reserve);
             }
             RequestType::FillUserLiquidationAuction => {
-                // fill user liquidation auction
                 auctions::fill(
                     e,
                     pool,
@@ -266,7 +259,6 @@ pub fn build_actions_from_request(
                 );
             }
             RequestType::FillBadDebtAuction => {
-                // fill bad debt auction
                 // Note: will fail if input address is not the backstop since there cannot be a bad debt auction for a different address in storage
                 auctions::fill(
                     e,
@@ -288,7 +280,6 @@ pub fn build_actions_from_request(
                 );
             }
             RequestType::FillInterestAuction => {
-                // fill interest auction
                 // Note: will fail if input address is not the backstop since there cannot be an interest auction for a different address in storage
                 auctions::fill(
                     e,
@@ -308,7 +299,6 @@ pub fn build_actions_from_request(
                 );
             }
             RequestType::DeleteLiquidationAuction => {
-                // delete liquidation auction
                 // Note: request object is ignored besides type
                 auctions::delete_liquidation(e, &from);
                 check_health = true;
@@ -409,7 +399,7 @@ mod tests {
             assert_eq!(positions.supply.len(), 1);
             assert_eq!(user.get_supply(0), 10_1234488);
 
-            let reserve = pool.load_reserve(&e, &underlying);
+            let reserve = pool.load_reserve(&e, &underlying, false);
             assert_eq!(reserve.b_supply, reserve_data.b_supply + user.get_supply(0));
         });
     }
@@ -482,7 +472,7 @@ mod tests {
             assert_eq!(positions.supply.len(), 1);
             assert_eq!(user.get_supply(0), 9_8765502);
 
-            let reserve = pool.load_reserve(&e, &underlying);
+            let reserve = pool.load_reserve(&e, &underlying, false);
             assert_eq!(
                 reserve.b_supply,
                 reserve_data.b_supply - (20_0000000 - 9_8765502)
@@ -554,7 +544,7 @@ mod tests {
             assert_eq!(positions.collateral.len(), 0);
             assert_eq!(positions.supply.len(), 0);
 
-            let reserve = pool.load_reserve(&e, &underlying.clone());
+            let reserve = pool.load_reserve(&e, &underlying.clone(), false);
             assert_eq!(reserve.b_supply, reserve_data.b_supply - 20_0000000);
         });
     }
@@ -623,7 +613,7 @@ mod tests {
             assert_eq!(positions.supply.len(), 0);
             assert_eq!(user.get_collateral(0), 10_1234488);
 
-            let reserve = pool.load_reserve(&e, &underlying.clone());
+            let reserve = pool.load_reserve(&e, &underlying.clone(), false);
             assert_eq!(
                 reserve.b_supply,
                 reserve_data.b_supply + user.get_collateral(0)
@@ -698,7 +688,7 @@ mod tests {
             assert_eq!(positions.supply.len(), 0);
             assert_eq!(user.get_collateral(0), 9_8765502);
 
-            let reserve = pool.load_reserve(&e, &underlying);
+            let reserve = pool.load_reserve(&e, &underlying, false);
             assert_eq!(
                 reserve.b_supply,
                 reserve_data.b_supply - (20_0000000 - 9_8765502)
@@ -770,7 +760,7 @@ mod tests {
             assert_eq!(positions.collateral.len(), 0);
             assert_eq!(positions.supply.len(), 0);
 
-            let reserve = pool.load_reserve(&e, &underlying);
+            let reserve = pool.load_reserve(&e, &underlying, false);
             assert_eq!(reserve.b_supply, reserve_data.b_supply - 20_0000000);
         });
     }
@@ -834,7 +824,7 @@ mod tests {
             assert_eq!(positions.supply.len(), 0);
             assert_eq!(user.get_liabilities(0), 10_1234452);
 
-            let reserve = pool.load_reserve(&e, &underlying);
+            let reserve = pool.load_reserve(&e, &underlying, false);
             assert_eq!(reserve.d_supply, reserve_data.d_supply + 10_1234452);
         });
     }
@@ -910,7 +900,7 @@ mod tests {
             let d_tokens_repaid = 10_1234451;
             assert_eq!(user.get_liabilities(0), 20_0000000 - d_tokens_repaid);
 
-            let reserve = pool.load_reserve(&e, &underlying);
+            let reserve = pool.load_reserve(&e, &underlying, false);
             assert_eq!(reserve.d_supply, reserve_data.d_supply - d_tokens_repaid);
         });
     }
@@ -983,7 +973,7 @@ mod tests {
             assert_eq!(positions.collateral.len(), 0);
             assert_eq!(positions.supply.len(), 0);
 
-            let reserve = pool.load_reserve(&e, &underlying);
+            let reserve = pool.load_reserve(&e, &underlying, false);
             assert_eq!(reserve.d_supply, reserve_data.d_supply - 20_0000000);
         });
     }

@@ -256,7 +256,7 @@ pub(crate) fn create_reserve(
         .d_supply
         .fixed_mul_floor(reserve_data.d_rate, SCALAR_9)
         .unwrap_optimized();
-    let to_mint_pool = total_supply - total_liabilities - reserve_data.backstop_credit;
+    let to_mint_pool = total_supply - total_liabilities + reserve_data.backstop_credit;
     underlying_client
         .mock_all_auths()
         .mint(&pool_address, &to_mint_pool);

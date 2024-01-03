@@ -36,29 +36,34 @@ impl Pool {
     ///
     /// ### Arguments
     /// * asset - The address of the underlying asset
-    pub fn load_reserve(&self, e: &Env, asset: &Address) -> Reserve {
+    /// * store - If the reserve is expected to be stored to the ledger
+    pub fn load_reserve(&mut self, e: &Env, asset: &Address, store: bool) -> Reserve {
+        if store && !self.reserves_to_store.contains(asset) {
+            self.reserves_to_store.push_back(asset.clone());
+        }
+
         if let Some(reserve) = self.reserves.get(asset.clone()) {
             return reserve;
+        } else {
+            Reserve::load(e, &self.config, asset)
         }
-        Reserve::load(e, &self.config, asset)
     }
 
     /// Cache the updated reserve in the pool.
     ///
     /// ### Arguments
     /// * reserve - The updated reserve
-    /// * write - If the reserve needs to be written to the ledger
-    pub fn cache_reserve(&mut self, reserve: Reserve, write: bool) {
-        if !self.reserves_to_store.contains(&reserve.asset) && write {
-            self.reserves_to_store.push_back(reserve.asset.clone());
-        }
+    pub fn cache_reserve(&mut self, reserve: Reserve) {
         self.reserves.set(reserve.asset.clone(), reserve);
     }
 
     /// Store the cached reserves to the ledger that need to be written.
     pub fn store_cached_reserves(&self, e: &Env) {
         for address in self.reserves_to_store.iter() {
-            let reserve = self.reserves.get_unchecked(address);
+            let reserve = self
+                .reserves
+                .get(address)
+                .unwrap_or_else(|| panic_with_error!(e, PoolError::InternalReserveNotFound));
             reserve.store(e);
         }
     }
@@ -171,8 +176,8 @@ mod tests {
         e.as_contract(&pool, || {
             storage::set_pool_config(&e, &pool_config);
             let mut pool = Pool::load(&e);
-            let reserve = pool.load_reserve(&e, &underlying);
-            pool.cache_reserve(reserve.clone(), true);
+            let reserve = pool.load_reserve(&e, &underlying, true);
+            pool.cache_reserve(reserve.clone());
 
             // delete the reserve data from the ledger to ensure it is loaded from the cache
             storage::set_res_data(
@@ -189,7 +194,7 @@ mod tests {
                 },
             );
 
-            let new_reserve = pool.load_reserve(&e, &underlying);
+            let new_reserve = pool.load_reserve(&e, &underlying, true);
             assert_eq!(new_reserve.d_rate, reserve.d_rate);
 
             // store all cached reserves and verify the data is updated
@@ -219,14 +224,19 @@ mod tests {
         let pool = testutils::create_pool(&e);
         let oracle = Address::generate(&e);
 
-        let (underlying, _) = testutils::create_token_contract(&e, &bombadil);
-        let (reserve_config, reserve_data) = testutils::default_reserve_meta();
-        testutils::create_reserve(&e, &pool, &underlying, &reserve_config, &reserve_data);
+        let (underlying_0, _) = testutils::create_token_contract(&e, &bombadil);
+        let (mut reserve_config, mut reserve_data) = testutils::default_reserve_meta();
+        testutils::create_reserve(&e, &pool, &underlying_0, &reserve_config, &reserve_data);
 
-        let mut reserve_1 = testutils::default_reserve(&e);
-        reserve_1.index = 1;
-        let mut reserve_2 = testutils::default_reserve(&e);
-        reserve_2.index = 2;
+        let (underlying_1, _) = testutils::create_token_contract(&e, &bombadil);
+        reserve_config.index = 1;
+        reserve_data.d_rate = 1_001_000_000;
+        testutils::create_reserve(&e, &pool, &underlying_1, &reserve_config, &reserve_data);
+
+        let (underlying_2, _) = testutils::create_token_contract(&e, &bombadil);
+        reserve_config.index = 2;
+        reserve_data.d_rate = 1_002_000_000;
+        testutils::create_reserve(&e, &pool, &underlying_2, &reserve_config, &reserve_data);
 
         let pool_config = PoolConfig {
             oracle,
@@ -237,20 +247,25 @@ mod tests {
         e.as_contract(&pool, || {
             storage::set_pool_config(&e, &pool_config);
             let mut pool = Pool::load(&e);
-            pool.cache_reserve(reserve_2.clone(), true);
-            pool.cache_reserve(reserve_1.clone(), true);
+            let reserve_0 = pool.load_reserve(&e, &underlying_0, false);
+            let mut reserve_1 = pool.load_reserve(&e, &underlying_1, true);
+            let mut reserve_2 = pool.load_reserve(&e, &underlying_2, true);
+            reserve_2.d_rate = 456;
+            pool.cache_reserve(reserve_0.clone());
+            pool.cache_reserve(reserve_1.clone());
+            pool.cache_reserve(reserve_2.clone());
 
             // verify a duplicate cache takes the most recently cached
             reserve_1.d_rate = 123;
-            pool.cache_reserve(reserve_1.clone(), true);
+            pool.cache_reserve(reserve_1.clone());
 
-            let reserve = pool.load_reserve(&e, &underlying);
-            pool.cache_reserve(reserve.clone(), false);
+            // verify reloading without store flag still stores reserve
+            let _ = pool.load_reserve(&e, &underlying_2, false);
 
             // delete the reserve data from the ledger to ensure it is loaded from the cache
             storage::set_res_data(
                 &e,
-                &underlying,
+                &underlying_0,
                 &ReserveData {
                     b_rate: 0,
                     d_rate: 0,
@@ -262,17 +277,74 @@ mod tests {
                 },
             );
 
-            let new_reserve = pool.load_reserve(&e, &underlying);
-            assert_eq!(new_reserve.d_rate, reserve.d_rate);
+            let new_reserve = pool.load_reserve(&e, &underlying_0, false);
+            assert_eq!(new_reserve.d_rate, reserve_0.d_rate);
 
-            // store all cached reserves and verify the unmarked one was not updated
+            // store all cached reserves and verify the temp one was not stored
             pool.store_cached_reserves(&e);
-            let new_reserve_data = storage::get_res_data(&e, &underlying);
+            let new_reserve_data = storage::get_res_data(&e, &underlying_0);
             assert_eq!(new_reserve_data.d_rate, 0);
             let new_reserve_data = storage::get_res_data(&e, &reserve_1.asset);
             assert_eq!(new_reserve_data.d_rate, 123);
             let new_reserve_data = storage::get_res_data(&e, &reserve_2.asset);
-            assert_eq!(new_reserve_data.d_rate, reserve_2.d_rate);
+            assert_eq!(new_reserve_data.d_rate, 456);
+        });
+    }
+
+    #[test]
+    #[should_panic(expected = "Error(Contract, #14)")]
+    fn test_reserve_cache_panics_if_missing_reserve_to_store() {
+        let e = Env::default();
+        e.mock_all_auths();
+
+        e.ledger().set(LedgerInfo {
+            timestamp: 123456 * 5,
+            protocol_version: 20,
+            sequence_number: 123456,
+            network_id: Default::default(),
+            base_reserve: 10,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2000000,
+        });
+
+        let bombadil = Address::generate(&e);
+        let pool = testutils::create_pool(&e);
+        let oracle = Address::generate(&e);
+
+        let (underlying_0, _) = testutils::create_token_contract(&e, &bombadil);
+        let (mut reserve_config, mut reserve_data) = testutils::default_reserve_meta();
+        testutils::create_reserve(&e, &pool, &underlying_0, &reserve_config, &reserve_data);
+
+        let (underlying_1, _) = testutils::create_token_contract(&e, &bombadil);
+        reserve_config.index = 1;
+        reserve_data.d_rate = 1_001_000_000;
+        testutils::create_reserve(&e, &pool, &underlying_1, &reserve_config, &reserve_data);
+
+        let (underlying_2, _) = testutils::create_token_contract(&e, &bombadil);
+        reserve_config.index = 2;
+        reserve_data.d_rate = 1_002_000_000;
+        testutils::create_reserve(&e, &pool, &underlying_2, &reserve_config, &reserve_data);
+
+        let pool_config = PoolConfig {
+            oracle,
+            bstop_rate: 0_200_000_000,
+            status: 0,
+            max_positions: 2,
+        };
+        e.as_contract(&pool, || {
+            storage::set_pool_config(&e, &pool_config);
+            let mut pool = Pool::load(&e);
+            let reserve_0 = pool.load_reserve(&e, &underlying_0, false);
+            let mut reserve_1 = pool.load_reserve(&e, &underlying_1, true);
+            let mut reserve_2 = pool.load_reserve(&e, &underlying_2, true);
+            reserve_1.b_rate = 123;
+            reserve_2.d_rate = 456;
+            pool.cache_reserve(reserve_0.clone());
+            pool.cache_reserve(reserve_1.clone());
+            // pool.cache_reserve(reserve_2.clone());
+
+            pool.store_cached_reserves(&e);
         });
     }
 

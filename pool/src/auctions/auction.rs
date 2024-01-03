@@ -435,8 +435,10 @@ mod tests {
 
         let (underlying_0, _) = testutils::create_token_contract(&e, &bombadil);
         let (mut reserve_config_0, mut reserve_data_0) = testutils::default_reserve_meta();
-        reserve_data_0.b_rate = 1_100_000_000;
         reserve_data_0.last_time = 12345;
+        reserve_data_0.backstop_credit = 100_0000000;
+        reserve_data_0.b_supply = 1000_0000000;
+        reserve_data_0.d_supply = 750_0000000;
         reserve_config_0.index = 0;
         testutils::create_reserve(
             &e,
@@ -448,8 +450,10 @@ mod tests {
 
         let (underlying_1, _) = testutils::create_token_contract(&e, &bombadil);
         let (mut reserve_config_1, mut reserve_data_1) = testutils::default_reserve_meta();
-        reserve_data_1.b_rate = 1_100_000_000;
         reserve_data_1.last_time = 12345;
+        reserve_data_1.backstop_credit = 25_0000000;
+        reserve_data_1.b_supply = 250_0000000;
+        reserve_data_1.d_supply = 187_5000000;
         reserve_config_1.index = 1;
         testutils::create_reserve(
             &e,
@@ -495,13 +499,7 @@ mod tests {
         };
         e.as_contract(&pool_address, || {
             storage::set_pool_config(&e, &pool_config);
-            let pool = Pool::load(&e);
-            let mut reserve_0 = pool.load_reserve(&e, &underlying_0);
-            reserve_0.backstop_credit += 100_0000000;
-            reserve_0.store(&e);
-            let mut reserve_1 = pool.load_reserve(&e, &underlying_1);
-            reserve_1.backstop_credit += 25_0000000;
-            reserve_1.store(&e);
+
             create(&e, 2);
             assert!(storage::has_auction(&e, &2, &backstop_address));
         });

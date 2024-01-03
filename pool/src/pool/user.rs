@@ -158,14 +158,14 @@ impl User {
         liability_amounts: Map<Address, i128>,
     ) {
         for (asset, amount) in collateral_amounts.iter() {
-            let mut reserve = pool.load_reserve(e, &asset);
+            let mut reserve = pool.load_reserve(e, &asset, true);
             self.remove_collateral(e, &mut reserve, amount);
-            pool.cache_reserve(reserve, true);
+            pool.cache_reserve(reserve);
         }
         for (asset, amount) in liability_amounts.iter() {
-            let mut reserve = pool.load_reserve(e, &asset);
+            let mut reserve = pool.load_reserve(e, &asset, true);
             self.remove_liabilities(e, &mut reserve, amount);
-            pool.cache_reserve(reserve, true);
+            pool.cache_reserve(reserve);
         }
     }
 
@@ -178,14 +178,14 @@ impl User {
         liability_amounts: Map<Address, i128>,
     ) {
         for (asset, amount) in collateral_amounts.iter() {
-            let mut reserve = pool.load_reserve(e, &asset);
+            let mut reserve = pool.load_reserve(e, &asset, true);
             self.add_collateral(e, &mut reserve, amount);
-            pool.cache_reserve(reserve, true);
+            pool.cache_reserve(reserve);
         }
         for (asset, amount) in liability_amounts.iter() {
-            let mut reserve = pool.load_reserve(e, &asset);
+            let mut reserve = pool.load_reserve(e, &asset, true);
             self.add_liabilities(e, &mut reserve, amount);
-            pool.cache_reserve(reserve, true);
+            pool.cache_reserve(reserve);
         }
     }
 

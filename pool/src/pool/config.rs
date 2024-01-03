@@ -103,8 +103,9 @@ fn initialize_reserve(e: &Env, asset: &Address, config: &ReserveConfig) -> u32 {
     // if reserve already exists, ensure index and scalar do not change
     if storage::has_res(e, asset) {
         // accrue and store reserve data to the ledger
-        let pool = Pool::load(e);
-        let mut reserve = pool.load_reserve(e, asset);
+        let mut pool = Pool::load(e);
+        // @dev: Store the reserve to ledger manually
+        let mut reserve = pool.load_reserve(e, asset, false);
         index = reserve.index;
         let reserve_config = storage::get_res_config(e, asset);
         // decimals cannot change

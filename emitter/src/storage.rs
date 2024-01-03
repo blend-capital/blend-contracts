@@ -7,6 +7,7 @@ pub(crate) const LEDGER_BUMP_SHARED: u32 = 241920; // ~ 14 days
 
 /********** Storage **********/
 
+const IS_INIT_KEY: &str = "IsInit";
 const BACKSTOP_KEY: &str = "Backstop";
 const BACKSTOP_TOKEN_KEY: &str = "BToken";
 const BLND_TOKEN_KEY: &str = "BLNDTkn";
@@ -28,6 +29,20 @@ pub fn extend_instance(e: &Env) {
     e.storage()
         .instance()
         .extend_ttl(LEDGER_THRESHOLD_SHARED, LEDGER_BUMP_SHARED);
+}
+
+/********** Init **********/
+
+/// Check if the contract has been initialized
+pub fn get_is_init(e: &Env) -> bool {
+    e.storage().instance().has(&Symbol::new(e, IS_INIT_KEY))
+}
+
+/// Set the contract as initialized
+pub fn set_is_init(e: &Env) {
+    e.storage()
+        .instance()
+        .set::<Symbol, bool>(&Symbol::new(e, IS_INIT_KEY), &true);
 }
 
 /********** Backstop **********/
@@ -126,13 +141,6 @@ pub fn set_blnd_token(e: &Env, blnd_token: &Address) {
     e.storage()
         .instance()
         .set::<Symbol, Address>(&Symbol::new(e, BLND_TOKEN_KEY), blnd_token);
-}
-
-/// Check if the BLND token has been set
-///
-/// Returns true if a BLND token has been set
-pub fn has_blnd_token(e: &Env) -> bool {
-    e.storage().instance().has(&Symbol::new(e, BLND_TOKEN_KEY))
 }
 
 /********** Blend Distributions **********/

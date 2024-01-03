@@ -44,8 +44,9 @@ pub struct ReserveConfig {
     pub r_one: u32,      // the R1 value in the interest rate formula scaled expressed in 7 decimals
     pub r_two: u32,      // the R2 value in the interest rate formula scaled expressed in 7 decimals
     pub r_three: u32,    // the R3 value in the interest rate formula scaled expressed in 7 decimals
-    pub reactivity: u32, // the reactivity constant for the reserve scaled expressed in 9 decimals
+    pub reactivity: u32, // the reactivity constant for the reserve scaled expressed in 7 decimals
 }
+
 #[derive(Clone)]
 #[contracttype]
 pub struct QueuedReserveInit {

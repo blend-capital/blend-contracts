@@ -15,7 +15,7 @@ pub fn default_reserve_metadata() -> ReserveConfig {
         r_one: 0_0500000,
         r_two: 0_5000000,
         r_three: 1_5000000,
-        reactivity: 0_000_002_000, // 10e-5
+        reactivity: 0_0000020, // 2e-6
         index: 0,
     }
 }

@@ -161,7 +161,7 @@ fn require_valid_reserve_metadata(e: &Env, metadata: &ReserveConfig) {
         || metadata.util > 0_9500000
         || (metadata.max_util > SCALAR_7_U32 || metadata.max_util <= metadata.util)
         || (metadata.r_one > metadata.r_two || metadata.r_two > metadata.r_three)
-        || (metadata.reactivity > 0_0005000)
+        || (metadata.reactivity > 0_0001000)
     {
         panic_with_error!(e, PoolError::InvalidReserveMetadata);
     }
@@ -887,7 +887,7 @@ mod tests {
             r_one: 0_0500000,
             r_two: 0_5000000,
             r_three: 1_5000000,
-            reactivity: 5001,
+            reactivity: 0_0001001,
         };
         require_valid_reserve_metadata(&e, &metadata);
     }

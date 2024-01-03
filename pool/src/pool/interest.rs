@@ -78,7 +78,7 @@ pub fn calc_accrual(
             .fixed_mul_floor(util_dif_scaled, SCALAR_9)
             .unwrap_optimized();
         let rate_dif = util_error
-            .fixed_mul_floor(i128(config.reactivity), SCALAR_9)
+            .fixed_mul_floor(i128(config.reactivity), SCALAR_7)
             .unwrap_optimized();
         let next_ir_mod = ir_mod + rate_dif;
         let ir_mod_max = 10 * SCALAR_9;
@@ -93,7 +93,7 @@ pub fn calc_accrual(
             .fixed_mul_ceil(util_dif_scaled, SCALAR_9)
             .unwrap_optimized();
         let rate_dif = util_error
-            .fixed_mul_ceil(i128(config.reactivity), SCALAR_9)
+            .fixed_mul_ceil(i128(config.reactivity), SCALAR_7)
             .unwrap_optimized();
         let next_ir_mod = ir_mod + rate_dif;
         let ir_mod_min = SCALAR_9 / 10;
@@ -133,7 +133,7 @@ mod tests {
             r_one: 0_0500000,
             r_two: 0_5000000,
             r_three: 1_5000000,
-            reactivity: 0_000_002_000,
+            reactivity: 0_0000020,
             index: 0,
         };
         let ir_mod: i128 = 1_000_000_000;
@@ -168,7 +168,7 @@ mod tests {
             r_one: 0_0500000,
             r_two: 0_5000000,
             r_three: 1_5000000,
-            reactivity: 0_000_002_000,
+            reactivity: 0_0000020,
             index: 0,
         };
         let ir_mod: i128 = 1_000_000_000;
@@ -203,7 +203,7 @@ mod tests {
             r_one: 0_0500000,
             r_two: 0_5000000,
             r_three: 1_5000000,
-            reactivity: 0_000_002_000,
+            reactivity: 0_0000020,
             index: 0,
         };
         let ir_mod: i128 = 1_000_000_000;
@@ -238,7 +238,7 @@ mod tests {
             r_one: 0_0500000,
             r_two: 0_5000000,
             r_three: 1_5000000,
-            reactivity: 0_000_002_000,
+            reactivity: 0_0000020,
             index: 0,
         };
         let ir_mod: i128 = 9_997_000_000;
@@ -272,7 +272,7 @@ mod tests {
             r_one: 0_0500000,
             r_two: 0_5000000,
             r_three: 1_5000000,
-            reactivity: 0_000_002_000,
+            reactivity: 0_0000020,
             index: 0,
         };
         let ir_mod: i128 = 0_150_000_000;
@@ -306,7 +306,7 @@ mod tests {
             r_one: 0_0500000,
             r_two: 0_5000000,
             r_three: 1_5000000,
-            reactivity: 0_000_002_000,
+            reactivity: 0_0000020,
             index: 0,
         };
         let ir_mod: i128 = 0_100_000_000;

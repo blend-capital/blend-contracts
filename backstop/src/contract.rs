@@ -207,7 +207,7 @@ impl Backstop for BackstopContract {
         drop_list: Map<Address, i128>,
     ) {
         storage::extend_instance(&e);
-        if storage::has_backstop_token(&e) {
+        if storage::get_is_init(&e) {
             panic_with_error!(e, BackstopError::AlreadyInitialized);
         }
 
@@ -224,6 +224,8 @@ impl Backstop for BackstopContract {
         let last_distribution_time =
             EmitterClient::new(&e, &emitter).get_last_distro(&e.current_contract_address());
         storage::set_last_distribution_time(&e, &last_distribution_time);
+
+        storage::set_is_init(&e);
     }
 
     /********** Core **********/

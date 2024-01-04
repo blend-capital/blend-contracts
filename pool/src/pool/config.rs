@@ -22,7 +22,7 @@ pub fn execute_initialize(
     blnd_id: &Address,
     usdc_id: &Address,
 ) {
-    if storage::has_admin(e) {
+    if storage::get_is_init(e) {
         panic_with_error!(e, PoolError::AlreadyInitialized);
     }
 
@@ -45,6 +45,8 @@ pub fn execute_initialize(
     );
     storage::set_blnd_token(e, blnd_id);
     storage::set_usdc_token(e, usdc_id);
+
+    storage::set_is_init(e);
 }
 
 /// Update the pool
@@ -161,7 +163,7 @@ fn require_valid_reserve_metadata(e: &Env, metadata: &ReserveConfig) {
         || metadata.util > 0_9500000
         || (metadata.max_util > SCALAR_7_U32 || metadata.max_util <= metadata.util)
         || (metadata.r_one > metadata.r_two || metadata.r_two > metadata.r_three)
-        || (metadata.reactivity > 0_0005000)
+        || (metadata.reactivity > 0_0001000)
     {
         panic_with_error!(e, PoolError::InvalidReserveMetadata);
     }
@@ -184,7 +186,7 @@ mod tests {
         let name = Symbol::new(&e, "pool_name");
         let oracle = Address::generate(&e);
         let bstop_rate = 0_100_000_000u64;
-        let max_postions = 2;
+        let max_positions = 2;
         let backstop_address = Address::generate(&e);
         let blnd_id = Address::generate(&e);
         let usdc_id = Address::generate(&e);
@@ -196,7 +198,7 @@ mod tests {
                 &name,
                 &oracle,
                 &bstop_rate,
-                &max_postions,
+                &max_positions,
                 &backstop_address,
                 &blnd_id,
                 &usdc_id,
@@ -210,6 +212,90 @@ mod tests {
             assert_eq!(storage::get_backstop(&e), backstop_address);
             assert_eq!(storage::get_blnd_token(&e), blnd_id);
             assert_eq!(storage::get_usdc_token(&e), usdc_id);
+        });
+    }
+
+    #[test]
+    #[should_panic(expected = "Error(Contract, #3)")]
+    fn test_execute_initialize_already_initialized() {
+        let e = Env::default();
+        let pool = testutils::create_pool(&e);
+
+        let admin = Address::generate(&e);
+        let name = Symbol::new(&e, "pool_name");
+        let oracle = Address::generate(&e);
+        let bstop_rate = 0_100_000_000u64;
+        let max_positions = 3;
+        let backstop_address = Address::generate(&e);
+        let blnd_id = Address::generate(&e);
+        let usdc_id = Address::generate(&e);
+
+        e.as_contract(&pool, || {
+            execute_initialize(
+                &e,
+                &admin,
+                &name,
+                &oracle,
+                &bstop_rate,
+                &max_positions,
+                &backstop_address,
+                &blnd_id,
+                &usdc_id,
+            );
+
+            execute_initialize(
+                &e,
+                &Address::generate(&e),
+                &name,
+                &oracle,
+                &bstop_rate,
+                &max_positions,
+                &backstop_address,
+                &blnd_id,
+                &usdc_id,
+            );
+        });
+    }
+
+    #[test]
+    #[should_panic(expected = "Error(Contract, #5)")]
+    fn test_execute_initialize_bad_take_rate() {
+        let e = Env::default();
+        let pool = testutils::create_pool(&e);
+
+        let admin = Address::generate(&e);
+        let name = Symbol::new(&e, "pool_name");
+        let oracle = Address::generate(&e);
+        let bstop_rate = 1_000_000_000u64;
+        let max_positions = 3;
+        let backstop_address = Address::generate(&e);
+        let blnd_id = Address::generate(&e);
+        let usdc_id = Address::generate(&e);
+
+        e.as_contract(&pool, || {
+            execute_initialize(
+                &e,
+                &admin,
+                &name,
+                &oracle,
+                &bstop_rate,
+                &max_positions,
+                &backstop_address,
+                &blnd_id,
+                &usdc_id,
+            );
+
+            execute_initialize(
+                &e,
+                &Address::generate(&e),
+                &name,
+                &oracle,
+                &bstop_rate,
+                &max_positions,
+                &backstop_address,
+                &blnd_id,
+                &usdc_id,
+            );
         });
     }
 
@@ -887,7 +973,7 @@ mod tests {
             r_one: 0_0500000,
             r_two: 0_5000000,
             r_three: 1_5000000,
-            reactivity: 5001,
+            reactivity: 0_0001001,
         };
         require_valid_reserve_metadata(&e, &metadata);
     }

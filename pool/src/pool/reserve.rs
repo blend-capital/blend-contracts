@@ -20,10 +20,10 @@ pub struct Reserve {
     pub c_factor: u32,         // the collateral factor for the reserve
     pub max_util: u32,         // the maximum utilization rate for the reserve
     pub last_time: u64,        // the last block the data was updated
-    pub scalar: i128,          // scalar used for balances
+    pub scalar: i128,          // scalar used for positions, b/d token supply, and credit
     pub d_rate: i128,          // the conversion rate from dToken to underlying (9 decimals)
     pub b_rate: i128,          // the conversion rate from bToken to underlying (9 decimals)
-    pub ir_mod: i128,          // the interest rate curve modifier
+    pub ir_mod: i128,          // the interest rate curve modifier (9 decimals)
     pub b_supply: i128,        // the total supply of b tokens
     pub d_supply: i128,        // the total supply of d tokens
     pub backstop_credit: i128, // the total amount of underlying tokens owed to the backstop

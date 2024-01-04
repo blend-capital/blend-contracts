@@ -7,6 +7,7 @@ use soroban_sdk::{unwrap::UnwrapOptimized, Address, Env};
 use crate::{
     backstop::{PoolBalance, UserBalance},
     constants::SCALAR_7,
+    require_nonnegative,
     storage::{self, BackstopEmissionsData, UserEmissionData},
     BackstopEmissionConfig,
 };
@@ -70,8 +71,10 @@ pub fn update_emission_data_with_config(
         e.ledger().timestamp()
     };
 
+    let unqueued_shares = pool_balance.shares - pool_balance.q4w;
+    require_nonnegative(e, unqueued_shares);
     let additional_idx = (i128(max_timestamp - emis_data.last_time) * i128(emis_config.eps))
-        .fixed_div_floor(pool_balance.shares - pool_balance.q4w, SCALAR_7)
+        .fixed_div_floor(unqueued_shares, SCALAR_7)
         .unwrap_optimized();
     let new_data = BackstopEmissionsData {
         index: additional_idx + emis_data.index,
@@ -93,8 +96,10 @@ fn update_user_emissions(
         if user_data.index != emis_data.index || to_claim {
             let mut accrual = user_data.accrued;
             if user_balance.shares != 0 {
+                let delta_index = emis_data.index - user_data.index;
+                require_nonnegative(e, delta_index);
                 let to_accrue = (user_balance.shares)
-                    .fixed_mul_floor(emis_data.index - user_data.index, SCALAR_7)
+                    .fixed_mul_floor(delta_index, SCALAR_7)
                     .unwrap_optimized();
                 accrual += to_accrue;
             }
@@ -421,6 +426,7 @@ mod tests {
             assert_eq!(new_user_data.index, 34566000);
         });
     }
+
     #[test]
     fn test_update_emissions_q4w_not_counted() {
         let e = Env::default();
@@ -483,6 +489,169 @@ mod tests {
             assert_eq!(new_backstop_data.index, 8503321);
             assert_eq!(new_user_data.accrued, 38214948);
             assert_eq!(new_user_data.index, 8503321);
+        });
+    }
+
+    // @dev: The below tests should be impossible states to reach, but are left
+    //       in to ensure any bad state does not result in incorrect emissions.
+
+    #[test]
+    #[should_panic(expected = "Error(Contract, #11)")]
+    fn test_update_emissions_more_q4w_than_shares_panics() {
+        let e = Env::default();
+        let block_timestamp = BACKSTOP_EPOCH + 1234;
+        e.ledger().set(LedgerInfo {
+            timestamp: block_timestamp,
+            protocol_version: 20,
+            sequence_number: 0,
+            network_id: Default::default(),
+            base_reserve: 10,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2000000,
+        });
+
+        let backstop_id = create_backstop(&e);
+        let pool_1 = Address::generate(&e);
+        let samwise = Address::generate(&e);
+
+        let backstop_emissions_config = BackstopEmissionConfig {
+            expiration: BACKSTOP_EPOCH + 7 * 24 * 60 * 60,
+            eps: 0_1000000,
+        };
+        let backstop_emissions_data = BackstopEmissionsData {
+            index: 22222,
+            last_time: BACKSTOP_EPOCH,
+        };
+        let user_emissions_data = UserEmissionData {
+            index: 11111,
+            accrued: 3,
+        };
+        e.as_contract(&backstop_id, || {
+            storage::set_last_distribution_time(&e, &BACKSTOP_EPOCH);
+            storage::set_backstop_emis_config(&e, &pool_1, &backstop_emissions_config);
+            storage::set_backstop_emis_data(&e, &pool_1, &backstop_emissions_data);
+            storage::set_user_emis_data(&e, &pool_1, &samwise, &user_emissions_data);
+
+            let pool_balance = PoolBalance {
+                shares: 150_0000000,
+                tokens: 200_0000000,
+                q4w: 150_0000001,
+            };
+            let q4w: Q4W = Q4W {
+                amount: (4_5000000),
+                exp: (5000),
+            };
+            let user_balance = UserBalance {
+                shares: 4_5000000,
+                q4w: vec![&e, q4w],
+            };
+
+            update_emissions(&e, &pool_1, &pool_balance, &samwise, &user_balance, false);
+        });
+    }
+
+    #[test]
+    #[should_panic(expected = "attempt to subtract with overflow")]
+    fn test_update_emissions_negative_time_dif() {
+        let e = Env::default();
+        let block_timestamp = BACKSTOP_EPOCH + 1234;
+        e.ledger().set(LedgerInfo {
+            timestamp: block_timestamp,
+            protocol_version: 20,
+            sequence_number: 0,
+            network_id: Default::default(),
+            base_reserve: 10,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2000000,
+        });
+
+        let backstop_id = create_backstop(&e);
+        let pool_1 = Address::generate(&e);
+        let samwise = Address::generate(&e);
+
+        let backstop_emissions_config = BackstopEmissionConfig {
+            expiration: BACKSTOP_EPOCH + 7 * 24 * 60 * 60,
+            eps: 0_1000000,
+        };
+        let backstop_emissions_data = BackstopEmissionsData {
+            index: 22222,
+            last_time: block_timestamp + 1,
+        };
+        let user_emissions_data = UserEmissionData {
+            index: 11111,
+            accrued: 3,
+        };
+        e.as_contract(&backstop_id, || {
+            storage::set_last_distribution_time(&e, &BACKSTOP_EPOCH);
+            storage::set_backstop_emis_config(&e, &pool_1, &backstop_emissions_config);
+            storage::set_backstop_emis_data(&e, &pool_1, &backstop_emissions_data);
+            storage::set_user_emis_data(&e, &pool_1, &samwise, &user_emissions_data);
+
+            let pool_balance = PoolBalance {
+                shares: 150_0000000,
+                tokens: 200_0000000,
+                q4w: 0,
+            };
+            let user_balance = UserBalance {
+                shares: 4_5000000,
+                q4w: vec![&e],
+            };
+
+            update_emissions(&e, &pool_1, &pool_balance, &samwise, &user_balance, false);
+        });
+    }
+
+    #[test]
+    #[should_panic(expected = "Error(Contract, #11)")]
+    fn test_update_emissions_negative_user_index() {
+        let e = Env::default();
+        let block_timestamp = BACKSTOP_EPOCH + 1234;
+        e.ledger().set(LedgerInfo {
+            timestamp: block_timestamp,
+            protocol_version: 20,
+            sequence_number: 0,
+            network_id: Default::default(),
+            base_reserve: 10,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2000000,
+        });
+
+        let backstop_id = create_backstop(&e);
+        let pool_1 = Address::generate(&e);
+        let samwise = Address::generate(&e);
+
+        let backstop_emissions_config = BackstopEmissionConfig {
+            expiration: BACKSTOP_EPOCH + 7 * 24 * 60 * 60,
+            eps: 0_1000000,
+        };
+        let backstop_emissions_data = BackstopEmissionsData {
+            index: 22222,
+            last_time: BACKSTOP_EPOCH,
+        };
+        let user_emissions_data = UserEmissionData {
+            index: 34566000 + 1,
+            accrued: 3,
+        };
+        e.as_contract(&backstop_id, || {
+            storage::set_last_distribution_time(&e, &BACKSTOP_EPOCH);
+            storage::set_backstop_emis_config(&e, &pool_1, &backstop_emissions_config);
+            storage::set_backstop_emis_data(&e, &pool_1, &backstop_emissions_data);
+            storage::set_user_emis_data(&e, &pool_1, &samwise, &user_emissions_data);
+
+            let pool_balance = PoolBalance {
+                shares: 150_0000000,
+                tokens: 200_0000000,
+                q4w: 0,
+            };
+            let user_balance = UserBalance {
+                shares: 4_5000000,
+                q4w: vec![&e],
+            };
+
+            update_emissions(&e, &pool_1, &pool_balance, &samwise, &user_balance, false);
         });
     }
 }

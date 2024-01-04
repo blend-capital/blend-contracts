@@ -7,6 +7,7 @@ use crate::{
     errors::PoolError,
     pool::User,
     storage::{self, ReserveEmissionsData, UserEmissionData},
+    validator::require_nonnegative,
     ReserveEmissionsConfig,
 };
 
@@ -178,6 +179,8 @@ fn update_user_emissions(
         if user_data.index != res_emis_data.index || claim {
             let mut accrual = user_data.accrued;
             if balance != 0 {
+                let delta_index = res_emis_data.index - user_data.index;
+                require_nonnegative(e, &delta_index);
                 let to_accrue = balance
                     .fixed_mul_floor(res_emis_data.index - user_data.index, supply_scalar)
                     .unwrap_optimized();
@@ -337,6 +340,60 @@ mod tests {
             } else {
                 assert!(false);
             }
+        });
+    }
+
+    #[test]
+    #[should_panic(expected = "attempt to subtract with overflow")]
+    fn test_update_emissions_negative_time_diff() {
+        let e = Env::default();
+        e.mock_all_auths();
+
+        let pool = testutils::create_pool(&e);
+        let samwise = Address::generate(&e);
+
+        e.ledger().set(LedgerInfo {
+            timestamp: 1501000000,
+            protocol_version: 20,
+            sequence_number: 123,
+            network_id: Default::default(),
+            base_reserve: 10,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2000000,
+        });
+
+        let supply: i128 = 50_0000000;
+        let user_position: i128 = 2_0000000;
+        e.as_contract(&pool, || {
+            let reserve_emission_config = ReserveEmissionsConfig {
+                expiration: 1600000000,
+                eps: 0_0100000,
+            };
+            let reserve_emission_data = ReserveEmissionsData {
+                index: 2345678,
+                last_time: 1501000000 + 1,
+            };
+            let user_emission_data = UserEmissionData {
+                index: 1234567,
+                accrued: 0_1000000,
+            };
+            let res_token_type = 0;
+            let res_token_index = 1 * 2 + res_token_type;
+
+            storage::set_res_emis_config(&e, &res_token_index, &reserve_emission_config);
+            storage::set_res_emis_data(&e, &res_token_index, &reserve_emission_data);
+            storage::set_user_emissions(&e, &samwise, &res_token_index, &user_emission_data);
+
+            update_emissions(
+                &e,
+                res_token_index,
+                supply,
+                1_0000000,
+                &samwise,
+                user_position,
+                false,
+            );
         });
     }
 
@@ -1031,6 +1088,55 @@ mod tests {
             assert_eq!(new_user_emission_data.index, reserve_emission_data.index);
             assert_eq!(new_user_emission_data.accrued, 0);
             assert_eq!(result, 6_1728394);
+        });
+    }
+
+    #[test]
+    #[should_panic(expected = "Error(Contract, #4)")]
+    fn test_update_user_emissions_negative_index() {
+        let e = Env::default();
+        e.mock_all_auths();
+
+        let pool = testutils::create_pool(&e);
+
+        let samwise = Address::generate(&e);
+
+        e.ledger().set(LedgerInfo {
+            timestamp: 1500000000,
+            protocol_version: 20,
+            sequence_number: 123,
+            network_id: Default::default(),
+            base_reserve: 10,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2000000,
+        });
+
+        let supply_scalar = 1_0000000;
+        let user_balance = 0_5000000;
+        e.as_contract(&pool, || {
+            let reserve_emission_data = ReserveEmissionsData {
+                index: 123456789,
+                last_time: 1500000000,
+            };
+            let user_emission_data = UserEmissionData {
+                index: 123456789 + 1,
+                accrued: 0_1000000,
+            };
+
+            let res_token_type = 1;
+            let res_token_index = 1 * 2 + res_token_type;
+            storage::set_user_emissions(&e, &samwise, &res_token_index, &user_emission_data);
+
+            update_user_emissions(
+                &e,
+                &reserve_emission_data,
+                res_token_index,
+                supply_scalar,
+                &samwise,
+                user_balance,
+                true,
+            );
         });
     }
 

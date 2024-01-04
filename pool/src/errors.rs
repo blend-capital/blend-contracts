@@ -19,6 +19,7 @@ pub enum PoolError {
     InvalidPoolStatus = 11,
     InvalidUtilRate = 12,
     MaxPositionsExceeded = 13,
+    InternalReserveNotFound = 14,
     // Emission Errors (20-29)
     EmissionFailure = 20,
     // Oracle Errors (30-39)

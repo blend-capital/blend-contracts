@@ -210,7 +210,7 @@ pub(crate) fn default_reserve_meta() -> (ReserveConfig, ReserveData) {
             r_one: 0_0500000,
             r_two: 0_5000000,
             r_three: 1_5000000,
-            reactivity: 0_000_002_000, // 10e-5
+            reactivity: 0_0000020, // 2e-6
             index: 0,
         },
         ReserveData {
@@ -256,7 +256,7 @@ pub(crate) fn create_reserve(
         .d_supply
         .fixed_mul_floor(reserve_data.d_rate, SCALAR_9)
         .unwrap_optimized();
-    let to_mint_pool = total_supply - total_liabilities - reserve_data.backstop_credit;
+    let to_mint_pool = total_supply - total_liabilities + reserve_data.backstop_credit;
     underlying_client
         .mock_all_auths()
         .mint(&pool_address, &to_mint_pool);

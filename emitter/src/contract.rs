@@ -76,7 +76,7 @@ pub trait Emitter {
 impl Emitter for EmitterContract {
     fn initialize(e: Env, blnd_token: Address, backstop: Address, backstop_token: Address) {
         storage::extend_instance(&e);
-        if storage::has_blnd_token(&e) {
+        if storage::get_is_init(&e) {
             panic_with_error!(&e, EmitterError::AlreadyInitialized)
         }
 
@@ -84,6 +84,8 @@ impl Emitter for EmitterContract {
         storage::set_backstop(&e, &backstop);
         storage::set_backstop_token(&e, &backstop_token);
         storage::set_last_distro_time(&e, &backstop, e.ledger().timestamp());
+
+        storage::set_is_init(&e);
     }
 
     fn distribute(e: Env) -> i128 {

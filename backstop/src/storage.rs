@@ -39,6 +39,7 @@ pub struct UserEmissionData {
 
 /********** Storage Key Types **********/
 
+const IS_INIT_KEY: &str = "IsInit";
 const EMITTER_KEY: &str = "Emitter";
 const BACKSTOP_TOKEN_KEY: &str = "BToken";
 const POOL_FACTORY_KEY: &str = "PoolFact";
@@ -97,7 +98,19 @@ fn get_persistent_default<K: IntoVal<Env, Val>, V: TryFromVal<Env, Val>>(
     }
 }
 
-/********** External Contracts **********/
+/********** Instance Storage **********/
+
+/// Check if the contract has been initialized
+pub fn get_is_init(e: &Env) -> bool {
+    e.storage().instance().has(&Symbol::new(e, IS_INIT_KEY))
+}
+
+/// Set the contract as initialized
+pub fn set_is_init(e: &Env) {
+    e.storage()
+        .instance()
+        .set::<Symbol, bool>(&Symbol::new(e, IS_INIT_KEY), &true);
+}
 
 /// Fetch the pool factory id
 pub fn get_emitter(e: &Env) -> Address {
@@ -177,13 +190,6 @@ pub fn get_backstop_token(e: &Env) -> Address {
         .instance()
         .get::<Symbol, Address>(&Symbol::new(e, BACKSTOP_TOKEN_KEY))
         .unwrap_optimized()
-}
-
-/// Checks if a backstop token is set for the backstop
-pub fn has_backstop_token(e: &Env) -> bool {
-    e.storage()
-        .instance()
-        .has(&Symbol::new(e, BACKSTOP_TOKEN_KEY))
 }
 
 /// Set the backstop token id

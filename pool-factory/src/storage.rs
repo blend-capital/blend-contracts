@@ -4,6 +4,8 @@ use soroban_sdk::{contracttype, unwrap::UnwrapOptimized, Address, BytesN, Env, S
 pub(crate) const LEDGER_THRESHOLD: u32 = 518400; // TODO: Check on phase 1 max ledger entry bump
 pub(crate) const LEDGER_BUMP: u32 = 535670; // TODO: Check on phase 1 max ledger entry bump
 
+const IS_INIT_KEY: &str = "IsInit";
+
 #[derive(Clone)]
 #[contracttype]
 pub enum PoolFactoryDataKey {
@@ -26,6 +28,18 @@ pub fn extend_instance(e: &Env) {
         .extend_ttl(LEDGER_THRESHOLD, LEDGER_BUMP);
 }
 
+/// Check if the contract has been initialized
+pub fn get_is_init(e: &Env) -> bool {
+    e.storage().instance().has(&Symbol::new(e, IS_INIT_KEY))
+}
+
+/// Set the contract as initialized
+pub fn set_is_init(e: &Env) {
+    e.storage()
+        .instance()
+        .set::<Symbol, bool>(&Symbol::new(e, IS_INIT_KEY), &true);
+}
+
 /// Fetch the pool initialization metadata
 pub fn get_pool_init_meta(e: &Env) -> PoolInitMeta {
     e.storage()
@@ -42,11 +56,6 @@ pub fn set_pool_init_meta(e: &Env, pool_init_meta: &PoolInitMeta) {
     e.storage()
         .instance()
         .set::<Symbol, PoolInitMeta>(&Symbol::new(e, "PoolMeta"), pool_init_meta)
-}
-
-/// Check if the factory has a WASM hash set
-pub fn has_pool_init_meta(e: &Env) -> bool {
-    e.storage().instance().has(&Symbol::new(e, "PoolMeta"))
 }
 
 /// Check if a given contract_id was deployed by the factory

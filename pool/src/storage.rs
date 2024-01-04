@@ -44,8 +44,9 @@ pub struct ReserveConfig {
     pub r_one: u32,      // the R1 value in the interest rate formula scaled expressed in 7 decimals
     pub r_two: u32,      // the R2 value in the interest rate formula scaled expressed in 7 decimals
     pub r_three: u32,    // the R3 value in the interest rate formula scaled expressed in 7 decimals
-    pub reactivity: u32, // the reactivity constant for the reserve scaled expressed in 9 decimals
+    pub reactivity: u32, // the reactivity constant for the reserve scaled expressed in 7 decimals
 }
+
 #[derive(Clone)]
 #[contracttype]
 pub struct QueuedReserveInit {
@@ -94,6 +95,7 @@ pub struct UserEmissionData {
 
 /********** Storage Key Types **********/
 
+const IS_INIT_KEY: &str = "IsInit";
 const ADMIN_KEY: &str = "Admin";
 const NAME_KEY: &str = "Name";
 const BACKSTOP_KEY: &str = "Backstop";
@@ -168,6 +170,20 @@ fn get_persistent_default<K: IntoVal<Env, Val>, V: TryFromVal<Env, Val>>(
     }
 }
 
+/********** Init **********/
+
+/// Check if the contract has been initialized
+pub fn get_is_init(e: &Env) -> bool {
+    e.storage().instance().has(&Symbol::new(e, IS_INIT_KEY))
+}
+
+/// Set the contract as initialized
+pub fn set_is_init(e: &Env) {
+    e.storage()
+        .instance()
+        .set::<Symbol, bool>(&Symbol::new(e, IS_INIT_KEY), &true);
+}
+
 /********** User **********/
 
 /// Fetch the user's positions or return an empty Positions struct
@@ -221,11 +237,6 @@ pub fn set_admin(e: &Env, new_admin: &Address) {
     e.storage()
         .instance()
         .set::<Symbol, Address>(&Symbol::new(e, ADMIN_KEY), new_admin);
-}
-
-/// Checks if an admin is set
-pub fn has_admin(e: &Env) -> bool {
-    e.storage().instance().has(&Symbol::new(e, ADMIN_KEY))
 }
 
 /********** Metadata **********/

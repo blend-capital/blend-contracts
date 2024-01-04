@@ -38,7 +38,7 @@ impl PositionData {
             if b_token_balance == 0 && d_token_balance == 0 {
                 continue;
             }
-            let reserve = pool.load_reserve(e, &reserve_list.get_unchecked(i));
+            let reserve = pool.load_reserve(e, &reserve_list.get_unchecked(i), false);
             let asset_to_base = pool.load_price(e, &reserve.asset);
 
             if b_token_balance > 0 {
@@ -69,7 +69,7 @@ impl PositionData {
                     .unwrap_optimized();
             }
 
-            pool.cache_reserve(reserve, false);
+            pool.cache_reserve(reserve);
         }
 
         PositionData {

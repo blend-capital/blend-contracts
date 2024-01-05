@@ -24,14 +24,14 @@ pub trait MockPoolFactoryTrait {
     /// * `admin` - The admin address for the pool
     /// * `name` - The name of the pool
     /// * `oracle` - The oracle address for the pool
-    /// * `backstop_take_rate` - The backstop take rate for the pool
+    /// * `backstop_take_rate` - The backstop take rate for the pool (7 decimals)
     fn deploy(
         e: Env,
         admin: Address,
         name: Symbol,
         salt: BytesN<32>,
         oracle: Address,
-        backstop_take_rate: u64,
+        backstop_take_rate: u32,
         max_positions: u32,
     ) -> Address;
 
@@ -65,14 +65,14 @@ impl MockPoolFactoryTrait for MockPoolFactory {
         name: Symbol,
         _salt: BytesN<32>,
         oracle: Address,
-        backstop_take_rate: u64,
+        backstop_take_rate: u32,
         max_positions: u32,
     ) -> Address {
         storage::extend_instance(&e);
         let pool_init_meta = storage::get_pool_init_meta(&e);
 
         // verify backstop take rate is within [0,1) with 9 decimals
-        if backstop_take_rate >= 1_000_000_000 {
+        if backstop_take_rate >= 1_0000000 {
             panic_with_error!(&e, PoolFactoryError::InvalidPoolInitArgs);
         }
 

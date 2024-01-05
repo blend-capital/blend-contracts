@@ -29,7 +29,7 @@ fn test_pool_factory() {
 
     let oracle = Address::generate(&e);
     let backstop_id = Address::generate(&e);
-    let backstop_rate: u64 = 100000;
+    let backstop_rate: u32 = 0_1000000;
     let max_positions: u32 = 6;
     let blnd_id = Address::generate(&e);
     let usdc_id = Address::generate(&e);
@@ -154,7 +154,7 @@ fn test_pool_factory_invalid_pool_init_args() {
 
     let bombadil = Address::generate(&e);
     let oracle = Address::generate(&e);
-    let backstop_rate: u64 = 1_000_000_000;
+    let backstop_rate: u32 = 1_0000000;
     let max_positions: u32 = 6;
 
     let name1 = Symbol::new(&e, "pool1");

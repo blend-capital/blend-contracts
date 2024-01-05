@@ -7,7 +7,7 @@ use soroban_sdk::{
     Symbol, Val, Vec,
 };
 
-const SCALAR_9: u64 = 1_000_000_000;
+const SCALAR_7: u32 = 1_0000000;
 
 #[contract]
 pub struct PoolFactoryContract;
@@ -26,7 +26,7 @@ pub trait PoolFactory {
     /// * `admin` - The admin address for the pool
     /// * `name` - The name of the pool
     /// * `oracle` - The oracle address for the pool
-    /// * `backstop_take_rate` - The backstop take rate for the pool
+    /// * `backstop_take_rate` - The backstop take rate for the pool (7 decimals)
     /// * `max_positions` - The maximum user positions supported by the pool
     fn deploy(
         e: Env,
@@ -34,7 +34,7 @@ pub trait PoolFactory {
         name: Symbol,
         salt: BytesN<32>,
         oracle: Address,
-        backstop_take_rate: u64,
+        backstop_take_rate: u32,
         max_positions: u32,
     ) -> Address;
 
@@ -66,15 +66,15 @@ impl PoolFactory for PoolFactoryContract {
         name: Symbol,
         salt: BytesN<32>,
         oracle: Address,
-        backstop_take_rate: u64,
+        backstop_take_rate: u32,
         max_positions: u32,
     ) -> Address {
         admin.require_auth();
         storage::extend_instance(&e);
         let pool_init_meta = storage::get_pool_init_meta(&e);
 
-        // verify backstop take rate is within [0,1) with 9 decimals
-        if backstop_take_rate >= SCALAR_9 {
+        // verify backstop take rate is within [0,1) with 7 decimals
+        if backstop_take_rate >= SCALAR_7 {
             panic_with_error!(&e, PoolFactoryError::InvalidPoolInitArgs);
         }
 

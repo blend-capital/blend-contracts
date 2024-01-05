@@ -17,10 +17,10 @@ pub(crate) const LEDGER_BUMP_USER: u32 = 535670; // TODO: Check on phase 1 max l
 #[derive(Clone)]
 #[contracttype]
 pub struct PoolConfig {
-    pub oracle: Address,
-    pub bstop_rate: u64, // the rate the backstop takes on accrued debt interest, expressed in 9 decimals
-    pub status: u32,
-    pub max_positions: u32,
+    pub oracle: Address,    // the contract address of the oracle
+    pub bstop_rate: u32, // the rate the backstop takes on accrued debt interest, expressed in 7 decimals
+    pub status: u32,     // the status of the pool
+    pub max_positions: u32, // the maximum number of effective positions (collateral + liabilities) a single user can hold
 }
 
 /// The pool's emission config

@@ -16,7 +16,7 @@ pub fn execute_initialize(
     admin: &Address,
     name: &Symbol,
     oracle: &Address,
-    bstop_rate: &u64,
+    bstop_rate: &u32,
     max_positions: &u32,
     backstop_address: &Address,
     blnd_id: &Address,
@@ -27,7 +27,7 @@ pub fn execute_initialize(
     }
 
     // ensure backstop is [0,1)
-    if *bstop_rate >= SCALAR_9 as u64 {
+    if *bstop_rate >= SCALAR_7 as u32 {
         panic_with_error!(e, PoolError::InvalidPoolInitArgs);
     }
 
@@ -50,9 +50,9 @@ pub fn execute_initialize(
 }
 
 /// Update the pool
-pub fn execute_update_pool(e: &Env, backstop_take_rate: u64, max_positions: u32) {
+pub fn execute_update_pool(e: &Env, backstop_take_rate: u32, max_positions: u32) {
     // ensure backstop is [0,1)
-    if backstop_take_rate >= SCALAR_9 as u64 {
+    if backstop_take_rate >= SCALAR_7 as u32 {
         panic_with_error!(e, PoolError::BadRequest);
     }
     let mut pool_config = storage::get_pool_config(e);
@@ -185,7 +185,7 @@ mod tests {
         let admin = Address::generate(&e);
         let name = Symbol::new(&e, "pool_name");
         let oracle = Address::generate(&e);
-        let bstop_rate = 0_100_000_000u64;
+        let bstop_rate: u32 = 0_1000000;
         let max_positions = 2;
         let backstop_address = Address::generate(&e);
         let blnd_id = Address::generate(&e);
@@ -224,7 +224,7 @@ mod tests {
         let admin = Address::generate(&e);
         let name = Symbol::new(&e, "pool_name");
         let oracle = Address::generate(&e);
-        let bstop_rate = 0_100_000_000u64;
+        let bstop_rate: u32 = 0_1000000;
         let max_positions = 3;
         let backstop_address = Address::generate(&e);
         let blnd_id = Address::generate(&e);
@@ -266,7 +266,7 @@ mod tests {
         let admin = Address::generate(&e);
         let name = Symbol::new(&e, "pool_name");
         let oracle = Address::generate(&e);
-        let bstop_rate = 1_000_000_000u64;
+        let bstop_rate = 1_0000000;
         let max_positions = 3;
         let backstop_address = Address::generate(&e);
         let blnd_id = Address::generate(&e);
@@ -306,7 +306,7 @@ mod tests {
 
         let pool_config = PoolConfig {
             oracle: Address::generate(&e),
-            bstop_rate: 0_100_000_000,
+            bstop_rate: 0_1000000,
             status: 0,
             max_positions: 2,
         };
@@ -314,9 +314,9 @@ mod tests {
             storage::set_pool_config(&e, &pool_config);
 
             // happy path
-            execute_update_pool(&e, 0_200_000_000u64, 4u32);
+            execute_update_pool(&e, 0_2000000, 4u32);
             let new_pool_config = storage::get_pool_config(&e);
-            assert_eq!(new_pool_config.bstop_rate, 0_200_000_000u64);
+            assert_eq!(new_pool_config.bstop_rate, 0_2000000);
             assert_eq!(new_pool_config.oracle, pool_config.oracle);
             assert_eq!(new_pool_config.status, pool_config.status);
             assert_eq!(new_pool_config.max_positions, 4u32)
@@ -331,14 +331,14 @@ mod tests {
 
         let pool_config = PoolConfig {
             oracle: Address::generate(&e),
-            bstop_rate: 0_100_000_000,
+            bstop_rate: 0_1000000,
             status: 0,
             max_positions: 2,
         };
         e.as_contract(&pool, || {
             storage::set_pool_config(&e, &pool_config);
 
-            execute_update_pool(&e, 1_000_000_000u64, 4u32);
+            execute_update_pool(&e, 1_0000000, 4u32);
         });
     }
 
@@ -364,7 +364,7 @@ mod tests {
         };
         let pool_config = PoolConfig {
             oracle: Address::generate(&e),
-            bstop_rate: 0_100_000_000,
+            bstop_rate: 0_1000000,
             status: 6,
             max_positions: 2,
         };
@@ -409,7 +409,7 @@ mod tests {
         };
         let pool_config = PoolConfig {
             oracle: Address::generate(&e),
-            bstop_rate: 0_100_000_000,
+            bstop_rate: 0_1000000,
             status: 0,
             max_positions: 2,
         };
@@ -606,7 +606,7 @@ mod tests {
         };
         let pool_config = PoolConfig {
             oracle: Address::generate(&e),
-            bstop_rate: 0_100_000_000,
+            bstop_rate: 0_1000000,
             status: 0,
             max_positions: 2,
         };
@@ -664,7 +664,7 @@ mod tests {
 
         let pool_config = PoolConfig {
             oracle: Address::generate(&e),
-            bstop_rate: 0_100_000_000,
+            bstop_rate: 0_1000000,
             status: 0,
             max_positions: 2,
         };
@@ -739,7 +739,7 @@ mod tests {
 
         let pool_config = PoolConfig {
             oracle: Address::generate(&e),
-            bstop_rate: 0_100_000_000,
+            bstop_rate: 0_1000000,
             status: 0,
             max_positions: 2,
         };
@@ -795,7 +795,7 @@ mod tests {
 
         let pool_config = PoolConfig {
             oracle: Address::generate(&e),
-            bstop_rate: 0_100_000_000,
+            bstop_rate: 0_1000000,
             status: 0,
             max_positions: 2,
         };

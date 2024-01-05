@@ -167,7 +167,7 @@ impl TestFixture<'_> {
         fixture
     }
 
-    pub fn create_pool(&mut self, name: Symbol, backstop_take_rate: u64, max_positions: u32) {
+    pub fn create_pool(&mut self, name: Symbol, backstop_take_rate: u32, max_positions: u32) {
         let pool_id = self.pool_factory.deploy(
             &self.bombadil,
             &name,

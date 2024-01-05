@@ -96,7 +96,7 @@ mod tests {
 
         let pool_config = PoolConfig {
             oracle: Address::generate(&e),
-            bstop_rate: 0_100_000_000,
+            bstop_rate: 0_1000000,
             status: 0,
             max_positions: 2,
         };
@@ -163,7 +163,7 @@ mod tests {
 
         let pool_config = PoolConfig {
             oracle: Address::generate(&e),
-            bstop_rate: 0_100_000_000,
+            bstop_rate: 0_1000000,
             status: 0,
             max_positions: 2,
         };
@@ -216,7 +216,7 @@ mod tests {
 
         let pool_config = PoolConfig {
             oracle: Address::generate(&e),
-            bstop_rate: 0_100_000_000,
+            bstop_rate: 0_1000000,
             status: 0,
             max_positions: 2,
         };
@@ -265,7 +265,7 @@ mod tests {
 
         let pool_config = PoolConfig {
             oracle: Address::generate(&e),
-            bstop_rate: 0_100_000_000,
+            bstop_rate: 0_1000000,
             status: 0,
             max_positions: 2,
         };

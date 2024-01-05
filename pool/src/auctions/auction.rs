@@ -388,7 +388,7 @@ mod tests {
 
         let pool_config = PoolConfig {
             oracle: oracle_id,
-            bstop_rate: 0_100_000_000,
+            bstop_rate: 0_1000000,
             status: 0,
             max_positions: 4,
         };
@@ -493,7 +493,7 @@ mod tests {
 
         let pool_config = PoolConfig {
             oracle: oracle_id,
-            bstop_rate: 0_100_000_000,
+            bstop_rate: 0_1000000,
             status: 0,
             max_positions: 4,
         };
@@ -598,7 +598,7 @@ mod tests {
         };
         let pool_config = PoolConfig {
             oracle: oracle_address,
-            bstop_rate: 0_100_000_000,
+            bstop_rate: 0_1000000,
             status: 0,
             max_positions: 4,
         };
@@ -741,7 +741,7 @@ mod tests {
         };
         let pool_config = PoolConfig {
             oracle: oracle_address,
-            bstop_rate: 0_100_000_000,
+            bstop_rate: 0_1000000,
             status: 0,
             max_positions: 4,
         };
@@ -849,7 +849,7 @@ mod tests {
         };
         let pool_config = PoolConfig {
             oracle: oracle_address,
-            bstop_rate: 0_100_000_000,
+            bstop_rate: 0_1000000,
             status: 0,
             max_positions: 4,
         };
@@ -970,7 +970,7 @@ mod tests {
         };
         let pool_config = PoolConfig {
             oracle: oracle_address,
-            bstop_rate: 0_100_000_000,
+            bstop_rate: 0_1000000,
             status: 0,
             max_positions: 4,
         };
@@ -1159,7 +1159,7 @@ mod tests {
         };
         let pool_config = PoolConfig {
             oracle: oracle_address,
-            bstop_rate: 0_100_000_000,
+            bstop_rate: 0_1000000,
             status: 0,
             max_positions: 4,
         };
@@ -1281,7 +1281,7 @@ mod tests {
         };
         let pool_config = PoolConfig {
             oracle: oracle_address,
-            bstop_rate: 0_100_000_000,
+            bstop_rate: 0_1000000,
             status: 0,
             max_positions: 4,
         };

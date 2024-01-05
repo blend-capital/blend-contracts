@@ -17,7 +17,7 @@ pub fn execute_queue_withdrawal(
     let mut user_balance = storage::get_user_balance(e, pool_address, from);
 
     // update emissions
-    emissions::update_emissions(e, pool_address, &pool_balance, from, &user_balance, false);
+    emissions::update_emissions(e, pool_address, &pool_balance, from, &user_balance);
 
     user_balance.queue_shares_for_withdrawal(e, amount);
     pool_balance.queue_for_withdraw(amount);
@@ -36,7 +36,7 @@ pub fn execute_dequeue_withdrawal(e: &Env, from: &Address, pool_address: &Addres
     let mut user_balance = storage::get_user_balance(e, pool_address, from);
 
     // update emissions
-    emissions::update_emissions(e, pool_address, &pool_balance, from, &user_balance, false);
+    emissions::update_emissions(e, pool_address, &pool_balance, from, &user_balance);
 
     user_balance.dequeue_shares_for_withdrawal(e, amount, false);
     user_balance.add_shares(amount);

@@ -7,6 +7,7 @@ use crate::{
     errors::PoolError,
     pool::User,
     storage::{self, ReserveEmissionsData, UserEmissionData},
+    validator::require_nonnegative,
     ReserveEmissionsConfig,
 };
 
@@ -33,14 +34,13 @@ pub fn execute_claim(e: &Env, from: &Address, reserve_token_ids: &Vec<u32>, to: 
                     ),
                     _ => panic_with_error!(e, PoolError::BadRequest),
                 };
-                to_claim += update_emissions(
+                to_claim += claim_emissions(
                     e,
                     reserve_token_id,
                     supply,
                     10i128.pow(reserve_config.decimals),
                     from,
                     user_balance,
-                    true,
                 );
             }
             None => {
@@ -73,7 +73,6 @@ pub fn execute_claim(e: &Env, from: &Address, reserve_token_ids: &Vec<u32>, to: 
 /// * `supply_scalar` - The scalar of the reserve token
 /// * `user` - The user performing an action against the reserve
 /// * `balance` - The current balance of the user
-/// * `claim` - Whether or not to claim the user's accrued emissions
 ///
 /// ### Panics
 /// If the reserve update failed
@@ -84,35 +83,57 @@ pub fn update_emissions(
     supply_scalar: i128,
     user: &Address,
     balance: i128,
-    claim: bool,
-) -> i128 {
+) {
     if let Some(res_emis_data) = update_emission_data(e, res_token_id, supply, supply_scalar) {
-        return update_user_emissions(
+        update_user_emissions(
             e,
             &res_emis_data,
             res_token_id,
             supply_scalar,
             user,
             balance,
-            claim,
+            false,
         );
     }
-    // no emissions data for the reserve exists - nothing to update
-    0
 }
 
-/// Update the reserve token emission data
+/// Update and claim the emissions for a reserve token.
 ///
-/// Returns the new ReserveEmissionData, if None if no data exists
+/// Returns the amount of tokens to claim.
 ///
 /// ### Arguments
 /// * `res_token_id` - The reserve token being acted against => (reserve index * 2 + (0 for debtToken or 1 for blendToken))
 /// * `supply` - The current supply of the reserve token
 /// * `supply_scalar` - The scalar of the reserve token
+/// * `user` - The user claiming for the reserve
+/// * `balance` - The current balance of the user
 ///
 /// ### Panics
 /// If the reserve update failed
-pub fn update_emission_data(
+fn claim_emissions(
+    e: &Env,
+    res_token_id: u32,
+    supply: i128,
+    supply_scalar: i128,
+    user: &Address,
+    balance: i128,
+) -> i128 {
+    if let Some(res_emis_data) = update_emission_data(e, res_token_id, supply, supply_scalar) {
+        update_user_emissions(
+            e,
+            &res_emis_data,
+            res_token_id,
+            supply_scalar,
+            user,
+            balance,
+            true,
+        )
+    } else {
+        0
+    }
+}
+
+fn update_emission_data(
     e: &Env,
     res_token_id: u32,
     supply: i128,
@@ -130,6 +151,18 @@ pub fn update_emission_data(
     }
 }
 
+/// Update the reserve token emission data
+///
+/// Returns the new ReserveEmissionData, if None if no data exists
+///
+/// ### Arguments
+/// * `res_token_id` - The reserve token being acted against => (reserve index * 2 + (0 for debtToken or 1 for blendToken))
+/// * `supply` - The current supply of the reserve token
+/// * `supply_scalar` - The scalar of the reserve token
+/// * `emis_config` - The reserve token emission configuration
+///
+/// ### Panics
+/// If the reserve update failed
 pub(super) fn update_emission_data_with_config(
     e: &Env,
     res_token_id: u32,
@@ -178,6 +211,8 @@ fn update_user_emissions(
         if user_data.index != res_emis_data.index || claim {
             let mut accrual = user_data.accrued;
             if balance != 0 {
+                let delta_index = res_emis_data.index - user_data.index;
+                require_nonnegative(e, &delta_index);
                 let to_accrue = balance
                     .fixed_mul_floor(res_emis_data.index - user_data.index, supply_scalar)
                     .unwrap_optimized();
@@ -274,14 +309,13 @@ mod tests {
             storage::set_res_emis_data(&e, &res_token_index, &reserve_emission_data);
             storage::set_user_emissions(&e, &samwise, &res_token_index, &user_emission_data);
 
-            let _result = update_emissions(
+            update_emissions(
                 &e,
                 res_token_index,
                 supply,
                 1_0000000,
                 &samwise,
                 user_position,
-                false,
             );
 
             let new_reserve_emission_data =
@@ -322,21 +356,175 @@ mod tests {
             let res_token_type = 1;
             let res_token_index = 1 * 2 + res_token_type;
 
-            let result = update_emissions(
+            update_emissions(
                 &e,
                 res_token_index,
                 supply,
                 1_0000000,
                 &samwise,
                 user_position,
-                false,
             );
-            if result == 0 {
-                assert!(storage::get_res_emis_data(&e, &res_token_index).is_none());
-                assert!(storage::get_user_emissions(&e, &samwise, &res_token_index).is_none());
-            } else {
-                assert!(false);
-            }
+
+            assert!(storage::get_res_emis_data(&e, &res_token_index).is_none());
+            assert!(storage::get_user_emissions(&e, &samwise, &res_token_index).is_none());
+        });
+    }
+
+    #[test]
+    #[should_panic(expected = "attempt to subtract with overflow")]
+    fn test_update_emissions_negative_time_diff() {
+        let e = Env::default();
+        e.mock_all_auths();
+
+        let pool = testutils::create_pool(&e);
+        let samwise = Address::generate(&e);
+
+        e.ledger().set(LedgerInfo {
+            timestamp: 1501000000,
+            protocol_version: 20,
+            sequence_number: 123,
+            network_id: Default::default(),
+            base_reserve: 10,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2000000,
+        });
+
+        let supply: i128 = 50_0000000;
+        let user_position: i128 = 2_0000000;
+        e.as_contract(&pool, || {
+            let reserve_emission_config = ReserveEmissionsConfig {
+                expiration: 1600000000,
+                eps: 0_0100000,
+            };
+            let reserve_emission_data = ReserveEmissionsData {
+                index: 2345678,
+                last_time: 1501000000 + 1,
+            };
+            let user_emission_data = UserEmissionData {
+                index: 1234567,
+                accrued: 0_1000000,
+            };
+            let res_token_type = 0;
+            let res_token_index = 1 * 2 + res_token_type;
+
+            storage::set_res_emis_config(&e, &res_token_index, &reserve_emission_config);
+            storage::set_res_emis_data(&e, &res_token_index, &reserve_emission_data);
+            storage::set_user_emissions(&e, &samwise, &res_token_index, &user_emission_data);
+
+            update_emissions(
+                &e,
+                res_token_index,
+                supply,
+                1_0000000,
+                &samwise,
+                user_position,
+            );
+        });
+    }
+
+    /********** claim_emissions **********/
+
+    #[test]
+    fn test_claim_emissions() {
+        let e = Env::default();
+        e.mock_all_auths();
+
+        let pool = testutils::create_pool(&e);
+        let samwise = Address::generate(&e);
+
+        e.ledger().set(LedgerInfo {
+            timestamp: 1501000000, // 10^6 seconds have passed
+            protocol_version: 20,
+            sequence_number: 123,
+            network_id: Default::default(),
+            base_reserve: 10,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2000000,
+        });
+
+        let supply: i128 = 50_0000000;
+        let user_position: i128 = 2_0000000;
+        e.as_contract(&pool, || {
+            let reserve_emission_config = ReserveEmissionsConfig {
+                expiration: 1600000000,
+                eps: 0_0100000,
+            };
+            let reserve_emission_data = ReserveEmissionsData {
+                index: 2345678,
+                last_time: 1500000000,
+            };
+            let user_emission_data = UserEmissionData {
+                index: 1234567,
+                accrued: 0_1000000,
+            };
+            let res_token_type = 0;
+            let res_token_index = 1 * 2 + res_token_type;
+
+            storage::set_res_emis_config(&e, &res_token_index, &reserve_emission_config);
+            storage::set_res_emis_data(&e, &res_token_index, &reserve_emission_data);
+            storage::set_user_emissions(&e, &samwise, &res_token_index, &user_emission_data);
+
+            let result = claim_emissions(
+                &e,
+                res_token_index,
+                supply,
+                1_0000000,
+                &samwise,
+                user_position,
+            );
+
+            assert_eq!(result, 400_3222222);
+            let new_reserve_emission_data =
+                storage::get_res_emis_data(&e, &res_token_index).unwrap_optimized();
+            let new_user_emission_data =
+                storage::get_user_emissions(&e, &samwise, &res_token_index).unwrap_optimized();
+            assert_eq!(new_reserve_emission_data.last_time, 1501000000);
+            assert_eq!(
+                new_user_emission_data.index,
+                new_reserve_emission_data.index
+            );
+            assert_eq!(new_user_emission_data.accrued, 0);
+        });
+    }
+
+    #[test]
+    fn test_claim_emissions_no_config_ignores() {
+        let e = Env::default();
+        e.mock_all_auths();
+
+        let pool = testutils::create_pool(&e);
+        let samwise = Address::generate(&e);
+
+        e.ledger().set(LedgerInfo {
+            timestamp: 1501000000, // 10^6 seconds have passed
+            protocol_version: 20,
+            sequence_number: 123,
+            network_id: Default::default(),
+            base_reserve: 10,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2000000,
+        });
+
+        let supply: i128 = 100_0000000;
+        let user_position: i128 = 2_0000000;
+        e.as_contract(&pool, || {
+            let res_token_type = 1;
+            let res_token_index = 1 * 2 + res_token_type;
+
+            claim_emissions(
+                &e,
+                res_token_index,
+                supply,
+                1_0000000,
+                &samwise,
+                user_position,
+            );
+
+            assert!(storage::get_res_emis_data(&e, &res_token_index).is_none());
+            assert!(storage::get_user_emissions(&e, &samwise, &res_token_index).is_none());
         });
     }
 
@@ -1034,7 +1222,57 @@ mod tests {
         });
     }
 
-    //********** execute claim **********/
+    #[test]
+    #[should_panic(expected = "Error(Contract, #4)")]
+    fn test_update_user_emissions_negative_index() {
+        let e = Env::default();
+        e.mock_all_auths();
+
+        let pool = testutils::create_pool(&e);
+
+        let samwise = Address::generate(&e);
+
+        e.ledger().set(LedgerInfo {
+            timestamp: 1500000000,
+            protocol_version: 20,
+            sequence_number: 123,
+            network_id: Default::default(),
+            base_reserve: 10,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2000000,
+        });
+
+        let supply_scalar = 1_0000000;
+        let user_balance = 0_5000000;
+        e.as_contract(&pool, || {
+            let reserve_emission_data = ReserveEmissionsData {
+                index: 123456789,
+                last_time: 1500000000,
+            };
+            let user_emission_data = UserEmissionData {
+                index: 123456789 + 1,
+                accrued: 0_1000000,
+            };
+
+            let res_token_type = 1;
+            let res_token_index = 1 * 2 + res_token_type;
+            storage::set_user_emissions(&e, &samwise, &res_token_index, &user_emission_data);
+
+            update_user_emissions(
+                &e,
+                &reserve_emission_data,
+                res_token_index,
+                supply_scalar,
+                &samwise,
+                user_balance,
+                true,
+            );
+        });
+    }
+
+    //********** execute claim **********//
+
     #[test]
     fn test_execute_claim() {
         let e = Env::default();
@@ -1156,6 +1394,131 @@ mod tests {
             assert_eq!(
                 blnd_token_client.balance(&backstop),
                 100_000_0000000 - (400_3222222 + 301_0222222)
+            )
+        });
+    }
+
+    #[test]
+    fn test_execute_claim_with_already_claimed_reserve() {
+        let e = Env::default();
+        e.mock_all_auths_allowing_non_root_auth();
+        e.budget().reset_unlimited();
+
+        let pool = testutils::create_pool(&e);
+        let bombadil = Address::generate(&e);
+        let samwise = Address::generate(&e);
+        let merry = Address::generate(&e);
+
+        let (_, blnd_token_client) = testutils::create_blnd_token(&e, &pool, &bombadil);
+        let (backstop, _) = testutils::create_backstop(&e);
+        // mock backstop having emissions for pool
+        e.as_contract(&backstop, || {
+            blnd_token_client.approve(&backstop, &pool, &100_000_0000000_i128, &1000000);
+        });
+        blnd_token_client.mint(&backstop, &100_000_0000000);
+
+        e.ledger().set(LedgerInfo {
+            timestamp: 1501000000, // 10^6 seconds have passed
+            protocol_version: 20,
+            sequence_number: 123,
+            network_id: Default::default(),
+            base_reserve: 10,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2000000,
+        });
+
+        let (underlying_0, _) = testutils::create_token_contract(&e, &bombadil);
+        let (mut reserve_config, mut reserve_data) = testutils::default_reserve_meta();
+        reserve_config.decimals = 5;
+        reserve_data.b_supply = 100_00000;
+        reserve_data.d_supply = 50_00000;
+        testutils::create_reserve(&e, &pool, &underlying_0, &reserve_config, &reserve_data);
+
+        let (underlying_1, _) = testutils::create_token_contract(&e, &bombadil);
+        let (mut reserve_config, mut reserve_data) = testutils::default_reserve_meta();
+        reserve_config.decimals = 9;
+        reserve_config.index = 1;
+        reserve_data.b_supply = 100_000_000_000;
+        reserve_data.d_supply = 50_000_000_000;
+        testutils::create_reserve(&e, &pool, &underlying_1, &reserve_config, &reserve_data);
+
+        let user_positions = Positions {
+            liabilities: map![&e, (0, 2_00000)],
+            collateral: map![&e, (1, 1_000_000_000)],
+            supply: map![&e, (1, 1_000_000_000)],
+        };
+        e.as_contract(&pool, || {
+            storage::set_backstop(&e, &backstop);
+            storage::set_user_positions(&e, &samwise, &user_positions);
+
+            let reserve_emission_config_0 = ReserveEmissionsConfig {
+                expiration: 1600000000,
+                eps: 0_0100000,
+            };
+            let reserve_emission_data_0 = ReserveEmissionsData {
+                index: 2345678,
+                last_time: 1500000000,
+            };
+            let user_emission_data_0 = UserEmissionData {
+                index: 1234567,
+                accrued: 0_1000000,
+            };
+            let res_token_index_0 = 0 * 2 + 0; // d_token for reserve 0
+
+            let reserve_emission_config_1 = ReserveEmissionsConfig {
+                expiration: 1600000000,
+                eps: 0_0150000,
+            };
+            let reserve_emission_data_1 = ReserveEmissionsData {
+                index: 1345678,
+                last_time: 1501000000,
+            };
+            let user_emission_data_1 = UserEmissionData {
+                index: 1345678,
+                accrued: 0,
+            };
+            let res_token_index_1 = 1 * 2 + 1; // b_token for reserve 1
+
+            storage::set_res_emis_config(&e, &res_token_index_0, &reserve_emission_config_0);
+            storage::set_res_emis_data(&e, &res_token_index_0, &reserve_emission_data_0);
+            storage::set_user_emissions(&e, &samwise, &res_token_index_0, &user_emission_data_0);
+
+            storage::set_res_emis_config(&e, &res_token_index_1, &reserve_emission_config_1);
+            storage::set_res_emis_data(&e, &res_token_index_1, &reserve_emission_data_1);
+            storage::set_user_emissions(&e, &samwise, &res_token_index_1, &user_emission_data_1);
+
+            let reserve_token_ids: Vec<u32> = vec![&e, res_token_index_0, res_token_index_1];
+            let result = execute_claim(&e, &samwise, &reserve_token_ids, &merry);
+
+            let new_reserve_emission_data =
+                storage::get_res_emis_data(&e, &res_token_index_0).unwrap_optimized();
+            let new_user_emission_data =
+                storage::get_user_emissions(&e, &samwise, &res_token_index_0).unwrap_optimized();
+            assert_eq!(new_reserve_emission_data.last_time, 1501000000);
+            assert_eq!(
+                new_user_emission_data.index,
+                new_reserve_emission_data.index
+            );
+            assert_eq!(new_user_emission_data.accrued, 0);
+
+            let new_reserve_emission_data_1 =
+                storage::get_res_emis_data(&e, &res_token_index_1).unwrap_optimized();
+            let new_user_emission_data_1 =
+                storage::get_user_emissions(&e, &samwise, &res_token_index_1).unwrap_optimized();
+            assert_eq!(new_reserve_emission_data_1.last_time, 1501000000);
+            assert_eq!(
+                new_user_emission_data_1.index,
+                new_reserve_emission_data_1.index
+            );
+            assert_eq!(new_user_emission_data.accrued, 0);
+            assert_eq!(result, 400_3222222);
+
+            // verify tokens are sent
+            assert_eq!(blnd_token_client.balance(&merry), 400_3222222);
+            assert_eq!(
+                blnd_token_client.balance(&backstop),
+                100_000_0000000 - 400_3222222
             )
         });
     }

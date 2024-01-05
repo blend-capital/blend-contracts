@@ -197,9 +197,9 @@ impl User {
             reserve.scalar,
             &self.address,
             amount,
-            false,
         );
     }
+
     fn update_b_emissions(&self, e: &Env, reserve: &Reserve, amount: i128) {
         emissions::update_emissions(
             e,
@@ -208,7 +208,6 @@ impl User {
             reserve.scalar,
             &self.address,
             amount,
-            false,
         );
     }
 }

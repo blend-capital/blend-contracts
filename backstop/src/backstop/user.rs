@@ -49,7 +49,7 @@ impl UserBalance {
     /// If the amount to queue is greater than the available shares
     pub fn queue_shares_for_withdrawal(&mut self, e: &Env, to_q: i128) {
         if self.shares < to_q {
-            panic_with_error!(e, BackstopError::InvalidBalance);
+            panic_with_error!(e, BackstopError::BalanceError);
         }
         self.shares = self.shares - to_q;
 
@@ -106,7 +106,7 @@ impl UserBalance {
         }
 
         if left_to_dequeue > 0 {
-            panic_with_error!(e, BackstopError::InvalidBalance);
+            panic_with_error!(e, BackstopError::BalanceError);
         }
     }
 }
@@ -211,7 +211,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Error(Contract, #2)")]
+    #[should_panic(expected = "Error(Contract, #10)")]
     fn test_q4w_over_shares_panics() {
         let e = Env::default();
 
@@ -243,7 +243,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Error(Contract, #2)")]
+    #[should_panic(expected = "Error(Contract, #10)")]
     fn test_withdraw_shares_no_q4w_panics() {
         let e = Env::default();
 
@@ -396,7 +396,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Error(Contract, #3)")]
+    #[should_panic(expected = "Error(Contract, #1001)")]
     fn test_withdraw_shares_multiple_entries_not_exp() {
         let e = Env::default();
 
@@ -436,7 +436,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Error(Contract, #3)")]
+    #[should_panic(expected = "Error(Contract, #1001)")]
     fn test_try_dequeue_shares_require_expired_expect_panic() {
         let e = Env::default();
 
@@ -475,7 +475,7 @@ mod tests {
         user.dequeue_shares_for_withdrawal(&e, to_dequeue, true);
     }
     #[test]
-    #[should_panic(expected = "Error(Contract, #2)")]
+    #[should_panic(expected = "Error(Contract, #10)")]
     fn test_try_withdraw_shares_over_total() {
         let e = Env::default();
 

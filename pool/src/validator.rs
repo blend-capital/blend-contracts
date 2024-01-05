@@ -11,7 +11,7 @@ use crate::errors::PoolError;
 /// If the number is negative
 pub fn require_nonnegative(e: &Env, amount: &i128) {
     if amount.is_negative() {
-        panic_with_error!(e, PoolError::NegativeAmount);
+        panic_with_error!(e, PoolError::NegativeAmountError);
     }
 }
 

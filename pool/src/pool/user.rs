@@ -427,7 +427,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Error(Contract, #4)")]
+    #[should_panic(expected = "Error(Contract, #8)")]
     fn test_remove_liabilities_over_balance_panics() {
         let e = Env::default();
         let samwise = Address::generate(&e);
@@ -623,7 +623,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Error(Contract, #4)")]
+    #[should_panic(expected = "Error(Contract, #8)")]
     fn test_remove_collateral_over_balance_panics() {
         let e = Env::default();
         let samwise = Address::generate(&e);
@@ -820,7 +820,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Error(Contract, #4)")]
+    #[should_panic(expected = "Error(Contract, #8)")]
     fn test_remove_supply_over_balance_panics() {
         let e = Env::default();
         let samwise = Address::generate(&e);

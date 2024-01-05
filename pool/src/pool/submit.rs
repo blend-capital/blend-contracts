@@ -171,7 +171,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Error(Contract, #10)")]
+    #[should_panic(expected = "Error(Contract, #1205)")]
     fn test_submit_requires_healhty() {
         let e = Env::default();
         e.mock_all_auths();
@@ -243,7 +243,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Error(Contract, #2)")]
+    #[should_panic(expected = "Error(Contract, #1200)")]
     fn test_submit_from_is_not_self() {
         let e = Env::default();
         e.budget().reset_unlimited();
@@ -303,7 +303,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Error(Contract, #2)")]
+    #[should_panic(expected = "Error(Contract, #1200)")]
     fn test_submit_spender_is_not_self() {
         let e = Env::default();
         e.budget().reset_unlimited();
@@ -363,7 +363,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Error(Contract, #2)")]
+    #[should_panic(expected = "Error(Contract, #1200)")]
     fn test_submit_to_is_not_self() {
         let e = Env::default();
         e.budget().reset_unlimited();

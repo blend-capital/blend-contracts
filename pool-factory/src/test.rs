@@ -129,3 +129,43 @@ fn test_pool_factory() {
     assert!(pool_factory_client.is_pool(&deployed_pool_address_2));
     assert!(!pool_factory_client.is_pool(&Address::generate(&e)));
 }
+
+#[test]
+#[should_panic(expected = "Error(Contract, #1300)")]
+fn test_pool_factory_invalid_pool_init_args() {
+    let e = Env::default();
+    e.budget().reset_unlimited();
+    e.mock_all_auths_allowing_non_root_auth();
+    let (_, pool_factory_client) = create_pool_factory(&e);
+
+    let wasm_hash = e.deployer().upload_contract_wasm(pool::WASM);
+
+    let backstop_id = Address::generate(&e);
+    let blnd_id = Address::generate(&e);
+    let usdc_id = Address::generate(&e);
+
+    let pool_init_meta = PoolInitMeta {
+        backstop: backstop_id.clone(),
+        pool_hash: wasm_hash.clone(),
+        blnd_id: blnd_id.clone(),
+        usdc_id: usdc_id.clone(),
+    };
+    pool_factory_client.initialize(&pool_init_meta);
+
+    let bombadil = Address::generate(&e);
+    let oracle = Address::generate(&e);
+    let backstop_rate: u64 = 1_000_000_000;
+    let max_positions: u32 = 6;
+
+    let name1 = Symbol::new(&e, "pool1");
+    let salt = BytesN::<32>::random(&e);
+
+    pool_factory_client.deploy(
+        &bombadil,
+        &name1,
+        &salt,
+        &oracle,
+        &backstop_rate,
+        &max_positions,
+    );
+}

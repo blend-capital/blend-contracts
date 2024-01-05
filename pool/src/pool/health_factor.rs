@@ -235,7 +235,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Error(Contract, #10)")]
+    #[should_panic(expected = "Error(Contract, #1205)")]
     fn test_require_healthy_panics() {
         let e = Env::default();
 

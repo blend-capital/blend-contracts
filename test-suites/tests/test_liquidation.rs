@@ -1039,7 +1039,10 @@ fn test_user_restore_position_and_delete_liquidation() {
         pool_fixture
             .pool
             .try_submit(&samwise, &samwise, &samwise, &delete_only_request);
-    assert_eq!(delete_only.err(), Some(Ok(Error::from_contract_error(10))));
+    assert_eq!(
+        delete_only.err(),
+        Some(Ok(Error::from_contract_error(1205)))
+    );
 
     // validate health factor must be fully restored before deleting position
     let short_supply_delete_request: Vec<Request> = vec![
@@ -1061,7 +1064,7 @@ fn test_user_restore_position_and_delete_liquidation() {
             .try_submit(&samwise, &samwise, &samwise, &short_supply_delete_request);
     assert_eq!(
         short_supply_delete.err(),
-        Some(Ok(Error::from_contract_error(10)))
+        Some(Ok(Error::from_contract_error(1205)))
     );
 
     let short_repay_delete_request: Vec<Request> = vec![
@@ -1083,7 +1086,7 @@ fn test_user_restore_position_and_delete_liquidation() {
             .try_submit(&samwise, &samwise, &samwise, &short_repay_delete_request);
     assert_eq!(
         short_repay_delete.err(),
-        Some(Ok(Error::from_contract_error(10)))
+        Some(Ok(Error::from_contract_error(1205)))
     );
 
     // validate liquidation can be deleted after restoring position

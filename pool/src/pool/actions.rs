@@ -1609,7 +1609,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Error(Contract, #13)")]
+    #[should_panic(expected = "Error(Contract, #1208)")]
     fn test_actions_requires_positions_under_max() {
         let e = Env::default();
         e.mock_all_auths();

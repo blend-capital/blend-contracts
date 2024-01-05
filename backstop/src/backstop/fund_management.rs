@@ -150,7 +150,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Error(Contract, #11)")]
+    #[should_panic(expected = "Error(Contract, #8)")]
     fn test_execute_donate_negative_amount() {
         let e = Env::default();
         e.mock_all_auths_allowing_non_root_auth();
@@ -180,7 +180,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Error(Contract, #1)")]
+    #[should_panic(expected = "Error(Contract, #1000)")]
     fn test_execute_donate_from_is_to() {
         let e = Env::default();
         e.mock_all_auths_allowing_non_root_auth();
@@ -210,7 +210,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Error(Contract, #1)")]
+    #[should_panic(expected = "Error(Contract, #1000)")]
     fn test_execute_donate_from_is_self() {
         let e = Env::default();
         e.mock_all_auths_allowing_non_root_auth();
@@ -240,7 +240,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Error(Contract, #10)")]
+    #[should_panic(expected = "Error(Contract, #1004)")]
     fn test_execute_donate_not_pool() {
         let e = Env::default();
         e.mock_all_auths_allowing_non_root_auth();
@@ -298,7 +298,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Error(Contract, #6)")]
+    #[should_panic(expected = "Error(Contract, #1003)")]
     fn test_execute_draw_only_can_take_from_pool() {
         let e = Env::default();
         e.mock_all_auths_allowing_non_root_auth();
@@ -330,7 +330,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Error(Contract, #11)")]
+    #[should_panic(expected = "Error(Contract, #8)")]
     fn test_execute_draw_negative_amount() {
         let e = Env::default();
         e.mock_all_auths_allowing_non_root_auth();
@@ -393,7 +393,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Error(Contract, #11)")]
+    #[should_panic(expected = "Error(Contract, #8)")]
     fn test_execute_donate_usdc_negative_amount() {
         let e = Env::default();
         e.mock_all_auths_allowing_non_root_auth();
@@ -416,7 +416,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Error(Contract, #1)")]
+    #[should_panic(expected = "Error(Contract, #1000)")]
     fn test_execute_donate_usdc_from_is_to() {
         let e = Env::default();
         e.mock_all_auths_allowing_non_root_auth();
@@ -439,7 +439,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Error(Contract, #1)")]
+    #[should_panic(expected = "Error(Contract, #1000)")]
     fn test_execute_donate_usdc_from_is_self() {
         let e = Env::default();
         e.mock_all_auths_allowing_non_root_auth();
@@ -462,7 +462,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Error(Contract, #10)")]
+    #[should_panic(expected = "Error(Contract, #1004)")]
     fn test_execute_donate_usdc_not_pool() {
         let e = Env::default();
         e.mock_all_auths_allowing_non_root_auth();

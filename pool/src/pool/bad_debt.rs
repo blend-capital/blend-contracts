@@ -129,7 +129,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Error(Contract, #2)")]
+    #[should_panic(expected = "Error(Contract, #1200)")]
     fn test_transfer_bad_debt_with_collateral_panics() {
         let e = Env::default();
         e.budget().reset_unlimited();
@@ -182,7 +182,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Error(Contract, #2)")]
+    #[should_panic(expected = "Error(Contract, #1200)")]
     fn test_transfer_bad_debt_without_liabilities_panics() {
         let e = Env::default();
         e.budget().reset_unlimited();
@@ -232,7 +232,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Error(Contract, #2)")]
+    #[should_panic(expected = "Error(Contract, #1200)")]
     fn test_transfer_bad_debt_with_backstop_panics() {
         let e = Env::default();
         e.mock_all_auths();

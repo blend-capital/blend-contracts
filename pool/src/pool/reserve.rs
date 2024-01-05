@@ -465,7 +465,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Error(Contract, #12)")]
+    #[should_panic(expected = "Error(Contract, #1207)")]
     fn test_require_utilization_under_max_panic() {
         let e = Env::default();
 

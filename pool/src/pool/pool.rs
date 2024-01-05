@@ -292,7 +292,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Error(Contract, #14)")]
+    #[should_panic(expected = "Error(Contract, #1209)")]
     fn test_reserve_cache_panics_if_missing_reserve_to_store() {
         let e = Env::default();
         e.mock_all_auths();
@@ -349,7 +349,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Error(Contract, #11)")]
+    #[should_panic(expected = "Error(Contract, #1206)")]
     fn test_require_action_allowed_borrow_while_on_ice_panics() {
         let e = Env::default();
 
@@ -390,7 +390,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Error(Contract, #11)")]
+    #[should_panic(expected = "Error(Contract, #1206)")]
     fn test_require_action_allowed_cancel_liquidation_while_on_ice_panics() {
         let e = Env::default();
 
@@ -431,7 +431,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Error(Contract, #11)")]
+    #[should_panic(expected = "Error(Contract, #1206)")]
     fn test_require_action_allowed_supply_while_frozen() {
         let e = Env::default();
 
@@ -452,7 +452,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Error(Contract, #11)")]
+    #[should_panic(expected = "Error(Contract, #1206)")]
     fn test_require_action_allowed_supply_collateral_while_frozen() {
         let e = Env::default();
 
@@ -573,7 +573,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Error(Contract, #30)")]
+    #[should_panic(expected = "Error(Contract, #1210)")]
     fn test_load_price_panics_if_stale() {
         let e = Env::default();
         e.mock_all_auths_allowing_non_root_auth();
@@ -717,7 +717,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Error(Contract, #13)")]
+    #[should_panic(expected = "Error(Contract, #1208)")]
     fn test_require_under_max_panics_if_over() {
         let e = Env::default();
         let samwise = Address::generate(&e);

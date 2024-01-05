@@ -208,7 +208,7 @@ impl Backstop for BackstopContract {
     ) {
         storage::extend_instance(&e);
         if storage::get_is_init(&e) {
-            panic_with_error!(e, BackstopError::AlreadyInitialized);
+            panic_with_error!(e, BackstopError::AlreadyInitializedError);
         }
 
         storage::set_backstop_token(&e, &backstop_token);
@@ -389,6 +389,6 @@ impl Backstop for BackstopContract {
 /// If the number is negative
 pub fn require_nonnegative(e: &Env, amount: i128) {
     if amount.is_negative() {
-        panic_with_error!(e, BackstopError::NegativeAmount);
+        panic_with_error!(e, BackstopError::NegativeAmountError);
     }
 }

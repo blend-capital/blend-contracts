@@ -554,7 +554,7 @@ mod tests {
     //       in to ensure any bad state does not result in incorrect emissions.
 
     #[test]
-    #[should_panic(expected = "Error(Contract, #11)")]
+    #[should_panic(expected = "Error(Contract, #8)")]
     fn test_update_emissions_more_q4w_than_shares_panics() {
         let e = Env::default();
         let block_timestamp = BACKSTOP_EPOCH + 1234;
@@ -662,7 +662,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Error(Contract, #11)")]
+    #[should_panic(expected = "Error(Contract, #8)")]
     fn test_update_emissions_negative_user_index() {
         let e = Env::default();
         let block_timestamp = BACKSTOP_EPOCH + 1234;

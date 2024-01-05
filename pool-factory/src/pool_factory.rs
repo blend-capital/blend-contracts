@@ -52,7 +52,7 @@ impl PoolFactory for PoolFactoryContract {
     fn initialize(e: Env, pool_init_meta: PoolInitMeta) {
         storage::extend_instance(&e);
         if storage::get_is_init(&e) {
-            panic_with_error!(&e, PoolFactoryError::AlreadyInitialized);
+            panic_with_error!(&e, PoolFactoryError::AlreadyInitializedError);
         }
 
         storage::set_pool_init_meta(&e, &pool_init_meta);

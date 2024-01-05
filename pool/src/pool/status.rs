@@ -207,7 +207,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Error(Contract, #8)")]
+    #[should_panic(expected = "Error(Contract, #1204)")]
     fn test_set_pool_status_active_blocks_without_backstop_minimum() {
         let e = Env::default();
         e.budget().reset_unlimited();
@@ -252,7 +252,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Error(Contract, #8)")]
+    #[should_panic(expected = "Error(Contract, #1204)")]
     fn test_set_pool_status_active_blocks_with_too_high_q4w() {
         let e = Env::default();
         e.budget().reset_unlimited();
@@ -344,7 +344,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Error(Contract, #8)")]
+    #[should_panic(expected = "Error(Contract, #1204)")]
     fn test_set_pool_status_admin_on_ice_blocks_with_too_high_q4w() {
         let e = Env::default();
         e.budget().reset_unlimited();
@@ -389,7 +389,7 @@ mod tests {
         });
     }
     #[test]
-    #[should_panic(expected = "Error(Contract, #8)")]
+    #[should_panic(expected = "Error(Contract, #1204)")]
     fn test_set_pool_status_backstop_on_ice_blocks_with_too_high_q4w() {
         let e = Env::default();
         e.budget().reset_unlimited();
@@ -480,7 +480,7 @@ mod tests {
         });
     }
     #[test]
-    #[should_panic(expected = "Error(Contract, #2)")]
+    #[should_panic(expected = "Error(Contract, #1200)")]
     fn test_set_non_admin_pool_status_panics() {
         let e = Env::default();
         e.budget().reset_unlimited();
@@ -962,7 +962,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Error(Contract, #8)")]
+    #[should_panic(expected = "Error(Contract, #1204)")]
     fn test_update_pool_status_admin_frozen() {
         let e = Env::default();
         e.budget().reset_unlimited();
@@ -1007,7 +1007,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Error(Contract, #8)")]
+    #[should_panic(expected = "Error(Contract, #1204)")]
     fn test_update_pool_status_setup() {
         let e = Env::default();
         e.budget().reset_unlimited();

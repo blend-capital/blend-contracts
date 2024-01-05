@@ -77,7 +77,7 @@ impl Emitter for EmitterContract {
     fn initialize(e: Env, blnd_token: Address, backstop: Address, backstop_token: Address) {
         storage::extend_instance(&e);
         if storage::get_is_init(&e) {
-            panic_with_error!(&e, EmitterError::AlreadyInitialized)
+            panic_with_error!(&e, EmitterError::AlreadyInitializedError)
         }
 
         storage::set_blnd_token(&e, &blnd_token);

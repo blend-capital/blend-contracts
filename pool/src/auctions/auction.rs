@@ -388,7 +388,7 @@ mod tests {
 
         let pool_config = PoolConfig {
             oracle: oracle_id,
-            bstop_rate: 0_100_000_000,
+            bstop_rate: 0_1000000,
             status: 0,
             max_positions: 4,
         };
@@ -493,7 +493,7 @@ mod tests {
 
         let pool_config = PoolConfig {
             oracle: oracle_id,
-            bstop_rate: 0_100_000_000,
+            bstop_rate: 0_1000000,
             status: 0,
             max_positions: 4,
         };
@@ -598,7 +598,7 @@ mod tests {
         };
         let pool_config = PoolConfig {
             oracle: oracle_address,
-            bstop_rate: 0_100_000_000,
+            bstop_rate: 0_1000000,
             status: 0,
             max_positions: 4,
         };
@@ -613,7 +613,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Error(Contract, #2)")]
+    #[should_panic(expected = "Error(Contract, #1200)")]
     fn test_create_user_liquidation_errors() {
         let e = Env::default();
         let pool_id = create_pool(&e);
@@ -657,7 +657,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Error(Contract, #2)")]
+    #[should_panic(expected = "Error(Contract, #1200)")]
     fn test_delete_user_liquidation_does_not_exist() {
         let e = Env::default();
         e.mock_all_auths();
@@ -741,7 +741,7 @@ mod tests {
         };
         let pool_config = PoolConfig {
             oracle: oracle_address,
-            bstop_rate: 0_100_000_000,
+            bstop_rate: 0_1000000,
             status: 0,
             max_positions: 4,
         };
@@ -849,7 +849,7 @@ mod tests {
         };
         let pool_config = PoolConfig {
             oracle: oracle_address,
-            bstop_rate: 0_100_000_000,
+            bstop_rate: 0_1000000,
             status: 0,
             max_positions: 4,
         };
@@ -970,7 +970,7 @@ mod tests {
         };
         let pool_config = PoolConfig {
             oracle: oracle_address,
-            bstop_rate: 0_100_000_000,
+            bstop_rate: 0_1000000,
             status: 0,
             max_positions: 4,
         };
@@ -1089,7 +1089,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Error(Contract, #2)")]
+    #[should_panic(expected = "Error(Contract, #1200)")]
     fn test_fill_fails_pct_too_large() {
         let e = Env::default();
 
@@ -1159,7 +1159,7 @@ mod tests {
         };
         let pool_config = PoolConfig {
             oracle: oracle_address,
-            bstop_rate: 0_100_000_000,
+            bstop_rate: 0_1000000,
             status: 0,
             max_positions: 4,
         };
@@ -1209,7 +1209,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Error(Contract, #2)")]
+    #[should_panic(expected = "Error(Contract, #1200)")]
     fn test_fill_fails_pct_too_small() {
         let e = Env::default();
 
@@ -1281,7 +1281,7 @@ mod tests {
         };
         let pool_config = PoolConfig {
             oracle: oracle_address,
-            bstop_rate: 0_100_000_000,
+            bstop_rate: 0_1000000,
             status: 0,
             max_positions: 4,
         };
@@ -1580,7 +1580,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Error(Contract, #2)")]
+    #[should_panic(expected = "Error(Contract, #1200)")]
     fn test_scale_auction_fill_percentage_zero() {
         let e = Env::default();
         let underlying_0 = Address::generate(&e);
@@ -1608,7 +1608,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Error(Contract, #2)")]
+    #[should_panic(expected = "Error(Contract, #1200)")]
     fn test_scale_auction_fill_percentage_over_100() {
         let e = Env::default();
         let underlying_0 = Address::generate(&e);

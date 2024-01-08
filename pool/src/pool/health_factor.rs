@@ -178,7 +178,7 @@ mod tests {
         });
         let pool_config = PoolConfig {
             oracle,
-            bstop_rate: 0_200_000_000,
+            bstop_rate: 0_2000000,
             status: 0,
             max_positions: 5,
         };
@@ -235,7 +235,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Error(Contract, #10)")]
+    #[should_panic(expected = "Error(Contract, #1205)")]
     fn test_require_healthy_panics() {
         let e = Env::default();
 

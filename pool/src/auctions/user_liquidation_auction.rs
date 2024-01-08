@@ -149,7 +149,7 @@ mod tests {
     };
 
     #[test]
-    #[should_panic(expected = "Error(Contract, #103)")]
+    #[should_panic(expected = "Error(Contract, #1212)")]
     fn test_create_interest_auction_already_in_progress() {
         let e = Env::default();
         e.mock_all_auths();
@@ -179,7 +179,7 @@ mod tests {
         };
         let pool_config = PoolConfig {
             oracle,
-            bstop_rate: 0_100_000_000,
+            bstop_rate: 0_1000000,
             status: 0,
             max_positions: 4,
         };
@@ -288,7 +288,7 @@ mod tests {
         };
         let pool_config = PoolConfig {
             oracle: oracle_address,
-            bstop_rate: 0_100_000_000,
+            bstop_rate: 0_1000000,
             status: 0,
             max_positions: 4,
         };
@@ -308,7 +308,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Error(Contract, #105)")]
+    #[should_panic(expected = "Error(Contract, #1213)")]
     fn test_create_user_liquidation_auction_bad_full_liq() {
         let e = Env::default();
 
@@ -394,7 +394,7 @@ mod tests {
         let liq_pct = 100;
         let pool_config = PoolConfig {
             oracle: oracle_address,
-            bstop_rate: 0_100_000_000,
+            bstop_rate: 0_1000000,
             status: 0,
             max_positions: 4,
         };
@@ -416,7 +416,7 @@ mod tests {
         });
     }
     #[test]
-    #[should_panic(expected = "Error(Contract, #105)")]
+    #[should_panic(expected = "Error(Contract, #1213)")]
     fn test_create_user_liquidation_auction_too_large() {
         let e = Env::default();
 
@@ -502,7 +502,7 @@ mod tests {
         let liq_pct = 46;
         let pool_config = PoolConfig {
             oracle: oracle_address,
-            bstop_rate: 0_100_000_000,
+            bstop_rate: 0_1000000,
             status: 0,
             max_positions: 4,
         };
@@ -525,7 +525,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Error(Contract, #106)")]
+    #[should_panic(expected = "Error(Contract, #1214)")]
     fn test_create_user_liquidation_auction_too_small() {
         let e = Env::default();
 
@@ -611,7 +611,7 @@ mod tests {
         let liq_pct = 25;
         let pool_config = PoolConfig {
             oracle: oracle_address,
-            bstop_rate: 0_100_000_000,
+            bstop_rate: 0_1000000,
             status: 0,
             max_positions: 4,
         };
@@ -731,7 +731,7 @@ mod tests {
         };
         let pool_config = PoolConfig {
             oracle: oracle_address,
-            bstop_rate: 0_100_000_000,
+            bstop_rate: 0_1000000,
             status: 0,
             max_positions: 4,
         };
@@ -907,7 +907,7 @@ mod tests {
         };
         let pool_config = PoolConfig {
             oracle: oracle_address,
-            bstop_rate: 0_100_000_000,
+            bstop_rate: 0_1000000,
             status: 0,
             max_positions: 4,
         };

@@ -362,7 +362,7 @@ mod tests {
         });
         let pool_config = PoolConfig {
             oracle: Address::generate(&e),
-            bstop_rate: 0_100_000_000,
+            bstop_rate: 0_1000000,
             status: 0,
             max_positions: 2,
         };
@@ -431,7 +431,7 @@ mod tests {
         });
         let pool_config = PoolConfig {
             oracle: Address::generate(&e),
-            bstop_rate: 0_200_000_000,
+            bstop_rate: 0_2000000,
             status: 0,
             max_positions: 2,
         };
@@ -505,7 +505,7 @@ mod tests {
         });
         let pool_config = PoolConfig {
             oracle: Address::generate(&e),
-            bstop_rate: 0_200_000_000,
+            bstop_rate: 0_2000000,
             status: 0,
             max_positions: 2,
         };
@@ -576,7 +576,7 @@ mod tests {
         });
         let pool_config = PoolConfig {
             oracle: Address::generate(&e),
-            bstop_rate: 0_100_000_000,
+            bstop_rate: 0_1000000,
             status: 0,
             max_positions: 2,
         };
@@ -648,7 +648,7 @@ mod tests {
         });
         let pool_config = PoolConfig {
             oracle: Address::generate(&e),
-            bstop_rate: 0_200_000_000,
+            bstop_rate: 0_2000000,
             status: 0,
             max_positions: 2,
         };
@@ -721,7 +721,7 @@ mod tests {
         });
         let pool_config = PoolConfig {
             oracle: Address::generate(&e),
-            bstop_rate: 0_200_000_000,
+            bstop_rate: 0_2000000,
             status: 0,
             max_positions: 2,
         };
@@ -791,7 +791,7 @@ mod tests {
         });
         let pool_config = PoolConfig {
             oracle: Address::generate(&e),
-            bstop_rate: 0_200_000_000,
+            bstop_rate: 0_2000000,
             status: 0,
             max_positions: 2,
         };
@@ -856,7 +856,7 @@ mod tests {
         });
         let pool_config = PoolConfig {
             oracle: Address::generate(&e),
-            bstop_rate: 0_200_000_000,
+            bstop_rate: 0_2000000,
             status: 0,
             max_positions: 2,
         };
@@ -930,7 +930,7 @@ mod tests {
         });
         let pool_config = PoolConfig {
             oracle: Address::generate(&e),
-            bstop_rate: 0_200_000_000,
+            bstop_rate: 0_2000000,
             status: 0,
             max_positions: 2,
         };
@@ -1010,7 +1010,7 @@ mod tests {
         });
         let pool_config = PoolConfig {
             oracle: Address::generate(&e),
-            bstop_rate: 0_200_000_000,
+            bstop_rate: 0_2000000,
             status: 0,
             max_positions: 2,
         };
@@ -1161,7 +1161,7 @@ mod tests {
         };
         let pool_config = PoolConfig {
             oracle: oracle_address,
-            bstop_rate: 0_100_000_000,
+            bstop_rate: 0_1000000,
             status: 0,
             max_positions: 4,
         };
@@ -1285,7 +1285,7 @@ mod tests {
         );
         let pool_config = PoolConfig {
             oracle: oracle_address,
-            bstop_rate: 0_100_000_000,
+            bstop_rate: 0_1000000,
             status: 0,
             max_positions: 2,
         };
@@ -1415,7 +1415,7 @@ mod tests {
 
         let pool_config = PoolConfig {
             oracle: Address::generate(&e),
-            bstop_rate: 0_100_000_000,
+            bstop_rate: 0_1000000,
             status: 0,
             max_positions: 2,
         };
@@ -1499,7 +1499,7 @@ mod tests {
 
         let pool_config = PoolConfig {
             oracle: Address::generate(&e),
-            bstop_rate: 0_100_000_000,
+            bstop_rate: 0_1000000,
             status: 0,
             max_positions: 2,
         };
@@ -1578,7 +1578,7 @@ mod tests {
 
         let pool_config = PoolConfig {
             oracle: Address::generate(&e),
-            bstop_rate: 0_200_000_000,
+            bstop_rate: 0_2000000,
             status: 0,
             max_positions: 2,
         };
@@ -1609,7 +1609,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Error(Contract, #13)")]
+    #[should_panic(expected = "Error(Contract, #1208)")]
     fn test_actions_requires_positions_under_max() {
         let e = Env::default();
         e.mock_all_auths();
@@ -1635,7 +1635,7 @@ mod tests {
 
         let pool_config = PoolConfig {
             oracle: Address::generate(&e),
-            bstop_rate: 0_200_000_000,
+            bstop_rate: 0_2000000,
             status: 0,
             max_positions: 1,
         };

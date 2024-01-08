@@ -143,7 +143,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Error(Contract, #11)")]
+    #[should_panic(expected = "Error(Contract, #8)")]
     fn test_execute_queue_withdrawal_negative_amount() {
         let e = Env::default();
         e.mock_all_auths_allowing_non_root_auth();
@@ -247,7 +247,7 @@ mod tests {
         });
     }
     #[test]
-    #[should_panic(expected = "Error(Contract, #11)")]
+    #[should_panic(expected = "Error(Contract, #8)")]
     fn test_execute_dequeue_withdrawal_negative_amount() {
         let e = Env::default();
         e.mock_all_auths_allowing_non_root_auth();
@@ -364,7 +364,7 @@ mod tests {
         });
     }
     #[test]
-    #[should_panic(expected = "Error(Contract, #11)")]
+    #[should_panic(expected = "Error(Contract, #8)")]
     fn test_execute_withdrawal_negative_amount() {
         let e = Env::default();
         e.mock_all_auths_allowing_non_root_auth();

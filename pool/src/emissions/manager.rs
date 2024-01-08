@@ -288,7 +288,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Error(Contract, #2)")]
+    #[should_panic(expected = "Error(Contract, #1200)")]
     fn test_gulp_emissions_too_small() {
         let e = Env::default();
         e.mock_all_auths();
@@ -414,7 +414,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Error(Contract, #2)")]
+    #[should_panic(expected = "Error(Contract, #1200)")]
     fn test_set_pool_emissions_panics_if_over_100() {
         let e = Env::default();
         e.ledger().set(LedgerInfo {

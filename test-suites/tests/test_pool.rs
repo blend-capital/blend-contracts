@@ -553,8 +553,8 @@ fn test_pool_config() {
     assert!(result.is_err());
 
     // Update pool config (admin only)
-    pool_fixture.pool.update_pool(&0_050_000_000, &6);
-    let backstop_take_rate: u64 = 0_050_000_000u64;
+    let backstop_take_rate: u32 = 0_0500000;
+    pool_fixture.pool.update_pool(&backstop_take_rate, &6);
     let event_data: soroban_sdk::Vec<Val> = vec![
         &fixture.env,
         backstop_take_rate.into_val(&fixture.env),
@@ -575,7 +575,7 @@ fn test_pool_config() {
         )
     );
     let new_pool_config = fixture.read_pool_config(0);
-    assert_eq!(new_pool_config.bstop_rate, 0_050_000_000);
+    assert_eq!(new_pool_config.bstop_rate, 0_0500000);
     let event = vec![&fixture.env, fixture.env.events().all().last_unchecked()];
     assert_eq!(
         event,

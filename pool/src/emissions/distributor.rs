@@ -1223,7 +1223,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Error(Contract, #4)")]
+    #[should_panic(expected = "Error(Contract, #8)")]
     fn test_update_user_emissions_negative_index() {
         let e = Env::default();
         e.mock_all_auths();
@@ -1524,7 +1524,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Error(Contract, #2)")]
+    #[should_panic(expected = "Error(Contract, #1200)")]
     fn test_calc_claim_with_invalid_reserve_panics() {
         let e = Env::default();
         e.mock_all_auths_allowing_non_root_auth();

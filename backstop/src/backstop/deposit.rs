@@ -123,7 +123,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Error(Contract, #11)")]
+    #[should_panic(expected = "Error(Contract, #8)")]
     fn test_execute_deposit_negative_tokens() {
         let e = Env::default();
         e.mock_all_auths_allowing_non_root_auth();
@@ -145,7 +145,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Error(Contract, #1)")]
+    #[should_panic(expected = "Error(Contract, #1000)")]
     fn test_execute_deposit_from_is_to() {
         let e = Env::default();
         e.mock_all_auths_allowing_non_root_auth();
@@ -167,7 +167,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Error(Contract, #1)")]
+    #[should_panic(expected = "Error(Contract, #1000)")]
     fn test_execute_deposit_from_self() {
         let e = Env::default();
         e.mock_all_auths_allowing_non_root_auth();
@@ -189,7 +189,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Error(Contract, #10)")]
+    #[should_panic(expected = "Error(Contract, #1004)")]
     fn text_execute_deposit_not_pool() {
         let e = Env::default();
         e.mock_all_auths_allowing_non_root_auth();

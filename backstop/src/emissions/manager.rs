@@ -342,7 +342,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Error(Contract, #1)")]
+    #[should_panic(expected = "Error(Contract, #1000)")]
     fn test_gulp_emissions_too_soon() {
         let e = Env::default();
         e.budget().reset_unlimited();
@@ -505,7 +505,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Error(Contract, #1)")]
+    #[should_panic(expected = "Error(Contract, #1000)")]
     fn test_gulp_pool_emissions_no_emissions() {
         let e = Env::default();
         e.budget().reset_unlimited();
@@ -570,7 +570,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Error(Contract, #4)")]
+    #[should_panic(expected = "Error(Contract, #1002)")]
     fn test_add_to_rz_empty_pool_under_backstop_threshold() {
         let e = Env::default();
         e.ledger().set(LedgerInfo {
@@ -656,7 +656,7 @@ mod tests {
         });
     }
     #[test]
-    #[should_panic(expected = "Error(Contract, #4)")]
+    #[should_panic(expected = "Error(Contract, #1002)")]
     fn test_add_to_rz_takes_floor_for_size() {
         let e = Env::default();
         e.ledger().set(LedgerInfo {
@@ -770,7 +770,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Error(Contract, #4)")]
+    #[should_panic(expected = "Error(Contract, #1002)")]
     fn test_add_to_rz_swap_not_enough_tokens() {
         let e = Env::default();
         e.ledger().set(LedgerInfo {
@@ -830,7 +830,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Error(Contract, #1)")]
+    #[should_panic(expected = "Error(Contract, #1000)")]
     fn test_add_to_rz_swap_distribution_too_long_ago() {
         let e = Env::default();
         e.ledger().set(LedgerInfo {
@@ -890,7 +890,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Error(Contract, #4)")]
+    #[should_panic(expected = "Error(Contract, #1002)")]
     fn test_add_to_rz_to_remove_not_in_rz() {
         let e = Env::default();
         e.ledger().set(LedgerInfo {
@@ -950,7 +950,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Error(Contract, #1)")]
+    #[should_panic(expected = "Error(Contract, #1000)")]
     fn test_add_to_rz_already_exists_panics() {
         let e = Env::default();
         e.ledger().set(LedgerInfo {

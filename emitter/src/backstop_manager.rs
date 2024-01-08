@@ -155,7 +155,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Error(Contract, #30)")]
+    #[should_panic(expected = "Error(Contract, #1100)")]
     fn test_execute_queue_swap_backstop_insufficient_funds() {
         let e = Env::default();
         e.mock_all_auths();
@@ -196,7 +196,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Error(Contract, #60)")]
+    #[should_panic(expected = "Error(Contract, #1103)")]
     fn test_execute_queue_swap_backstop_already_exists() {
         let e = Env::default();
         e.mock_all_auths();
@@ -301,7 +301,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Error(Contract, #80)")]
+    #[should_panic(expected = "Error(Contract, #1105)")]
     fn test_execute_cancel_swap_backstop_valid_swap() {
         let e = Env::default();
         e.mock_all_auths();
@@ -349,7 +349,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Error(Contract, #50)")]
+    #[should_panic(expected = "Error(Contract, #1102)")]
     fn test_execute_cancel_swap_backstop_none_queued() {
         let e = Env::default();
         e.mock_all_auths();
@@ -457,7 +457,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Error(Contract, #70)")]
+    #[should_panic(expected = "Error(Contract, #1104)")]
     fn test_execute_swap_backstop_not_unlocked() {
         let e = Env::default();
         e.mock_all_auths();
@@ -508,7 +508,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Error(Contract, #50)")]
+    #[should_panic(expected = "Error(Contract, #1102)")]
     fn test_execute_swap_backstop_no_queue() {
         let e = Env::default();
         e.mock_all_auths();
@@ -551,7 +551,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Error(Contract, #30)")]
+    #[should_panic(expected = "Error(Contract, #1100)")]
     fn test_execute_swap_backstop_insufficient_funds() {
         let e = Env::default();
         e.mock_all_auths();

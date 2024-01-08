@@ -248,7 +248,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Error(Contract, #10)")]
+    #[should_panic(expected = "Error(Contract, #1004)")]
     fn test_require_is_from_pool_factory_not_valid() {
         let e = Env::default();
 
@@ -417,7 +417,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Error(Contract, #6)")]
+    #[should_panic(expected = "Error(Contract, #1003)")]
     fn test_withdraw_too_much() {
         let e = Env::default();
         let mut pool_balance = PoolBalance {
@@ -446,7 +446,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Error(Contract, #6)")]
+    #[should_panic(expected = "Error(Contract, #1003)")]
     fn test_dequeue_q4w_too_much() {
         let e = Env::default();
         let mut pool_balance = PoolBalance {

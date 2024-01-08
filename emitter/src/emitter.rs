@@ -136,7 +136,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Error(Contract, #40)")]
+    #[should_panic(expected = "Error(Contract, #1101)")]
     fn test_drop_already_dropped() {
         let e = Env::default();
         e.mock_all_auths();
@@ -177,7 +177,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Error(Contract, #40)")]
+    #[should_panic(expected = "Error(Contract, #1101)")]
     fn test_drop_too_large() {
         let e = Env::default();
         e.mock_all_auths();
@@ -217,7 +217,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Error(Contract, #40)")]
+    #[should_panic(expected = "Error(Contract, #1101)")]
     fn test_drop_bad_block() {
         let e = Env::default();
         e.mock_all_auths();

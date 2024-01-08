@@ -169,7 +169,7 @@ mod tests {
 
         let pool_config = PoolConfig {
             oracle,
-            bstop_rate: 0_200_000_000,
+            bstop_rate: 0_2000000,
             status: 0,
             max_positions: 2,
         };
@@ -240,7 +240,7 @@ mod tests {
 
         let pool_config = PoolConfig {
             oracle,
-            bstop_rate: 0_200_000_000,
+            bstop_rate: 0_2000000,
             status: 0,
             max_positions: 2,
         };
@@ -292,7 +292,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Error(Contract, #14)")]
+    #[should_panic(expected = "Error(Contract, #1209)")]
     fn test_reserve_cache_panics_if_missing_reserve_to_store() {
         let e = Env::default();
         e.mock_all_auths();
@@ -328,7 +328,7 @@ mod tests {
 
         let pool_config = PoolConfig {
             oracle,
-            bstop_rate: 0_200_000_000,
+            bstop_rate: 0_2000000,
             status: 0,
             max_positions: 2,
         };
@@ -349,7 +349,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Error(Contract, #11)")]
+    #[should_panic(expected = "Error(Contract, #1206)")]
     fn test_require_action_allowed_borrow_while_on_ice_panics() {
         let e = Env::default();
 
@@ -357,7 +357,7 @@ mod tests {
         let oracle = Address::generate(&e);
         let pool_config = PoolConfig {
             oracle,
-            bstop_rate: 0_200_000_000,
+            bstop_rate: 0_2000000,
             status: 2,
             max_positions: 2,
         };
@@ -377,7 +377,7 @@ mod tests {
         let oracle = Address::generate(&e);
         let pool_config = PoolConfig {
             oracle,
-            bstop_rate: 0_200_000_000,
+            bstop_rate: 0_2000000,
             status: 1,
             max_positions: 2,
         };
@@ -390,7 +390,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Error(Contract, #11)")]
+    #[should_panic(expected = "Error(Contract, #1206)")]
     fn test_require_action_allowed_cancel_liquidation_while_on_ice_panics() {
         let e = Env::default();
 
@@ -398,7 +398,7 @@ mod tests {
         let oracle = Address::generate(&e);
         let pool_config = PoolConfig {
             oracle,
-            bstop_rate: 0_200_000_000,
+            bstop_rate: 0_2000000,
             status: 2,
             max_positions: 2,
         };
@@ -418,7 +418,7 @@ mod tests {
         let oracle = Address::generate(&e);
         let pool_config = PoolConfig {
             oracle,
-            bstop_rate: 0_200_000_000,
+            bstop_rate: 0_2000000,
             status: 1,
             max_positions: 2,
         };
@@ -431,7 +431,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Error(Contract, #11)")]
+    #[should_panic(expected = "Error(Contract, #1206)")]
     fn test_require_action_allowed_supply_while_frozen() {
         let e = Env::default();
 
@@ -439,7 +439,7 @@ mod tests {
         let oracle = Address::generate(&e);
         let pool_config = PoolConfig {
             oracle,
-            bstop_rate: 0_200_000_000,
+            bstop_rate: 0_2000000,
             status: 4,
             max_positions: 2,
         };
@@ -452,7 +452,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Error(Contract, #11)")]
+    #[should_panic(expected = "Error(Contract, #1206)")]
     fn test_require_action_allowed_supply_collateral_while_frozen() {
         let e = Env::default();
 
@@ -460,7 +460,7 @@ mod tests {
         let oracle = Address::generate(&e);
         let pool_config = PoolConfig {
             oracle,
-            bstop_rate: 0_200_000_000,
+            bstop_rate: 0_2000000,
             status: 4,
             max_positions: 2,
         };
@@ -480,7 +480,7 @@ mod tests {
         let oracle = Address::generate(&e);
         let pool_config = PoolConfig {
             oracle,
-            bstop_rate: 0_200_000_000,
+            bstop_rate: 0_2000000,
             status: 4,
             max_positions: 2,
         };
@@ -512,7 +512,7 @@ mod tests {
         );
         let pool_config = PoolConfig {
             oracle,
-            bstop_rate: 0_200_000_000,
+            bstop_rate: 0_2000000,
             status: 0,
             max_positions: 2,
         };
@@ -551,7 +551,7 @@ mod tests {
 
         let pool_config = PoolConfig {
             oracle,
-            bstop_rate: 0_200_000_000,
+            bstop_rate: 0_2000000,
             status: 0,
             max_positions: 2,
         };
@@ -573,7 +573,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Error(Contract, #30)")]
+    #[should_panic(expected = "Error(Contract, #1210)")]
     fn test_load_price_panics_if_stale() {
         let e = Env::default();
         e.mock_all_auths_allowing_non_root_auth();
@@ -603,7 +603,7 @@ mod tests {
         oracle_client.set_price(&vec![&e, 123], &1000);
         let pool_config = PoolConfig {
             oracle,
-            bstop_rate: 0_200_000_000,
+            bstop_rate: 0_2000000,
             status: 0,
             max_positions: 2,
         };
@@ -630,7 +630,7 @@ mod tests {
         };
         let pool_config = PoolConfig {
             oracle,
-            bstop_rate: 0_200_000_000,
+            bstop_rate: 0_2000000,
             status: 0,
             max_positions: 2,
         };
@@ -662,7 +662,7 @@ mod tests {
         };
         let pool_config = PoolConfig {
             oracle,
-            bstop_rate: 0_200_000_000,
+            bstop_rate: 0_2000000,
             status: 0,
             max_positions: 2,
         };
@@ -697,7 +697,7 @@ mod tests {
         };
         let pool_config = PoolConfig {
             oracle,
-            bstop_rate: 0_200_000_000,
+            bstop_rate: 0_2000000,
             status: 0,
             max_positions: 2,
         };
@@ -717,7 +717,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Error(Contract, #13)")]
+    #[should_panic(expected = "Error(Contract, #1208)")]
     fn test_require_under_max_panics_if_over() {
         let e = Env::default();
         let samwise = Address::generate(&e);
@@ -734,7 +734,7 @@ mod tests {
         let (oracle, _) = testutils::create_mock_oracle(&e);
         let pool_config = PoolConfig {
             oracle,
-            bstop_rate: 0_200_000_000,
+            bstop_rate: 0_2000000,
             status: 0,
             max_positions: 2,
         };

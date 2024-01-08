@@ -3,34 +3,40 @@ use soroban_sdk::contracterror;
 #[contracterror]
 #[derive(Copy, Clone, Debug, Eq, PartialEq, PartialOrd, Ord)]
 #[repr(u32)]
-//auction errors are begin at 100
+/// Error codes for the pool contract. Common errors are codes that match up with the built-in
+/// contracts error reporting. Pool specific errors start at 1200.
 pub enum PoolError {
-    // Request Errors (0-9)
-    NotAuthorized = 1,
-    BadRequest = 2,
-    AlreadyInitialized = 3,
-    NegativeAmount = 4,
-    InvalidPoolInitArgs = 5,
-    InvalidReserveMetadata = 6,
-    InitNotUnlocked = 7,
-    StatusNotAllowed = 8,
-    // Pool State Errors (10-19)
-    InvalidHf = 10,
-    InvalidPoolStatus = 11,
-    InvalidUtilRate = 12,
-    MaxPositionsExceeded = 13,
-    InternalReserveNotFound = 14,
-    // Emission Errors (20-29)
-    EmissionFailure = 20,
-    // Oracle Errors (30-39)
-    StalePrice = 30,
-    // Auction Errors (100-199)
-    InvalidLiquidation = 100,
-    InvalidLot = 101,
-    InvalidBids = 102,
-    AuctionInProgress = 103,
-    InvalidAuctionType = 104,
-    InvalidLiqTooLarge = 105,
-    InvalidLiqTooSmall = 106,
-    InterestTooSmall = 107,
+    // Common Errors
+    InternalError = 1,
+    AlreadyInitializedError = 3,
+
+    UnauthorizedError = 4,
+
+    NegativeAmountError = 8,
+    BalanceError = 10,
+    OverflowError = 12,
+
+    // Pool Request Errors (start at 1200)
+    BadRequest = 1200,
+    InvalidPoolInitArgs = 1201,
+    InvalidReserveMetadata = 1202,
+    InitNotUnlocked = 1203,
+    StatusNotAllowed = 1204,
+
+    // Pool State Errors
+    InvalidHf = 1205,
+    InvalidPoolStatus = 1206,
+    InvalidUtilRate = 1207,
+    MaxPositionsExceeded = 1208,
+    InternalReserveNotFound = 1209,
+
+    // Oracle Errors
+    StalePrice = 1210,
+
+    // Auction Errors
+    InvalidLiquidation = 1211,
+    AuctionInProgress = 1212,
+    InvalidLiqTooLarge = 1213,
+    InvalidLiqTooSmall = 1214,
+    InterestTooSmall = 1215,
 }

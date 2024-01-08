@@ -140,7 +140,7 @@ mod tests {
     };
 
     #[test]
-    #[should_panic(expected = "Error(Contract, #103)")]
+    #[should_panic(expected = "Error(Contract, #1212)")]
     fn test_create_bad_debt_auction_already_in_progress() {
         let e = Env::default();
         e.mock_all_auths_allowing_non_root_auth();
@@ -319,7 +319,7 @@ mod tests {
 
         let pool_config = PoolConfig {
             oracle: oracle_id,
-            bstop_rate: 0_100_000_000,
+            bstop_rate: 0_1000000,
             status: 0,
             max_positions: 4,
         };
@@ -453,7 +453,7 @@ mod tests {
 
         let pool_config = PoolConfig {
             oracle: oracle_id,
-            bstop_rate: 0_100_000_000,
+            bstop_rate: 0_1000000,
             status: 0,
             max_positions: 4,
         };
@@ -588,7 +588,7 @@ mod tests {
 
         let pool_config = PoolConfig {
             oracle: oracle_id,
-            bstop_rate: 0_100_000_000,
+            bstop_rate: 0_1000000,
             status: 0,
             max_positions: 4,
         };
@@ -696,7 +696,7 @@ mod tests {
         );
         let pool_config = PoolConfig {
             oracle: Address::generate(&e),
-            bstop_rate: 0_100_000_000,
+            bstop_rate: 0_1000000,
             status: 0,
             max_positions: 4,
         };
@@ -840,7 +840,7 @@ mod tests {
         );
         let pool_config = PoolConfig {
             oracle: Address::generate(&e),
-            bstop_rate: 0_100_000_000,
+            bstop_rate: 0_1000000,
             status: 0,
             max_positions: 4,
         };
@@ -993,7 +993,7 @@ mod tests {
         );
         let pool_config = PoolConfig {
             oracle: Address::generate(&e),
-            bstop_rate: 0_100_000_000,
+            bstop_rate: 0_1000000,
             status: 0,
             max_positions: 4,
         };
@@ -1070,7 +1070,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Error(Contract, #2)")]
+    #[should_panic(expected = "Error(Contract, #1200)")]
     fn test_fill_bad_debt_auction_with_backstop() {
         let e = Env::default();
         e.mock_all_auths_allowing_non_root_auth();
@@ -1158,7 +1158,7 @@ mod tests {
         );
         let pool_config = PoolConfig {
             oracle: Address::generate(&e),
-            bstop_rate: 0_100_000_000,
+            bstop_rate: 0_1000000,
             status: 0,
             max_positions: 4,
         };

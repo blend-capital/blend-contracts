@@ -94,7 +94,7 @@ impl Reserve {
             reserve.total_liabilities() + token_bal - reserve.backstop_credit - pre_update_supply;
         if pool_config.bstop_rate > 0 && accrued_supply > 0 {
             let new_backstop_credit = accrued_supply
-                .fixed_mul_floor(i128(pool_config.bstop_rate), SCALAR_9)
+                .fixed_mul_floor(i128(pool_config.bstop_rate), SCALAR_7)
                 .unwrap_optimized();
             reserve.backstop_credit += new_backstop_credit;
         }
@@ -267,7 +267,7 @@ mod tests {
 
         let pool_config = PoolConfig {
             oracle,
-            bstop_rate: 0_200_000_000,
+            bstop_rate: 0_2000000,
             status: 0,
             max_positions: 5,
         };
@@ -316,7 +316,7 @@ mod tests {
 
         let pool_config = PoolConfig {
             oracle,
-            bstop_rate: 0_200_000_000,
+            bstop_rate: 0_2000000,
             status: 0,
             max_positions: 4,
         };
@@ -414,7 +414,7 @@ mod tests {
 
         let pool_config = PoolConfig {
             oracle,
-            bstop_rate: 0_200_000_000,
+            bstop_rate: 0_2000000,
             status: 0,
             max_positions: 4,
         };
@@ -465,7 +465,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Error(Contract, #12)")]
+    #[should_panic(expected = "Error(Contract, #1207)")]
     fn test_require_utilization_under_max_panic() {
         let e = Env::default();
 

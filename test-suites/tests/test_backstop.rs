@@ -228,7 +228,7 @@ fn test_backstop() {
     assert_eq!(result.amount, amount);
     assert_eq!(
         result.exp,
-        fixture.env.ledger().timestamp() + 30 * 24 * 60 * 60
+        fixture.env.ledger().timestamp() + 21 * 24 * 60 * 60
     );
     assert_eq!(bstop_token.balance(&sam), sam_bstop_token_balance);
     assert_eq!(

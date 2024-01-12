@@ -11,7 +11,6 @@ const IS_INIT_KEY: &str = "IsInit";
 const BACKSTOP_KEY: &str = "Backstop";
 const BACKSTOP_TOKEN_KEY: &str = "BToken";
 const BLND_TOKEN_KEY: &str = "BLNDTkn";
-const LAST_FORK_KEY: &str = "LastFork";
 const SWAP_KEY: &str = "Swap";
 
 // Emitter Data Keys
@@ -192,24 +191,4 @@ pub fn set_drop_status(e: &Env, backstop: &Address) {
     e.storage()
         .instance()
         .set::<EmitterDataKey, bool>(&EmitterDataKey::Dropped(backstop.clone()), &true);
-}
-
-/// Get the last block an emission fork was executed
-///
-/// Returns true if the emitter has dropped
-pub fn get_last_fork(e: &Env) -> u32 {
-    e.storage()
-        .instance()
-        .get(&Symbol::new(e, LAST_FORK_KEY))
-        .unwrap_optimized()
-}
-
-/// Set whether the emitter has performed the drop distribution or not for the current backstop
-///
-/// ### Arguments
-/// * `new_status` - new drop status
-pub fn set_last_fork(e: &Env, block: u32) {
-    e.storage()
-        .instance()
-        .set::<Symbol, u32>(&Symbol::new(e, LAST_FORK_KEY), &block);
 }

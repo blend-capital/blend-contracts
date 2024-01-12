@@ -593,7 +593,7 @@ fn test_wasm_happy_path() {
     assert_eq!(result.amount, amount);
     assert_eq!(
         result.exp,
-        fixture.env.ledger().timestamp() + 60 * 60 * 24 * 30
+        fixture.env.ledger().timestamp() + 60 * 60 * 24 * 21
     );
     assert_eq!(fixture.lp.balance(&frodo), frodo_bstop_token_balance);
     assert_eq!(

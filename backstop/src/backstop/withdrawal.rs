@@ -124,7 +124,7 @@ mod tests {
                 &e,
                 Q4W {
                     amount: 42_0000000,
-                    exp: 10000 + 30 * 24 * 60 * 60,
+                    exp: 10000 + 21 * 24 * 60 * 60,
                 },
             ];
             assert_eq_vec_q4w(&new_user_balance.q4w, &expected_q4w);
@@ -235,7 +235,7 @@ mod tests {
                 &e,
                 Q4W {
                     amount: 35_0000000,
-                    exp: 10000 + 30 * 24 * 60 * 60,
+                    exp: 10000 + 21 * 24 * 60 * 60,
                 },
             ];
             assert_eq_vec_q4w(&new_user_balance.q4w, &expected_q4w);
@@ -335,7 +335,7 @@ mod tests {
         e.ledger().set(LedgerInfo {
             protocol_version: 20,
             sequence_number: 200,
-            timestamp: 10000 + 30 * 24 * 60 * 60 + 1,
+            timestamp: 10000 + 21 * 24 * 60 * 60 + 1,
             network_id: Default::default(),
             base_reserve: 10,
             min_temp_entry_ttl: 10,
@@ -401,7 +401,7 @@ mod tests {
         e.ledger().set(LedgerInfo {
             protocol_version: 20,
             sequence_number: 200,
-            timestamp: 10000 + 30 * 24 * 60 * 60 + 1,
+            timestamp: 10000 + 21 * 24 * 60 * 60 + 1,
             network_id: Default::default(),
             base_reserve: 10,
             min_temp_entry_ttl: 10,

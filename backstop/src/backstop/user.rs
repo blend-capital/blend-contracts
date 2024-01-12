@@ -55,10 +55,10 @@ impl UserBalance {
 
         // user has enough tokens to withdrawal, add Q4W
         // TODO: Consider capping how many active Q4Ws a user can have
-        let thirty_days_in_sec = 30 * 24 * 60 * 60;
+        let twentyone_days_in_sec = 21 * 24 * 60 * 60;
         let new_q4w = Q4W {
             amount: to_q,
-            exp: e.ledger().timestamp() + thirty_days_in_sec,
+            exp: e.ledger().timestamp() + twentyone_days_in_sec,
         };
         self.q4w.push_back(new_q4w.clone());
     }
@@ -168,7 +168,7 @@ mod tests {
                 &e,
                 Q4W {
                     amount: to_queue,
-                    exp: 10000 + 30 * 24 * 60 * 60,
+                    exp: 10000 + 21 * 24 * 60 * 60,
                 },
             ],
         );
@@ -205,7 +205,7 @@ mod tests {
         user.queue_shares_for_withdrawal(&e, to_queue);
         cur_q4w.push_back(Q4W {
             amount: to_queue,
-            exp: 11000000 + 30 * 24 * 60 * 60,
+            exp: 11000000 + 21 * 24 * 60 * 60,
         });
         assert_eq_vec_q4w(&user.q4w, &cur_q4w);
     }

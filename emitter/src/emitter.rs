@@ -25,10 +25,6 @@ pub fn execute_drop(e: &Env, list: &Map<Address, i128>) {
     if storage::get_drop_status(e, &backstop) {
         panic_with_error!(e, EmitterError::BadDrop);
     }
-    if storage::get_last_fork(e) + 777600 > e.ledger().sequence() {
-        // Check that the last fork was at least 45 days ago
-        panic_with_error!(e, EmitterError::BadDrop);
-    }
 
     let mut drop_amount = 0;
     for (_, amt) in list.iter() {
@@ -126,7 +122,6 @@ mod tests {
             storage::set_last_distro_time(&e, &backstop, 1000);
             storage::set_backstop(&e, &backstop);
             storage::set_blnd_token(&e, &blnd_id);
-            storage::set_last_fork(&e, 4000000);
 
             execute_drop(&e, &drop_list);
             assert_eq!(storage::get_drop_status(&e, &backstop), true);
@@ -169,7 +164,6 @@ mod tests {
             storage::set_backstop(&e, &backstop);
             storage::set_blnd_token(&e, &blnd_id);
             storage::set_drop_status(&e, &backstop);
-            storage::set_last_fork(&e, 4000000);
 
             execute_drop(&e, &drop_list);
             assert_eq!(storage::get_drop_status(&e, &backstop), true);
@@ -209,50 +203,9 @@ mod tests {
             storage::set_last_distro_time(&e, &backstop, 1000);
             storage::set_backstop(&e, &backstop);
             storage::set_blnd_token(&e, &blnd_id);
-            storage::set_last_fork(&e, 4000000);
 
             execute_drop(&e, &drop_list);
             assert_eq!(storage::get_drop_status(&e, &backstop), false);
-        });
-    }
-
-    #[test]
-    #[should_panic(expected = "Error(Contract, #1101)")]
-    fn test_drop_bad_block() {
-        let e = Env::default();
-        e.mock_all_auths();
-
-        e.ledger().set(LedgerInfo {
-            timestamp: 12345,
-            protocol_version: 20,
-            sequence_number: 5000000,
-            network_id: Default::default(),
-            base_reserve: 10,
-            min_temp_entry_ttl: 10,
-            min_persistent_entry_ttl: 10,
-            max_entry_ttl: 2000000,
-        });
-
-        let bombadil = Address::generate(&e);
-        let frodo = Address::generate(&e);
-        let samwise = Address::generate(&e);
-        let emitter = create_emitter(&e);
-        let backstop = Address::generate(&e);
-
-        let blnd_id = e.register_stellar_asset_contract(bombadil.clone());
-        let drop_list = map![
-            &e,
-            (frodo.clone(), 20_000_000 * SCALAR_7),
-            (samwise.clone(), 30_000_000 * SCALAR_7)
-        ];
-
-        e.as_contract(&emitter, || {
-            storage::set_last_distro_time(&e, &backstop, 1000);
-            storage::set_backstop(&e, &backstop);
-            storage::set_blnd_token(&e, &blnd_id);
-            storage::set_last_fork(&e, 5000000);
-
-            execute_drop(&e, &drop_list);
         });
     }
 }

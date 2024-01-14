@@ -80,7 +80,6 @@ pub fn execute_swap_backstop(e: &Env) -> Swap {
     emitter::execute_distribute(e, &backstop);
 
     // swap backstop and token
-    storage::set_last_fork(e, e.ledger().sequence());
     storage::del_queued_swap(e);
     storage::set_backstop(e, &swap.new_backstop);
     storage::set_backstop_token(e, &swap.new_backstop_token);
@@ -135,14 +134,12 @@ mod tests {
             storage::set_backstop(&e, &backstop);
             storage::set_backstop_token(&e, &backstop_token);
             storage::set_drop_status(&e, &backstop);
-            storage::set_last_fork(&e, 123);
 
             execute_queue_swap_backstop(&e, &new_backstop, &new_backstop_token);
 
             // verify no swap occurred
             assert_eq!(storage::get_backstop(&e), backstop);
             assert_eq!(storage::get_backstop_token(&e), backstop_token);
-            assert_eq!(storage::get_last_fork(&e), 123);
 
             // verify swap is queued
             let swap = storage::get_queued_swap(&e);
@@ -188,7 +185,6 @@ mod tests {
             storage::set_backstop(&e, &backstop);
             storage::set_backstop_token(&e, &backstop_token);
             storage::set_drop_status(&e, &backstop);
-            storage::set_last_fork(&e, 123);
 
             execute_queue_swap_backstop(&e, &new_backstop, &new_backstop_token);
             assert!(false); // should panic
@@ -235,7 +231,6 @@ mod tests {
             storage::set_backstop(&e, &backstop);
             storage::set_backstop_token(&e, &backstop_token);
             storage::set_drop_status(&e, &backstop);
-            storage::set_last_fork(&e, 123);
             storage::set_queued_swap(&e, &swap);
 
             execute_queue_swap_backstop(&e, &new_backstop, &new_backstop_token);
@@ -284,7 +279,6 @@ mod tests {
             storage::set_backstop(&e, &backstop);
             storage::set_backstop_token(&e, &backstop_token);
             storage::set_drop_status(&e, &backstop);
-            storage::set_last_fork(&e, 123);
             storage::set_queued_swap(&e, &swap);
 
             execute_cancel_swap_backstop(&e);
@@ -292,7 +286,6 @@ mod tests {
             // verify no swap occurred
             assert_eq!(storage::get_backstop(&e), backstop);
             assert_eq!(storage::get_backstop_token(&e), backstop_token);
-            assert_eq!(storage::get_last_fork(&e), 123);
 
             // verify swap is removed
             let swap = storage::get_queued_swap(&e);
@@ -340,7 +333,6 @@ mod tests {
             storage::set_backstop(&e, &backstop);
             storage::set_backstop_token(&e, &backstop_token);
             storage::set_drop_status(&e, &backstop);
-            storage::set_last_fork(&e, 123);
             storage::set_queued_swap(&e, &swap);
 
             execute_cancel_swap_backstop(&e);
@@ -381,7 +373,6 @@ mod tests {
             storage::set_backstop(&e, &backstop);
             storage::set_backstop_token(&e, &backstop_token);
             storage::set_drop_status(&e, &backstop);
-            storage::set_last_fork(&e, 123);
 
             execute_cancel_swap_backstop(&e);
             assert!(false);
@@ -434,7 +425,6 @@ mod tests {
             storage::set_backstop_token(&e, &backstop_token);
             storage::set_blnd_token(&e, &blnd_token);
             storage::set_drop_status(&e, &backstop);
-            storage::set_last_fork(&e, 123);
             storage::set_queued_swap(&e, &swap);
 
             execute_swap_backstop(&e);
@@ -442,7 +432,6 @@ mod tests {
             // verify swap occurred
             assert_eq!(storage::get_backstop(&e), new_backstop);
             assert_eq!(storage::get_backstop_token(&e), new_backstop_token);
-            assert_eq!(storage::get_last_fork(&e), 500);
 
             // verify swap is removed
             let swap = storage::get_queued_swap(&e);
@@ -499,7 +488,6 @@ mod tests {
             storage::set_backstop_token(&e, &backstop_token);
             storage::set_blnd_token(&e, &blnd_token);
             storage::set_drop_status(&e, &backstop);
-            storage::set_last_fork(&e, 123);
             storage::set_queued_swap(&e, &swap);
 
             execute_swap_backstop(&e);
@@ -543,7 +531,6 @@ mod tests {
             storage::set_backstop_token(&e, &backstop_token);
             storage::set_blnd_token(&e, &blnd_token);
             storage::set_drop_status(&e, &backstop);
-            storage::set_last_fork(&e, 123);
 
             execute_swap_backstop(&e);
             assert!(false);
@@ -593,7 +580,6 @@ mod tests {
             storage::set_backstop_token(&e, &backstop_token);
             storage::set_blnd_token(&e, &blnd_token);
             storage::set_drop_status(&e, &backstop);
-            storage::set_last_fork(&e, 123);
             storage::set_queued_swap(&e, &swap);
 
             execute_swap_backstop(&e);

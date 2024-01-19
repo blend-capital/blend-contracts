@@ -160,28 +160,6 @@ pub trait Backstop {
     /// If the `pool_address` is not valid
     fn donate(e: Env, from: Address, pool_address: Address, amount: i128);
 
-    /// Sends USDC from "from" to a pools backstop to be queued for donation
-    ///
-    /// NOTE: This is not a deposit, and "from" will permanently lose access to the funds
-    ///
-    /// ### Arguments
-    /// * `from` - tge
-    /// * `pool_address` - The address of the pool
-    /// * `amount` - The amount of BLND to add
-    ///
-    /// ### Errors
-    /// If the `pool_address` is not valid
-    fn donate_usdc(e: Env, from: Address, pool_address: Address, amount: i128);
-
-    /// Consume donated USDC for a pool and mint LP tokens into the pool's backstop
-    ///
-    /// ### Arguments
-    /// * `pool_address` - The address of the pool
-    ///
-    /// ### Errors
-    /// If the `pool_address` is not valid
-    fn gulp_usdc(e: Env, pool_address: Address);
-
     /// Updates the underlying value of 1 backstop token
     ///
     /// ### Returns
@@ -350,23 +328,6 @@ impl Backstop for BackstopContract {
         backstop::execute_donate(&e, &from, &pool_address, amount);
         e.events()
             .publish((Symbol::new(&e, "donate"), pool_address, from), amount);
-    }
-
-    fn donate_usdc(e: Env, from: Address, pool_address: Address, amount: i128) {
-        storage::extend_instance(&e);
-        from.require_auth();
-
-        backstop::execute_donate_usdc(&e, &from, &pool_address, amount);
-        e.events()
-            .publish((Symbol::new(&e, "donate_usdc"), pool_address, from), amount);
-    }
-
-    fn gulp_usdc(e: Env, pool_address: Address) {
-        storage::extend_instance(&e);
-
-        backstop::execute_gulp_usdc(&e, &pool_address);
-        e.events()
-            .publish((Symbol::new(&e, "gulp_usdc"), pool_address), ());
     }
 
     fn update_tkn_val(e: Env) -> (i128, i128) {

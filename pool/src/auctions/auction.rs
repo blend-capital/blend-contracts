@@ -7,7 +7,7 @@ use crate::{
 use cast::i128;
 use soroban_fixed_point_math::FixedPoint;
 use soroban_sdk::{
-    contracttype, map, panic_with_error, unwrap::UnwrapOptimized, Address, Env, Map,
+    contracttype, map, panic_with_error, unwrap::UnwrapOptimized, Address, Env, Map, Vec,
 };
 
 use super::{
@@ -43,26 +43,45 @@ pub struct AuctionData {
     pub block: u32,
 }
 
-/// Create an auction. Stores the resulting auction to the ledger to begin on the next block
+/// Create a bad debt auction. Stores the resulting auction to the ledger to begin on the next block
+///
+/// Returns the AuctionData object created.
+///
+/// ### Panics
+/// If the auction is unable to be created
+pub fn create_bad_debt_auction(e: &Env) -> AuctionData {
+    let backstop = storage::get_backstop(e);
+    let auction_data = create_bad_debt_auction_data(e, &backstop);
+
+    storage::set_auction(
+        e,
+        &(AuctionType::BadDebtAuction as u32),
+        &backstop,
+        &auction_data,
+    );
+
+    auction_data
+}
+
+/// Create an interest auction. Stores the resulting auction to the ledger to begin on the next block
 ///
 /// Returns the AuctionData object created.
 ///
 /// ### Arguments
-/// * `auction_type` - The type of auction being created
+/// * `assets` - The assets interest is being auctioned off from
 ///
 /// ### Panics
 /// If the auction is unable to be created
-pub fn create(e: &Env, auction_type: u32) -> AuctionData {
+pub fn create_interest_auction(e: &Env, assets: &Vec<Address>) -> AuctionData {
     let backstop = storage::get_backstop(e);
-    let auction_data = match AuctionType::from_u32(e, auction_type) {
-        AuctionType::UserLiquidation => {
-            panic_with_error!(e, PoolError::BadRequest);
-        }
-        AuctionType::BadDebtAuction => create_bad_debt_auction_data(e, &backstop),
-        AuctionType::InterestAuction => create_interest_auction_data(e, &backstop),
-    };
+    let auction_data = create_interest_auction_data(e, &backstop, assets);
 
-    storage::set_auction(e, &auction_type, &backstop, &auction_data);
+    storage::set_auction(
+        e,
+        &(AuctionType::InterestAuction as u32),
+        &backstop,
+        &auction_data,
+    );
 
     auction_data
 }
@@ -396,7 +415,7 @@ mod tests {
             storage::set_pool_config(&e, &pool_config);
             storage::set_user_positions(&e, &backstop_address, &positions);
 
-            create(&e, 1);
+            create_bad_debt_auction(&e);
             assert!(storage::has_auction(&e, &1, &backstop_address));
         });
     }
@@ -500,7 +519,7 @@ mod tests {
         e.as_contract(&pool_address, || {
             storage::set_pool_config(&e, &pool_config);
 
-            create(&e, 2);
+            create_interest_auction(&e, &vec![&e, underlying_0, underlying_1]);
             assert!(storage::has_auction(&e, &2, &backstop_address));
         });
     }
@@ -609,20 +628,6 @@ mod tests {
             e.budget().reset_unlimited();
             create_liquidation(&e, &samwise, liq_pct);
             assert!(storage::has_auction(&e, &0, &samwise));
-        });
-    }
-
-    #[test]
-    #[should_panic(expected = "Error(Contract, #1200)")]
-    fn test_create_user_liquidation_errors() {
-        let e = Env::default();
-        let pool_id = create_pool(&e);
-        let backstop_id = Address::generate(&e);
-
-        e.as_contract(&pool_id, || {
-            storage::set_backstop(&e, &backstop_id);
-
-            create(&e, AuctionType::UserLiquidation as u32);
         });
     }
 

@@ -30,6 +30,10 @@ pub enum TokenIndex {
     WETH = 2,
     XLM = 3,
     STABLE = 4,
+    AQUA = 5,
+    TEST1 = 6,
+    TEST2 = 7,
+    TEST3 = 8,
 }
 
 pub struct PoolFixture<'a> {
@@ -87,6 +91,10 @@ impl TestFixture<'_> {
         let (usdc_id, usdc_client) = create_stellar_token(&e, &bombadil);
         let (xlm_id, xlm_client) = create_stellar_token(&e, &bombadil); // TODO: make native
         let (stable_id, stable_client) = create_token(&e, &bombadil, 6, "STABLE");
+        let (aqua_id, aqua_client) = create_token(&e, &bombadil, 7, "AQUA");
+        let (test1_id, test1_client) = create_token(&e, &bombadil, 7, "TEST1");
+        let (test2_id, test2_client) = create_token(&e, &bombadil, 7, "TEST2");
+        let (test3_id, test3_client) = create_token(&e, &bombadil, 7, "TEST3");
 
         // deploy Blend Protocol contracts
         let (backstop_id, backstop_client) = create_backstop(&e, wasm);
@@ -132,7 +140,11 @@ impl TestFixture<'_> {
                 Asset::Stellar(eth_id.clone()),
                 Asset::Stellar(usdc_id),
                 Asset::Stellar(xlm_id.clone()),
-                Asset::Stellar(stable_id.clone())
+                Asset::Stellar(stable_id.clone()),
+                Asset::Stellar(aqua_id.clone()),
+                Asset::Stellar(test1_id.clone()),
+                Asset::Stellar(test2_id.clone()),
+                Asset::Stellar(test3_id.clone()),
             ],
             &7,
             &300,
@@ -142,7 +154,11 @@ impl TestFixture<'_> {
             2000_0000000, // eth
             1_0000000,    // usdc
             0_1000000,    // xlm
-            1_0000000     // stable
+            1_0000000,    // stable
+            0_0100000,    // aqua
+            0_0100000,    // test1
+            0_0100000,    // test2
+            0_0100000,    // test3
         ]);
 
         let fixture = TestFixture {
@@ -161,6 +177,10 @@ impl TestFixture<'_> {
                 eth_client,
                 xlm_client,
                 stable_client,
+                aqua_client,
+                test1_client,
+                test2_client,
+                test3_client,
             ],
         };
         fixture.jump(7 * 24 * 60 * 60);

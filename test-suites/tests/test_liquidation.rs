@@ -1,6 +1,9 @@
 #![cfg(test)]
 use cast::i128;
-use pool::{PoolDataKey, Positions, Request, RequestType, ReserveConfig, ReserveData};
+use pool::{
+    PoolDataKey, Positions, Request, RequestType, ReserveConfig, ReserveData,
+    ReserveEmissionMetadata,
+};
 use soroban_fixed_point_math::FixedPoint;
 use soroban_sdk::{
     testutils::{Address as AddressTestTrait, Events},
@@ -9,6 +12,7 @@ use soroban_sdk::{
 use test_suites::{
     assertions::assert_approx_eq_abs,
     create_fixture_with_data,
+    pool::default_reserve_metadata,
     test_fixture::{TokenIndex, SCALAR_7},
 };
 
@@ -153,8 +157,12 @@ fn test_liquidations() {
     }
     // Start an interest auction
     // type 2 is an interest auction
-    let auction_type: u32 = 2;
-    let auction_data = pool_fixture.pool.new_auction(&auction_type);
+    let auction_data = pool_fixture.pool.new_interest_auction(&vec![
+        &fixture.env,
+        fixture.tokens[TokenIndex::STABLE].address.clone(),
+        fixture.tokens[TokenIndex::WETH].address.clone(),
+        fixture.tokens[TokenIndex::XLM].address.clone(),
+    ]);
     let stable_interest_lot_amount = auction_data
         .lot
         .get_unchecked(fixture.tokens[TokenIndex::STABLE].address.clone());
@@ -182,7 +190,7 @@ fn test_liquidations() {
             &fixture.env,
             (
                 pool_fixture.pool.address.clone(),
-                (Symbol::new(&fixture.env, "new_auction"), auction_type).into_val(&fixture.env),
+                (Symbol::new(&fixture.env, "new_auction"), 2).into_val(&fixture.env),
                 auction_data.into_val(&fixture.env)
             )
         ]
@@ -548,7 +556,7 @@ fn test_liquidations() {
 
     // create a bad debt auction
     let auction_type: u32 = 1;
-    let bad_debt_auction_data = pool_fixture.pool.new_auction(&auction_type);
+    let bad_debt_auction_data = pool_fixture.pool.new_bad_debt_auction();
 
     assert_eq!(bad_debt_auction_data.bid.len(), 2);
     assert_eq!(bad_debt_auction_data.lot.len(), 1);
@@ -887,8 +895,7 @@ fn test_liquidations() {
     );
 
     // Create bad debt auction
-    let auction_type: u32 = 1;
-    pool_fixture.pool.new_auction(&auction_type);
+    pool_fixture.pool.new_bad_debt_auction();
 
     //fill bad debt auction
     fixture.jump_with_sequence(401 * 5);

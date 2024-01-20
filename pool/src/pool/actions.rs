@@ -320,8 +320,9 @@ pub fn build_actions_from_request(
 mod tests {
 
     use crate::{
+        constants::SCALAR_7,
         storage::{self, PoolConfig},
-        testutils::{self, create_pool},
+        testutils::{self, create_comet_lp_pool, create_pool},
         AuctionData, AuctionType, Positions,
     };
 
@@ -1348,7 +1349,7 @@ mod tests {
         e.ledger().set(LedgerInfo {
             timestamp: 12345,
             protocol_version: 20,
-            sequence_number: 51 + 200,
+            sequence_number: 51 + 250,
             network_id: Default::default(),
             base_reserve: 10,
             min_temp_entry_ttl: 10,
@@ -1361,15 +1362,31 @@ mod tests {
 
         let pool_address = create_pool(&e);
         let (usdc_id, usdc_client) = testutils::create_usdc_token(&e, &pool_address, &bombadil);
-        let (backstop_address, _backstop_client) = testutils::create_backstop(&e);
+        let (blnd_id, blnd_client) = testutils::create_blnd_token(&e, &pool_address, &bombadil);
+
+        let (backstop_token_id, backstop_token_client) =
+            create_comet_lp_pool(&e, &bombadil, &blnd_id, &usdc_id);
+        let (backstop_address, backstop_client) = testutils::create_backstop(&e);
+        blnd_client.mint(&samwise, &10_000_0000000);
+        usdc_client.mint(&samwise, &250_0000000);
+        let exp_ledger = e.ledger().sequence() + 100;
+        blnd_client.approve(&bombadil, &backstop_token_id, &2_000_0000000, &exp_ledger);
+        usdc_client.approve(&bombadil, &backstop_token_id, &2_000_0000000, &exp_ledger);
+        backstop_token_client.join_pool(
+            &(100 * SCALAR_7),
+            &vec![&e, 10_000_0000000, 250_0000000],
+            &samwise,
+        );
         testutils::setup_backstop(
             &e,
             &pool_address,
             &backstop_address,
-            &Address::generate(&e),
+            &backstop_token_id,
             &usdc_id,
-            &Address::generate(&e),
+            &blnd_id,
         );
+        backstop_client.deposit(&bombadil, &pool_address, &(50 * SCALAR_7));
+        backstop_client.update_tkn_val();
 
         let (underlying_0, underlying_0_client) = testutils::create_token_contract(&e, &bombadil);
         let (mut reserve_config_0, mut reserve_data_0) = testutils::default_reserve_meta();
@@ -1420,7 +1437,7 @@ mod tests {
             max_positions: 2,
         };
         let auction_data = AuctionData {
-            bid: map![&e, (usdc_id.clone(), 952_0000000)],
+            bid: map![&e, (backstop_token_id.clone(), 100_0000000)],
             lot: map![
                 &e,
                 (underlying_0.clone(), 100_0000000),
@@ -1428,7 +1445,6 @@ mod tests {
             ],
             block: 51,
         };
-        usdc_client.mint(&samwise, &952_0000000);
 
         e.as_contract(&pool_address, || {
             e.mock_all_auths_allowing_non_root_auth();
@@ -1439,6 +1455,7 @@ mod tests {
                 &backstop_address,
                 &auction_data,
             );
+            storage::set_backstop(&e, &backstop_address);
 
             let mut pool = Pool::load(&e);
 
@@ -1450,14 +1467,17 @@ mod tests {
                     amount: 100,
                 },
             ];
+            let pre_fill_backstop_token_balance = backstop_token_client.balance(&backstop_address);
             let (actions, _, health_check) =
                 build_actions_from_request(&e, &mut pool, &samwise, requests);
 
-            assert_eq!(usdc_client.balance(&samwise), 0);
-            assert_eq!(usdc_client.balance(&backstop_address), 952_0000000);
+            assert_eq!(backstop_token_client.balance(&samwise), 25_0000000);
+            assert_eq!(
+                backstop_token_client.balance(&backstop_address),
+                pre_fill_backstop_token_balance + 75_0000000
+            );
             assert_eq!(underlying_0_client.balance(&samwise), 100_0000000);
             assert_eq!(underlying_1_client.balance(&samwise), 25_0000000);
-            assert_eq!(usdc_client.balance(&samwise), 0);
             assert_eq!(health_check, false);
             assert_eq!(
                 storage::has_auction(

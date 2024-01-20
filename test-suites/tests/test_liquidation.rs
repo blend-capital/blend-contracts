@@ -1,9 +1,6 @@
 #![cfg(test)]
 use cast::i128;
-use pool::{
-    PoolDataKey, Positions, Request, RequestType, ReserveConfig, ReserveData,
-    ReserveEmissionMetadata,
-};
+use pool::{PoolDataKey, Positions, Request, RequestType, ReserveConfig, ReserveData};
 use soroban_fixed_point_math::FixedPoint;
 use soroban_sdk::{
     testutils::{Address as AddressTestTrait, Events},
@@ -12,7 +9,6 @@ use soroban_sdk::{
 use test_suites::{
     assertions::assert_approx_eq_abs,
     create_fixture_with_data,
-    pool::default_reserve_metadata,
     test_fixture::{TokenIndex, SCALAR_7},
 };
 
@@ -175,11 +171,9 @@ fn test_liquidations() {
         .lot
         .get_unchecked(fixture.tokens[TokenIndex::WETH].address.clone());
     assert_approx_eq_abs(weth_interest_lot_amount, 0_002671545, 5000);
-    let usdc_donate_bid_amount = auction_data
-        .bid
-        .get_unchecked(fixture.tokens[TokenIndex::USDC].address.clone());
+    let lp_donate_bid_amount = auction_data.bid.get_unchecked(fixture.lp.address.clone());
     //NOTE: bid STABLE amount is seven decimals whereas reserve(and lot) STABLE has 6 decomals
-    assert_approx_eq_abs(usdc_donate_bid_amount, 392_1769961, SCALAR_7);
+    assert_approx_eq_abs(lp_donate_bid_amount, 313_7415968, SCALAR_7);
     assert_eq!(auction_data.block, 151);
     let liq_pct = 30;
     let events = fixture.env.events().all();
@@ -190,7 +184,7 @@ fn test_liquidations() {
             &fixture.env,
             (
                 pool_fixture.pool.address.clone(),
-                (Symbol::new(&fixture.env, "new_auction"), 2).into_val(&fixture.env),
+                (Symbol::new(&fixture.env, "new_auction"), 2 as u32).into_val(&fixture.env),
                 auction_data.into_val(&fixture.env)
             )
         ]
@@ -199,7 +193,6 @@ fn test_liquidations() {
     let auction_data = pool_fixture
         .pool
         .new_liquidation_auction(&samwise, &liq_pct);
-
     let usdc_bid_amount = auction_data
         .bid
         .get_unchecked(fixture.tokens[TokenIndex::STABLE].address.clone());
@@ -780,7 +773,7 @@ fn test_liquidations() {
         .withdraw(&frodo, &pool_fixture.pool.address, &original_deposit);
     assert_approx_eq_abs(
         fixture.lp.balance(&frodo) - pre_withdraw_frodo_bstp,
-        original_deposit - 717_1043530 - 4302_6261190,
+        original_deposit - 717_1043530 - 4302_6261190 + 313_7415968,
         SCALAR_7,
     );
     fixture

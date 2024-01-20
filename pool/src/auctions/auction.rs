@@ -274,7 +274,7 @@ mod tests {
     use crate::{
         pool::Positions,
         storage::PoolConfig,
-        testutils::{self, create_pool},
+        testutils::{self, create_comet_lp_pool, create_pool},
     };
 
     use super::*;
@@ -441,15 +441,20 @@ mod tests {
 
         let pool_address = create_pool(&e);
         let (usdc_id, _) = testutils::create_usdc_token(&e, &pool_address, &bombadil);
-        let (backstop_address, _backstop_client) = testutils::create_backstop(&e);
+        let (blnd_id, _) = testutils::create_blnd_token(&e, &pool_address, &bombadil);
+
+        let (backstop_token_id, _) = create_comet_lp_pool(&e, &bombadil, &blnd_id, &usdc_id);
+        let (backstop_address, backstop_client) = testutils::create_backstop(&e);
         testutils::setup_backstop(
             &e,
             &pool_address,
             &backstop_address,
-            &Address::generate(&e),
-            &Address::generate(&e),
-            &Address::generate(&e),
+            &backstop_token_id,
+            &usdc_id,
+            &blnd_id,
         );
+        backstop_client.deposit(&bombadil, &pool_address, &(50 * SCALAR_7));
+        backstop_client.update_tkn_val();
         let (oracle_id, oracle_client) = testutils::create_mock_oracle(&e);
 
         let (underlying_0, _) = testutils::create_token_contract(&e, &bombadil);

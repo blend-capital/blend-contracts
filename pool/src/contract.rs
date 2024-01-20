@@ -412,8 +412,10 @@ impl Pool for PoolContract {
         storage::extend_instance(&e);
         let auction_data = auctions::create_bad_debt_auction(&e);
 
-        e.events()
-            .publish((Symbol::new(&e, "new_auction"), 1), auction_data.clone());
+        e.events().publish(
+            (Symbol::new(&e, "new_auction"), 1 as u32),
+            auction_data.clone(),
+        );
 
         auction_data
     }
@@ -422,8 +424,10 @@ impl Pool for PoolContract {
         storage::extend_instance(&e);
         let auction_data = auctions::create_interest_auction(&e, &assets);
 
-        e.events()
-            .publish((Symbol::new(&e, "new_auction"), 2), auction_data.clone());
+        e.events().publish(
+            (Symbol::new(&e, "new_auction"), 2 as u32),
+            auction_data.clone(),
+        );
 
         auction_data
     }

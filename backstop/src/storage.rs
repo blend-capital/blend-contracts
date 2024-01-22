@@ -278,30 +278,6 @@ pub fn set_pool_balance(e: &Env, pool: &Address, balance: &PoolBalance) {
         .extend_ttl(&key, LEDGER_THRESHOLD_SHARED, LEDGER_BUMP_SHARED);
 }
 
-/// Fetch the balances for a given pool
-///
-/// ### Arguments
-/// * `pool` - The pool the deposit is associated with
-pub fn get_pool_usdc(e: &Env, pool: &Address) -> i128 {
-    let key = BackstopDataKey::PoolUSDC(pool.clone());
-    get_persistent_default(e, &key, 0i128, LEDGER_THRESHOLD_SHARED, LEDGER_BUMP_SHARED)
-}
-
-/// Set the balances for a pool
-///
-/// ### Arguments
-/// * `pool` - The pool the deposit is associated with
-/// * `balance` - The pool balances
-pub fn set_pool_usdc(e: &Env, pool: &Address, balance: &i128) {
-    let key = BackstopDataKey::PoolUSDC(pool.clone());
-    e.storage()
-        .persistent()
-        .set::<BackstopDataKey, i128>(&key, balance);
-    e.storage()
-        .persistent()
-        .extend_ttl(&key, LEDGER_THRESHOLD_SHARED, LEDGER_BUMP_SHARED);
-}
-
 /********** Distribution / Reward Zone **********/
 
 /// Get the timestamp of when the next emission cycle begins

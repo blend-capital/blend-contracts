@@ -105,14 +105,14 @@ pub fn gulp_emissions(e: &Env) -> i128 {
             .fixed_div_floor(total_non_queued_tokens, SCALAR_7)
             .unwrap_optimized();
 
-        // store pool EPS and distribute pool's emissions via allowances to pool
+        // store new emissions for pool
         let new_pool_emissions = share
             .fixed_mul_floor(total_pool_emissions, SCALAR_7)
             .unwrap_optimized();
         let current_emissions = storage::get_pool_emissions(e, &rz_pool);
         storage::set_pool_emissions(e, &rz_pool, current_emissions + new_pool_emissions);
 
-        // distribute backstop depositor emissions
+        // distribute backstop depositor emissions and store backstop EPS
         let new_pool_backstop_tokens = share
             .fixed_mul_floor(total_backstop_emissions, SCALAR_7)
             .unwrap_optimized();
@@ -128,6 +128,7 @@ pub fn gulp_pool_emissions(e: &Env, pool_id: &Address) -> i128 {
         panic_with_error!(e, BackstopError::BadRequest);
     }
 
+    // distribute pool emissions via allowance to pools
     let blnd_token_client = TokenClient::new(e, &storage::get_blnd_token(e));
     let current_allowance = blnd_token_client.allowance(&e.current_contract_address(), pool_id);
     let new_tokens = current_allowance + pool_emissions;

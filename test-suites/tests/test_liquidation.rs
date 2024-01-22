@@ -153,8 +153,12 @@ fn test_liquidations() {
     }
     // Start an interest auction
     // type 2 is an interest auction
-    let auction_type: u32 = 2;
-    let auction_data = pool_fixture.pool.new_auction(&auction_type);
+    let auction_data = pool_fixture.pool.new_interest_auction(&vec![
+        &fixture.env,
+        fixture.tokens[TokenIndex::STABLE].address.clone(),
+        fixture.tokens[TokenIndex::WETH].address.clone(),
+        fixture.tokens[TokenIndex::XLM].address.clone(),
+    ]);
     let stable_interest_lot_amount = auction_data
         .lot
         .get_unchecked(fixture.tokens[TokenIndex::STABLE].address.clone());
@@ -167,11 +171,9 @@ fn test_liquidations() {
         .lot
         .get_unchecked(fixture.tokens[TokenIndex::WETH].address.clone());
     assert_approx_eq_abs(weth_interest_lot_amount, 0_002671545, 5000);
-    let usdc_donate_bid_amount = auction_data
-        .bid
-        .get_unchecked(fixture.tokens[TokenIndex::USDC].address.clone());
+    let lp_donate_bid_amount = auction_data.bid.get_unchecked(fixture.lp.address.clone());
     //NOTE: bid STABLE amount is seven decimals whereas reserve(and lot) STABLE has 6 decomals
-    assert_approx_eq_abs(usdc_donate_bid_amount, 392_1769961, SCALAR_7);
+    assert_approx_eq_abs(lp_donate_bid_amount, 313_7415968, SCALAR_7);
     assert_eq!(auction_data.block, 151);
     let liq_pct = 30;
     let events = fixture.env.events().all();
@@ -182,7 +184,7 @@ fn test_liquidations() {
             &fixture.env,
             (
                 pool_fixture.pool.address.clone(),
-                (Symbol::new(&fixture.env, "new_auction"), auction_type).into_val(&fixture.env),
+                (Symbol::new(&fixture.env, "new_auction"), 2 as u32).into_val(&fixture.env),
                 auction_data.into_val(&fixture.env)
             )
         ]
@@ -191,7 +193,6 @@ fn test_liquidations() {
     let auction_data = pool_fixture
         .pool
         .new_liquidation_auction(&samwise, &liq_pct);
-
     let usdc_bid_amount = auction_data
         .bid
         .get_unchecked(fixture.tokens[TokenIndex::STABLE].address.clone());
@@ -548,7 +549,7 @@ fn test_liquidations() {
 
     // create a bad debt auction
     let auction_type: u32 = 1;
-    let bad_debt_auction_data = pool_fixture.pool.new_auction(&auction_type);
+    let bad_debt_auction_data = pool_fixture.pool.new_bad_debt_auction();
 
     assert_eq!(bad_debt_auction_data.bid.len(), 2);
     assert_eq!(bad_debt_auction_data.lot.len(), 1);
@@ -772,7 +773,7 @@ fn test_liquidations() {
         .withdraw(&frodo, &pool_fixture.pool.address, &original_deposit);
     assert_approx_eq_abs(
         fixture.lp.balance(&frodo) - pre_withdraw_frodo_bstp,
-        original_deposit - 717_1043530 - 4302_6261190,
+        original_deposit - 717_1043530 - 4302_6261190 + 313_7415968,
         SCALAR_7,
     );
     fixture
@@ -887,8 +888,7 @@ fn test_liquidations() {
     );
 
     // Create bad debt auction
-    let auction_type: u32 = 1;
-    pool_fixture.pool.new_auction(&auction_type);
+    pool_fixture.pool.new_bad_debt_auction();
 
     //fill bad debt auction
     fixture.jump_with_sequence(401 * 5);

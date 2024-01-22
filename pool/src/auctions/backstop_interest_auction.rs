@@ -4,11 +4,15 @@ use crate::{
 use cast::i128;
 use sep_41_token::TokenClient;
 use soroban_fixed_point_math::FixedPoint;
-use soroban_sdk::{map, panic_with_error, unwrap::UnwrapOptimized, Address, Env};
+use soroban_sdk::{map, panic_with_error, unwrap::UnwrapOptimized, Address, Env, Vec};
 
 use super::{AuctionData, AuctionType};
 
-pub fn create_interest_auction_data(e: &Env, backstop: &Address) -> AuctionData {
+pub fn create_interest_auction_data(
+    e: &Env,
+    backstop: &Address,
+    assets: &Vec<Address>,
+) -> AuctionData {
     if storage::has_auction(e, &(AuctionType::InterestAuction as u32), backstop) {
         panic_with_error!(e, PoolError::AuctionInProgress);
     }
@@ -20,10 +24,8 @@ pub fn create_interest_auction_data(e: &Env, backstop: &Address) -> AuctionData 
         block: e.ledger().sequence() + 1,
     };
 
-    let reserve_list = storage::get_res_list(e);
     let mut interest_value = 0; // expressed in the oracle's decimals
-    for i in 0..reserve_list.len() {
-        let res_asset_address = reserve_list.get_unchecked(i);
+    for res_asset_address in assets.iter() {
         // don't store updated reserve data back to ledger. This will occur on the the auction's fill.
         let reserve = pool.load_reserve(e, &res_asset_address, false);
         if reserve.backstop_credit > 0 {
@@ -48,13 +50,19 @@ pub fn create_interest_auction_data(e: &Env, backstop: &Address) -> AuctionData 
 
     let usdc_token = storage::get_usdc_token(e);
     let usdc_to_base = pool.load_price(e, &usdc_token);
+    let backstop_client = BackstopClient::new(&e, &storage::get_backstop(e));
+    let pool_backstop_data = backstop_client.pool_data(&e.current_contract_address());
+    let backstop_token_value_base = (pool_backstop_data.usdc * 5)
+        .fixed_div_floor(pool_backstop_data.tokens, usdc_to_base)
+        .unwrap_optimized();
     let bid_amount = interest_value
         .fixed_mul_floor(1_4000000, SCALAR_7)
         .unwrap_optimized()
-        .fixed_div_floor(i128(usdc_to_base), SCALAR_7)
+        .fixed_div_floor(backstop_token_value_base, SCALAR_7)
         .unwrap_optimized();
-    // u32::MAX is the key for the USDC lot
-    auction_data.bid.set(storage::get_usdc_token(e), bid_amount);
+    auction_data
+        .bid
+        .set(backstop_client.backstop_token(), bid_amount);
 
     auction_data
 }
@@ -65,16 +73,20 @@ pub fn fill_interest_auction(
     auction_data: &AuctionData,
     filler: &Address,
 ) {
-    // bid only contains the USDC token
+    // bid only contains the Backstop token
     let backstop = storage::get_backstop(e);
     if filler.clone() == backstop {
         panic_with_error!(e, PoolError::BadRequest);
     }
-    let usdc_token = storage::get_usdc_token(e);
-    let usdc_bid_amount = auction_data.bid.get_unchecked(usdc_token);
-
     let backstop_client = BackstopClient::new(&e, &backstop);
-    backstop_client.donate_usdc(&filler, &e.current_contract_address(), &usdc_bid_amount);
+    let backstop_token: Address = backstop_client.backstop_token();
+    let backstop_token_bid_amount = auction_data.bid.get_unchecked(backstop_token);
+
+    backstop_client.donate(
+        &filler,
+        &e.current_contract_address(),
+        &backstop_token_bid_amount,
+    );
 
     // lot contains underlying tokens, but the backstop credit must be updated on the reserve
     for (res_asset_address, lot_amount) in auction_data.lot.iter() {
@@ -95,7 +107,7 @@ mod tests {
     use crate::{
         auctions::auction::AuctionType,
         storage::{self, PoolConfig},
-        testutils::{self, create_pool},
+        testutils::{self, create_comet_lp_pool, create_pool},
     };
 
     use super::*;
@@ -137,7 +149,31 @@ mod tests {
                 &auction_data,
             );
 
-            create_interest_auction_data(&e, &backstop_address);
+            create_interest_auction_data(&e, &backstop_address, &vec![&e]);
+        });
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_create_interest_auction_no_reserve() {
+        let e = Env::default();
+
+        let pool_address = create_pool(&e);
+        let backstop_address = Address::generate(&e);
+
+        e.ledger().set(LedgerInfo {
+            timestamp: 12345,
+            protocol_version: 20,
+            sequence_number: 100,
+            network_id: Default::default(),
+            base_reserve: 10,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2000000,
+        });
+
+        e.as_contract(&pool_address, || {
+            create_interest_auction_data(&e, &backstop_address, &vec![&e, Address::generate(&e)]);
         });
     }
 
@@ -239,13 +275,7 @@ mod tests {
         e.as_contract(&pool_address, || {
             storage::set_pool_config(&e, &pool_config);
 
-            let result = create_interest_auction_data(&e, &backstop_address);
-            assert_eq!(result.block, 51);
-            assert_eq!(result.bid.get_unchecked(usdc_id), 42_0000000);
-            assert_eq!(result.bid.len(), 1);
-            assert_eq!(result.lot.get_unchecked(underlying_0), 10_0000000);
-            assert_eq!(result.lot.get_unchecked(underlying_1), 2_5000000);
-            assert_eq!(result.lot.len(), 2);
+            create_interest_auction_data(&e, &backstop_address, &vec![&e]);
         });
     }
 
@@ -270,15 +300,20 @@ mod tests {
 
         let pool_address = create_pool(&e);
         let (usdc_id, _) = testutils::create_usdc_token(&e, &pool_address, &bombadil);
-        let (backstop_address, _backstop_client) = testutils::create_backstop(&e);
+        let (blnd_id, _) = testutils::create_blnd_token(&e, &pool_address, &bombadil);
+
+        let (backstop_token_id, _) = create_comet_lp_pool(&e, &bombadil, &blnd_id, &usdc_id);
+        let (backstop_address, backstop_client) = testutils::create_backstop(&e);
         testutils::setup_backstop(
             &e,
             &pool_address,
             &backstop_address,
-            &Address::generate(&e),
+            &backstop_token_id,
             &usdc_id,
-            &Address::generate(&e),
+            &blnd_id,
         );
+        backstop_client.deposit(&bombadil, &pool_address, &(50 * SCALAR_7));
+        backstop_client.update_tkn_val();
         let (oracle_id, oracle_client) = testutils::create_mock_oracle(&e);
 
         let (underlying_0, _) = testutils::create_token_contract(&e, &bombadil);
@@ -347,9 +382,13 @@ mod tests {
         e.as_contract(&pool_address, || {
             storage::set_pool_config(&e, &pool_config);
 
-            let result = create_interest_auction_data(&e, &backstop_address);
+            let result = create_interest_auction_data(
+                &e,
+                &backstop_address,
+                &vec![&e, underlying_0.clone(), underlying_1.clone()],
+            );
             assert_eq!(result.block, 51);
-            assert_eq!(result.bid.get_unchecked(usdc_id), 420_0000000);
+            assert_eq!(result.bid.get_unchecked(backstop_token_id), 336_0000000);
             assert_eq!(result.bid.len(), 1);
             assert_eq!(result.lot.get_unchecked(underlying_0), 100_0000000);
             assert_eq!(result.lot.get_unchecked(underlying_1), 25_0000000);
@@ -378,15 +417,21 @@ mod tests {
 
         let pool_address = create_pool(&e);
         let (usdc_id, _) = testutils::create_usdc_token(&e, &pool_address, &bombadil);
-        let (backstop_address, _backstop_client) = testutils::create_backstop(&e);
+        let (blnd_id, _) = testutils::create_blnd_token(&e, &pool_address, &bombadil);
+
+        let (backstop_token_id, _) = create_comet_lp_pool(&e, &bombadil, &blnd_id, &usdc_id);
+        let (backstop_address, backstop_client) = testutils::create_backstop(&e);
         testutils::setup_backstop(
             &e,
             &pool_address,
             &backstop_address,
-            &Address::generate(&e),
+            &backstop_token_id,
             &usdc_id,
-            &Address::generate(&e),
+            &blnd_id,
         );
+        backstop_client.deposit(&bombadil, &pool_address, &(50 * SCALAR_7));
+        backstop_client.update_tkn_val();
+
         let (oracle_id, oracle_client) = testutils::create_mock_oracle(&e);
 
         let (underlying_0, _) = testutils::create_token_contract(&e, &bombadil);
@@ -455,9 +500,18 @@ mod tests {
         e.as_contract(&pool_address, || {
             storage::set_pool_config(&e, &pool_config);
 
-            let result = create_interest_auction_data(&e, &backstop_address);
+            let result = create_interest_auction_data(
+                &e,
+                &backstop_address,
+                &vec![
+                    &e,
+                    underlying_0.clone(),
+                    underlying_1.clone(),
+                    underlying_2.clone(),
+                ],
+            );
             assert_eq!(result.block, 151);
-            assert_eq!(result.bid.get_unchecked(usdc_id), 420_0012936);
+            assert_eq!(result.bid.get_unchecked(backstop_token_id), 336_0010348);
             assert_eq!(result.bid.len(), 1);
             assert_eq!(result.lot.get_unchecked(underlying_0), 100_0000714);
             assert_eq!(result.lot.get_unchecked(underlying_1), 25_0000178);
@@ -489,15 +543,31 @@ mod tests {
         let pool_address = create_pool(&e);
 
         let (usdc_id, usdc_client) = testutils::create_usdc_token(&e, &pool_address, &bombadil);
-        let (backstop_address, _backstop_client) = testutils::create_backstop(&e);
+        let (blnd_id, blnd_client) = testutils::create_blnd_token(&e, &pool_address, &bombadil);
+
+        let (backstop_token_id, backstop_token_client) =
+            create_comet_lp_pool(&e, &bombadil, &blnd_id, &usdc_id);
+        blnd_client.mint(&samwise, &10_000_0000000);
+        usdc_client.mint(&samwise, &250_0000000);
+        let exp_ledger = e.ledger().sequence() + 100;
+        blnd_client.approve(&bombadil, &backstop_token_id, &2_000_0000000, &exp_ledger);
+        usdc_client.approve(&bombadil, &backstop_token_id, &2_000_0000000, &exp_ledger);
+        backstop_token_client.join_pool(
+            &(100 * SCALAR_7),
+            &vec![&e, 10_000_0000000, 250_0000000],
+            &samwise,
+        );
+        let (backstop_address, backstop_client) = testutils::create_backstop(&e);
         testutils::setup_backstop(
             &e,
             &pool_address,
             &backstop_address,
-            &Address::generate(&e),
+            &backstop_token_id,
             &usdc_id,
-            &Address::generate(&e),
+            &blnd_id,
         );
+        backstop_client.deposit(&bombadil, &pool_address, &(50 * SCALAR_7));
+        backstop_client.update_tkn_val();
 
         let (underlying_0, underlying_0_client) = testutils::create_token_contract(&e, &bombadil);
         let (mut reserve_config_0, mut reserve_data_0) = testutils::default_reserve_meta();
@@ -540,7 +610,7 @@ mod tests {
             max_positions: 4,
         };
         let mut auction_data = AuctionData {
-            bid: map![&e, (usdc_id.clone(), 95_0000000)],
+            bid: map![&e, (backstop_token_id.clone(), 75_0000000)],
             lot: map![
                 &e,
                 (underlying_0.clone(), 100_0000000),
@@ -548,7 +618,6 @@ mod tests {
             ],
             block: 51,
         };
-        usdc_client.mint(&samwise, &100_0000000);
         e.as_contract(&pool_address, || {
             e.mock_all_auths_allowing_non_root_auth();
             storage::set_auction(
@@ -560,13 +629,16 @@ mod tests {
             storage::set_pool_config(&e, &pool_config);
             storage::set_backstop(&e, &backstop_address);
             storage::set_usdc_token(&e, &usdc_id);
-
             let mut pool = Pool::load(&e);
+            let backstop_token_balance_pre_fill = backstop_token_client.balance(&backstop_address);
             fill_interest_auction(&e, &mut pool, &mut auction_data, &samwise);
             pool.store_cached_reserves(&e);
 
-            assert_eq!(usdc_client.balance(&samwise), 5_0000000);
-            assert_eq!(usdc_client.balance(&backstop_address), 95_0000000);
+            assert_eq!(backstop_token_client.balance(&samwise), 25_0000000);
+            assert_eq!(
+                backstop_token_client.balance(&backstop_address),
+                backstop_token_balance_pre_fill + 75_0000000
+            );
             assert_eq!(underlying_0_client.balance(&samwise), 100_0000000);
             assert_eq!(underlying_1_client.balance(&samwise), 25_0000000);
             // verify only filled backstop credits get deducted from total

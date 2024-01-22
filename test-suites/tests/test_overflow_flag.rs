@@ -8,24 +8,24 @@ use test_suites::{
 
 #[test]
 #[should_panic(expected = "Error(WasmVm, InvalidAction)")]
-fn test_backstop_donate_overflow_panics() {
+fn test_pool_deposit_overflow_panics() {
     let fixture = create_fixture_with_data(true);
     let pool_fixture = &fixture.pools[0];
+    let pool_balance = fixture.tokens[TokenIndex::STABLE].balance(&pool_fixture.pool.address);
+    fixture.tokens[TokenIndex::STABLE].burn(&pool_fixture.pool.address, &pool_balance);
 
     // Create a user
     let samwise = Address::generate(&fixture.env);
+    fixture.tokens[TokenIndex::STABLE].mint(&samwise, &(i128::MAX));
+    let request = Request {
+        request_type: RequestType::Supply as u32,
+        address: fixture.tokens[TokenIndex::STABLE].address.clone(),
+        amount: i128::MAX - 10,
+    };
 
-    fixture.tokens[TokenIndex::USDC].mint(&samwise, &(i128::MAX - 100));
-
-    // donate tokens
-    fixture
-        .backstop
-        .donate_usdc(&samwise, &pool_fixture.pool.address, &(i128::MAX - 100));
-    fixture.tokens[TokenIndex::USDC].mint(&samwise, &(500));
-    fixture.tokens[TokenIndex::USDC].burn(&fixture.backstop.address, &500);
-    fixture
-        .backstop
-        .donate_usdc(&samwise, &pool_fixture.pool.address, &201);
+    pool_fixture
+        .pool
+        .submit(&samwise, &samwise, &samwise, &vec![&fixture.env, request]);
 }
 
 // This test ensures that an accessible underflow in the auction flow cannot be hit due to the overflow-checks flag being set

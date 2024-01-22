@@ -208,21 +208,28 @@ pub trait Pool {
     /// Fetch an auction from the ledger. Returns a quote based on the current block.
     ///
     /// ### Arguments
-    /// * `auction_type` - The type of auction
+    /// * `auction_type` - The type of auction, 0 for liquidation auction, 1 for bad debt auction, and 2 for interest auction
     /// * `user` - The Address involved in the auction
     ///
     /// ### Panics
     /// If the auction does not exist
     fn get_auction(e: Env, auction_type: u32, user: Address) -> AuctionData;
 
-    /// Creates a new auction
+    /// Creates a new bad debt auction
     ///
-    /// ### Arguments
-    /// * `auction_type` - The type of auction
     ///
     /// ### Panics
     /// If the auction was unable to be created
-    fn new_auction(e: Env, auction_type: u32) -> AuctionData;
+    fn new_bad_debt_auction(e: Env) -> AuctionData;
+
+    /// Creates a new interest auction
+    ///
+    /// ### Arguments
+    /// * `assets` - The assets interest is being auctioned off for
+    ///
+    /// ### Panics
+    /// If the auction was unable to be created
+    fn new_interest_auction(e: Env, assets: Vec<Address>) -> AuctionData;
 }
 
 #[contractimpl]
@@ -401,12 +408,24 @@ impl Pool for PoolContract {
         storage::get_auction(&e, &auction_type, &user)
     }
 
-    fn new_auction(e: Env, auction_type: u32) -> AuctionData {
+    fn new_bad_debt_auction(e: Env) -> AuctionData {
         storage::extend_instance(&e);
-        let auction_data = auctions::create(&e, auction_type);
+        let auction_data = auctions::create_bad_debt_auction(&e);
 
         e.events().publish(
-            (Symbol::new(&e, "new_auction"), auction_type),
+            (Symbol::new(&e, "new_auction"), 1 as u32),
+            auction_data.clone(),
+        );
+
+        auction_data
+    }
+
+    fn new_interest_auction(e: Env, assets: Vec<Address>) -> AuctionData {
+        storage::extend_instance(&e);
+        let auction_data = auctions::create_interest_auction(&e, &assets);
+
+        e.events().publish(
+            (Symbol::new(&e, "new_auction"), 2 as u32),
             auction_data.clone(),
         );
 

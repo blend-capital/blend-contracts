@@ -132,7 +132,7 @@ impl TestFixture<'_> {
                 Asset::Stellar(eth_id.clone()),
                 Asset::Stellar(usdc_id),
                 Asset::Stellar(xlm_id.clone()),
-                Asset::Stellar(stable_id.clone())
+                Asset::Stellar(stable_id.clone()),
             ],
             &7,
             &300,
@@ -142,7 +142,7 @@ impl TestFixture<'_> {
             2000_0000000, // eth
             1_0000000,    // usdc
             0_1000000,    // xlm
-            1_0000000     // stable
+            1_0000000,    // stable
         ]);
 
         let fixture = TestFixture {

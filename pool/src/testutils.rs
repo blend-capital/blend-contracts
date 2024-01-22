@@ -123,7 +123,8 @@ pub(crate) fn setup_backstop(
     let (pool_factory, mock_pool_factory_client) = create_mock_pool_factory(e);
     mock_pool_factory_client.set_pool(pool_address);
     let (emitter, _) = create_emitter(e, backstop_id, backstop_token, blnd_token);
-    BackstopClient::new(e, backstop_id).initialize(
+    let backstop_client: BackstopClient = BackstopClient::new(e, backstop_id);
+    backstop_client.initialize(
         backstop_token,
         &emitter,
         usdc_token,

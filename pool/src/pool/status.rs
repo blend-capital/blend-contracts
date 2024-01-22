@@ -50,13 +50,13 @@ pub fn execute_update_pool_status(e: &Env) -> u32 {
         // Admin status isn't set
         _ => {
             if pool_backstop_data.q4w_pct >= 0_6000000 {
-                // Q4w over 60% freezes the pool
+                // Q4w over 60% sets pool to Frozen
                 pool_config.status = 5;
             } else if pool_backstop_data.q4w_pct >= 0_3000000 || !met_threshold {
-                // Q4w over 30% or being under threshold puts the pool on-ice
+                // Q4w over 30% sets pool to On-Ice
                 pool_config.status = 3;
             } else {
-                // Backstop is healthy and the pool can be activated
+                // Backstop is healthy and the pool is set to Active
                 pool_config.status = 1;
             }
         }
@@ -101,7 +101,7 @@ pub fn execute_set_pool_status(e: &Env, pool_status: u32) {
             if pool_backstop_data.q4w_pct >= 0_7500000 {
                 panic_with_error!(e, PoolError::StatusNotAllowed);
             }
-            // Admin On-Ice
+            // On-Ice
             pool_config.status = 3;
         }
         4 => {

@@ -154,6 +154,30 @@ mod tests {
     }
 
     #[test]
+    #[should_panic]
+    fn test_create_interest_auction_no_reserve() {
+        let e = Env::default();
+
+        let pool_address = create_pool(&e);
+        let backstop_address = Address::generate(&e);
+
+        e.ledger().set(LedgerInfo {
+            timestamp: 12345,
+            protocol_version: 20,
+            sequence_number: 100,
+            network_id: Default::default(),
+            base_reserve: 10,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2000000,
+        });
+
+        e.as_contract(&pool_address, || {
+            create_interest_auction_data(&e, &backstop_address, &vec![&e, Address::generate(&e)]);
+        });
+    }
+
+    #[test]
     #[should_panic(expected = "Error(Contract, #1215)")]
     fn test_create_interest_auction_under_threshold() {
         let e = Env::default();

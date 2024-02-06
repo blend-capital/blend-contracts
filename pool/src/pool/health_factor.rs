@@ -88,21 +88,47 @@ impl PositionData {
             .unwrap_optimized()
     }
 
-    /// Check if the position data meets the minimum health factor, panic if not
-    pub fn require_healthy(&self, e: &Env) {
+    // Check if the position data is under a maximum health factor, panic if not
+    // Note: max must be 7 decimals
+    pub fn require_hf_under(&self, e: &Env, max: i128, error: PoolError) {
+        let min_health_factor = self
+            .scalar
+            .fixed_mul_floor(max, SCALAR_7)
+            .unwrap_optimized();
+        if self.as_health_factor() > min_health_factor {
+            panic_with_error!(e, error);
+        }
+    }
+
+    /// Check if the position data meets a minimum health factor, panic if not
+    /// Note: min must be 7 decimals
+    pub fn require_hf_over(&self, e: &Env, min: i128, error: PoolError) {
         if self.liability_base == 0 {
             return;
         }
-
-        // force user to have slightly more collateral than liabilities to prevent rounding errors
         let min_health_factor = self
             .scalar
-            .fixed_mul_floor(1_0000100, SCALAR_7)
+            .fixed_mul_floor(min, SCALAR_7)
             .unwrap_optimized();
         if self.as_health_factor() < min_health_factor {
-            panic_with_error!(e, PoolError::InvalidHf);
+            panic_with_error!(e, error);
         }
     }
+    // /// Check if the position data meets the minimum health factor, panic if not
+    // pub fn require_healthy(&self, e: &Env) {
+    //     if self.liability_base == 0 {
+    //         return;
+    //     }
+
+    //     // force user to have slightly more collateral than liabilities to prevent rounding errors
+    //     let min_health_factor = self
+    //         .scalar
+    //         .fixed_mul_floor(1_0000100, SCALAR_7)
+    //         .unwrap_optimized();
+    //     if self.as_health_factor() < min_health_factor {
+    //         panic_with_error!(e, PoolError::InvalidHf);
+    //     }
+    // }
 }
 
 #[cfg(test)]
@@ -201,7 +227,7 @@ mod tests {
     }
 
     #[test]
-    fn test_require_healthy() {
+    fn test_require_hf_over() {
         let e = Env::default();
 
         let position_data = PositionData {
@@ -212,13 +238,29 @@ mod tests {
             scalar: 1_0000000,
         };
 
-        position_data.require_healthy(&e);
+        position_data.require_hf_over(&e, 1_0000100, PoolError::InvalidHf);
+        // no panic
+        assert!(true);
+    }
+    #[test]
+    fn test_require_hf_over_odd_scalar() {
+        let e = Env::default();
+
+        let position_data = PositionData {
+            collateral_base: 9_12345,
+            collateral_raw: 12_00000,
+            liability_base: 9_12333,
+            liability_raw: 10_00000,
+            scalar: 1_00000,
+        };
+
+        position_data.require_hf_over(&e, 1_0000100, PoolError::InvalidHf);
         // no panic
         assert!(true);
     }
 
     #[test]
-    fn test_require_healthy_no_liabilites() {
+    fn test_require_hf_over_no_liabilites() {
         let e = Env::default();
 
         let position_data = PositionData {
@@ -229,14 +271,14 @@ mod tests {
             scalar: 1_0000000,
         };
 
-        position_data.require_healthy(&e);
+        position_data.require_hf_over(&e, 1_0000100, PoolError::InvalidHf);
         // no panic
         assert!(true);
     }
 
     #[test]
     #[should_panic(expected = "Error(Contract, #1205)")]
-    fn test_require_healthy_panics() {
+    fn test_require_hf_over_panics() {
         let e = Env::default();
 
         let position_data = PositionData {
@@ -247,7 +289,59 @@ mod tests {
             scalar: 1_0000000,
         };
 
-        position_data.require_healthy(&e);
+        position_data.require_hf_over(&e, 1_0000100, PoolError::InvalidHf);
+        // no panic
+        assert!(true);
+    }
+
+    #[test]
+    fn test_require_hf_under() {
+        let e = Env::default();
+
+        let position_data = PositionData {
+            collateral_base: 9_1234567,
+            collateral_raw: 12_0000000,
+            liability_base: 9_1233333,
+            liability_raw: 10_0000000,
+            scalar: 1_0000000,
+        };
+
+        position_data.require_hf_under(&e, 1_1000000, PoolError::InvalidHf);
+        // no panic
+        assert!(true);
+    }
+
+    #[test]
+    fn test_require_hf_under_odd_scalar() {
+        let e = Env::default();
+
+        let position_data = PositionData {
+            collateral_base: 9_1234567_000,
+            collateral_raw: 12_0000000_000,
+            liability_base: 9_1233333_000,
+            liability_raw: 10_0000000_000,
+            scalar: 1_0000000_000,
+        };
+
+        position_data.require_hf_under(&e, 1_1000000, PoolError::InvalidHf);
+        // no panic
+        assert!(true);
+    }
+
+    #[test]
+    #[should_panic(expected = "Error(Contract, #1205)")]
+    fn test_require_hf_under_panics() {
+        let e = Env::default();
+
+        let position_data = PositionData {
+            collateral_base: 19_1234567,
+            collateral_raw: 22_0000000,
+            liability_base: 9_1234567,
+            liability_raw: 10_0000000,
+            scalar: 1_0000000,
+        };
+
+        position_data.require_hf_under(&e, 1_0000100, PoolError::InvalidHf);
         // no panic
         assert!(true);
     }

@@ -40,8 +40,9 @@ pub fn execute_submit(
 
     if check_health {
         // panics if the new positions set does not meet the health factor requirement
+        // min is 1.0000100 to prevent rounding errors
         PositionData::calculate_from_positions(e, &mut pool, &new_from_state.positions)
-            .require_healthy(e);
+            .require_hf_over(e, 1_0000100, PoolError::InvalidHf);
     }
 
     // transfer tokens from sender to pool

@@ -294,7 +294,6 @@ mod tests {
             storage::set_user_positions(&e, &samwise, &positions);
             storage::set_pool_config(&e, &pool_config);
 
-            e.budget().reset_unlimited();
             let result = create_user_liq_auction_data(&e, &samwise, liq_pct);
             assert_eq!(result.block, 51);
             assert_eq!(result.bid.get_unchecked(underlying_2), 1_2375000);
@@ -387,7 +386,6 @@ mod tests {
             storage::set_user_positions(&e, &samwise, &positions);
             storage::set_pool_config(&e, &pool_config);
 
-            e.budget().reset_unlimited();
             let result = create_user_liq_auction_data(&e, &samwise, liq_pct);
 
             assert_eq!(result.block, 51);
@@ -480,7 +478,6 @@ mod tests {
         e.as_contract(&pool_address, || {
             storage::set_user_positions(&e, &samwise, &positions);
             storage::set_pool_config(&e, &pool_config);
-            e.budget().reset_unlimited();
             let result = create_user_liq_auction_data(&e, &samwise, liq_pct);
             assert_eq!(result.block, 51);
             assert_eq!(result.bid.get_unchecked(underlying_1), 10_0000000);
@@ -558,7 +555,6 @@ mod tests {
             &reserve_config_2,
             &reserve_data_2,
         );
-        e.budget().reset_unlimited();
 
         oracle_client.set_data(
             &bombadil,
@@ -594,7 +590,6 @@ mod tests {
             storage::set_user_positions(&e, &samwise, &positions);
             storage::set_pool_config(&e, &pool_config);
 
-            e.budget().reset_unlimited();
             create_user_liq_auction_data(&e, &samwise, liq_pct);
         });
     }
@@ -666,7 +661,6 @@ mod tests {
             &reserve_config_2,
             &reserve_data_2,
         );
-        e.budget().reset_unlimited();
 
         oracle_client.set_data(
             &bombadil,
@@ -702,7 +696,6 @@ mod tests {
             storage::set_user_positions(&e, &samwise, &positions);
             storage::set_pool_config(&e, &pool_config);
 
-            e.budget().reset_unlimited();
             create_user_liq_auction_data(&e, &samwise, liq_pct);
         });
     }
@@ -775,7 +768,6 @@ mod tests {
             &reserve_config_2,
             &reserve_data_2,
         );
-        e.budget().reset_unlimited();
 
         oracle_client.set_data(
             &bombadil,
@@ -811,7 +803,6 @@ mod tests {
             storage::set_user_positions(&e, &samwise, &positions);
             storage::set_pool_config(&e, &pool_config);
 
-            e.budget().reset_unlimited();
             create_user_liq_auction_data(&e, &samwise, liq_pct);
         });
     }
@@ -884,7 +875,6 @@ mod tests {
             &reserve_config_2,
             &reserve_data_2,
         );
-        e.budget().reset_unlimited();
 
         oracle_client.set_data(
             &bombadil,
@@ -941,7 +931,6 @@ mod tests {
                 min_persistent_entry_ttl: 17280,
                 max_entry_ttl: 9999999,
             });
-            e.budget().reset_unlimited();
             let mut pool = Pool::load(&e);
             let mut frodo_state = User::load(&e, &frodo);
             fill_user_liq_auction(&e, &mut pool, &mut auction_data, &samwise, &mut frodo_state);
@@ -1060,7 +1049,6 @@ mod tests {
             &reserve_config_2,
             &reserve_data_2,
         );
-        e.budget().reset_unlimited();
 
         oracle_client.set_data(
             &bombadil,
@@ -1117,7 +1105,6 @@ mod tests {
                 min_persistent_entry_ttl: 17280,
                 max_entry_ttl: 9999999,
             });
-            e.budget().reset_unlimited();
             let mut pool = Pool::load(&e);
             let mut frodo_state = User::load(&e, &frodo);
             fill_user_liq_auction(&e, &mut pool, &mut auction_data, &samwise, &mut frodo_state);

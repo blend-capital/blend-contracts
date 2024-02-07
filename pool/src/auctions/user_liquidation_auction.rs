@@ -108,12 +108,12 @@ pub fn create_user_liq_auction_data(
         let new_data = PositionData::calculate_from_positions(e, &mut pool, &user_state.positions);
 
         // Post-liq health factor must be under 1.15
-        if !new_data.require_hf_under(1_1500000) {
+        if new_data.is_hf_over(1_1500000) {
             panic_with_error!(e, PoolError::InvalidLiqTooLarge)
         };
 
         // Post-liq heath factor must be over 1.03
-        if !new_data.require_hf_over(1_0300000) {
+        if new_data.is_hf_under(1_0300000) {
             panic_with_error!(e, PoolError::InvalidLiqTooSmall)
         };
     }

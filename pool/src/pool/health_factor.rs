@@ -88,33 +88,36 @@ impl PositionData {
             .unwrap_optimized()
     }
 
-    // Check if the position data is under a maximum health factor, panic if not
+    // Check if the position data is over a maximum health factor
     // Note: max must be 7 decimals
-    pub fn require_hf_under(&self, max: i128) -> bool {
+    pub fn is_hf_over(&self, max: i128) -> bool {
+        if self.liability_base == 0 {
+            return true;
+        }
         let min_health_factor = self
             .scalar
             .fixed_mul_floor(max, SCALAR_7)
             .unwrap_optimized();
         if self.as_health_factor() > min_health_factor {
-            return false;
+            return true;
         }
-        true
+        false
     }
 
-    /// Check if the position data meets a minimum health factor, panic if not
+    /// Check if the position data is under a minimum health factor
     /// Note: min must be 7 decimals
-    pub fn require_hf_over(&self, min: i128) -> bool {
+    pub fn is_hf_under(&self, min: i128) -> bool {
         if self.liability_base == 0 {
-            return true;
+            return false;
         }
         let min_health_factor = self
             .scalar
             .fixed_mul_floor(min, SCALAR_7)
             .unwrap_optimized();
         if self.as_health_factor() < min_health_factor {
-            return false;
+            return true;
         }
-        true
+        false
     }
 }
 
@@ -214,7 +217,7 @@ mod tests {
     }
 
     #[test]
-    fn test_require_hf_over() {
+    fn test_is_hf_under() {
         let position_data = PositionData {
             collateral_base: 9_1234567,
             collateral_raw: 12_0000000,
@@ -223,12 +226,12 @@ mod tests {
             scalar: 1_0000000,
         };
 
-        let result = position_data.require_hf_over(1_0000100);
+        let result = position_data.is_hf_under(1_0000100);
         // no panic
-        assert!(result);
+        assert_eq!(result, false);
     }
     #[test]
-    fn test_require_hf_over_odd_scalar() {
+    fn test_is_hf_under_odd_scalar() {
         let position_data = PositionData {
             collateral_base: 9_12345,
             collateral_raw: 12_00000,
@@ -237,13 +240,13 @@ mod tests {
             scalar: 1_00000,
         };
 
-        let result = position_data.require_hf_over(1_0000100);
+        let result = position_data.is_hf_under(1_0000100);
         // no panic
-        assert!(result);
+        assert_eq!(result, false);
     }
 
     #[test]
-    fn test_require_hf_over_no_liabilites() {
+    fn test_is_hf_under_no_liabilites() {
         let position_data = PositionData {
             collateral_base: 9_1234567,
             collateral_raw: 12_0000000,
@@ -252,13 +255,13 @@ mod tests {
             scalar: 1_0000000,
         };
 
-        let result = position_data.require_hf_over(1_0000100);
+        let result = position_data.is_hf_under(1_0000100);
         // no panic
-        assert!(result);
+        assert_eq!(result, false);
     }
 
     #[test]
-    fn test_require_hf_over_panics() {
+    fn test_is_hf_under_true() {
         let position_data = PositionData {
             collateral_base: 9_1234567,
             collateral_raw: 12_0000000,
@@ -267,13 +270,13 @@ mod tests {
             scalar: 1_0000000,
         };
 
-        let result = position_data.require_hf_over(1_0000100);
-        // no panic
-        assert_eq!(result, false);
+        let result = position_data.is_hf_under(1_0000100);
+        // panic
+        assert!(result);
     }
 
     #[test]
-    fn test_require_hf_under() {
+    fn test_is_hf_over() {
         let position_data = PositionData {
             collateral_base: 9_1234567,
             collateral_raw: 12_0000000,
@@ -282,13 +285,13 @@ mod tests {
             scalar: 1_0000000,
         };
 
-        let result = position_data.require_hf_under(1_1000000);
+        let result = position_data.is_hf_over(1_1000000);
         // no panic
-        assert!(result);
+        assert_eq!(result, false);
     }
 
     #[test]
-    fn test_require_hf_under_odd_scalar() {
+    fn test_is_hf_over_odd_scalar() {
         let position_data = PositionData {
             collateral_base: 9_1234567_000,
             collateral_raw: 12_0000000_000,
@@ -297,13 +300,27 @@ mod tests {
             scalar: 1_0000000_000,
         };
 
-        let result = position_data.require_hf_under(1_1000000);
+        let result = position_data.is_hf_over(1_1000000);
         // no panic
-        assert!(result);
+        assert_eq!(result, false);
     }
 
     #[test]
-    fn test_require_hf_under_panics() {
+    fn test_is_hf_over_no_liabilites() {
+        let position_data = PositionData {
+            collateral_base: 9_1234567,
+            collateral_raw: 12_0000000,
+            liability_base: 0,
+            liability_raw: 0,
+            scalar: 1_0000000,
+        };
+
+        let result = position_data.is_hf_over(1_0000100);
+        // panic
+        assert!(result);
+    }
+    #[test]
+    fn test_is_hf_over_true() {
         let position_data = PositionData {
             collateral_base: 19_1234567,
             collateral_raw: 22_0000000,
@@ -312,8 +329,8 @@ mod tests {
             scalar: 1_0000000,
         };
 
-        let result = position_data.require_hf_under(1_0000100);
-        // no panic
-        assert_eq!(result, false);
+        let result = position_data.is_hf_over(1_0000100);
+        // panic
+        assert!(result);
     }
 }

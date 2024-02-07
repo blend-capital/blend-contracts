@@ -198,7 +198,7 @@ mod tests {
     }
 
     #[test]
-    fn test_create_user_liquidation_auction() {
+    fn test_create_user_liquidation_auction_normal_scalars() {
         let e = Env::default();
 
         e.mock_all_auths();
@@ -569,10 +569,10 @@ mod tests {
                 Asset::Stellar(underlying_1),
                 Asset::Stellar(underlying_2),
             ],
-            &7,
+            &8,
             &300,
         );
-        oracle_client.set_price_stable(&vec![&e, 2_0000000, 4_0000000, 50_0000000]);
+        oracle_client.set_price_stable(&vec![&e, 2_0000000_0, 4_0000000_0, 50_0000000_0]);
 
         let liq_pct = 100;
         let pool_config = PoolConfig {
@@ -675,10 +675,10 @@ mod tests {
                 Asset::Stellar(underlying_1),
                 Asset::Stellar(underlying_2),
             ],
-            &7,
+            &6,
             &300,
         );
-        oracle_client.set_price_stable(&vec![&e, 2_0000000, 4_0000000, 50_0000000]);
+        oracle_client.set_price_stable(&vec![&e, 2_000000, 4_000000, 50_000000]);
 
         let liq_pct = 46;
         let pool_config = PoolConfig {
@@ -782,10 +782,10 @@ mod tests {
                 Asset::Stellar(underlying_1),
                 Asset::Stellar(underlying_2),
             ],
-            &7,
+            &5,
             &300,
         );
-        oracle_client.set_price_stable(&vec![&e, 2_0000000, 4_0000000, 50_0000000]);
+        oracle_client.set_price_stable(&vec![&e, 2_00000, 4_00000, 50_00000]);
 
         let liq_pct = 25;
         let pool_config = PoolConfig {

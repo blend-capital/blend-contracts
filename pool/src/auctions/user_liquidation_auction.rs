@@ -4,7 +4,6 @@ use soroban_sdk::unwrap::UnwrapOptimized;
 use soroban_sdk::{map, panic_with_error, Address, Env};
 
 use crate::auctions::auction::AuctionData;
-use crate::constants::SCALAR_7;
 use crate::pool::{Pool, PositionData, User};
 use crate::{errors::PoolError, storage};
 
@@ -22,7 +21,6 @@ pub fn create_user_liq_auction_data(
     if percent_liquidated > 100 || percent_liquidated == 0 {
         panic_with_error!(e, PoolError::InvalidLiquidation);
     }
-    let percent_liquidated_i128 = i128(percent_liquidated) * 1_00000; // scale to decimal form with 7 decimals
 
     let mut liquidation_quote = AuctionData {
         bid: map![e],
@@ -40,6 +38,8 @@ pub fn create_user_liq_auction_data(
         panic_with_error!(e, PoolError::InvalidLiquidation);
     }
 
+    let percent_liquidated_i128_scaled = i128(percent_liquidated) * position_data.scalar / 100; // scale to decimal form with scalar decimals
+
     // ensure liquidation size is fair and the collateral is large enough to allow for the auction to price the liquidation
     let avg_cf = position_data
         .collateral_base
@@ -50,22 +50,25 @@ pub fn create_user_liq_auction_data(
         .liability_base
         .fixed_div_floor(position_data.liability_raw, position_data.scalar)
         .unwrap_optimized();
-    let est_incentive = (SCALAR_7 - avg_cf.fixed_div_ceil(avg_lf, SCALAR_7).unwrap_optimized())
-        .fixed_div_ceil(2 * SCALAR_7, SCALAR_7)
-        .unwrap_optimized()
-        + SCALAR_7;
+    let est_incentive = (position_data.scalar
+        - avg_cf
+            .fixed_div_ceil(avg_lf, position_data.scalar)
+            .unwrap_optimized())
+    .fixed_div_ceil(2 * position_data.scalar, position_data.scalar)
+    .unwrap_optimized()
+        + position_data.scalar;
 
     let est_withdrawn_collateral = position_data
         .liability_raw
-        .fixed_mul_floor(percent_liquidated_i128, SCALAR_7)
+        .fixed_mul_floor(percent_liquidated_i128_scaled, position_data.scalar)
         .unwrap_optimized()
-        .fixed_mul_floor(est_incentive, SCALAR_7)
+        .fixed_mul_floor(est_incentive, position_data.scalar)
         .unwrap_optimized();
     let mut est_withdrawn_collateral_pct = est_withdrawn_collateral
-        .fixed_div_ceil(position_data.collateral_raw, SCALAR_7)
+        .fixed_div_ceil(position_data.collateral_raw, position_data.scalar)
         .unwrap_optimized();
-    if est_withdrawn_collateral_pct > SCALAR_7 {
-        est_withdrawn_collateral_pct = SCALAR_7;
+    if est_withdrawn_collateral_pct > position_data.scalar {
+        est_withdrawn_collateral_pct = position_data.scalar;
     }
 
     for (asset, amount) in user_state.positions.collateral.iter() {
@@ -73,7 +76,7 @@ pub fn create_user_liq_auction_data(
         // Note: we multiply balance by estimated withdrawn collateral percent to allow
         //       smoother scaling of liquidation modifiers
         let b_tokens_removed = amount
-            .fixed_mul_ceil(est_withdrawn_collateral_pct, SCALAR_7)
+            .fixed_mul_ceil(est_withdrawn_collateral_pct, position_data.scalar)
             .unwrap_optimized();
         liquidation_quote
             .lot
@@ -83,7 +86,7 @@ pub fn create_user_liq_auction_data(
     for (asset, amount) in user_state.positions.liabilities.iter() {
         let res_asset_address = reserve_list.get_unchecked(asset);
         let d_tokens_removed = amount
-            .fixed_mul_ceil(percent_liquidated_i128, SCALAR_7)
+            .fixed_mul_ceil(percent_liquidated_i128_scaled, position_data.scalar)
             .unwrap_optimized();
         liquidation_quote
             .bid
@@ -390,7 +393,7 @@ mod tests {
             assert_eq!(result.block, 51);
             assert_eq!(result.bid.get_unchecked(underlying_1), 731_0913452);
             assert_eq!(result.bid.len(), 1);
-            assert_eq!(result.lot.get_unchecked(underlying_0), 5791_1013490);
+            assert_eq!(result.lot.get_unchecked(underlying_0), 5791_1010751);
             assert_eq!(result.lot.len(), 1);
         });
     }

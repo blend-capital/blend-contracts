@@ -169,3 +169,62 @@ fn test_pool_factory_invalid_pool_init_args() {
         &max_positions,
     );
 }
+
+#[test]
+fn test_pool_factory_frontrun_protection() {
+    let e = Env::default();
+    e.budget().reset_unlimited();
+    e.mock_all_auths();
+
+    let (_, pool_factory_client) = create_pool_factory(&e);
+
+    let wasm_hash = e.deployer().upload_contract_wasm(pool::WASM);
+
+    let bombadil = Address::generate(&e);
+    let sauron = Address::generate(&e);
+
+    let oracle = Address::generate(&e);
+    let backstop_id = Address::generate(&e);
+    let backstop_rate: u32 = 0_1000000;
+    let max_positions: u32 = 6;
+    let blnd_id = Address::generate(&e);
+    let usdc_id = Address::generate(&e);
+
+    let pool_init_meta = PoolInitMeta {
+        backstop: backstop_id.clone(),
+        pool_hash: wasm_hash.clone(),
+        blnd_id: blnd_id.clone(),
+        usdc_id: usdc_id.clone(),
+    };
+    pool_factory_client.initialize(&pool_init_meta);
+
+    let name1 = Symbol::new(&e, "pool1");
+    let name2 = Symbol::new(&e, "pool_front_run");
+    let salt = BytesN::<32>::random(&e);
+
+    // verify two different users don't get the same pool address with the same
+    // salt parameter
+    e.budget().reset_unlimited();
+    let deployed_pool_address_sauron = pool_factory_client.deploy(
+        &sauron,
+        &name2,
+        &salt,
+        &oracle,
+        &backstop_rate,
+        &max_positions,
+    );
+    e.budget().print();
+
+    let deployed_pool_address_bombadil = pool_factory_client.deploy(
+        &bombadil,
+        &name1,
+        &salt,
+        &oracle,
+        &backstop_rate,
+        &max_positions,
+    );
+
+    assert!(deployed_pool_address_sauron != deployed_pool_address_bombadil);
+    assert!(pool_factory_client.is_pool(&deployed_pool_address_sauron));
+    assert!(pool_factory_client.is_pool(&deployed_pool_address_bombadil));
+}

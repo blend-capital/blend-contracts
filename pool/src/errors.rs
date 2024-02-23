@@ -39,4 +39,10 @@ pub enum PoolError {
     InvalidLiqTooLarge = 1213,
     InvalidLiqTooSmall = 1214,
     InterestTooSmall = 1215,
+
+    // Share Token Errors
+    InvalidBTokenMintAmount = 1216,
+    InvalidBTokenBurnAmount = 1217,
+    InvalidDTokenMintAmount = 1218,
+    InvalidDTokenBurnAmount = 1219,
 }

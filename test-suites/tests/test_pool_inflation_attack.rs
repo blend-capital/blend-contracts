@@ -1,14 +1,14 @@
 #![cfg(test)]
 
 use pool::{Request, RequestType};
-use soroban_sdk::{testutils::Address as _, vec, Address, Error, Symbol};
+use soroban_sdk::{testutils::Address as _, vec, Address, Symbol};
 use test_suites::{
     pool::default_reserve_metadata,
     test_fixture::{TestFixture, TokenIndex, SCALAR_7},
 };
 
 #[test]
-fn test_pool_inflation_attack_0_mint() {
+fn test_pool_inflation_attack() {
     let mut fixture = TestFixture::create(false);
 
     let whale = Address::generate(&fixture.env);
@@ -59,11 +59,11 @@ fn test_pool_inflation_attack_0_mint() {
 
     // 2. Attacker frontruns victim's deposit by depositing a large amount of underlying
     //    to force the victim's minted shares to be zero.
-    // !! Contract blocks a submission that results in zero b_token mint to stop exploit
+    let inflation_amount = 100 * SCALAR_7;
     fixture.tokens[TokenIndex::XLM].transfer(
         &sauron,
         &fixture.pools[0].pool.address,
-        &(100 * SCALAR_7),
+        &inflation_amount,
     );
 
     let attack_amount = 42 * SCALAR_7;
@@ -75,8 +75,49 @@ fn test_pool_inflation_attack_0_mint() {
             amount: attack_amount,
         },
     ];
-    let result = fixture.pools[0]
+    fixture.pools[0]
         .pool
-        .try_submit(&pippen, &pippen, &pippen, &requests);
-    assert_eq!(result.err(), Some(Ok(Error::from_contract_error(1216))));
+        .submit(&pippen, &pippen, &pippen, &requests);
+
+    // skip a ledger to force pool to refresh reserve data
+    fixture.jump_with_sequence(5);
+
+    // 3. Attacker withdraws all funds and victim withdraws all funds
+    let requests = vec![
+        &fixture.env,
+        Request {
+            request_type: RequestType::Withdraw as u32,
+            address: fixture.tokens[TokenIndex::XLM].address.clone(),
+            amount: attack_amount + inflation_amount,
+        },
+    ];
+    fixture.pools[0]
+        .pool
+        .submit(&sauron, &sauron, &sauron, &requests);
+
+    let requests = vec![
+        &fixture.env,
+        Request {
+            request_type: RequestType::Withdraw as u32,
+            address: fixture.tokens[TokenIndex::XLM].address.clone(),
+            amount: attack_amount + inflation_amount,
+        },
+    ];
+    fixture.pools[0]
+        .pool
+        .submit(&pippen, &pippen, &pippen, &requests);
+
+    // Verify the attack was unnsuccessul and victim did not lose their funds
+    assert_eq!(
+        fixture.tokens[TokenIndex::XLM].balance(&pippen),
+        starting_balance
+    );
+    assert_eq!(
+        fixture.tokens[TokenIndex::XLM].balance(&sauron),
+        starting_balance - inflation_amount
+    );
+    assert_eq!(
+        fixture.tokens[TokenIndex::XLM].balance(&fixture.pools[0].pool.address),
+        inflation_amount
+    );
 }

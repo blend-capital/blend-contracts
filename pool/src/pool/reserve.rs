@@ -1,5 +1,4 @@
 use cast::i128;
-use sep_41_token::TokenClient;
 use soroban_fixed_point_math::FixedPoint;
 use soroban_sdk::{contracttype, panic_with_error, unwrap::UnwrapOptimized, Address, Env};
 
@@ -80,26 +79,25 @@ impl Reserve {
         );
         reserve.ir_mod = new_ir_mod;
 
+        let pre_update_supply = reserve.total_supply();
+        let pre_update_liabilities = reserve.total_liabilities();
+
         reserve.d_rate = loan_accrual
             .fixed_mul_ceil(reserve.d_rate, SCALAR_9)
             .unwrap_optimized();
 
-        // TODO: Is it safe to calculate b_rate from accrual? If any unexpected token loss occurs
-        //       the transfer rate will become unrecoverable.
-        let pre_update_supply = reserve.total_supply();
-        let token_bal = TokenClient::new(e, asset).balance(&e.current_contract_address());
-
         // credit the backstop underlying from the accrued interest based on the backstop rate
-        let accrued_supply =
-            reserve.total_liabilities() + token_bal - reserve.backstop_credit - pre_update_supply;
-        if pool_config.bstop_rate > 0 && accrued_supply > 0 {
-            let new_backstop_credit = accrued_supply
+        // update the accrued interest to reflect the amount the pool accrued
+        let accrued_interest = reserve.total_liabilities() - pre_update_liabilities;
+        let mut new_backstop_credit: i128 = 0;
+        if pool_config.bstop_rate > 0 && accrued_interest > 0 {
+            new_backstop_credit = accrued_interest
                 .fixed_mul_floor(i128(pool_config.bstop_rate), SCALAR_7)
                 .unwrap_optimized();
             reserve.backstop_credit += new_backstop_credit;
         }
 
-        reserve.b_rate = (reserve.total_liabilities() + token_bal - reserve.backstop_credit)
+        reserve.b_rate = (pre_update_supply + accrued_interest - new_backstop_credit)
             .fixed_div_floor(reserve.b_supply, SCALAR_9)
             .unwrap_optimized();
         reserve.last_time = e.ledger().timestamp();
@@ -277,7 +275,7 @@ mod tests {
 
             // (accrual: 1_002_957_369, util: .7864352)
             assert_eq!(reserve.d_rate, 1_349_657_792);
-            assert_eq!(reserve.b_rate, 1_125_547_121);
+            assert_eq!(reserve.b_rate, 1_125_547_120);
             assert_eq!(reserve.ir_mod, 1_044_981_440);
             assert_eq!(reserve.d_supply, 65_0000000);
             assert_eq!(reserve.b_supply, 99_0000000);
@@ -375,7 +373,7 @@ mod tests {
 
             // (accrual: 1_002_957_369, util: .7864352)
             assert_eq!(reserve.d_rate, 1_349_657_792);
-            assert_eq!(reserve.b_rate, 1_126_069_704);
+            assert_eq!(reserve.b_rate, 1_126_069_703);
             assert_eq!(reserve.ir_mod, 1_044_981_440);
             assert_eq!(reserve.d_supply, 65_0000000);
             assert_eq!(reserve.b_supply, 99_0000000);
@@ -427,7 +425,7 @@ mod tests {
 
             // (accrual: 1_002_957_369, util: .7864352)
             assert_eq!(reserve_data.d_rate, 1_349_657_792);
-            assert_eq!(reserve_data.b_rate, 1_125_547_121);
+            assert_eq!(reserve_data.b_rate, 1_125_547_120);
             assert_eq!(reserve_data.ir_mod, 1_044_981_440);
             assert_eq!(reserve_data.d_supply, 65_0000000);
             assert_eq!(reserve_data.b_supply, 99_0000000);

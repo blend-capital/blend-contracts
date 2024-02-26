@@ -1,6 +1,6 @@
-use soroban_sdk::{contracttype, Address, Env, Map};
+use soroban_sdk::{contracttype, panic_with_error, Address, Env, Map};
 
-use crate::{emissions, storage, validator::require_nonnegative};
+use crate::{emissions, storage, validator::require_nonnegative, PoolError};
 
 use super::{Pool, Reserve};
 
@@ -61,6 +61,9 @@ impl User {
     /// Add liabilities to the position expressed in debtTokens. Accrues emissions
     /// against the balance if necessary and updates the reserve's d_supply.
     pub fn add_liabilities(&mut self, e: &Env, reserve: &mut Reserve, amount: i128) {
+        if amount == 0 {
+            panic_with_error!(e, PoolError::InvalidDTokenMintAmount)
+        }
         let balance = self.get_liabilities(reserve.index);
         self.update_d_emissions(e, reserve, balance);
         self.positions
@@ -72,6 +75,9 @@ impl User {
     /// Remove liabilities from the position expressed in debtTokens. Accrues emissions
     /// against the balance if necessary and updates the reserve's d_supply.
     pub fn remove_liabilities(&mut self, e: &Env, reserve: &mut Reserve, amount: i128) {
+        if amount == 0 {
+            panic_with_error!(e, PoolError::InvalidDTokenBurnAmount)
+        }
         let balance = self.get_liabilities(reserve.index);
         self.update_d_emissions(e, reserve, balance);
         let new_balance = balance - amount;
@@ -92,6 +98,9 @@ impl User {
     /// Add collateral to the position expressed in blendTokens. Accrues emissions
     /// against the balance if necessary and updates the reserve's b_supply.
     pub fn add_collateral(&mut self, e: &Env, reserve: &mut Reserve, amount: i128) {
+        if amount == 0 {
+            panic_with_error!(e, PoolError::InvalidBTokenMintAmount)
+        }
         let balance = self.get_collateral(reserve.index);
         self.update_b_emissions(e, reserve, self.get_total_supply(reserve.index));
         self.positions
@@ -103,6 +112,9 @@ impl User {
     /// Remove collateral from the position expressed in blendTokens. Accrues emissions
     /// against the balance if necessary and updates the reserve's d_supply.
     pub fn remove_collateral(&mut self, e: &Env, reserve: &mut Reserve, amount: i128) {
+        if amount == 0 {
+            panic_with_error!(e, PoolError::InvalidBTokenBurnAmount)
+        }
         let balance = self.get_collateral(reserve.index);
         self.update_b_emissions(e, reserve, self.get_total_supply(reserve.index));
         let new_balance = balance - amount;
@@ -123,6 +135,9 @@ impl User {
     /// Add supply to the position expressed in blendTokens. Accrues emissions
     /// against the balance if necessary and updates the reserve's b_supply.
     pub fn add_supply(&mut self, e: &Env, reserve: &mut Reserve, amount: i128) {
+        if amount == 0 {
+            panic_with_error!(e, PoolError::InvalidBTokenMintAmount)
+        }
         let balance = self.get_supply(reserve.index);
         self.update_b_emissions(e, reserve, self.get_total_supply(reserve.index));
         self.positions.supply.set(reserve.index, balance + amount);
@@ -132,6 +147,9 @@ impl User {
     /// Remove supply from the position expressed in blendTokens. Accrues emissions
     /// against the balance if necessary and updates the reserve's b_supply.
     pub fn remove_supply(&mut self, e: &Env, reserve: &mut Reserve, amount: i128) {
+        if amount == 0 {
+            panic_with_error!(e, PoolError::InvalidBTokenBurnAmount)
+        }
         let balance = self.get_supply(reserve.index);
         self.update_b_emissions(e, reserve, self.get_total_supply(reserve.index));
         let new_balance = balance - amount;
@@ -291,6 +309,26 @@ mod tests {
     }
 
     #[test]
+    #[should_panic(expected = "Error(Contract, #1218)")]
+    fn test_add_liabilities_zero_mint() {
+        let e = Env::default();
+        let samwise = Address::generate(&e);
+        let pool = testutils::create_pool(&e);
+
+        let mut reserve_0 = testutils::default_reserve(&e);
+
+        let mut user = User {
+            address: samwise.clone(),
+            positions: Positions::env_default(&e),
+        };
+        e.as_contract(&pool, || {
+            assert_eq!(user.get_liabilities(0), 0);
+
+            user.add_liabilities(&e, &mut reserve_0, 0);
+        });
+    }
+
+    #[test]
     fn test_add_liabilities_accrues_emissions() {
         let e = Env::default();
         let samwise = Address::generate(&e);
@@ -356,6 +394,29 @@ mod tests {
                     .fixed_mul_floor(1000, SCALAR_7)
                     .unwrap();
             assert_eq!(user_emis_data.accrued, new_accrual);
+        });
+    }
+
+    #[test]
+    #[should_panic(expected = "Error(Contract, #1219)")]
+    fn test_remove_liabilities_zero_burn() {
+        let e = Env::default();
+        let samwise = Address::generate(&e);
+        let pool = testutils::create_pool(&e);
+
+        let mut reserve_0 = testutils::default_reserve(&e);
+
+        let mut user = User {
+            address: samwise.clone(),
+            positions: Positions::env_default(&e),
+        };
+        e.as_contract(&pool, || {
+            assert_eq!(user.get_liabilities(0), 0);
+
+            user.add_liabilities(&e, &mut reserve_0, 123);
+            assert_eq!(user.get_liabilities(0), 123);
+
+            user.remove_liabilities(&e, &mut reserve_0, 0);
         });
     }
 
@@ -487,6 +548,26 @@ mod tests {
     }
 
     #[test]
+    #[should_panic(expected = "Error(Contract, #1216)")]
+    fn test_add_collateral_zero_mint() {
+        let e = Env::default();
+        let samwise = Address::generate(&e);
+        let pool = testutils::create_pool(&e);
+
+        let mut reserve_0 = testutils::default_reserve(&e);
+
+        let mut user = User {
+            address: samwise.clone(),
+            positions: Positions::env_default(&e),
+        };
+        e.as_contract(&pool, || {
+            assert_eq!(user.get_collateral(0), 0);
+
+            user.add_collateral(&e, &mut reserve_0, 0);
+        });
+    }
+
+    #[test]
     fn test_add_collateral_accrues_emissions() {
         let e = Env::default();
         let samwise = Address::generate(&e);
@@ -551,6 +632,29 @@ mod tests {
                     .fixed_mul_floor(1000, SCALAR_7)
                     .unwrap();
             assert_eq!(user_emis_data.accrued, new_accrual);
+        });
+    }
+
+    #[test]
+    #[should_panic(expected = "Error(Contract, #1217)")]
+    fn test_remove_collateral_zero_burn() {
+        let e = Env::default();
+        let samwise = Address::generate(&e);
+        let pool = testutils::create_pool(&e);
+
+        let mut reserve_0 = testutils::default_reserve(&e);
+
+        let mut user = User {
+            address: samwise.clone(),
+            positions: Positions::env_default(&e),
+        };
+        e.as_contract(&pool, || {
+            assert_eq!(user.get_collateral(0), 0);
+
+            user.add_collateral(&e, &mut reserve_0, 123);
+            assert_eq!(user.get_collateral(0), 123);
+
+            user.remove_collateral(&e, &mut reserve_0, 0);
         });
     }
 
@@ -684,6 +788,26 @@ mod tests {
     }
 
     #[test]
+    #[should_panic(expected = "Error(Contract, #1216)")]
+    fn test_add_supply_zero_mint() {
+        let e = Env::default();
+        let samwise = Address::generate(&e);
+        let pool = testutils::create_pool(&e);
+
+        let mut reserve_0 = testutils::default_reserve(&e);
+
+        let mut user = User {
+            address: samwise.clone(),
+            positions: Positions::env_default(&e),
+        };
+        e.as_contract(&pool, || {
+            assert_eq!(user.get_supply(0), 0);
+
+            user.add_supply(&e, &mut reserve_0, 0);
+        });
+    }
+
+    #[test]
     fn test_add_supply_accrues_emissions() {
         let e = Env::default();
         let samwise = Address::generate(&e);
@@ -748,6 +872,29 @@ mod tests {
                     .fixed_mul_floor(1000, SCALAR_7)
                     .unwrap();
             assert_eq!(user_emis_data.accrued, new_accrual);
+        });
+    }
+
+    #[test]
+    #[should_panic(expected = "Error(Contract, #1217)")]
+    fn test_remove_supply_zero_burn() {
+        let e = Env::default();
+        let samwise = Address::generate(&e);
+        let pool = testutils::create_pool(&e);
+
+        let mut reserve_0 = testutils::default_reserve(&e);
+
+        let mut user = User {
+            address: samwise.clone(),
+            positions: Positions::env_default(&e),
+        };
+        e.as_contract(&pool, || {
+            assert_eq!(user.get_supply(0), 0);
+
+            user.add_supply(&e, &mut reserve_0, 123);
+            assert_eq!(user.get_supply(0), 123);
+
+            user.remove_supply(&e, &mut reserve_0, 0);
         });
     }
 

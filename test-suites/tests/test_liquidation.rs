@@ -18,38 +18,38 @@ fn test_liquidations() {
     let frodo = fixture.users.get(0).unwrap();
     let pool_fixture = &fixture.pools[0];
 
-    //accrue interest
+    // accrue interest
     let requests: Vec<Request> = vec![
         &fixture.env,
         Request {
             request_type: RequestType::Borrow as u32,
             address: fixture.tokens[TokenIndex::STABLE].address.clone(),
-            amount: 1,
+            amount: 10,
         },
         Request {
             request_type: RequestType::Repay as u32,
             address: fixture.tokens[TokenIndex::STABLE].address.clone(),
-            amount: 1,
+            amount: 10,
         },
         Request {
             request_type: RequestType::Borrow as u32,
             address: fixture.tokens[TokenIndex::XLM].address.clone(),
-            amount: 1,
+            amount: 10,
         },
         Request {
             request_type: RequestType::Repay as u32,
             address: fixture.tokens[TokenIndex::XLM].address.clone(),
-            amount: 1,
+            amount: 10,
         },
         Request {
             request_type: RequestType::Borrow as u32,
             address: fixture.tokens[TokenIndex::WETH].address.clone(),
-            amount: 1,
+            amount: 10,
         },
         Request {
             request_type: RequestType::Repay as u32,
             address: fixture.tokens[TokenIndex::WETH].address.clone(),
-            amount: 1,
+            amount: 10,
         },
     ];
     pool_fixture.pool.submit(&frodo, &frodo, &frodo, &requests);

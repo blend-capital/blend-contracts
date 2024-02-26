@@ -1,7 +1,9 @@
 use crate::{
     constants::{SCALAR_7, SCALAR_9, SECONDS_PER_WEEK},
     errors::PoolError,
-    storage::{self, PoolConfig, QueuedReserveInit, ReserveConfig, ReserveData},
+    storage::{
+        self, has_queued_reserve_set, PoolConfig, QueuedReserveInit, ReserveConfig, ReserveData,
+    },
 };
 use soroban_sdk::{panic_with_error, Address, Env, Symbol};
 
@@ -63,6 +65,9 @@ pub fn execute_update_pool(e: &Env, backstop_take_rate: u32, max_positions: u32)
 
 /// Execute a queueing a reserve initialization for the pool
 pub fn execute_queue_set_reserve(e: &Env, asset: &Address, metadata: &ReserveConfig) {
+    if has_queued_reserve_set(e, asset) {
+        panic_with_error!(&e, PoolError::BadRequest)
+    }
     require_valid_reserve_metadata(e, metadata);
     let mut unlock_time = e.ledger().timestamp();
     // require a timelock if pool status is not setup
@@ -433,8 +438,47 @@ mod tests {
             );
         });
     }
+
     #[test]
-    #[should_panic(expected = "Error(Storage, MissingValue)")]
+    #[should_panic(expected = "Error(Contract, #1200)")]
+    fn test_queue_reserve_duplicate() {
+        let e = Env::default();
+        let pool = testutils::create_pool(&e);
+        let bombadil = Address::generate(&e);
+
+        let (asset_id_0, _) = testutils::create_token_contract(&e, &bombadil);
+
+        let metadata = ReserveConfig {
+            index: 0,
+            decimals: 7,
+            c_factor: 0_7500000,
+            l_factor: 0_7500000,
+            util: 0_5000000,
+            max_util: 0_9500000,
+            r_one: 0_0500000,
+            r_two: 0_5000000,
+            r_three: 1_5000000,
+            reactivity: 100,
+        };
+        let pool_config = PoolConfig {
+            oracle: Address::generate(&e),
+            bstop_rate: 0_1000000,
+            status: 6,
+            max_positions: 2,
+        };
+        e.as_contract(&pool, || {
+            storage::set_pool_config(&e, &pool_config);
+            execute_queue_set_reserve(&e, &asset_id_0, &metadata);
+            let queued_res = storage::get_queued_reserve_set(&e, &asset_id_0);
+            let res_config_0 = queued_res.new_config;
+            assert_eq!(res_config_0.index, 0);
+
+            // try and queue the same reserve
+            execute_queue_set_reserve(&e, &asset_id_0, &metadata);
+        });
+    }
+
+    #[test]
     fn test_execute_cancel_queued_reserve_initialization() {
         let e = Env::default();
         let pool = testutils::create_pool(&e);
@@ -464,9 +508,12 @@ mod tests {
                 &asset_id_0,
             );
             execute_cancel_queued_set_reserve(&e, &asset_id_0);
-            storage::get_queued_reserve_set(&e, &asset_id_0);
+            let result = storage::has_queued_reserve_set(&e, &asset_id_0);
+
+            assert!(!result);
         });
     }
+
     #[test]
     fn test_execute_initialize_queued_reserve() {
         let e = Env::default();

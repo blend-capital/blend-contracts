@@ -869,7 +869,7 @@ fn test_liquidations() {
 
     let events = fixture.env.events().all();
     let event = vec![&fixture.env, events.get_unchecked(events.len() - 1)];
-    let bad_debt: i128 = 92903018;
+    let bad_debt: i128 = 92903008;
     assert_eq!(
         event,
         vec![
@@ -914,7 +914,7 @@ fn test_liquidations() {
         assert_eq!(positions.liabilities.get(0).unwrap(), bad_debt);
     });
     // check d_supply
-    let d_supply = 19104604034;
+    let d_supply = 19104605847;
     fixture.env.as_contract(&pool_fixture.pool.address, || {
         let key = PoolDataKey::ResData(fixture.tokens[TokenIndex::STABLE].address.clone());
         let data = fixture

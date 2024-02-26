@@ -121,7 +121,7 @@ impl Reserve {
     /// Fetch the current utilization rate for the reserve normalized to 7 decimals
     pub fn utilization(&self) -> i128 {
         self.total_liabilities()
-            .fixed_div_floor(self.total_supply(), SCALAR_7)
+            .fixed_div_ceil(self.total_supply(), SCALAR_7)
             .unwrap_optimized()
     }
 
@@ -273,13 +273,13 @@ mod tests {
             storage::set_pool_config(&e, &pool_config);
             let reserve = Reserve::load(&e, &pool_config, &underlying);
 
-            // (accrual: 1_002_957_369, util: .7864352)
-            assert_eq!(reserve.d_rate, 1_349_657_792);
-            assert_eq!(reserve.b_rate, 1_125_547_120);
-            assert_eq!(reserve.ir_mod, 1_044_981_440);
+            // (accrual: 1_002_957_369, util: .7864353)
+            assert_eq!(reserve.d_rate, 1_349_657_800);
+            assert_eq!(reserve.b_rate, 1_125_547_124);
+            assert_eq!(reserve.ir_mod, 1_044_981_563);
             assert_eq!(reserve.d_supply, 65_0000000);
             assert_eq!(reserve.b_supply, 99_0000000);
-            assert_eq!(reserve.backstop_credit, 0_0517357);
+            assert_eq!(reserve.backstop_credit, 0_0517358);
             assert_eq!(reserve.last_time, 617280);
         });
     }
@@ -371,10 +371,10 @@ mod tests {
             storage::set_pool_config(&e, &pool_config);
             let reserve = Reserve::load(&e, &pool_config, &underlying);
 
-            // (accrual: 1_002_957_369, util: .7864352)
-            assert_eq!(reserve.d_rate, 1_349_657_792);
-            assert_eq!(reserve.b_rate, 1_126_069_703);
-            assert_eq!(reserve.ir_mod, 1_044_981_440);
+            // (accrual: 1_002_957_369, util: .7864353)
+            assert_eq!(reserve.d_rate, 1_349_657_800);
+            assert_eq!(reserve.b_rate, 1_126_069_708);
+            assert_eq!(reserve.ir_mod, 1_044_981_563);
             assert_eq!(reserve.d_supply, 65_0000000);
             assert_eq!(reserve.b_supply, 99_0000000);
             assert_eq!(reserve.backstop_credit, 0);
@@ -423,13 +423,13 @@ mod tests {
 
             let reserve_data = storage::get_res_data(&e, &underlying);
 
-            // (accrual: 1_002_957_369, util: .7864352)
-            assert_eq!(reserve_data.d_rate, 1_349_657_792);
-            assert_eq!(reserve_data.b_rate, 1_125_547_120);
-            assert_eq!(reserve_data.ir_mod, 1_044_981_440);
+            // (accrual: 1_002_957_369, util: .7864353)
+            assert_eq!(reserve_data.d_rate, 1_349_657_800);
+            assert_eq!(reserve_data.b_rate, 1_125_547_124);
+            assert_eq!(reserve_data.ir_mod, 1_044_981_563);
             assert_eq!(reserve_data.d_supply, 65_0000000);
             assert_eq!(reserve_data.b_supply, 99_0000000);
-            assert_eq!(reserve_data.backstop_credit, 0_0517357);
+            assert_eq!(reserve_data.backstop_credit, 0_0517358);
             assert_eq!(reserve_data.last_time, 617280);
         });
     }
@@ -446,7 +446,7 @@ mod tests {
 
         let result = reserve.utilization();
 
-        assert_eq!(result, 0_7864352);
+        assert_eq!(result, 0_7864353);
     }
 
     #[test]

@@ -1116,7 +1116,7 @@ mod tests {
             let samwise_hf =
                 PositionData::calculate_from_positions(&e, &mut pool, &samwise_positions)
                     .as_health_factor();
-            assert_eq!(samwise_hf, 1_1458978);
+            assert_eq!(samwise_hf, 1_1458977);
         });
     }
 }

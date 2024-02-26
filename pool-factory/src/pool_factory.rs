@@ -79,6 +79,11 @@ impl PoolFactory for PoolFactoryContract {
             panic_with_error!(&e, PoolFactoryError::InvalidPoolInitArgs);
         }
 
+        // verify max positions is at least 2
+        if max_positions < 2 {
+            panic_with_error!(&e, PoolFactoryError::InvalidPoolInitArgs);
+        }
+
         let mut as_u8s: [u8; 56] = [0; 56];
         admin.to_string().copy_into_slice(&mut as_u8s);
         let mut salt_as_bytes: Bytes = salt.into_val(&e);

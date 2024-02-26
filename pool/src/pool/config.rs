@@ -33,6 +33,11 @@ pub fn execute_initialize(
         panic_with_error!(e, PoolError::InvalidPoolInitArgs);
     }
 
+    // verify max positions is at least 2
+    if *max_positions < 2 {
+        panic_with_error!(&e, PoolError::InvalidPoolInitArgs);
+    }
+
     storage::set_admin(e, admin);
     storage::set_name(e, name);
     storage::set_backstop(e, backstop_address);
@@ -289,10 +294,28 @@ mod tests {
                 &blnd_id,
                 &usdc_id,
             );
+        });
+    }
 
+    #[test]
+    #[should_panic(expected = "Error(Contract, #1201)")]
+    fn test_execute_initialize_bad_max_positions() {
+        let e = Env::default();
+        let pool = testutils::create_pool(&e);
+
+        let admin = Address::generate(&e);
+        let name = Symbol::new(&e, "pool_name");
+        let oracle = Address::generate(&e);
+        let bstop_rate = 0_1000000;
+        let max_positions = 1;
+        let backstop_address = Address::generate(&e);
+        let blnd_id = Address::generate(&e);
+        let usdc_id = Address::generate(&e);
+
+        e.as_contract(&pool, || {
             execute_initialize(
                 &e,
-                &Address::generate(&e),
+                &admin,
                 &name,
                 &oracle,
                 &bstop_rate,

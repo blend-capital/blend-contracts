@@ -148,6 +148,9 @@ pub fn fill(
     filler_state: &mut User,
     percent_filled: u64,
 ) {
+    if user.clone() == filler_state.address {
+        panic_with_error!(e, PoolError::InvalidLiquidation);
+    }
     let auction_data = storage::get_auction(e, &auction_type, user);
     let (to_fill_auction, remaining_auction) = scale_auction(e, &auction_data, percent_filled);
     match AuctionType::from_u32(e, auction_type) {
@@ -270,7 +273,6 @@ fn scale_auction(
 
 #[cfg(test)]
 mod tests {
-
     use crate::{
         pool::Positions,
         storage::PoolConfig,
@@ -1456,6 +1458,112 @@ mod tests {
             100_0000000
         );
         assert!(remaining_auction.is_none());
+    }
+
+    #[test]
+    #[should_panic(expected = "Error(Contract, #1211)")]
+    fn test_fill_liquidation_same_address() {
+        let e = Env::default();
+
+        e.mock_all_auths();
+        e.ledger().set(LedgerInfo {
+            timestamp: 12345,
+            protocol_version: 20,
+            sequence_number: 175,
+            network_id: Default::default(),
+            base_reserve: 10,
+            min_temp_entry_ttl: 172800,
+            min_persistent_entry_ttl: 172800,
+            max_entry_ttl: 9999999,
+        });
+
+        let bombadil = Address::generate(&e);
+        let samwise = Address::generate(&e);
+
+        let pool_address = create_pool(&e);
+
+        let (oracle_address, _) = testutils::create_mock_oracle(&e);
+
+        // creating reserves for a pool exhausts the budget
+        e.budget().reset_unlimited();
+        let (underlying_0, _) = testutils::create_token_contract(&e, &bombadil);
+        let (mut reserve_config_0, reserve_data_0) = testutils::default_reserve_meta();
+        reserve_config_0.index = 0;
+        testutils::create_reserve(
+            &e,
+            &pool_address,
+            &underlying_0,
+            &reserve_config_0,
+            &reserve_data_0,
+        );
+
+        let (underlying_1, _) = testutils::create_token_contract(&e, &bombadil);
+        let (mut reserve_config_1, reserve_data_1) = testutils::default_reserve_meta();
+        reserve_config_1.index = 1;
+        testutils::create_reserve(
+            &e,
+            &pool_address,
+            &underlying_1,
+            &reserve_config_1,
+            &reserve_data_1,
+        );
+
+        let (underlying_2, _) = testutils::create_token_contract(&e, &bombadil);
+        let (mut reserve_config_2, reserve_data_2) = testutils::default_reserve_meta();
+        reserve_config_2.index = 2;
+        testutils::create_reserve(
+            &e,
+            &pool_address,
+            &underlying_2,
+            &reserve_config_2,
+            &reserve_data_2,
+        );
+        e.budget().reset_unlimited();
+
+        let auction_data = AuctionData {
+            bid: map![&e, (underlying_2.clone(), 1_2375000)],
+            lot: map![
+                &e,
+                (underlying_0.clone(), 30_5595329),
+                (underlying_1.clone(), 1_5395739)
+            ],
+            block: 176,
+        };
+        let pool_config = PoolConfig {
+            oracle: oracle_address,
+            bstop_rate: 0_1000000,
+            status: 0,
+            max_positions: 4,
+        };
+        let positions: Positions = Positions {
+            collateral: map![
+                &e,
+                (reserve_config_0.index, 90_9100000),
+                (reserve_config_1.index, 04_5800000),
+            ],
+            liabilities: map![&e, (reserve_config_2.index, 02_7500000),],
+            supply: map![&e],
+        };
+        e.as_contract(&pool_address, || {
+            storage::set_user_positions(&e, &samwise, &positions);
+            storage::set_pool_config(&e, &pool_config);
+            storage::set_auction(&e, &0, &samwise, &auction_data);
+
+            e.ledger().set(LedgerInfo {
+                timestamp: 12345 + 200 * 5,
+                protocol_version: 20,
+                sequence_number: 176 + 200,
+                network_id: Default::default(),
+                base_reserve: 10,
+                min_temp_entry_ttl: 172800,
+                min_persistent_entry_ttl: 172800,
+                max_entry_ttl: 9999999,
+            });
+            e.budget().reset_unlimited();
+            let mut pool = Pool::load(&e);
+            let mut samwise_state = User::load(&e, &samwise);
+            fill(&e, &mut pool, 0, &samwise, &mut samwise_state, 100);
+        });
     }
 
     #[test]

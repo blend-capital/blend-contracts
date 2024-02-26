@@ -26,7 +26,7 @@ codegen-units = 1
 lto = true
 
 [workspace.dependencies.soroban-sdk]
-version = "20.0.0"
+version = "20.3.2"
 
 [workspace.dependencies.soroban-fixed-point-math]
 version = "1.0.0"

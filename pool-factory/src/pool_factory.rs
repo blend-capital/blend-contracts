@@ -3,8 +3,8 @@ use crate::{
     storage::{self, PoolInitMeta},
 };
 use soroban_sdk::{
-    contract, contractclient, contractimpl, panic_with_error, vec, Address, BytesN, Env, IntoVal,
-    Symbol, Val, Vec,
+    contract, contractclient, contractimpl, panic_with_error, vec, Address, Bytes, BytesN, Env,
+    IntoVal, Symbol, Val, Vec,
 };
 
 const SCALAR_7: u32 = 1_0000000;
@@ -22,9 +22,10 @@ pub trait PoolFactory {
 
     /// Deploys and initializes a lending pool
     ///
-    /// # Arguments
+    /// ### Arguments
     /// * `admin` - The admin address for the pool
     /// * `name` - The name of the pool
+    /// * `salt` - The salt for the pool address
     /// * `oracle` - The oracle address for the pool
     /// * `backstop_take_rate` - The backstop take rate for the pool (7 decimals)
     /// * `max_positions` - The maximum user positions supported by the pool
@@ -42,7 +43,7 @@ pub trait PoolFactory {
     ///
     /// Returns true if pool was deployed by factory and false otherwise
     ///
-    /// # Arguments
+    /// ### Arguments
     /// * `pool_id` - The contract address to be checked
     fn is_pool(e: Env, pool_id: Address) -> bool;
 }
@@ -78,6 +79,12 @@ impl PoolFactory for PoolFactoryContract {
             panic_with_error!(&e, PoolFactoryError::InvalidPoolInitArgs);
         }
 
+        let mut as_u8s: [u8; 56] = [0; 56];
+        admin.to_string().copy_into_slice(&mut as_u8s);
+        let mut salt_as_bytes: Bytes = salt.into_val(&e);
+        salt_as_bytes.extend_from_array(&as_u8s);
+        let new_salt = e.crypto().keccak256(&salt_as_bytes);
+
         let mut init_args: Vec<Val> = vec![&e];
         init_args.push_back(admin.to_val());
         init_args.push_back(name.to_val());
@@ -89,7 +96,7 @@ impl PoolFactory for PoolFactoryContract {
         init_args.push_back(pool_init_meta.usdc_id.to_val());
         let pool_address = e
             .deployer()
-            .with_current_contract(salt)
+            .with_current_contract(new_salt)
             .deploy(pool_init_meta.pool_hash);
         e.invoke_contract::<Val>(&pool_address, &Symbol::new(&e, "initialize"), init_args);
 

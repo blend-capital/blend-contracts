@@ -22,4 +22,6 @@ pub enum BackstopError {
     InvalidRewardZoneEntry = 1002,
     InsufficientFunds = 1003,
     NotPool = 1004,
+    InvalidShareMintAmount = 1005,
+    InvalidTokenWithdrawAmount = 1006,
 }

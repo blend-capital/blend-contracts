@@ -178,7 +178,7 @@ pub fn set_last_distro_time(e: &Env, backstop: &Address, last_distro: u64) {
 /// Returns true if the emitter has dropped
 pub fn get_drop_status(e: &Env, backstop: &Address) -> bool {
     e.storage()
-        .instance()
+        .persistent()
         .get::<EmitterDataKey, bool>(&EmitterDataKey::Dropped(backstop.clone()))
         .unwrap_or(false)
 }
@@ -189,6 +189,6 @@ pub fn get_drop_status(e: &Env, backstop: &Address) -> bool {
 /// * `new_status` - new drop status
 pub fn set_drop_status(e: &Env, backstop: &Address) {
     e.storage()
-        .instance()
+        .persistent()
         .set::<EmitterDataKey, bool>(&EmitterDataKey::Dropped(backstop.clone()), &true);
 }

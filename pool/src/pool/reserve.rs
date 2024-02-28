@@ -70,6 +70,12 @@ impl Reserve {
         }
 
         let cur_util = reserve.utilization();
+        if cur_util == 0 {
+            // if there are no assets borrowed, we don't need to update the reserve
+            reserve.last_time = e.ledger().timestamp();
+            return reserve;
+        }
+
         let (loan_accrual, new_ir_mod) = calc_accrual(
             e,
             &reserve_config,
@@ -86,20 +92,22 @@ impl Reserve {
             .fixed_mul_ceil(reserve.d_rate, SCALAR_9)
             .unwrap_optimized();
 
-        // credit the backstop underlying from the accrued interest based on the backstop rate
-        // update the accrued interest to reflect the amount the pool accrued
         let accrued_interest = reserve.total_liabilities() - pre_update_liabilities;
-        let mut new_backstop_credit: i128 = 0;
-        if pool_config.bstop_rate > 0 && accrued_interest > 0 {
-            new_backstop_credit = accrued_interest
-                .fixed_mul_floor(i128(pool_config.bstop_rate), SCALAR_7)
+        if accrued_interest > 0 {
+            // credit the backstop underlying from the accrued interest based on the backstop rate
+            // update the accrued interest to reflect the amount the pool accrued
+            let mut new_backstop_credit: i128 = 0;
+            if pool_config.bstop_rate > 0 {
+                new_backstop_credit = accrued_interest
+                    .fixed_mul_floor(i128(pool_config.bstop_rate), SCALAR_7)
+                    .unwrap_optimized();
+                reserve.backstop_credit += new_backstop_credit;
+            }
+            reserve.b_rate = (pre_update_supply + accrued_interest - new_backstop_credit)
+                .fixed_div_floor(reserve.b_supply, SCALAR_9)
                 .unwrap_optimized();
-            reserve.backstop_credit += new_backstop_credit;
         }
 
-        reserve.b_rate = (pre_update_supply + accrued_interest - new_backstop_credit)
-            .fixed_div_floor(reserve.b_supply, SCALAR_9)
-            .unwrap_optimized();
         reserve.last_time = e.ledger().timestamp();
         reserve
     }
@@ -328,6 +336,52 @@ mod tests {
             assert_eq!(reserve.ir_mod, 1_000_000_000);
             assert_eq!(reserve.d_supply, 0);
             assert_eq!(reserve.b_supply, 0);
+            assert_eq!(reserve.backstop_credit, 0);
+            assert_eq!(reserve.last_time, 617280);
+        });
+    }
+
+    #[test]
+    fn test_load_reserve_zero_util() {
+        let e = Env::default();
+        e.mock_all_auths();
+
+        e.ledger().set(LedgerInfo {
+            timestamp: 123456 * 5,
+            protocol_version: 20,
+            sequence_number: 123456,
+            network_id: Default::default(),
+            base_reserve: 10,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2000000,
+        });
+
+        let bombadil = Address::generate(&e);
+        let pool = testutils::create_pool(&e);
+        let oracle = Address::generate(&e);
+
+        let (underlying, _) = testutils::create_token_contract(&e, &bombadil);
+        let (reserve_config, mut reserve_data) = testutils::default_reserve_meta();
+        reserve_data.d_rate = 0;
+        reserve_data.d_supply = 0;
+        testutils::create_reserve(&e, &pool, &underlying, &reserve_config, &reserve_data);
+
+        let pool_config = PoolConfig {
+            oracle,
+            bstop_rate: 0_2000000,
+            status: 0,
+            max_positions: 4,
+        };
+        e.as_contract(&pool, || {
+            storage::set_pool_config(&e, &pool_config);
+            let reserve = Reserve::load(&e, &pool_config, &underlying);
+
+            assert_eq!(reserve.d_rate, 0);
+            assert_eq!(reserve.b_rate, reserve_data.b_rate);
+            assert_eq!(reserve.ir_mod, reserve_data.ir_mod);
+            assert_eq!(reserve.d_supply, 0);
+            assert_eq!(reserve.b_supply, reserve_data.b_supply);
             assert_eq!(reserve.backstop_credit, 0);
             assert_eq!(reserve.last_time, 617280);
         });

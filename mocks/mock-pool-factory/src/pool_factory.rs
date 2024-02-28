@@ -69,6 +69,7 @@ impl MockPoolFactoryTrait for MockPoolFactory {
         max_positions: u32,
     ) -> Address {
         storage::extend_instance(&e);
+        admin.require_auth();
         let pool_init_meta = storage::get_pool_init_meta(&e);
 
         // verify backstop take rate is within [0,1) with 9 decimals

@@ -390,11 +390,17 @@ pub fn get_queued_reserve_set(e: &Env, asset: &Address) -> QueuedReserveInit {
     let key = PoolDataKey::ResInit(asset.clone());
     e.storage()
         .temporary()
-        .extend_ttl(&key, LEDGER_THRESHOLD_USER, LEDGER_BUMP_USER);
-    e.storage()
-        .temporary()
         .get::<PoolDataKey, QueuedReserveInit>(&key)
         .unwrap_optimized()
+}
+
+/// Check if a reserve is actively queued
+///
+/// ### Arguments
+/// * `asset` - The contract address of the asset
+pub fn has_queued_reserve_set(e: &Env, asset: &Address) -> bool {
+    let key = PoolDataKey::ResInit(asset.clone());
+    e.storage().temporary().has(&key)
 }
 
 /// Set a new queued reserve set

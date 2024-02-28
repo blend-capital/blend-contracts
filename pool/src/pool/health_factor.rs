@@ -59,10 +59,10 @@ impl PositionData {
                 // append users effective liability to liability_base
                 let asset_liability = reserve.to_effective_asset_from_d_token(d_token_balance);
                 liability_base += asset_to_base
-                    .fixed_mul_floor(asset_liability, reserve.scalar)
+                    .fixed_mul_ceil(asset_liability, reserve.scalar)
                     .unwrap_optimized();
                 liability_raw += asset_to_base
-                    .fixed_mul_floor(
+                    .fixed_mul_ceil(
                         reserve.to_asset_from_d_token(d_token_balance),
                         reserve.scalar,
                     )
@@ -84,7 +84,7 @@ impl PositionData {
     /// Return the health factor as a ratio
     pub fn as_health_factor(&self) -> i128 {
         self.collateral_base
-            .fixed_div_ceil(self.liability_base, self.scalar)
+            .fixed_div_floor(self.liability_base, self.scalar)
             .unwrap_optimized()
     }
 
@@ -94,10 +94,7 @@ impl PositionData {
         if self.liability_base == 0 {
             return true;
         }
-        let min_health_factor = self
-            .scalar
-            .fixed_mul_floor(max, SCALAR_7)
-            .unwrap_optimized();
+        let min_health_factor = self.scalar.fixed_mul_ceil(max, SCALAR_7).unwrap_optimized();
         if self.as_health_factor() > min_health_factor {
             return true;
         }
@@ -209,11 +206,26 @@ mod tests {
             let mut pool = Pool::load(&e);
             let position_data = PositionData::calculate_from_positions(&e, &mut pool, &positions);
             assert_eq!(position_data.collateral_base, 262_7985925);
-            assert_eq!(position_data.liability_base, 185_2368827);
+            assert_eq!(position_data.liability_base, 185_2368828);
             assert_eq!(position_data.collateral_raw, 350_3984567);
-            assert_eq!(position_data.liability_raw, 148_0895061);
+            assert_eq!(position_data.liability_raw, 148_0895062);
             assert_eq!(position_data.scalar, SCALAR_7);
         });
+    }
+
+    #[test]
+    fn test_as_health_factor_rounds_floor() {
+        let position_data = PositionData {
+            collateral_base: 9_1234567,
+            collateral_raw: 0,
+            liability_base: 9_1000000,
+            liability_raw: 0,
+            scalar: 1_0000000,
+        };
+
+        // actual: 1.002577659
+        let result = position_data.as_health_factor();
+        assert_eq!(result, 1_0025776);
     }
 
     #[test]
@@ -230,6 +242,7 @@ mod tests {
         // no panic
         assert_eq!(result, false);
     }
+
     #[test]
     fn test_is_hf_under_odd_scalar() {
         let position_data = PositionData {

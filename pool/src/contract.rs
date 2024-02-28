@@ -247,6 +247,7 @@ impl Pool for PoolContract {
         usdc_id: Address,
     ) {
         storage::extend_instance(&e);
+        admin.require_auth();
 
         pool::execute_initialize(
             &e,

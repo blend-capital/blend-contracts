@@ -1,6 +1,6 @@
-use crate::{contract::require_nonnegative, emissions, storage};
+use crate::{contract::require_nonnegative, emissions, storage, BackstopError};
 use sep_41_token::TokenClient;
-use soroban_sdk::{unwrap::UnwrapOptimized, Address, Env};
+use soroban_sdk::{panic_with_error, unwrap::UnwrapOptimized, Address, Env};
 
 use super::Q4W;
 
@@ -56,6 +56,9 @@ pub fn execute_withdraw(e: &Env, from: &Address, pool_address: &Address, amount:
     user_balance.dequeue_shares_for_withdrawal(e, amount, true);
 
     let to_return = pool_balance.convert_to_tokens(amount);
+    if to_return == 0 {
+        panic_with_error!(e, &BackstopError::InvalidTokenWithdrawAmount);
+    }
     pool_balance.withdraw(e, to_return, amount);
 
     storage::set_user_balance(e, pool_address, from, &user_balance);
@@ -75,7 +78,7 @@ mod tests {
     };
 
     use crate::{
-        backstop::{execute_deposit, execute_donate},
+        backstop::{execute_deposit, execute_donate, execute_draw},
         testutils::{
             assert_eq_vec_q4w, create_backstop, create_backstop_token, create_mock_pool_factory,
         },
@@ -363,6 +366,7 @@ mod tests {
             assert_eq!(backstop_token_client.balance(&samwise), tokens);
         });
     }
+
     #[test]
     #[should_panic(expected = "Error(Contract, #8)")]
     fn test_execute_withdrawal_negative_amount() {
@@ -411,6 +415,60 @@ mod tests {
 
         e.as_contract(&backstop_address, || {
             execute_withdraw(&e, &samwise, &pool_address, -42_0000000);
+        });
+    }
+
+    #[test]
+    #[should_panic(expected = "Error(Contract, #1006)")]
+    fn test_execute_withdrawal_zero_tokens() {
+        let e = Env::default();
+        e.mock_all_auths_allowing_non_root_auth();
+
+        let backstop_address = create_backstop(&e);
+        let pool_address = Address::generate(&e);
+        let bombadil = Address::generate(&e);
+        let samwise = Address::generate(&e);
+        let frodo = Address::generate(&e);
+
+        let (_, backstop_token_client) = create_backstop_token(&e, &backstop_address, &bombadil);
+        backstop_token_client.mint(&samwise, &150_0000000);
+        backstop_token_client.mint(&frodo, &150_0000000);
+
+        let (_, mock_pool_factory_client) = create_mock_pool_factory(&e, &backstop_address);
+        mock_pool_factory_client.set_pool(&pool_address);
+
+        e.ledger().set(LedgerInfo {
+            protocol_version: 20,
+            sequence_number: 200,
+            timestamp: 10000,
+            network_id: Default::default(),
+            base_reserve: 10,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2000000,
+        });
+
+        // setup pool with queue for withdrawal and allow the backstop to incur a profit
+        e.as_contract(&backstop_address, || {
+            execute_deposit(&e, &frodo, &pool_address, 1_0000001);
+            execute_deposit(&e, &samwise, &pool_address, 1_0000000);
+            execute_queue_withdrawal(&e, &samwise, &pool_address, 1_0000000);
+            execute_draw(&e, &pool_address, 1_9999999, &frodo);
+        });
+
+        e.ledger().set(LedgerInfo {
+            protocol_version: 20,
+            sequence_number: 200,
+            timestamp: 10000 + 21 * 24 * 60 * 60 + 1,
+            network_id: Default::default(),
+            base_reserve: 10,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2000000,
+        });
+
+        e.as_contract(&backstop_address, || {
+            execute_withdraw(&e, &samwise, &pool_address, 1_0000000);
         });
     }
 }

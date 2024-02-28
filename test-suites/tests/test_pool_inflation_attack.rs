@@ -58,7 +58,7 @@ fn test_pool_inflation_attack() {
     fixture.jump_with_sequence(5);
 
     // 2. Attacker frontruns victim's deposit by depositing a large amount of underlying
-    //    to force the victim's minted shares to be zero.
+    //    to try and force an error in minting B tokens
     let inflation_amount = 100 * SCALAR_7;
     fixture.tokens[TokenIndex::XLM].transfer(
         &sauron,

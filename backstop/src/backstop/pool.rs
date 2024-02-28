@@ -57,8 +57,6 @@ pub fn require_is_from_pool_factory(e: &Env, address: &Address, balance: i128) {
     }
 }
 
-/// TODO: Duplicated from pool/pool/status.rs. Can this be moved to a common location?
-///
 /// Calculate the threshold for the pool's backstop balance
 ///
 /// Returns true if the pool's backstop balance is above the threshold
@@ -133,8 +131,6 @@ impl PoolBalance {
     }
 
     /// Deposit tokens and shares into the pool
-    ///
-    /// If this is the first time
     ///
     /// ### Arguments
     /// * `tokens` - The amount of tokens to add

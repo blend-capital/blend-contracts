@@ -35,7 +35,7 @@ pub fn calc_accrual(
         let base_rate = util_scalar
             .fixed_mul_ceil(i128(config.r_one), SCALAR_7)
             .unwrap_optimized()
-            + 0_0100000;
+            + i128(config.r_base);
 
         cur_ir = base_rate
             .fixed_mul_ceil(ir_mod, SCALAR_9)
@@ -48,7 +48,7 @@ pub fn calc_accrual(
             .fixed_mul_ceil(i128(config.r_two), SCALAR_7)
             .unwrap_optimized()
             + i128(config.r_one)
-            + 0_0100000;
+            + i128(config.r_base);
 
         cur_ir = base_rate
             .fixed_mul_ceil(ir_mod, SCALAR_9)
@@ -62,7 +62,7 @@ pub fn calc_accrual(
             .unwrap_optimized();
 
         let intersection = ir_mod
-            .fixed_mul_ceil(i128(config.r_two + config.r_one + 0_0100000), SCALAR_9)
+            .fixed_mul_ceil(i128(config.r_two + config.r_one + config.r_base), SCALAR_9)
             .unwrap_optimized();
         cur_ir = extra_rate + intersection;
     }
@@ -130,6 +130,7 @@ mod tests {
             l_factor: 0_7500000,
             util: 0_7500000,
             max_util: 0_9500000,
+            r_base: 0_0100000,
             r_one: 0_0500000,
             r_two: 0_5000000,
             r_three: 1_5000000,
@@ -165,6 +166,7 @@ mod tests {
             l_factor: 0_7500000,
             util: 0_7500000,
             max_util: 0_9500000,
+            r_base: 0_0100000,
             r_one: 0_0500000,
             r_two: 0_5000000,
             r_three: 1_5000000,
@@ -200,6 +202,7 @@ mod tests {
             l_factor: 0_7500000,
             util: 0_7500000,
             max_util: 0_9500000,
+            r_base: 0_0100000,
             r_one: 0_0500000,
             r_two: 0_5000000,
             r_three: 1_5000000,
@@ -235,6 +238,7 @@ mod tests {
             l_factor: 0_7500000,
             util: 0_7500000,
             max_util: 0_9500000,
+            r_base: 0_0100000,
             r_one: 0_0500000,
             r_two: 0_5000000,
             r_three: 1_5000000,
@@ -269,6 +273,7 @@ mod tests {
             l_factor: 0_7500000,
             util: 0_7500000,
             max_util: 0_9500000,
+            r_base: 0_0100000,
             r_one: 0_0500000,
             r_two: 0_5000000,
             r_three: 1_5000000,
@@ -303,6 +308,7 @@ mod tests {
             l_factor: 0_7500000,
             util: 0_7500000,
             max_util: 0_9500000,
+            r_base: 0_0100000,
             r_one: 0_0500000,
             r_two: 0_5000000,
             r_three: 1_5000000,
@@ -326,5 +332,50 @@ mod tests {
 
         assert_eq!(accrual, 1_000_000_001);
         assert_eq!(ir_mod, 0_100_000_000);
+    }
+
+    #[test]
+    fn test_calc_accrual_fixed_rate() {
+        let e = Env::default();
+
+        let reserve_config = ReserveConfig {
+            decimals: 7,
+            c_factor: 0_7500000,
+            l_factor: 0_7500000,
+            util: 0_7500000,
+            max_util: 0_9500000,
+            r_base: 0_2500000,
+            r_one: 0,
+            r_two: 0,
+            r_three: 0,
+            reactivity: 0_0000020,
+            index: 0,
+        };
+        let ir_mod: i128 = 1_000_000_000;
+
+        e.ledger().set(LedgerInfo {
+            timestamp: 500,
+            protocol_version: 20,
+            sequence_number: 100,
+            network_id: Default::default(),
+            base_reserve: 10,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2000000,
+        });
+
+        let (accrual_0, ir_mod_0) = calc_accrual(&e, &reserve_config, 0, ir_mod, 0);
+        let (accrual_1, ir_mod_1) = calc_accrual(&e, &reserve_config, 0_6565656, ir_mod, 0);
+        let (accrual_2, ir_mod_2) = calc_accrual(&e, &reserve_config, 0_7565656, ir_mod, 0);
+        let (accrual_3, ir_mod_3) = calc_accrual(&e, &reserve_config, 0_9565656, ir_mod, 0);
+
+        assert_eq!(accrual_0, 1_000_003_964);
+        assert_eq!(ir_mod_0, 0_999_250_000);
+        assert_eq!(accrual_1, 1_000_003_964);
+        assert_eq!(ir_mod_1, 0_999_906_566);
+        assert_eq!(accrual_2, 1_000_003_964);
+        assert_eq!(ir_mod_2, 1_000_006_565);
+        assert_eq!(accrual_3, 1_000_003_964);
+        assert_eq!(ir_mod_3, 1_000_206_565);
     }
 }

@@ -312,7 +312,7 @@ impl Pool for PoolContract {
     }
 
     fn set_reserve(e: Env, asset: Address) -> u32 {
-        let index = pool::execute_set_queued_reserve(&e, &asset);
+        let index = pool::execute_set_reserve(&e, &asset);
 
         e.events()
             .publish((Symbol::new(&e, "set_reserve"),), (asset, index));

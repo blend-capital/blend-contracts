@@ -6,8 +6,8 @@ use test_suites::{
     test_fixture::{TestFixture, TokenIndex, SCALAR_7},
 };
 
-// This test showcases an inflation attack during a backstops initialization stage. This is a 
-// high risk inflation attack for the attacker, and requires significant capital to execute. 
+// This test showcases an inflation attack during a backstops initialization stage. This is a
+// high risk inflation attack for the attacker, and requires significant capital to execute.
 // If the donation does not happen before the victim deposits, the attacker will lose the majority
 // of the capital they donated to the backstop.
 //

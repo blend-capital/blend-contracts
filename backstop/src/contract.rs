@@ -135,7 +135,7 @@ pub trait Backstop {
 
     /********** Fund Management *********/
 
-    /// Take backstop token from a pools backstop
+    /// (Only Pool) Take backstop token from a pools backstop
     ///
     /// ### Arguments
     /// * `from` - The address of the pool drawing tokens from the backstop
@@ -144,10 +144,11 @@ pub trait Backstop {
     /// * `to` - The address to send the backstop tokens to
     ///
     /// ### Errors
-    /// If the pool does not have enough backstop tokens
+    /// If the pool does not have enough backstop tokens, or if the pool does
+    /// not authorize the call
     fn draw(e: Env, pool_address: Address, amount: i128, to: Address);
 
-    /// Sends backstop tokens from "from" to a pools backstop
+    /// (Only Pool) Sends backstop tokens from "from" to a pools backstop
     ///
     /// NOTE: This is not a deposit, and "from" will permanently lose access to the funds
     ///
@@ -157,7 +158,8 @@ pub trait Backstop {
     /// * `amount` - The amount of BLND to add
     ///
     /// ### Errors
-    /// If the `pool_address` is not valid
+    /// If the `pool_address` is not valid, or if the pool does not
+    /// authorize the call
     fn donate(e: Env, from: Address, pool_address: Address, amount: i128);
 
     /// Updates the underlying value of 1 backstop token
@@ -193,6 +195,8 @@ impl Backstop for BackstopContract {
         storage::set_blnd_token(&e, &blnd_token);
         storage::set_usdc_token(&e, &usdc_token);
         storage::set_pool_factory(&e, &pool_factory);
+        // NOTE: For a replacement backstop, this value likely needs to be stored in persistent storage to avoid
+        //       an expiration occuring before a backstop swap is finalized.
         storage::set_drop_list(&e, &drop_list);
         storage::set_emitter(&e, &emitter);
 
@@ -324,6 +328,7 @@ impl Backstop for BackstopContract {
     fn donate(e: Env, from: Address, pool_address: Address, amount: i128) {
         storage::extend_instance(&e);
         from.require_auth();
+        pool_address.require_auth();
 
         backstop::execute_donate(&e, &from, &pool_address, amount);
         e.events()

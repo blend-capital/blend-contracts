@@ -9,6 +9,8 @@ use soroban_sdk::{panic_with_error, unwrap::UnwrapOptimized, Address, Env};
 use super::require_is_from_pool_factory;
 
 /// Perform a draw from a pool's backstop
+///
+/// `pool_address` MUST be authenticated before calling
 pub fn execute_draw(e: &Env, pool_address: &Address, amount: i128, to: &Address) {
     require_nonnegative(e, amount);
 

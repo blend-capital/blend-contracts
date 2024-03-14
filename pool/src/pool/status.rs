@@ -133,8 +133,9 @@ pub fn calc_pool_backstop_threshold(pool_backstop_data: &PoolBackstopData) -> i1
     //       The calculation is:
     //        - Threshold % = (bal_blnd^4 * bal_usdc) / PC^5 such that PC is 200k
     let threshold_pc = 320_000_000_000_000_000_000_000_000i128; // 3.2e26 (200k^5)
-                                                                // floor balances to nearest full unit and calculate saturated pool product constant
-                                                                // and scale to SCALAR_7 to get final division result in SCALAR_7 points
+
+    // floor balances to nearest full unit and calculate saturated pool product constant
+    // and scale to SCALAR_7 to get final division result in SCALAR_7 points
     let bal_blnd = pool_backstop_data.blnd / SCALAR_7;
     let bal_usdc = pool_backstop_data.usdc / SCALAR_7;
     let saturating_pool_pc = bal_blnd

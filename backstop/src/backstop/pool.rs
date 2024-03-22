@@ -57,18 +57,9 @@ pub fn require_is_from_pool_factory(e: &Env, address: &Address, balance: i128) {
     }
 }
 
-/// TODO: Duplicated from pool/pool/status.rs. Can this be moved to a common location?
-///
 /// Calculate the threshold for the pool's backstop balance
 ///
 /// Returns true if the pool's backstop balance is above the threshold
-/// NOTE: The calculation is the percentage^5 to simplify the calculation of the pools product constant.
-///       Some useful calculation results:
-///         - greater than 1 = 100+%
-///         - 1_0000000 = 100%
-///         - 0_0000100 = ~10%
-///         - 0_0000003 = ~5%
-///         - 0_0000000 = ~0-4%
 pub fn require_pool_above_threshold(pool_backstop_data: &PoolBackstopData) -> bool {
     // @dev: Calculation for pools product constant of underlying will often overflow i128
     //       so saturating mul is used. This is safe because the threshold is below i128::MAX and the
@@ -76,17 +67,16 @@ pub fn require_pool_above_threshold(pool_backstop_data: &PoolBackstopData) -> bo
     //       The calculation is:
     //        - Threshold % = (bal_blnd^4 * bal_usdc) / PC^5 such that PC is 200k
     let threshold_pc = 320_000_000_000_000_000_000_000_000i128; // 3.2e26 (200k^5)
-                                                                // floor balances to nearest full unit and calculate saturated pool product constant
-                                                                // and scale to SCALAR_7 to get final division result in SCALAR_7 points
+
+    // floor balances to nearest full unit and calculate saturated pool product constant
     let bal_blnd = pool_backstop_data.blnd / SCALAR_7;
     let bal_usdc = pool_backstop_data.usdc / SCALAR_7;
     let saturating_pool_pc = bal_blnd
         .saturating_mul(bal_blnd)
         .saturating_mul(bal_blnd)
         .saturating_mul(bal_blnd)
-        .saturating_mul(bal_usdc)
-        .saturating_mul(SCALAR_7); // 10^7 * 10^7
-    saturating_pool_pc / threshold_pc >= SCALAR_7
+        .saturating_mul(bal_usdc);
+    saturating_pool_pc >= threshold_pc
 }
 
 /// The pool's backstop balances
@@ -133,8 +123,6 @@ impl PoolBalance {
     }
 
     /// Deposit tokens and shares into the pool
-    ///
-    /// If this is the first time
     ///
     /// ### Arguments
     /// * `tokens` - The amount of tokens to add

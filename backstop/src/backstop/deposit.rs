@@ -20,6 +20,9 @@ pub fn execute_deposit(e: &Env, from: &Address, pool_address: &Address, amount: 
     backstop_token_client.transfer(from, &e.current_contract_address(), &amount);
 
     let to_mint = pool_balance.convert_to_shares(amount);
+    if to_mint == 0 {
+        panic_with_error!(e, &BackstopError::InvalidShareMintAmount);
+    }
     pool_balance.deposit(amount, to_mint);
     user_balance.add_shares(to_mint);
 
@@ -35,6 +38,7 @@ mod tests {
 
     use crate::{
         backstop::execute_donate,
+        constants::SCALAR_7,
         testutils::{create_backstop, create_backstop_token, create_mock_pool_factory},
     };
 
@@ -208,4 +212,65 @@ mod tests {
             execute_deposit(&e, &samwise, &pool_0_id, 100);
         });
     }
+
+    #[test]
+    #[should_panic(expected = "Error(Contract, #1005)")]
+    fn test_execute_deposit_zero_share_mint() {
+        let e = Env::default();
+        e.budget().reset_unlimited();
+        e.mock_all_auths_allowing_non_root_auth();
+
+        let backstop_address = create_backstop(&e);
+        let bombadil = Address::generate(&e);
+        let samwise = Address::generate(&e);
+        let frodo = Address::generate(&e);
+        let pool_0_id = Address::generate(&e);
+        let pool_1_id = Address::generate(&e);
+
+        let (_, backstop_token_client) = create_backstop_token(&e, &backstop_address, &bombadil);
+        backstop_token_client.mint(&samwise, &100_0000000);
+        backstop_token_client.mint(&frodo, &100_000_000_0000000);
+
+        let (_, mock_pool_factory_client) = create_mock_pool_factory(&e, &backstop_address);
+        mock_pool_factory_client.set_pool(&pool_0_id);
+        mock_pool_factory_client.set_pool(&pool_1_id);
+
+        // initialize pool 0 with funds + some profit
+        e.as_contract(&backstop_address, || {
+            execute_deposit(&e, &frodo, &pool_0_id, SCALAR_7);
+            execute_donate(&e, &frodo, &pool_0_id, 10_000_000 * SCALAR_7);
+        });
+
+        e.as_contract(&backstop_address, || {
+            execute_deposit(&e, &samwise, &pool_0_id, SCALAR_7);
+        });
+    }
+
+    // #[test]
+    // #[should_panic(expected = "Error(Contract, #1005)")]
+    // fn test_execute_deposit_small_initial_mint() {
+    //     let e = Env::default();
+    //     e.budget().reset_unlimited();
+    //     e.mock_all_auths_allowing_non_root_auth();
+
+    //     let backstop_address = create_backstop(&e);
+    //     let bombadil = Address::generate(&e);
+    //     let samwise = Address::generate(&e);
+    //     let frodo = Address::generate(&e);
+    //     let pool_0_id = Address::generate(&e);
+    //     let pool_1_id = Address::generate(&e);
+
+    //     let (_, backstop_token_client) = create_backstop_token(&e, &backstop_address, &bombadil);
+    //     backstop_token_client.mint(&samwise, &100_0000000);
+    //     backstop_token_client.mint(&frodo, &100_0000000);
+
+    //     let (_, mock_pool_factory_client) = create_mock_pool_factory(&e, &backstop_address);
+    //     mock_pool_factory_client.set_pool(&pool_0_id);
+    //     mock_pool_factory_client.set_pool(&pool_1_id);
+
+    //     e.as_contract(&backstop_address, || {
+    //         execute_donate(&e, &frodo, &pool_0_id, SCALAR_7);
+    //         execute_deposit(&e, &samwise, &pool_0_id, SCALAR_7 / 10 - 1);
+    //     });
+    // }
 }

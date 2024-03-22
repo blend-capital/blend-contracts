@@ -173,6 +173,25 @@ fn test_backstop() {
             }
         )
     );
+    assert_eq!(
+        fixture.env.auths()[1],
+        (
+            pool.address.clone(),
+            AuthorizedInvocation {
+                function: AuthorizedFunction::Contract((
+                    fixture.backstop.address.clone(),
+                    Symbol::new(&fixture.env, "donate"),
+                    vec![
+                        &fixture.env,
+                        frodo.to_val(),
+                        pool.address.to_val(),
+                        amount.into_val(&fixture.env)
+                    ]
+                )),
+                sub_invocations: std::vec![]
+            }
+        )
+    );
     assert_eq!(bstop_token.balance(&frodo), frodo_bstop_token_balance);
     assert_eq!(
         bstop_token.balance(&fixture.backstop.address),

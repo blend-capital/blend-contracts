@@ -81,10 +81,10 @@ pub fn extend_instance(e: &Env) {
 }
 
 /// Fetch an entry in persistent storage that has a default value if it doesn't exist
-fn get_persistent_default<K: IntoVal<Env, Val>, V: TryFromVal<Env, Val>>(
+fn get_persistent_default<K: IntoVal<Env, Val>, V: TryFromVal<Env, Val>, F: FnOnce() -> V>(
     e: &Env,
     key: &K,
-    default: V,
+    default: F,
     bump_threshold: u32,
     bump_amount: u32,
 ) -> V {
@@ -94,7 +94,7 @@ fn get_persistent_default<K: IntoVal<Env, Val>, V: TryFromVal<Env, Val>>(
             .extend_ttl(key, bump_threshold, bump_amount);
         result
     } else {
-        default
+        default()
     }
 }
 
@@ -217,7 +217,7 @@ pub fn get_user_balance(e: &Env, pool: &Address, user: &Address) -> UserBalance 
     get_persistent_default(
         e,
         &key,
-        UserBalance {
+        || UserBalance {
             shares: 0,
             q4w: vec![&e],
         },
@@ -253,7 +253,7 @@ pub fn get_pool_balance(e: &Env, pool: &Address) -> PoolBalance {
     get_persistent_default(
         e,
         &key,
-        PoolBalance {
+        || PoolBalance {
             shares: 0,
             tokens: 0,
             q4w: 0,
@@ -285,7 +285,7 @@ pub fn get_last_distribution_time(e: &Env) -> u64 {
     get_persistent_default(
         e,
         &Symbol::new(e, LAST_DISTRO_KEY),
-        0u64,
+        || 0u64,
         LEDGER_THRESHOLD_SHARED,
         LEDGER_BUMP_SHARED,
     )
@@ -313,7 +313,7 @@ pub fn get_reward_zone(e: &Env) -> Vec<Address> {
     get_persistent_default(
         e,
         &Symbol::new(e, REWARD_ZONE_KEY),
-        vec![e],
+        || vec![e],
         LEDGER_THRESHOLD_SHARED,
         LEDGER_BUMP_SHARED,
     )
@@ -340,7 +340,13 @@ pub fn set_reward_zone(e: &Env, reward_zone: &Vec<Address>) {
 /// * `pool` - The pool
 pub fn get_pool_emissions(e: &Env, pool: &Address) -> i128 {
     let key = BackstopDataKey::PoolEmis(pool.clone());
-    get_persistent_default(e, &key, 0i128, LEDGER_THRESHOLD_SHARED, LEDGER_BUMP_SHARED)
+    get_persistent_default(
+        e,
+        &key,
+        || 0i128,
+        LEDGER_THRESHOLD_SHARED,
+        LEDGER_BUMP_SHARED,
+    )
 }
 
 /// Set the current emissions accrued for the pool
@@ -366,10 +372,10 @@ pub fn set_pool_emissions(e: &Env, pool: &Address, emissions: i128) {
 /// * `pool` - The pool
 pub fn get_backstop_emis_config(e: &Env, pool: &Address) -> Option<BackstopEmissionConfig> {
     let key = BackstopDataKey::BEmisCfg(pool.clone());
-    get_persistent_default::<BackstopDataKey, Option<BackstopEmissionConfig>>(
+    get_persistent_default(
         e,
         &key,
-        None,
+        || None,
         LEDGER_THRESHOLD_SHARED,
         LEDGER_BUMP_SHARED,
     )
@@ -397,10 +403,10 @@ pub fn set_backstop_emis_config(
 /// * `pool` - The pool
 pub fn get_backstop_emis_data(e: &Env, pool: &Address) -> Option<BackstopEmissionsData> {
     let key = BackstopDataKey::BEmisData(pool.clone());
-    get_persistent_default::<BackstopDataKey, Option<BackstopEmissionsData>>(
+    get_persistent_default(
         e,
         &key,
-        None,
+        || None,
         LEDGER_THRESHOLD_SHARED,
         LEDGER_BUMP_SHARED,
     )
@@ -428,13 +434,7 @@ pub fn get_user_emis_data(e: &Env, pool: &Address, user: &Address) -> Option<Use
         pool: pool.clone(),
         user: user.clone(),
     });
-    get_persistent_default::<BackstopDataKey, Option<UserEmissionData>>(
-        e,
-        &key,
-        None,
-        LEDGER_THRESHOLD_USER,
-        LEDGER_BUMP_USER,
-    )
+    get_persistent_default(e, &key, || None, LEDGER_THRESHOLD_USER, LEDGER_BUMP_USER)
 }
 
 /// Set the user's backstop emissions data

@@ -18,38 +18,38 @@ fn test_liquidations() {
     let frodo = fixture.users.get(0).unwrap();
     let pool_fixture = &fixture.pools[0];
 
-    //accrue interest
+    // accrue interest
     let requests: Vec<Request> = vec![
         &fixture.env,
         Request {
             request_type: RequestType::Borrow as u32,
             address: fixture.tokens[TokenIndex::STABLE].address.clone(),
-            amount: 1,
+            amount: 10,
         },
         Request {
             request_type: RequestType::Repay as u32,
             address: fixture.tokens[TokenIndex::STABLE].address.clone(),
-            amount: 1,
+            amount: 10,
         },
         Request {
             request_type: RequestType::Borrow as u32,
             address: fixture.tokens[TokenIndex::XLM].address.clone(),
-            amount: 1,
+            amount: 10,
         },
         Request {
             request_type: RequestType::Repay as u32,
             address: fixture.tokens[TokenIndex::XLM].address.clone(),
-            amount: 1,
+            amount: 10,
         },
         Request {
             request_type: RequestType::Borrow as u32,
             address: fixture.tokens[TokenIndex::WETH].address.clone(),
-            amount: 1,
+            amount: 10,
         },
         Request {
             request_type: RequestType::Repay as u32,
             address: fixture.tokens[TokenIndex::WETH].address.clone(),
-            amount: 1,
+            amount: 10,
         },
     ];
     pool_fixture.pool.submit(&frodo, &frodo, &frodo, &requests);
@@ -869,7 +869,7 @@ fn test_liquidations() {
 
     let events = fixture.env.events().all();
     let event = vec![&fixture.env, events.get_unchecked(events.len() - 1)];
-    let bad_debt: i128 = 92903018;
+    let bad_debt: i128 = 92903008;
     assert_eq!(
         event,
         vec![
@@ -914,7 +914,7 @@ fn test_liquidations() {
         assert_eq!(positions.liabilities.get(0).unwrap(), bad_debt);
     });
     // check d_supply
-    let d_supply = 19104604034;
+    let d_supply = 19104605847;
     fixture.env.as_contract(&pool_fixture.pool.address, || {
         let key = PoolDataKey::ResData(fixture.tokens[TokenIndex::STABLE].address.clone());
         let data = fixture

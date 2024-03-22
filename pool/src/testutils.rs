@@ -208,6 +208,7 @@ pub(crate) fn default_reserve_meta() -> (ReserveConfig, ReserveData) {
             l_factor: 0_7500000,
             util: 0_7500000,
             max_util: 0_9500000,
+            r_base: 0_0100000,
             r_one: 0_0500000,
             r_two: 0_5000000,
             r_three: 1_5000000,

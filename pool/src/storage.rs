@@ -41,9 +41,10 @@ pub struct ReserveConfig {
     pub l_factor: u32,   // the liability factor for the reserve scaled expressed in 7 decimals
     pub util: u32,       // the target utilization rate scaled expressed in 7 decimals
     pub max_util: u32,   // the maximum allowed utilization rate scaled expressed in 7 decimals
-    pub r_one: u32,      // the R1 value in the interest rate formula scaled expressed in 7 decimals
-    pub r_two: u32,      // the R2 value in the interest rate formula scaled expressed in 7 decimals
-    pub r_three: u32,    // the R3 value in the interest rate formula scaled expressed in 7 decimals
+    pub r_base: u32, // the R0 value (base rate) in the interest rate formula scaled expressed in 7 decimals
+    pub r_one: u32,  // the R1 value in the interest rate formula scaled expressed in 7 decimals
+    pub r_two: u32,  // the R2 value in the interest rate formula scaled expressed in 7 decimals
+    pub r_three: u32, // the R3 value in the interest rate formula scaled expressed in 7 decimals
     pub reactivity: u32, // the reactivity constant for the reserve scaled expressed in 7 decimals
 }
 
@@ -153,10 +154,10 @@ pub fn extend_instance(e: &Env) {
 }
 
 /// Fetch an entry in persistent storage that has a default value if it doesn't exist
-fn get_persistent_default<K: IntoVal<Env, Val>, V: TryFromVal<Env, Val>>(
+fn get_persistent_default<K: IntoVal<Env, Val>, V: TryFromVal<Env, Val>, F: FnOnce() -> V>(
     e: &Env,
     key: &K,
-    default: V,
+    default: F,
     bump_threshold: u32,
     bump_amount: u32,
 ) -> V {
@@ -166,7 +167,7 @@ fn get_persistent_default<K: IntoVal<Env, Val>, V: TryFromVal<Env, Val>>(
             .extend_ttl(key, bump_threshold, bump_amount);
         result
     } else {
-        default
+        default()
     }
 }
 
@@ -195,7 +196,7 @@ pub fn get_user_positions(e: &Env, user: &Address) -> Positions {
     get_persistent_default(
         e,
         &key,
-        Positions::env_default(e),
+        || Positions::env_default(e),
         LEDGER_THRESHOLD_USER,
         LEDGER_BUMP_USER,
     )
@@ -390,11 +391,17 @@ pub fn get_queued_reserve_set(e: &Env, asset: &Address) -> QueuedReserveInit {
     let key = PoolDataKey::ResInit(asset.clone());
     e.storage()
         .temporary()
-        .extend_ttl(&key, LEDGER_THRESHOLD_USER, LEDGER_BUMP_USER);
-    e.storage()
-        .temporary()
         .get::<PoolDataKey, QueuedReserveInit>(&key)
         .unwrap_optimized()
+}
+
+/// Check if a reserve is actively queued
+///
+/// ### Arguments
+/// * `asset` - The contract address of the asset
+pub fn has_queued_reserve_set(e: &Env, asset: &Address) -> bool {
+    let key = PoolDataKey::ResInit(asset.clone());
+    e.storage().temporary().has(&key)
 }
 
 /// Set a new queued reserve set
@@ -466,7 +473,7 @@ pub fn get_res_list(e: &Env) -> Vec<Address> {
     get_persistent_default(
         e,
         &Symbol::new(e, RES_LIST_KEY),
-        vec![e],
+        || vec![e],
         LEDGER_THRESHOLD_SHARED,
         LEDGER_BUMP_SHARED,
     )
@@ -507,10 +514,10 @@ pub fn push_res_list(e: &Env, asset: &Address) -> u32 {
 /// * `res_token_index` - The d/bToken index for the reserve
 pub fn get_res_emis_config(e: &Env, res_token_index: &u32) -> Option<ReserveEmissionsConfig> {
     let key = PoolDataKey::EmisConfig(*res_token_index);
-    get_persistent_default::<PoolDataKey, Option<ReserveEmissionsConfig>>(
+    get_persistent_default(
         e,
         &key,
-        None,
+        || None,
         LEDGER_THRESHOLD_SHARED,
         LEDGER_BUMP_SHARED,
     )
@@ -541,10 +548,10 @@ pub fn set_res_emis_config(
 /// * `res_token_index` - The d/bToken index for the reserve
 pub fn get_res_emis_data(e: &Env, res_token_index: &u32) -> Option<ReserveEmissionsData> {
     let key = PoolDataKey::EmisData(*res_token_index);
-    get_persistent_default::<PoolDataKey, Option<ReserveEmissionsData>>(
+    get_persistent_default(
         e,
         &key,
-        None,
+        || None,
         LEDGER_THRESHOLD_SHARED,
         LEDGER_BUMP_SHARED,
     )
@@ -581,13 +588,7 @@ pub fn get_user_emissions(
         user: user.clone(),
         reserve_id: *res_token_index,
     });
-    get_persistent_default::<PoolDataKey, Option<UserEmissionData>>(
-        e,
-        &key,
-        None,
-        LEDGER_THRESHOLD_USER,
-        LEDGER_BUMP_USER,
-    )
+    get_persistent_default(e, &key, || None, LEDGER_THRESHOLD_USER, LEDGER_BUMP_USER)
 }
 
 /// Set the users emission data for a reserve's d or d token
@@ -610,10 +611,10 @@ pub fn set_user_emissions(e: &Env, user: &Address, res_token_index: &u32, data: 
 
 /// Fetch the pool reserve emissions
 pub fn get_pool_emissions(e: &Env) -> Map<u32, u64> {
-    get_persistent_default::<Symbol, Map<u32, u64>>(
+    get_persistent_default(
         e,
         &Symbol::new(e, POOL_EMIS_KEY),
-        map![e],
+        || map![e],
         LEDGER_THRESHOLD_SHARED,
         LEDGER_BUMP_SHARED,
     )

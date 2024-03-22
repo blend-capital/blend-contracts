@@ -115,7 +115,7 @@ mod tests {
             base_reserve: 10,
             min_temp_entry_ttl: 10,
             min_persistent_entry_ttl: 10,
-            max_entry_ttl: 2000000,
+            max_entry_ttl: 3110400,
         });
 
         e.as_contract(&backstop_address, || {
@@ -175,7 +175,7 @@ mod tests {
             base_reserve: 10,
             min_temp_entry_ttl: 10,
             min_persistent_entry_ttl: 10,
-            max_entry_ttl: 2000000,
+            max_entry_ttl: 3110400,
         });
 
         e.as_contract(&backstop_address, || {
@@ -212,7 +212,7 @@ mod tests {
                 base_reserve: 10,
                 min_temp_entry_ttl: 10,
                 min_persistent_entry_ttl: 10,
-                max_entry_ttl: 2000000,
+                max_entry_ttl: 3110400,
             });
 
             execute_queue_withdrawal(&e, &samwise, &pool_address, 40_0000000);
@@ -226,7 +226,7 @@ mod tests {
             base_reserve: 10,
             min_temp_entry_ttl: 10,
             min_persistent_entry_ttl: 10,
-            max_entry_ttl: 2000000,
+            max_entry_ttl: 3110400,
         });
 
         e.as_contract(&backstop_address, || {
@@ -279,7 +279,7 @@ mod tests {
                 base_reserve: 10,
                 min_temp_entry_ttl: 10,
                 min_persistent_entry_ttl: 10,
-                max_entry_ttl: 2000000,
+                max_entry_ttl: 3110400,
             });
 
             execute_queue_withdrawal(&e, &samwise, &pool_address, 40_0000000);
@@ -293,7 +293,7 @@ mod tests {
             base_reserve: 10,
             min_temp_entry_ttl: 10,
             min_persistent_entry_ttl: 10,
-            max_entry_ttl: 2000000,
+            max_entry_ttl: 3110400,
         });
 
         e.as_contract(&backstop_address, || {
@@ -325,7 +325,7 @@ mod tests {
             base_reserve: 10,
             min_temp_entry_ttl: 10,
             min_persistent_entry_ttl: 10,
-            max_entry_ttl: 2000000,
+            max_entry_ttl: 3110400,
         });
 
         // setup pool with queue for withdrawal and allow the backstop to incur a profit
@@ -343,7 +343,7 @@ mod tests {
             base_reserve: 10,
             min_temp_entry_ttl: 10,
             min_persistent_entry_ttl: 10,
-            max_entry_ttl: 2000000,
+            max_entry_ttl: 3110400,
         });
 
         e.as_contract(&backstop_address, || {
@@ -392,7 +392,7 @@ mod tests {
             base_reserve: 10,
             min_temp_entry_ttl: 10,
             min_persistent_entry_ttl: 10,
-            max_entry_ttl: 2000000,
+            max_entry_ttl: 3110400,
         });
 
         // setup pool with queue for withdrawal and allow the backstop to incur a profit
@@ -410,7 +410,7 @@ mod tests {
             base_reserve: 10,
             min_temp_entry_ttl: 10,
             min_persistent_entry_ttl: 10,
-            max_entry_ttl: 2000000,
+            max_entry_ttl: 3110400,
         });
 
         e.as_contract(&backstop_address, || {
@@ -445,7 +445,7 @@ mod tests {
             base_reserve: 10,
             min_temp_entry_ttl: 10,
             min_persistent_entry_ttl: 10,
-            max_entry_ttl: 2000000,
+            max_entry_ttl: 3110400,
         });
 
         // setup pool with queue for withdrawal and allow the backstop to incur a profit
@@ -464,7 +464,7 @@ mod tests {
             base_reserve: 10,
             min_temp_entry_ttl: 10,
             min_persistent_entry_ttl: 10,
-            max_entry_ttl: 2000000,
+            max_entry_ttl: 3110400,
         });
 
         e.as_contract(&backstop_address, || {

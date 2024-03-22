@@ -157,7 +157,7 @@ mod tests {
             base_reserve: 10,
             min_temp_entry_ttl: 10,
             min_persistent_entry_ttl: 10,
-            max_entry_ttl: 2000000,
+            max_entry_ttl: 3110400,
         });
 
         let to_queue = 500;
@@ -198,7 +198,7 @@ mod tests {
             base_reserve: 10,
             min_temp_entry_ttl: 10,
             min_persistent_entry_ttl: 10,
-            max_entry_ttl: 2000000,
+            max_entry_ttl: 3110400,
         });
 
         let to_queue = 500;
@@ -235,7 +235,7 @@ mod tests {
             base_reserve: 10,
             min_temp_entry_ttl: 10,
             min_persistent_entry_ttl: 10,
-            max_entry_ttl: 2000000,
+            max_entry_ttl: 3110400,
         });
 
         let to_queue = 801;
@@ -260,7 +260,7 @@ mod tests {
             base_reserve: 10,
             min_temp_entry_ttl: 10,
             min_persistent_entry_ttl: 10,
-            max_entry_ttl: 2000000,
+            max_entry_ttl: 3110400,
         });
 
         let to_wd = 1;
@@ -291,7 +291,7 @@ mod tests {
             base_reserve: 10,
             min_temp_entry_ttl: 10,
             min_persistent_entry_ttl: 10,
-            max_entry_ttl: 2000000,
+            max_entry_ttl: 3110400,
         });
 
         let to_wd = 200;
@@ -325,7 +325,7 @@ mod tests {
             base_reserve: 10,
             min_temp_entry_ttl: 10,
             min_persistent_entry_ttl: 10,
-            max_entry_ttl: 2000000,
+            max_entry_ttl: 3110400,
         });
 
         let to_wd = 150;
@@ -374,7 +374,7 @@ mod tests {
             base_reserve: 10,
             min_temp_entry_ttl: 10,
             min_persistent_entry_ttl: 10,
-            max_entry_ttl: 2000000,
+            max_entry_ttl: 3110400,
         });
 
         let to_wd = 300;
@@ -428,7 +428,7 @@ mod tests {
             base_reserve: 10,
             min_temp_entry_ttl: 10,
             min_persistent_entry_ttl: 10,
-            max_entry_ttl: 2000000,
+            max_entry_ttl: 3110400,
         });
 
         let to_wd = 300;
@@ -468,7 +468,7 @@ mod tests {
             base_reserve: 10,
             min_temp_entry_ttl: 10,
             min_persistent_entry_ttl: 10,
-            max_entry_ttl: 2000000,
+            max_entry_ttl: 3110400,
         });
         let to_dequeue = 300;
         // verify exp is respected when specified
@@ -507,7 +507,7 @@ mod tests {
             base_reserve: 10,
             min_temp_entry_ttl: 10,
             min_persistent_entry_ttl: 10,
-            max_entry_ttl: 2000000,
+            max_entry_ttl: 3110400,
         });
 
         let to_dequeue = 376;

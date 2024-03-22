@@ -106,7 +106,7 @@ mod tests {
             base_reserve: 10,
             min_temp_entry_ttl: 10,
             min_persistent_entry_ttl: 10,
-            max_entry_ttl: 2000000,
+            max_entry_ttl: 3110400,
         });
         e.budget().reset_unlimited();
 
@@ -267,7 +267,7 @@ mod tests {
             base_reserve: 10,
             min_temp_entry_ttl: 10,
             min_persistent_entry_ttl: 10,
-            max_entry_ttl: 2000000,
+            max_entry_ttl: 3110400,
         });
 
         let backstop_address = create_backstop(&e);
@@ -418,7 +418,7 @@ mod tests {
                 base_reserve: 10,
                 min_temp_entry_ttl: 10,
                 min_persistent_entry_ttl: 10,
-                max_entry_ttl: 2000000,
+                max_entry_ttl: 3110400,
             });
             let backstop_lp_balance = backstop_lp_balance + 6_5244800;
             let pre_frodo_balance_1 = storage::get_user_balance(&e, &pool_1_id, &frodo).shares;
@@ -490,7 +490,7 @@ mod tests {
             base_reserve: 10,
             min_temp_entry_ttl: 10,
             min_persistent_entry_ttl: 10,
-            max_entry_ttl: 2000000,
+            max_entry_ttl: 3110400,
         });
 
         let backstop_address = create_backstop(&e);

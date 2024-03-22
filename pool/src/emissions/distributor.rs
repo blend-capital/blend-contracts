@@ -284,7 +284,7 @@ mod tests {
             base_reserve: 10,
             min_temp_entry_ttl: 10,
             min_persistent_entry_ttl: 10,
-            max_entry_ttl: 2000000,
+            max_entry_ttl: 3110400,
         });
 
         let supply: i128 = 50_0000000;
@@ -347,7 +347,7 @@ mod tests {
             base_reserve: 10,
             min_temp_entry_ttl: 10,
             min_persistent_entry_ttl: 10,
-            max_entry_ttl: 2000000,
+            max_entry_ttl: 3110400,
         });
 
         let supply: i128 = 100_0000000;
@@ -387,7 +387,7 @@ mod tests {
             base_reserve: 10,
             min_temp_entry_ttl: 10,
             min_persistent_entry_ttl: 10,
-            max_entry_ttl: 2000000,
+            max_entry_ttl: 3110400,
         });
 
         let supply: i128 = 50_0000000;
@@ -441,7 +441,7 @@ mod tests {
             base_reserve: 10,
             min_temp_entry_ttl: 10,
             min_persistent_entry_ttl: 10,
-            max_entry_ttl: 2000000,
+            max_entry_ttl: 3110400,
         });
 
         let supply: i128 = 50_0000000;
@@ -505,7 +505,7 @@ mod tests {
             base_reserve: 10,
             min_temp_entry_ttl: 10,
             min_persistent_entry_ttl: 10,
-            max_entry_ttl: 2000000,
+            max_entry_ttl: 3110400,
         });
 
         let supply: i128 = 100_0000000;
@@ -545,7 +545,7 @@ mod tests {
             base_reserve: 10,
             min_temp_entry_ttl: 10,
             min_persistent_entry_ttl: 10,
-            max_entry_ttl: 2000000,
+            max_entry_ttl: 3110400,
         });
 
         let supply = 50_0000000;
@@ -584,7 +584,7 @@ mod tests {
             base_reserve: 10,
             min_temp_entry_ttl: 10,
             min_persistent_entry_ttl: 10,
-            max_entry_ttl: 2000000,
+            max_entry_ttl: 3110400,
         });
 
         let supply = 50_0000000;
@@ -635,7 +635,7 @@ mod tests {
             base_reserve: 10,
             min_temp_entry_ttl: 10,
             min_persistent_entry_ttl: 10,
-            max_entry_ttl: 2000000,
+            max_entry_ttl: 3110400,
         });
 
         let supply = 50_0000000;
@@ -686,7 +686,7 @@ mod tests {
             base_reserve: 10,
             min_temp_entry_ttl: 10,
             min_persistent_entry_ttl: 10,
-            max_entry_ttl: 2000000,
+            max_entry_ttl: 3110400,
         });
 
         let supply = 50_0000000;
@@ -737,7 +737,7 @@ mod tests {
             base_reserve: 10,
             min_temp_entry_ttl: 10,
             min_persistent_entry_ttl: 10,
-            max_entry_ttl: 2000000,
+            max_entry_ttl: 3110400,
         });
 
         let supply = 0;
@@ -788,7 +788,7 @@ mod tests {
             base_reserve: 10,
             min_temp_entry_ttl: 10,
             min_persistent_entry_ttl: 10,
-            max_entry_ttl: 2000000,
+            max_entry_ttl: 3110400,
         });
 
         let supply = 100_0000000;
@@ -836,7 +836,7 @@ mod tests {
             base_reserve: 10,
             min_temp_entry_ttl: 10,
             min_persistent_entry_ttl: 10,
-            max_entry_ttl: 2000000,
+            max_entry_ttl: 3110400,
         });
 
         let supply = 100_0001111;
@@ -887,7 +887,7 @@ mod tests {
             base_reserve: 10,
             min_temp_entry_ttl: 10,
             min_persistent_entry_ttl: 10,
-            max_entry_ttl: 2000000,
+            max_entry_ttl: 3110400,
         });
 
         let supply_scalar = 1_0000000;
@@ -933,7 +933,7 @@ mod tests {
             base_reserve: 10,
             min_temp_entry_ttl: 10,
             min_persistent_entry_ttl: 10,
-            max_entry_ttl: 2000000,
+            max_entry_ttl: 3110400,
         });
 
         let supply_scalar = 1_0000000;
@@ -979,7 +979,7 @@ mod tests {
             base_reserve: 10,
             min_temp_entry_ttl: 10,
             min_persistent_entry_ttl: 10,
-            max_entry_ttl: 2000000,
+            max_entry_ttl: 3110400,
         });
 
         let supply_scalar = 1_0000000;
@@ -1032,7 +1032,7 @@ mod tests {
             base_reserve: 10,
             min_temp_entry_ttl: 10,
             min_persistent_entry_ttl: 10,
-            max_entry_ttl: 2000000,
+            max_entry_ttl: 3110400,
         });
 
         let supply_scalar = 1_0000000;
@@ -1084,7 +1084,7 @@ mod tests {
             base_reserve: 10,
             min_temp_entry_ttl: 10,
             min_persistent_entry_ttl: 10,
-            max_entry_ttl: 2000000,
+            max_entry_ttl: 3110400,
         });
 
         let supply_scalar = 1_0000000;
@@ -1137,7 +1137,7 @@ mod tests {
             base_reserve: 10,
             min_temp_entry_ttl: 10,
             min_persistent_entry_ttl: 10,
-            max_entry_ttl: 2000000,
+            max_entry_ttl: 3110400,
         });
 
         let supply_scalar = 1_0000000;
@@ -1191,7 +1191,7 @@ mod tests {
             base_reserve: 10,
             min_temp_entry_ttl: 10,
             min_persistent_entry_ttl: 10,
-            max_entry_ttl: 2000000,
+            max_entry_ttl: 3110400,
         });
 
         let supply_scalar = 1_0000000;
@@ -1240,7 +1240,7 @@ mod tests {
             base_reserve: 10,
             min_temp_entry_ttl: 10,
             min_persistent_entry_ttl: 10,
-            max_entry_ttl: 2000000,
+            max_entry_ttl: 3110400,
         });
 
         let supply_scalar = 1_0000000;
@@ -1300,7 +1300,7 @@ mod tests {
             base_reserve: 10,
             min_temp_entry_ttl: 10,
             min_persistent_entry_ttl: 10,
-            max_entry_ttl: 2000000,
+            max_entry_ttl: 3110400,
         });
 
         let (underlying_0, _) = testutils::create_token_contract(&e, &bombadil);
@@ -1425,7 +1425,7 @@ mod tests {
             base_reserve: 10,
             min_temp_entry_ttl: 10,
             min_persistent_entry_ttl: 10,
-            max_entry_ttl: 2000000,
+            max_entry_ttl: 3110400,
         });
 
         let (underlying_0, _) = testutils::create_token_contract(&e, &bombadil);
@@ -1552,7 +1552,7 @@ mod tests {
             base_reserve: 10,
             min_temp_entry_ttl: 10,
             min_persistent_entry_ttl: 10,
-            max_entry_ttl: 2000000,
+            max_entry_ttl: 3110400,
         });
 
         let (underlying_0, _) = testutils::create_token_contract(&e, &bombadil);

@@ -147,7 +147,7 @@ mod tests {
             base_reserve: 10,
             min_temp_entry_ttl: 10,
             min_persistent_entry_ttl: 10,
-            max_entry_ttl: 2000000,
+            max_entry_ttl: 3110400,
         });
 
         let (accrual, ir_mod) = calc_accrual(&e, &reserve_config, 0_6565656, ir_mod, 0);
@@ -183,7 +183,7 @@ mod tests {
             base_reserve: 10,
             min_temp_entry_ttl: 10,
             min_persistent_entry_ttl: 10,
-            max_entry_ttl: 2000000,
+            max_entry_ttl: 3110400,
         });
 
         let (accrual, ir_mod) = calc_accrual(&e, &reserve_config, 0_7979797, ir_mod, 0);
@@ -219,7 +219,7 @@ mod tests {
             base_reserve: 10,
             min_temp_entry_ttl: 10,
             min_persistent_entry_ttl: 10,
-            max_entry_ttl: 2000000,
+            max_entry_ttl: 3110400,
         });
 
         let (accrual, ir_mod) = calc_accrual(&e, &reserve_config, 0_9696969, ir_mod, 0);
@@ -255,7 +255,7 @@ mod tests {
             base_reserve: 10,
             min_temp_entry_ttl: 10,
             min_persistent_entry_ttl: 10,
-            max_entry_ttl: 2000000,
+            max_entry_ttl: 3110400,
         });
 
         let (_accrual, ir_mod) = calc_accrual(&e, &reserve_config, 0_9696969, ir_mod, 0);
@@ -290,7 +290,7 @@ mod tests {
             base_reserve: 10,
             min_temp_entry_ttl: 10,
             min_persistent_entry_ttl: 10,
-            max_entry_ttl: 2000000,
+            max_entry_ttl: 3110400,
         });
 
         let (_accrual, ir_mod) = calc_accrual(&e, &reserve_config, 0_2020202, ir_mod, 0);
@@ -325,7 +325,7 @@ mod tests {
             base_reserve: 10,
             min_temp_entry_ttl: 10,
             min_persistent_entry_ttl: 10,
-            max_entry_ttl: 2000000,
+            max_entry_ttl: 3110400,
         });
 
         let (accrual, ir_mod) = calc_accrual(&e, &reserve_config, 0_0500000, ir_mod, 500);
@@ -361,7 +361,7 @@ mod tests {
             base_reserve: 10,
             min_temp_entry_ttl: 10,
             min_persistent_entry_ttl: 10,
-            max_entry_ttl: 2000000,
+            max_entry_ttl: 3110400,
         });
 
         let (accrual_0, ir_mod_0) = calc_accrual(&e, &reserve_config, 0, ir_mod, 0);

@@ -101,7 +101,7 @@ pub(crate) fn create_emitter<'a>(
         base_reserve: 10,
         min_temp_entry_ttl: 10,
         min_persistent_entry_ttl: 10,
-        max_entry_ttl: 2000000,
+        max_entry_ttl: 3110400,
     });
     e.as_contract(backstop, || {
         storage::set_emitter(e, &contract_address);
@@ -116,7 +116,7 @@ pub(crate) fn create_emitter<'a>(
         base_reserve: 10,
         min_temp_entry_ttl: 10,
         min_persistent_entry_ttl: 10,
-        max_entry_ttl: 2000000,
+        max_entry_ttl: 3110400,
     });
     (contract_address.clone(), client)
 }

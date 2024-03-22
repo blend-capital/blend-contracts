@@ -2,8 +2,15 @@ use soroban_sdk::{contracttype, unwrap::UnwrapOptimized, Address, Env, Symbol};
 
 use crate::backstop_manager::Swap;
 
-pub(crate) const LEDGER_THRESHOLD_SHARED: u32 = 172800; // ~ 10 days
-pub(crate) const LEDGER_BUMP_SHARED: u32 = 241920; // ~ 14 days
+/********** Ledger Thresholds **********/
+
+const ONE_DAY_LEDGERS: u32 = 17280; // assumes 5s a ledger
+
+const LEDGER_THRESHOLD_INSTANCE: u32 = ONE_DAY_LEDGERS * 30; // ~ 30 days
+const LEDGER_BUMP_INSTANCE: u32 = LEDGER_THRESHOLD_INSTANCE + ONE_DAY_LEDGERS; // ~ 31 days
+
+const LEDGER_THRESHOLD_SHARED: u32 = ONE_DAY_LEDGERS * 45; // ~ 45 days
+const LEDGER_BUMP_SHARED: u32 = LEDGER_THRESHOLD_SHARED + ONE_DAY_LEDGERS; // ~ 46 days
 
 /********** Storage **********/
 
@@ -23,11 +30,11 @@ pub enum EmitterDataKey {
     Dropped(Address),
 }
 
-/// Bump the instance rent for the contract. Bumps for 10 days due to the 7-day cycle window of this contract
+/// Bump the instance rent for the contract
 pub fn extend_instance(e: &Env) {
     e.storage()
         .instance()
-        .extend_ttl(LEDGER_THRESHOLD_SHARED, LEDGER_BUMP_SHARED);
+        .extend_ttl(LEDGER_THRESHOLD_INSTANCE, LEDGER_BUMP_INSTANCE);
 }
 
 /********** Init **********/

@@ -1,8 +1,14 @@
 use soroban_sdk::{contracttype, unwrap::UnwrapOptimized, Address, BytesN, Env};
 
-// @dev: This contract is not expected to be used often, so we can use a higher bump amount
-pub(crate) const LEDGER_THRESHOLD: u32 = 725760; // ~ 42 days - 6 weeks
-pub(crate) const LEDGER_BUMP: u32 = 967680; // ~ 56 days - 8 weeks
+/********** Ledger Thresholds **********/
+
+const ONE_DAY_LEDGERS: u32 = 17280; // assumes 5s a ledger
+
+const LEDGER_THRESHOLD_INSTANCE: u32 = ONE_DAY_LEDGERS * 30; // ~ 30 days
+const LEDGER_BUMP_INSTANCE: u32 = LEDGER_THRESHOLD_INSTANCE + ONE_DAY_LEDGERS; // ~ 31 days
+
+const LEDGER_THRESHOLD_SHARED: u32 = ONE_DAY_LEDGERS * 45; // ~ 45 days
+const LEDGER_BUMP_SHARED: u32 = LEDGER_THRESHOLD_SHARED + ONE_DAY_LEDGERS; // ~ 46 days
 
 #[derive(Clone)]
 #[contracttype]
@@ -24,7 +30,7 @@ pub struct PoolInitMeta {
 pub fn extend_instance(e: &Env) {
     e.storage()
         .instance()
-        .extend_ttl(LEDGER_THRESHOLD, LEDGER_BUMP);
+        .extend_ttl(LEDGER_THRESHOLD_INSTANCE, LEDGER_BUMP_INSTANCE);
 }
 
 /// Fetch the pool initialization metadata
@@ -32,8 +38,8 @@ pub fn get_pool_init_meta(e: &Env) -> PoolInitMeta {
     // TODO: Change to instance - https://github.com/stellar/rs-soroban-sdk/issues/1040
     e.storage().persistent().extend_ttl(
         &PoolFactoryDataKey::PoolInitMeta,
-        LEDGER_THRESHOLD,
-        LEDGER_BUMP,
+        LEDGER_THRESHOLD_SHARED,
+        LEDGER_BUMP_SHARED,
     );
     e.storage()
         .persistent()
@@ -71,7 +77,7 @@ pub fn is_deployed(e: &Env, contract_id: &Address) -> bool {
     {
         e.storage()
             .persistent()
-            .extend_ttl(&key, LEDGER_THRESHOLD, LEDGER_BUMP);
+            .extend_ttl(&key, LEDGER_THRESHOLD_SHARED, LEDGER_BUMP_SHARED);
         result
     } else {
         false
@@ -89,5 +95,5 @@ pub fn set_deployed(e: &Env, contract_id: &Address) {
         .set::<PoolFactoryDataKey, bool>(&key, &true);
     e.storage()
         .persistent()
-        .extend_ttl(&key, LEDGER_THRESHOLD, LEDGER_BUMP);
+        .extend_ttl(&key, LEDGER_THRESHOLD_SHARED, LEDGER_BUMP_SHARED);
 }

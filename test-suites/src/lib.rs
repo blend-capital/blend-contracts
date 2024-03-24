@@ -6,7 +6,7 @@ pub mod oracle;
 pub mod pool;
 pub mod pool_factory;
 mod setup;
-pub use setup::create_fixture_with_data;
+pub use setup::{create_fixture_no_rzone_add, create_fixture_with_data};
 pub mod assertions;
 pub mod test_fixture;
 pub mod token;

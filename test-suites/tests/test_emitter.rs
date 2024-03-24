@@ -1,14 +1,141 @@
 #![cfg(test)]
 
 use emitter::Swap;
+use pool::{Request, RequestType};
 use soroban_sdk::{
     testutils::{Address as _, Events},
-    vec, Address, IntoVal, Symbol,
+    vec as svec, Address, IntoVal, Symbol, Vec as SVec,
 };
 use test_suites::{
-    create_fixture_with_data,
+    create_fixture_no_rzone_add, create_fixture_with_data,
     test_fixture::{TokenIndex, SCALAR_7},
 };
+
+/// Test user exposed functions on the emitter for basic functionality, auth, and events.
+/// Does not test internal state management of the emitter, only external effects.
+#[test]
+fn test_emitter_no_reward_zone() {
+    let fixture = create_fixture_no_rzone_add(false);
+    let frodo = &fixture.users[0];
+    let pool_fixture = &fixture.pools[0];
+    let blnd_token = &fixture.tokens[TokenIndex::BLND];
+    blnd_token.balance(&fixture.emitter.address);
+    blnd_token.balance(&fixture.backstop.address);
+
+    // Allow 6 days to pass and call distribute
+    // @dev: 1h1m have passed since the emitter was deployed during setup
+    assert_eq!(blnd_token.balance(&fixture.backstop.address), 0);
+    fixture.jump(6 * 24 * 60 * 60);
+    let result = fixture.emitter.distribute();
+    assert_eq!(result, (13 * 24 * 60 * 60 + 61 * 60) * SCALAR_7); // 1 token per second are emitted
+    let result = fixture.backstop.try_gulp_emissions();
+    assert!(result.is_err());
+
+    assert_eq!(fixture.env.auths().len(), 0);
+    assert_eq!(
+        blnd_token.balance(&fixture.backstop.address),
+        (13 * 24 * 60 * 60 + 61 * 60) * SCALAR_7
+    ); // 1 token per second are emitted
+    assert_eq!(fixture.env.auths().len(), 0);
+    // Validate Emissions can't be claimed
+    let result = pool_fixture.pool.claim(
+        &fixture.users[0],
+        &svec![&fixture.env, 0, 1, 2],
+        &fixture.users[0],
+    );
+    assert!(result == 0);
+    let result = fixture.backstop.claim(
+        &fixture.users[0],
+        &svec![&fixture.env, pool_fixture.pool.address.clone()],
+        &fixture.users[0],
+    );
+    assert!(result == 0);
+
+    fixture.backstop.deposit(
+        &fixture.users[0],
+        &pool_fixture.pool.address,
+        &(50_000 * SCALAR_7),
+    );
+    fixture.backstop.update_tkn_val();
+    pool_fixture.pool.set_status(&3);
+    pool_fixture.pool.update_status();
+    // supply and borrow STABLE for 80% utilization (close to target)
+    let requests: SVec<Request> = svec![
+        &fixture.env,
+        Request {
+            request_type: RequestType::SupplyCollateral as u32,
+            address: fixture.tokens[TokenIndex::STABLE].address.clone(),
+            amount: 10_000 * 10i128.pow(6),
+        },
+        Request {
+            request_type: RequestType::Borrow as u32,
+            address: fixture.tokens[TokenIndex::STABLE].address.clone(),
+            amount: 8_000 * 10i128.pow(6),
+        },
+    ];
+    pool_fixture.pool.submit(&frodo, &frodo, &frodo, &requests);
+
+    // supply and borrow WETH for 50% utilization (below target)
+    let requests: SVec<Request> = svec![
+        &fixture.env,
+        Request {
+            request_type: RequestType::SupplyCollateral as u32,
+            address: fixture.tokens[TokenIndex::WETH].address.clone(),
+            amount: 10 * 10i128.pow(9),
+        },
+        Request {
+            request_type: RequestType::Borrow as u32,
+            address: fixture.tokens[TokenIndex::WETH].address.clone(),
+            amount: 5 * 10i128.pow(9),
+        },
+    ];
+    pool_fixture.pool.submit(&frodo, &frodo, &frodo, &requests);
+
+    // supply and borrow XLM for 65% utilization (above target)
+    let requests: SVec<Request> = svec![
+        &fixture.env,
+        Request {
+            request_type: RequestType::SupplyCollateral as u32,
+            address: fixture.tokens[TokenIndex::XLM].address.clone(),
+            amount: 100_000 * SCALAR_7,
+        },
+        Request {
+            request_type: RequestType::Borrow as u32,
+            address: fixture.tokens[TokenIndex::XLM].address.clone(),
+            amount: 65_000 * SCALAR_7,
+        },
+    ];
+    pool_fixture.pool.submit(&frodo, &frodo, &frodo, &requests);
+
+    fixture
+        .backstop
+        .add_reward(&pool_fixture.pool.address, &Address::generate(&fixture.env));
+    fixture.backstop.gulp_emissions();
+
+    let result = pool_fixture.pool.gulp_emissions();
+    assert_eq!(result, (13 * 24 * 60 * 60 + 61 * 60) * 300_0000);
+    // Let some time go by
+    fixture.jump(7 * 24 * 60 * 60);
+    let pre_claim_balance = blnd_token.balance(&fixture.users[0]);
+    let result = pool_fixture.pool.claim(
+        &fixture.users[0],
+        &svec![&fixture.env, 0, 1, 2, 3,],
+        &fixture.users[0],
+    );
+    let post_claim_1_balance = blnd_token.balance(&fixture.users[0]);
+    assert_eq!(post_claim_1_balance - pre_claim_balance, result);
+    assert_eq!(result, (13 * 24 * 60 * 60 + 61 * 60) * 300_0000 - 300000); //pool claim is only 30% of the total emissions
+    let result_1 = fixture.backstop.claim(
+        &fixture.users[0],
+        &svec![&fixture.env, pool_fixture.pool.address.clone()],
+        &fixture.users[0],
+    );
+    assert_eq!(
+        result_1 + result,
+        (13 * 24 * 60 * 60 + 61 * 60) * SCALAR_7 - 400000
+    );
+    assert_eq!(result_1, (13 * 24 * 60 * 60 + 61 * 60) * 700_0000 - 100000);
+}
 
 /// Test user exposed functions on the emitter for basic functionality, auth, and events.
 /// Does not test internal state management of the emitter, only external effects.
@@ -40,6 +167,7 @@ fn test_emitter() {
     let result = fixture.emitter.distribute();
     backstop_blnd_balance += result;
     assert_eq!(fixture.env.auths().len(), 0);
+    println!("timestamp: {}", fixture.env.ledger().timestamp());
     assert_eq!(result, (6 * 24 * 60 * 60 + 61 * 60) * SCALAR_7); // 1 token per second are emitted
     assert_eq!(
         blnd_token.balance(&fixture.emitter.address),
@@ -49,15 +177,15 @@ fn test_emitter() {
         blnd_token.balance(&fixture.backstop.address),
         backstop_blnd_balance
     );
-    let event = vec![&fixture.env, fixture.env.events().all().last_unchecked()];
+    let event = svec![&fixture.env, fixture.env.events().all().last_unchecked()];
     assert_eq!(
         event,
-        vec![
+        svec![
             &fixture.env,
             (
                 fixture.emitter.address.clone(),
                 (Symbol::new(&fixture.env, "distribute"),).into_val(&fixture.env),
-                vec![
+                svec![
                     &fixture.env,
                     fixture.backstop.address.to_val(),
                     result.into_val(&fixture.env)
@@ -74,7 +202,7 @@ fn test_emitter() {
     fixture.tokens[TokenIndex::USDC].mint(&new_backstop, &(20_501 * SCALAR_7));
     fixture.lp.join_pool(
         &(old_backstop_balance + 1),
-        &vec![&fixture.env, 505_001 * SCALAR_7, 13_501 * SCALAR_7],
+        &svec![&fixture.env, 505_001 * SCALAR_7, 13_501 * SCALAR_7],
         &new_backstop,
     );
     fixture
@@ -86,10 +214,10 @@ fn test_emitter() {
         fixture.emitter.get_backstop(),
         fixture.backstop.address.clone()
     );
-    let event = vec![&fixture.env, fixture.env.events().all().last_unchecked()];
+    let event = svec![&fixture.env, fixture.env.events().all().last_unchecked()];
     assert_eq!(
         event,
-        vec![
+        svec![
             &fixture.env,
             (
                 fixture.emitter.address.clone(),
@@ -115,10 +243,10 @@ fn test_emitter() {
         fixture.emitter.get_backstop(),
         fixture.backstop.address.clone()
     );
-    let event = vec![&fixture.env, fixture.env.events().all().last_unchecked()];
+    let event = svec![&fixture.env, fixture.env.events().all().last_unchecked()];
     assert_eq!(
         event,
-        vec![
+        svec![
             &fixture.env,
             (
                 fixture.emitter.address.clone(),
@@ -141,10 +269,10 @@ fn test_emitter() {
     let swap_unlock_time = fixture.env.ledger().timestamp() + 31 * 24 * 60 * 60;
     fixture.jump(swap_unlock_time + 1);
     fixture.emitter.swap_backstop();
-    let event = vec![&fixture.env, fixture.env.events().all().last_unchecked()];
+    let event = svec![&fixture.env, fixture.env.events().all().last_unchecked()];
     assert_eq!(
         event,
-        vec![
+        svec![
             &fixture.env,
             (
                 fixture.emitter.address.clone(),

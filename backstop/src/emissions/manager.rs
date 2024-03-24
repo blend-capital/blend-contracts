@@ -62,6 +62,12 @@ pub fn add_to_reward_zone(e: &Env, to_add: Address, to_remove: Address) {
 /// Assign emissions from the Emitter to backstops and pools in the reward zone
 #[allow(clippy::zero_prefixed_literal)]
 pub fn gulp_emissions(e: &Env) -> i128 {
+    let reward_zone = storage::get_reward_zone(e);
+    let rz_len = reward_zone.len();
+    // reward zone must have at least one pool for emissions to start
+    if rz_len == 0 {
+        panic_with_error!(e, BackstopError::BadRequest);
+    }
     let emitter = storage::get_emitter(e);
     let emitter_last_distribution =
         EmitterClient::new(&e, &emitter).get_last_distro(&e.current_contract_address());
@@ -81,8 +87,6 @@ pub fn gulp_emissions(e: &Env) -> i128 {
         .fixed_mul_floor(0_3000000, SCALAR_7)
         .unwrap_optimized();
 
-    let reward_zone = storage::get_reward_zone(e);
-    let rz_len = reward_zone.len();
     let mut rz_balance: Vec<PoolBalance> = vec![e];
 
     // TODO: Potential to assume optimization of backstop token balances ~= RZ tokens

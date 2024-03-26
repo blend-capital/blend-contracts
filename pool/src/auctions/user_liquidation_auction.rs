@@ -9,7 +9,6 @@ use crate::{errors::PoolError, storage};
 
 use super::AuctionType;
 
-// TODO: Revalidate math with alternative decimal reserve
 pub fn create_user_liq_auction_data(
     e: &Env,
     user: &Address,

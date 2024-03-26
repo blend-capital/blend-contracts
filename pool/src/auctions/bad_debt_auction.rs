@@ -47,12 +47,7 @@ pub fn create_bad_debt_auction_data(e: &Env, backstop: &Address) -> AuctionData 
     // TODO: Remove backstop_token getter call if WASM cache is not implemented
     let backstop_token = backstop_client.backstop_token();
     let pool_backstop_data = backstop_client.pool_data(&e.current_contract_address());
-    let usdc_token = storage::get_usdc_token(e);
-    let usdc_to_base = pool.load_price(e, &usdc_token);
-    let backstop_value_base = usdc_to_base
-        .fixed_mul_floor(pool_backstop_data.usdc, SCALAR_7)
-        .unwrap_optimized()
-        * 5; // Since the backstop LP token is an 80/20 split of USDC/BLND, we multiply by 5 to get the value of the BLND portion
+    let backstop_value_base = pool_backstop_data.usdc * 5; // Since the backstop LP token is an 80/20 split of USDC/BLND, we multiply by 5 to get the value of the BLND portion
     let backstop_token_to_base = backstop_value_base
         .fixed_div_floor(pool_backstop_data.tokens, SCALAR_7)
         .unwrap_optimized();

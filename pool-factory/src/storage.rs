@@ -1,8 +1,14 @@
 use soroban_sdk::{contracttype, unwrap::UnwrapOptimized, Address, BytesN, Env, Symbol};
 
-// @dev: This contract is not expected to be used often, so we can use a higher bump amount
-pub(crate) const LEDGER_THRESHOLD: u32 = 518400; // TODO: Check on phase 1 max ledger entry bump
-pub(crate) const LEDGER_BUMP: u32 = 535670; // TODO: Check on phase 1 max ledger entry bump
+/********** Ledger Thresholds **********/
+
+const ONE_DAY_LEDGERS: u32 = 17280; // assumes 5s a ledger
+
+const LEDGER_THRESHOLD_INSTANCE: u32 = ONE_DAY_LEDGERS * 30; // ~ 30 days
+const LEDGER_BUMP_INSTANCE: u32 = LEDGER_THRESHOLD_INSTANCE + ONE_DAY_LEDGERS; // ~ 31 days
+
+const LEDGER_THRESHOLD_USER: u32 = ONE_DAY_LEDGERS * 100; // ~ 100 days
+const LEDGER_BUMP_USER: u32 = LEDGER_THRESHOLD_USER + 20 * ONE_DAY_LEDGERS; // ~ 120 days
 
 const IS_INIT_KEY: &str = "IsInit";
 
@@ -25,7 +31,7 @@ pub struct PoolInitMeta {
 pub fn extend_instance(e: &Env) {
     e.storage()
         .instance()
-        .extend_ttl(LEDGER_THRESHOLD, LEDGER_BUMP);
+        .extend_ttl(LEDGER_THRESHOLD_INSTANCE, LEDGER_BUMP_INSTANCE);
 }
 
 /// Check if the contract has been initialized
@@ -71,7 +77,7 @@ pub fn is_deployed(e: &Env, contract_id: &Address) -> bool {
     {
         e.storage()
             .persistent()
-            .extend_ttl(&key, LEDGER_THRESHOLD, LEDGER_BUMP);
+            .extend_ttl(&key, LEDGER_THRESHOLD_USER, LEDGER_BUMP_USER);
         result
     } else {
         false
@@ -89,5 +95,5 @@ pub fn set_deployed(e: &Env, contract_id: &Address) {
         .set::<PoolFactoryDataKey, bool>(&key, &true);
     e.storage()
         .persistent()
-        .extend_ttl(&key, LEDGER_THRESHOLD, LEDGER_BUMP);
+        .extend_ttl(&key, LEDGER_THRESHOLD_USER, LEDGER_BUMP_USER);
 }

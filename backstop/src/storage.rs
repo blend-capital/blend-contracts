@@ -5,11 +5,18 @@ use soroban_sdk::{
 
 use crate::backstop::{PoolBalance, UserBalance};
 
-pub(crate) const LEDGER_THRESHOLD_SHARED: u32 = 172800; // ~ 10 days
-pub(crate) const LEDGER_BUMP_SHARED: u32 = 241920; // ~ 14 days
+/********** Ledger Thresholds **********/
 
-pub(crate) const LEDGER_THRESHOLD_USER: u32 = 518400; // TODO: Check on phase 1 max ledger entry bump
-pub(crate) const LEDGER_BUMP_USER: u32 = 535670; // TODO: Check on phase 1 max ledger entry bump
+const ONE_DAY_LEDGERS: u32 = 17280; // assumes 5s a ledger
+
+const LEDGER_THRESHOLD_INSTANCE: u32 = ONE_DAY_LEDGERS * 30; // ~ 30 days
+const LEDGER_BUMP_INSTANCE: u32 = LEDGER_THRESHOLD_INSTANCE + ONE_DAY_LEDGERS; // ~ 31 days
+
+const LEDGER_THRESHOLD_SHARED: u32 = ONE_DAY_LEDGERS * 45; // ~ 45 days
+const LEDGER_BUMP_SHARED: u32 = LEDGER_THRESHOLD_SHARED + ONE_DAY_LEDGERS; // ~ 46 days
+
+const LEDGER_THRESHOLD_USER: u32 = ONE_DAY_LEDGERS * 100; // ~ 100 days
+const LEDGER_BUMP_USER: u32 = LEDGER_THRESHOLD_USER + 20 * ONE_DAY_LEDGERS; // ~ 120 days
 
 /********** Storage Types **********/
 
@@ -77,7 +84,7 @@ pub enum BackstopDataKey {
 pub fn extend_instance(e: &Env) {
     e.storage()
         .instance()
-        .extend_ttl(LEDGER_THRESHOLD_SHARED, LEDGER_BUMP_SHARED);
+        .extend_ttl(LEDGER_THRESHOLD_INSTANCE, LEDGER_BUMP_INSTANCE);
 }
 
 /// Fetch an entry in persistent storage that has a default value if it doesn't exist

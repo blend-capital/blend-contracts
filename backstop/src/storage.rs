@@ -16,7 +16,7 @@ const LEDGER_THRESHOLD_SHARED: u32 = ONE_DAY_LEDGERS * 45; // ~ 45 days
 const LEDGER_BUMP_SHARED: u32 = LEDGER_THRESHOLD_SHARED + ONE_DAY_LEDGERS; // ~ 46 days
 
 const LEDGER_THRESHOLD_USER: u32 = ONE_DAY_LEDGERS * 100; // ~ 100 days
-const LEDGER_BUMP_USER: u32 = LEDGER_THRESHOLD_USER + 20 * ONE_DAY_LEDGERS; // ~ 120 days
+pub(crate) const LEDGER_BUMP_USER: u32 = LEDGER_THRESHOLD_USER + 20 * ONE_DAY_LEDGERS; // ~ 120 days
 
 /********** Storage Types **********/
 
@@ -314,8 +314,6 @@ pub fn set_last_distribution_time(e: &Env, timestamp: &u64) {
 }
 
 /// Get the current pool addresses that are in the reward zone
-///
-// @dev - TODO: Once data access costs are available, find the breakeven point for splitting this up
 pub fn get_reward_zone(e: &Env) -> Vec<Address> {
     get_persistent_default(
         e,

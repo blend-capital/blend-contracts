@@ -24,4 +24,5 @@ pub enum BackstopError {
     NotPool = 1004,
     InvalidShareMintAmount = 1005,
     InvalidTokenWithdrawAmount = 1006,
+    TooManyQ4WEntries = 1007,
 }

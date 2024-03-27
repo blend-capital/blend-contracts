@@ -98,7 +98,6 @@ impl PoolFactory for PoolFactoryContract {
         init_args.push_back(max_positions.into_val(&e));
         init_args.push_back(pool_init_meta.backstop.to_val());
         init_args.push_back(pool_init_meta.blnd_id.to_val());
-        init_args.push_back(pool_init_meta.usdc_id.to_val());
         let pool_address = e
             .deployer()
             .with_current_contract(new_salt)

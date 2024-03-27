@@ -121,7 +121,6 @@ mod tests {
         e.as_contract(&backstop_address, || {
             execute_deposit(&e, &samwise, &pool_0_id, 100_0000001);
 
-            // TODO: Handle token errors gracefully
             assert!(false);
         });
     }

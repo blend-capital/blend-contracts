@@ -201,7 +201,7 @@ mod tests {
         let bombadil = Address::generate(&e);
 
         let pool_address = create_pool(&e);
-        let (usdc_id, _) = testutils::create_usdc_token(&e, &pool_address, &bombadil);
+        let (usdc_id, _) = testutils::create_token_contract(&e, &bombadil);
         let (backstop_address, _backstop_client) = testutils::create_backstop(&e);
         testutils::setup_backstop(
             &e,
@@ -302,7 +302,7 @@ mod tests {
         let bombadil = Address::generate(&e);
 
         let pool_address = create_pool(&e);
-        let (usdc_id, _) = testutils::create_usdc_token(&e, &pool_address, &bombadil);
+        let (usdc_id, _) = testutils::create_token_contract(&e, &bombadil);
         let (blnd_id, _) = testutils::create_blnd_token(&e, &pool_address, &bombadil);
 
         let (backstop_token_id, _) = create_comet_lp_pool(&e, &bombadil, &blnd_id, &usdc_id);
@@ -413,13 +413,13 @@ mod tests {
             base_reserve: 10,
             min_temp_entry_ttl: 10,
             min_persistent_entry_ttl: 10,
-            max_entry_ttl: 2000000,
+            max_entry_ttl: 3110400,
         });
 
         let bombadil = Address::generate(&e);
 
         let pool_address = create_pool(&e);
-        let (usdc_id, _) = testutils::create_usdc_token(&e, &pool_address, &bombadil);
+        let (usdc_id, _) = testutils::create_token_contract(&e, &bombadil);
         let (blnd_id, _) = testutils::create_blnd_token(&e, &pool_address, &bombadil);
 
         let (backstop_token_id, _) = create_comet_lp_pool(&e, &bombadil, &blnd_id, &usdc_id);
@@ -542,7 +542,7 @@ mod tests {
         let bombadil = Address::generate(&e);
 
         let pool_address = create_pool(&e);
-        let (usdc_id, _) = testutils::create_usdc_token(&e, &pool_address, &bombadil);
+        let (usdc_id, _) = testutils::create_token_contract(&e, &bombadil);
         let (blnd_id, _) = testutils::create_blnd_token(&e, &pool_address, &bombadil);
 
         let (backstop_token_id, _) = create_comet_lp_pool(&e, &bombadil, &blnd_id, &usdc_id);
@@ -668,7 +668,7 @@ mod tests {
 
         let pool_address = create_pool(&e);
 
-        let (usdc_id, usdc_client) = testutils::create_usdc_token(&e, &pool_address, &bombadil);
+        let (usdc_id, usdc_client) = testutils::create_token_contract(&e, &bombadil);
         let (blnd_id, blnd_client) = testutils::create_blnd_token(&e, &pool_address, &bombadil);
 
         let (backstop_token_id, backstop_token_client) =
@@ -754,7 +754,6 @@ mod tests {
             );
             storage::set_pool_config(&e, &pool_config);
             storage::set_backstop(&e, &backstop_address);
-            storage::set_usdc_token(&e, &usdc_id);
             let mut pool = Pool::load(&e);
             let backstop_token_balance_pre_fill = backstop_token_client.balance(&backstop_address);
             fill_interest_auction(&e, &mut pool, &mut auction_data, &samwise);
@@ -798,7 +797,7 @@ mod tests {
 
         let pool_address = create_pool(&e);
 
-        let (usdc_id, usdc_client) = testutils::create_usdc_token(&e, &pool_address, &bombadil);
+        let (usdc_id, usdc_client) = testutils::create_token_contract(&e, &bombadil);
         let (backstop_address, _backstop_client) = testutils::create_backstop(&e);
         testutils::setup_backstop(
             &e,
@@ -859,7 +858,6 @@ mod tests {
             );
             storage::set_pool_config(&e, &pool_config);
             storage::set_backstop(&e, &backstop_address);
-            storage::set_usdc_token(&e, &usdc_id);
 
             let mut pool = Pool::load(&e);
             fill_interest_auction(&e, &mut pool, &mut auction_data, &backstop_address);

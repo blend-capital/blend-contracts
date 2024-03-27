@@ -27,7 +27,6 @@ pub trait Pool {
     /// Pool Factory supplied:
     /// * `backstop_id` - The contract address of the pool's backstop module
     /// * `blnd_id` - The contract ID of the BLND token
-    /// * `usdc_id` - The contract ID of the BLND token
     #[allow(clippy::too_many_arguments)]
     fn initialize(
         e: Env,
@@ -38,7 +37,6 @@ pub trait Pool {
         max_positions: u32,
         backstop_id: Address,
         blnd_id: Address,
-        usdc_id: Address,
     );
 
     /// (Admin only) Set a new address as the admin of this pool
@@ -244,7 +242,6 @@ impl Pool for PoolContract {
         max_postions: u32,
         backstop_id: Address,
         blnd_id: Address,
-        usdc_id: Address,
     ) {
         storage::extend_instance(&e);
         admin.require_auth();
@@ -258,7 +255,6 @@ impl Pool for PoolContract {
             &max_postions,
             &backstop_id,
             &blnd_id,
-            &usdc_id,
         );
     }
 

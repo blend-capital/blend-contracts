@@ -22,7 +22,6 @@ pub fn execute_initialize(
     max_positions: &u32,
     backstop_address: &Address,
     blnd_id: &Address,
-    usdc_id: &Address,
 ) {
     if storage::get_is_init(e) {
         panic_with_error!(e, PoolError::AlreadyInitializedError);
@@ -51,7 +50,6 @@ pub fn execute_initialize(
         },
     );
     storage::set_blnd_token(e, blnd_id);
-    storage::set_usdc_token(e, usdc_id);
 
     storage::set_is_init(e);
 }
@@ -203,7 +201,6 @@ mod tests {
         let max_positions = 2;
         let backstop_address = Address::generate(&e);
         let blnd_id = Address::generate(&e);
-        let usdc_id = Address::generate(&e);
 
         e.as_contract(&pool, || {
             execute_initialize(
@@ -215,7 +212,6 @@ mod tests {
                 &max_positions,
                 &backstop_address,
                 &blnd_id,
-                &usdc_id,
             );
 
             assert_eq!(storage::get_admin(&e), admin);
@@ -225,7 +221,6 @@ mod tests {
             assert_eq!(pool_config.status, 6);
             assert_eq!(storage::get_backstop(&e), backstop_address);
             assert_eq!(storage::get_blnd_token(&e), blnd_id);
-            assert_eq!(storage::get_usdc_token(&e), usdc_id);
         });
     }
 
@@ -242,7 +237,6 @@ mod tests {
         let max_positions = 3;
         let backstop_address = Address::generate(&e);
         let blnd_id = Address::generate(&e);
-        let usdc_id = Address::generate(&e);
 
         e.as_contract(&pool, || {
             execute_initialize(
@@ -254,7 +248,6 @@ mod tests {
                 &max_positions,
                 &backstop_address,
                 &blnd_id,
-                &usdc_id,
             );
 
             execute_initialize(
@@ -266,7 +259,6 @@ mod tests {
                 &max_positions,
                 &backstop_address,
                 &blnd_id,
-                &usdc_id,
             );
         });
     }
@@ -284,7 +276,6 @@ mod tests {
         let max_positions = 3;
         let backstop_address = Address::generate(&e);
         let blnd_id = Address::generate(&e);
-        let usdc_id = Address::generate(&e);
 
         e.as_contract(&pool, || {
             execute_initialize(
@@ -296,7 +287,6 @@ mod tests {
                 &max_positions,
                 &backstop_address,
                 &blnd_id,
-                &usdc_id,
             );
         });
     }
@@ -314,7 +304,6 @@ mod tests {
         let max_positions = 1;
         let backstop_address = Address::generate(&e);
         let blnd_id = Address::generate(&e);
-        let usdc_id = Address::generate(&e);
 
         e.as_contract(&pool, || {
             execute_initialize(
@@ -326,7 +315,6 @@ mod tests {
                 &max_positions,
                 &backstop_address,
                 &blnd_id,
-                &usdc_id,
             );
         });
     }

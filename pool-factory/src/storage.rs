@@ -24,7 +24,6 @@ pub struct PoolInitMeta {
     pub pool_hash: BytesN<32>,
     pub backstop: Address,
     pub blnd_id: Address,
-    pub usdc_id: Address, //Must have 7 token decimals due to lot decimal restriction in backstop interest auctions
 }
 
 /// Bump the instance rent for the contract

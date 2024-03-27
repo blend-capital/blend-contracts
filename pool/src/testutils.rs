@@ -51,19 +51,6 @@ pub(crate) fn create_blnd_token<'a>(
     (contract_address, client)
 }
 
-pub(crate) fn create_usdc_token<'a>(
-    e: &Env,
-    pool_address: &Address,
-    admin: &Address,
-) -> (Address, MockTokenClient<'a>) {
-    let (contract_address, client) = create_token_contract(e, admin);
-
-    e.as_contract(pool_address, || {
-        storage::set_usdc_token(e, &contract_address);
-    });
-    (contract_address, client)
-}
-
 //***** Oracle ******
 
 pub(crate) fn create_mock_oracle(e: &Env) -> (Address, MockPriceOracleClient) {

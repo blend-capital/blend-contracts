@@ -117,7 +117,6 @@ impl TestFixture<'_> {
             backstop: backstop_id.clone(),
             pool_hash: pool_hash.clone(),
             blnd_id: blnd_id.clone(),
-            usdc_id: usdc_id.clone(),
         };
         let pool_factory_client = PoolFactoryClient::new(&e, &pool_factory_id);
         pool_factory_client.initialize(&pool_init_meta);

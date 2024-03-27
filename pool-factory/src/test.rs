@@ -32,13 +32,11 @@ fn test_pool_factory() {
     let backstop_rate: u32 = 0_1000000;
     let max_positions: u32 = 6;
     let blnd_id = Address::generate(&e);
-    let usdc_id = Address::generate(&e);
 
     let pool_init_meta = PoolInitMeta {
         backstop: backstop_id.clone(),
         pool_hash: wasm_hash.clone(),
         blnd_id: blnd_id.clone(),
-        usdc_id: usdc_id.clone(),
     };
     pool_factory_client.initialize(&pool_init_meta);
 
@@ -116,13 +114,6 @@ fn test_pool_factory() {
                 .unwrap(),
             blnd_id.clone()
         );
-        assert_eq!(
-            e.storage()
-                .instance()
-                .get::<_, Address>(&Symbol::new(&e, "USDCTkn"))
-                .unwrap(),
-            usdc_id.clone()
-        );
     });
     assert_ne!(deployed_pool_address_1, deployed_pool_address_2);
     assert!(pool_factory_client.is_pool(&deployed_pool_address_1));
@@ -142,13 +133,11 @@ fn test_pool_factory_invalid_pool_init_args_backstop_rate() {
 
     let backstop_id = Address::generate(&e);
     let blnd_id = Address::generate(&e);
-    let usdc_id = Address::generate(&e);
 
     let pool_init_meta = PoolInitMeta {
         backstop: backstop_id.clone(),
         pool_hash: wasm_hash.clone(),
         blnd_id: blnd_id.clone(),
-        usdc_id: usdc_id.clone(),
     };
     pool_factory_client.initialize(&pool_init_meta);
 
@@ -182,13 +171,11 @@ fn test_pool_factory_invalid_pool_init_args_max_positions() {
 
     let backstop_id = Address::generate(&e);
     let blnd_id = Address::generate(&e);
-    let usdc_id = Address::generate(&e);
 
     let pool_init_meta = PoolInitMeta {
         backstop: backstop_id.clone(),
         pool_hash: wasm_hash.clone(),
         blnd_id: blnd_id.clone(),
-        usdc_id: usdc_id.clone(),
     };
     pool_factory_client.initialize(&pool_init_meta);
 
@@ -228,13 +215,11 @@ fn test_pool_factory_frontrun_protection() {
     let backstop_rate: u32 = 0_1000000;
     let max_positions: u32 = 6;
     let blnd_id = Address::generate(&e);
-    let usdc_id = Address::generate(&e);
 
     let pool_init_meta = PoolInitMeta {
         backstop: backstop_id.clone(),
         pool_hash: wasm_hash.clone(),
         blnd_id: blnd_id.clone(),
-        usdc_id: usdc_id.clone(),
     };
     pool_factory_client.initialize(&pool_init_meta);
 

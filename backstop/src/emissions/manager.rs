@@ -17,7 +17,11 @@ use super::distributor::update_emission_data_with_config;
 /// Add a pool to the reward zone. If the reward zone is full, attempt to swap it with the pool to remove.
 pub fn add_to_reward_zone(e: &Env, to_add: Address, to_remove: Address) {
     let mut reward_zone = storage::get_reward_zone(e);
-    let max_rz_len = 10 + (i128(e.ledger().timestamp() - BACKSTOP_EPOCH) >> 23); // bit-shift 23 is ~97 day interval
+    let max_rz_len = if e.ledger().timestamp() < BACKSTOP_EPOCH {
+        10
+    } else {
+        10 + (i128(e.ledger().timestamp() - BACKSTOP_EPOCH) >> 23) // bit-shift 23 is ~97 day interval
+    };
 
     // ensure an entity in the reward zone cannot be included twice
     if reward_zone.contains(to_add.clone()) {
@@ -575,6 +579,55 @@ mod tests {
     }
 
     #[test]
+    fn test_add_to_rz_before_epoch_max_10() {
+        let e = Env::default();
+        e.ledger().set(LedgerInfo {
+            timestamp: BACKSTOP_EPOCH - 100000,
+            protocol_version: 20,
+            sequence_number: 0,
+            network_id: Default::default(),
+            base_reserve: 10,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 3110400,
+        });
+
+        let backstop_id = create_backstop(&e);
+        let to_add = Address::generate(&e);
+        let mut reward_zone: Vec<Address> = vec![
+            &e,
+            Address::generate(&e),
+            Address::generate(&e),
+            Address::generate(&e),
+            Address::generate(&e),
+            Address::generate(&e),
+            Address::generate(&e),
+            Address::generate(&e),
+            Address::generate(&e),
+            Address::generate(&e),
+        ];
+
+        e.as_contract(&backstop_id, || {
+            storage::set_reward_zone(&e, &reward_zone);
+            storage::set_pool_balance(
+                &e,
+                &to_add,
+                &PoolBalance {
+                    shares: 90_000_0000000,
+                    tokens: 100_000_0000000,
+                    q4w: 1_000_0000000,
+                },
+            );
+            storage::set_lp_token_val(&e, &(5_0000000, 0_1000000));
+
+            add_to_reward_zone(&e, to_add.clone(), Address::generate(&e));
+            let actual_rz = storage::get_reward_zone(&e);
+            reward_zone.push_front(to_add);
+            assert_eq!(actual_rz, reward_zone);
+        });
+    }
+
+    #[test]
     #[should_panic(expected = "Error(Contract, #1002)")]
     fn test_add_to_rz_empty_pool_under_backstop_threshold() {
         let e = Env::default();
@@ -660,6 +713,7 @@ mod tests {
             assert_eq!(actual_rz, reward_zone);
         });
     }
+
     #[test]
     #[should_panic(expected = "Error(Contract, #1002)")]
     fn test_add_to_rz_takes_floor_for_size() {

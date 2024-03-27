@@ -130,10 +130,7 @@ pub fn delete_liquidation(e: &Env, user: &Address) {
     storage::del_auction(e, &(AuctionType::UserLiquidation as u32), user);
 }
 
-/// Fills the auction from the invoker. The filler is expected to maintain allowances to both
-/// the pool and the backstop module.
-///
-/// TODO: Use auth-next to avoid required allowances
+/// Fills the auction from the invoker.
 ///
 /// ### Arguments
 /// * `pool` - The pool

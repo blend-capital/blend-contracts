@@ -313,7 +313,7 @@ fn test_liquidations() {
         frodo_stable_balance - usdc_bid_amount
             + stable_interest_lot_amount
                 .fixed_div_floor(2 * 10i128.pow(6), 10i128.pow(6))
-                .unwrap(), // - usdc_donate_bid_amount TODO: add donate diff when donating is implemented
+                .unwrap(),
         10i128.pow(6),
     );
     assert_approx_eq_abs(

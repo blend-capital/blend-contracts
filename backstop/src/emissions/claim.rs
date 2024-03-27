@@ -27,18 +27,20 @@ pub fn execute_claim(e: &Env, from: &Address, pool_addresses: &Vec<Address>, to:
     if claimed > 0 {
         let blnd_id = storage::get_blnd_token(e);
         let lp_id = storage::get_backstop_token(e);
+        let approval_ledger = (e.ledger().sequence() / 100000 + 1) * 100000;
         let args: Vec<Val> = vec![
             e,
             (&e.current_contract_address()).into_val(e),
             (&lp_id).into_val(e),
             (&claimed).into_val(e),
+            (&approval_ledger).into_val(e),
         ];
         e.authorize_as_current_contract(vec![
             &e,
             InvokerContractAuthEntry::Contract(SubContractInvocation {
                 context: ContractContext {
                     contract: blnd_id.clone(),
-                    fn_name: Symbol::new(e, "transfer"),
+                    fn_name: Symbol::new(e, "approve"),
                     args: args.clone(),
                 },
                 sub_invocations: vec![e],

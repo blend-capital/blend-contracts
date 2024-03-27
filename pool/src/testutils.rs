@@ -170,8 +170,8 @@ pub(crate) fn create_comet_lp_pool<'a>(
     );
 
     client.set_swap_fee(&0_0030000, &admin);
-    client.finalize();
     client.set_public_swap(&admin, &true);
+    client.finalize();
 
     (contract_address, client)
 }

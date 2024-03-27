@@ -45,7 +45,6 @@ pub fn create_bad_debt_auction_data(e: &Env, backstop: &Address) -> AuctionData 
 
     // get value of backstop_token (BLND-USDC LP token) to base
     let backstop_client = BackstopClient::new(e, backstop);
-    // TODO: Remove backstop_token getter call if WASM cache is not implemented
     let backstop_token = backstop_client.backstop_token();
     let pool_backstop_data = backstop_client.pool_data(&e.current_contract_address());
     let backstop_value_base = pool_backstop_data

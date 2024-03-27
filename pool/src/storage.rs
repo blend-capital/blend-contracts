@@ -126,7 +126,6 @@ pub struct AuctionKey {
     auct_type: u32, // the type of auction taking place
 }
 
-// TODO: See if we can avoid publishing this
 #[derive(Clone)]
 #[contracttype]
 pub enum PoolDataKey {

@@ -34,14 +34,8 @@ pub fn extend_instance(e: &Env) {
 
 /// Fetch the pool initialization metadata
 pub fn get_pool_init_meta(e: &Env) -> PoolInitMeta {
-    // TODO: Change to instance - https://github.com/stellar/rs-soroban-sdk/issues/1040
-    e.storage().persistent().extend_ttl(
-        &PoolFactoryDataKey::PoolInitMeta,
-        LEDGER_THRESHOLD_SHARED,
-        LEDGER_BUMP_SHARED,
-    );
     e.storage()
-        .persistent()
+        .instance()
         .get::<PoolFactoryDataKey, PoolInitMeta>(&PoolFactoryDataKey::PoolInitMeta)
         .unwrap_optimized()
 }
@@ -52,14 +46,14 @@ pub fn get_pool_init_meta(e: &Env) -> PoolInitMeta {
 /// * `pool_init_meta` - The metadata to initialize pools
 pub fn set_pool_init_meta(e: &Env, pool_init_meta: &PoolInitMeta) {
     e.storage()
-        .persistent()
+        .instance()
         .set::<PoolFactoryDataKey, PoolInitMeta>(&PoolFactoryDataKey::PoolInitMeta, pool_init_meta)
 }
 
 /// Check if the factory has a WASM hash set
 pub fn has_pool_init_meta(e: &Env) -> bool {
     e.storage()
-        .persistent()
+        .instance()
         .has(&PoolFactoryDataKey::PoolInitMeta)
 }
 

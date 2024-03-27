@@ -1,21 +1,85 @@
 #![cfg(test)]
 
 use emitter::Swap;
-use pool::{Request, RequestType};
+use pool::{Request, RequestType, ReserveEmissionMetadata};
 use soroban_sdk::{
     testutils::{Address as _, Events},
     vec as svec, Address, IntoVal, Symbol, Vec as SVec,
 };
 use test_suites::{
-    create_fixture_no_rzone_add, create_fixture_with_data,
-    test_fixture::{TokenIndex, SCALAR_7},
+    create_fixture_with_data,
+    pool::default_reserve_metadata,
+    test_fixture::{TestFixture, TokenIndex, SCALAR_7},
 };
 
 /// Test user exposed functions on the emitter for basic functionality, auth, and events.
 /// Does not test internal state management of the emitter, only external effects.
 #[test]
 fn test_emitter_no_reward_zone() {
-    let fixture = create_fixture_no_rzone_add(false);
+    let mut fixture = TestFixture::create(false);
+    // mint whale tokens
+    let frodo = Address::generate(&fixture.env);
+    fixture.users.push(frodo.clone());
+    fixture.tokens[TokenIndex::STABLE].mint(&frodo, &(100_000 * 10i128.pow(6)));
+    fixture.tokens[TokenIndex::XLM].mint(&frodo, &(1_000_000 * SCALAR_7));
+    fixture.tokens[TokenIndex::WETH].mint(&frodo, &(100 * 10i128.pow(9)));
+
+    // mint LP tokens with whale
+    fixture.tokens[TokenIndex::BLND].mint(&frodo, &(500_0010_000_0000_0000 * SCALAR_7));
+    // fixture.tokens[TokenIndex::BLND].approve(&frodo, &fixture.lp.address, &i128::MAX, &99999);
+    fixture.tokens[TokenIndex::USDC].mint(&frodo, &(12_5010_000_0000_0000 * SCALAR_7));
+    // fixture.tokens[TokenIndex::USDC].approve(&frodo, &fixture.lp.address, &i128::MAX, &99999);
+    fixture.lp.join_pool(
+        &(500_000_0000 * SCALAR_7),
+        &svec![
+            &fixture.env,
+            500_0010_000_0000_0000 * SCALAR_7,
+            12_5010_000_0000_0000 * SCALAR_7,
+        ],
+        &frodo,
+    );
+
+    // create pool
+    fixture.create_pool(Symbol::new(&fixture.env, "Teapot"), 0_1000000, 6);
+
+    let mut stable_config = default_reserve_metadata();
+    stable_config.decimals = 6;
+    stable_config.c_factor = 0_900_0000;
+    stable_config.l_factor = 0_950_0000;
+    stable_config.util = 0_850_0000;
+    fixture.create_pool_reserve(0, TokenIndex::STABLE, &stable_config);
+
+    let mut xlm_config = default_reserve_metadata();
+    xlm_config.c_factor = 0_750_0000;
+    xlm_config.l_factor = 0_750_0000;
+    xlm_config.util = 0_500_0000;
+    fixture.create_pool_reserve(0, TokenIndex::XLM, &xlm_config);
+
+    let mut weth_config = default_reserve_metadata();
+    weth_config.decimals = 9;
+    weth_config.c_factor = 0_800_0000;
+    weth_config.l_factor = 0_800_0000;
+    weth_config.util = 0_700_0000;
+    fixture.create_pool_reserve(0, TokenIndex::WETH, &weth_config);
+
+    // enable emissions for pool
+    let pool_fixture = &fixture.pools[0];
+
+    let reserve_emissions: soroban_sdk::Vec<ReserveEmissionMetadata> = soroban_sdk::vec![
+        &fixture.env,
+        ReserveEmissionMetadata {
+            res_index: 1, // XLM
+            res_type: 1,  // b_token
+            share: 1_000_0000
+        },
+    ];
+    pool_fixture.pool.set_emissions_config(&reserve_emissions);
+    assert_eq!(
+        0,
+        fixture.tokens[TokenIndex::BLND].balance(&fixture.backstop.address)
+    );
+
+    fixture.env.budget().reset_unlimited();
     let frodo = &fixture.users[0];
     let pool_fixture = &fixture.pools[0];
     let blnd_token = &fixture.tokens[TokenIndex::BLND];
@@ -23,24 +87,23 @@ fn test_emitter_no_reward_zone() {
     blnd_token.balance(&fixture.backstop.address);
 
     // Allow 6 days to pass and call distribute
-    // @dev: 1h1m have passed since the emitter was deployed during setup
     assert_eq!(blnd_token.balance(&fixture.backstop.address), 0);
     fixture.jump(6 * 24 * 60 * 60);
     let result = fixture.emitter.distribute();
-    assert_eq!(result, (13 * 24 * 60 * 60 + 61 * 60) * SCALAR_7); // 1 token per second are emitted
+    assert_eq!(result, (13 * 24 * 60 * 60) * SCALAR_7); // 1 token per second are emitted
     let result = fixture.backstop.try_gulp_emissions();
     assert!(result.is_err());
 
     assert_eq!(fixture.env.auths().len(), 0);
     assert_eq!(
         blnd_token.balance(&fixture.backstop.address),
-        (13 * 24 * 60 * 60 + 61 * 60) * SCALAR_7
+        (13 * 24 * 60 * 60) * SCALAR_7
     ); // 1 token per second are emitted
     assert_eq!(fixture.env.auths().len(), 0);
     // Validate Emissions can't be claimed
     let result = pool_fixture.pool.claim(
         &fixture.users[0],
-        &svec![&fixture.env, 0, 1, 2],
+        &svec![&fixture.env, 0, 1, 2, 3],
         &fixture.users[0],
     );
     assert!(result == 0);
@@ -59,50 +122,13 @@ fn test_emitter_no_reward_zone() {
     fixture.backstop.update_tkn_val();
     pool_fixture.pool.set_status(&3);
     pool_fixture.pool.update_status();
-    // supply and borrow STABLE for 80% utilization (close to target)
-    let requests: SVec<Request> = svec![
-        &fixture.env,
-        Request {
-            request_type: RequestType::SupplyCollateral as u32,
-            address: fixture.tokens[TokenIndex::STABLE].address.clone(),
-            amount: 10_000 * 10i128.pow(6),
-        },
-        Request {
-            request_type: RequestType::Borrow as u32,
-            address: fixture.tokens[TokenIndex::STABLE].address.clone(),
-            amount: 8_000 * 10i128.pow(6),
-        },
-    ];
-    pool_fixture.pool.submit(&frodo, &frodo, &frodo, &requests);
 
-    // supply and borrow WETH for 50% utilization (below target)
-    let requests: SVec<Request> = svec![
-        &fixture.env,
-        Request {
-            request_type: RequestType::SupplyCollateral as u32,
-            address: fixture.tokens[TokenIndex::WETH].address.clone(),
-            amount: 10 * 10i128.pow(9),
-        },
-        Request {
-            request_type: RequestType::Borrow as u32,
-            address: fixture.tokens[TokenIndex::WETH].address.clone(),
-            amount: 5 * 10i128.pow(9),
-        },
-    ];
-    pool_fixture.pool.submit(&frodo, &frodo, &frodo, &requests);
-
-    // supply and borrow XLM for 65% utilization (above target)
     let requests: SVec<Request> = svec![
         &fixture.env,
         Request {
             request_type: RequestType::SupplyCollateral as u32,
             address: fixture.tokens[TokenIndex::XLM].address.clone(),
             amount: 100_000 * SCALAR_7,
-        },
-        Request {
-            request_type: RequestType::Borrow as u32,
-            address: fixture.tokens[TokenIndex::XLM].address.clone(),
-            amount: 65_000 * SCALAR_7,
         },
     ];
     pool_fixture.pool.submit(&frodo, &frodo, &frodo, &requests);
@@ -113,7 +139,7 @@ fn test_emitter_no_reward_zone() {
     fixture.backstop.gulp_emissions();
 
     let result = pool_fixture.pool.gulp_emissions();
-    assert_eq!(result, (13 * 24 * 60 * 60 + 61 * 60) * 300_0000);
+    assert_eq!(result, (13 * 24 * 60 * 60) * 300_0000);
     // Let some time go by
     fixture.jump(7 * 24 * 60 * 60);
     let pre_claim_balance = blnd_token.balance(&fixture.users[0]);
@@ -124,17 +150,14 @@ fn test_emitter_no_reward_zone() {
     );
     let post_claim_1_balance = blnd_token.balance(&fixture.users[0]);
     assert_eq!(post_claim_1_balance - pre_claim_balance, result);
-    assert_eq!(result, (13 * 24 * 60 * 60 + 61 * 60) * 300_0000 - 300000); //pool claim is only 30% of the total emissions
+    assert_eq!(result, (13 * 24 * 60 * 60) * 300_0000 - 400000); //pool claim is only 30% of the total emissions - subtracting 400000 for rounding
     let result_1 = fixture.backstop.claim(
         &fixture.users[0],
         &svec![&fixture.env, pool_fixture.pool.address.clone()],
         &fixture.users[0],
     );
-    assert_eq!(
-        result_1 + result,
-        (13 * 24 * 60 * 60 + 61 * 60) * SCALAR_7 - 400000
-    );
-    assert_eq!(result_1, (13 * 24 * 60 * 60 + 61 * 60) * 700_0000 - 100000);
+    assert_eq!(result_1, (13 * 24 * 60 * 60) * 700_0000);
+    assert_eq!(result_1 + result, (13 * 24 * 60 * 60) * SCALAR_7 - 400000);
 }
 
 /// Test user exposed functions on the emitter for basic functionality, auth, and events.
@@ -167,7 +190,6 @@ fn test_emitter() {
     let result = fixture.emitter.distribute();
     backstop_blnd_balance += result;
     assert_eq!(fixture.env.auths().len(), 0);
-    println!("timestamp: {}", fixture.env.ledger().timestamp());
     assert_eq!(result, (6 * 24 * 60 * 60 + 61 * 60) * SCALAR_7); // 1 token per second are emitted
     assert_eq!(
         blnd_token.balance(&fixture.emitter.address),

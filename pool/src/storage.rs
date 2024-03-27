@@ -108,7 +108,6 @@ const ADMIN_KEY: &str = "Admin";
 const NAME_KEY: &str = "Name";
 const BACKSTOP_KEY: &str = "Backstop";
 const BLND_TOKEN_KEY: &str = "BLNDTkn";
-const USDC_TOKEN_KEY: &str = "USDCTkn";
 const POOL_CONFIG_KEY: &str = "Config";
 const RES_LIST_KEY: &str = "ResList";
 const POOL_EMIS_KEY: &str = "PoolEmis";
@@ -300,24 +299,6 @@ pub fn set_blnd_token(e: &Env, blnd_token_id: &Address) {
     e.storage()
         .instance()
         .set::<Symbol, Address>(&Symbol::new(e, BLND_TOKEN_KEY), blnd_token_id);
-}
-
-/// Fetch the USDC token ID
-pub fn get_usdc_token(e: &Env) -> Address {
-    e.storage()
-        .instance()
-        .get(&Symbol::new(e, USDC_TOKEN_KEY))
-        .unwrap_optimized()
-}
-
-/// Set a new USDC token ID
-///
-/// ### Arguments
-/// * `usdc_token_id` - The ID of the USDC token
-pub fn set_usdc_token(e: &Env, usdc_token_id: &Address) {
-    e.storage()
-        .instance()
-        .set::<Symbol, Address>(&Symbol::new(e, USDC_TOKEN_KEY), usdc_token_id);
 }
 
 /********** Pool Config **********/

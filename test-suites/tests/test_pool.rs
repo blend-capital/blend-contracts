@@ -548,7 +548,6 @@ fn test_pool_config() {
         &4,
         &Address::generate(&fixture.env),
         &Address::generate(&fixture.env),
-        &Address::generate(&fixture.env),
     );
     assert!(result.is_err());
 

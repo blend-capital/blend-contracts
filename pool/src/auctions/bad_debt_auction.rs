@@ -151,7 +151,7 @@ mod tests {
         let samwise = Address::generate(&e);
 
         let (blnd, blnd_client) = testutils::create_blnd_token(&e, &pool_address, &bombadil);
-        let (usdc, usdc_client) = testutils::create_usdc_token(&e, &pool_address, &bombadil);
+        let (usdc, usdc_client) = testutils::create_token_contract(&e, &bombadil);
         let (lp_token, lp_token_client) =
             testutils::create_comet_lp_pool(&e, &bombadil, &blnd, &usdc);
         let (backstop_address, backstop_client) = testutils::create_backstop(&e);
@@ -226,7 +226,7 @@ mod tests {
         let pool_address = create_pool(&e);
 
         let (blnd, blnd_client) = testutils::create_blnd_token(&e, &pool_address, &bombadil);
-        let (usdc, usdc_client) = testutils::create_usdc_token(&e, &pool_address, &bombadil);
+        let (usdc, usdc_client) = testutils::create_token_contract(&e, &bombadil);
         let (lp_token, lp_token_client) =
             testutils::create_comet_lp_pool(&e, &bombadil, &blnd, &usdc);
         let (backstop_address, backstop_client) = testutils::create_backstop(&e);
@@ -352,7 +352,7 @@ mod tests {
             base_reserve: 10,
             min_temp_entry_ttl: 10,
             min_persistent_entry_ttl: 10,
-            max_entry_ttl: 2000000,
+            max_entry_ttl: 3110400,
         });
 
         let bombadil = Address::generate(&e);
@@ -360,7 +360,7 @@ mod tests {
         let pool_address = create_pool(&e);
 
         let (blnd, blnd_client) = testutils::create_blnd_token(&e, &pool_address, &bombadil);
-        let (usdc, usdc_client) = testutils::create_usdc_token(&e, &pool_address, &bombadil);
+        let (usdc, usdc_client) = testutils::create_token_contract(&e, &bombadil);
         let (lp_token, lp_token_client) =
             testutils::create_comet_lp_pool(&e, &bombadil, &blnd, &usdc);
         let (backstop_address, backstop_client) = testutils::create_backstop(&e);
@@ -500,7 +500,7 @@ mod tests {
 
         let pool_address = create_pool(&e);
         let (blnd, blnd_client) = testutils::create_blnd_token(&e, &pool_address, &bombadil);
-        let (usdc, usdc_client) = testutils::create_usdc_token(&e, &pool_address, &bombadil);
+        let (usdc, usdc_client) = testutils::create_token_contract(&e, &bombadil);
         let (lp_token, lp_token_client) =
             testutils::create_comet_lp_pool(&e, &bombadil, &blnd, &usdc);
         let (backstop_address, backstop_client) = testutils::create_backstop(&e);
@@ -635,7 +635,7 @@ mod tests {
         let pool_address = create_pool(&e);
 
         let (blnd, blnd_client) = testutils::create_blnd_token(&e, &pool_address, &bombadil);
-        let (usdc, usdc_client) = testutils::create_usdc_token(&e, &pool_address, &bombadil);
+        let (usdc, usdc_client) = testutils::create_token_contract(&e, &bombadil);
         let (lp_token, lp_token_client) =
             testutils::create_comet_lp_pool(&e, &bombadil, &blnd, &usdc);
         let (backstop_address, backstop_client) = testutils::create_backstop(&e);
@@ -771,7 +771,7 @@ mod tests {
         let pool_address = create_pool(&e);
 
         let (blnd, blnd_client) = testutils::create_blnd_token(&e, &pool_address, &bombadil);
-        let (usdc, usdc_client) = testutils::create_usdc_token(&e, &pool_address, &bombadil);
+        let (usdc, usdc_client) = testutils::create_token_contract(&e, &bombadil);
         let (lp_token, lp_token_client) =
             testutils::create_comet_lp_pool(&e, &bombadil, &blnd, &usdc);
         let (backstop_address, backstop_client) = testutils::create_backstop(&e);
@@ -915,7 +915,7 @@ mod tests {
         let pool_address = create_pool(&e);
 
         let (blnd, blnd_client) = testutils::create_blnd_token(&e, &pool_address, &bombadil);
-        let (usdc, usdc_client) = testutils::create_usdc_token(&e, &pool_address, &bombadil);
+        let (usdc, usdc_client) = testutils::create_token_contract(&e, &bombadil);
         let (lp_token, lp_token_client) =
             testutils::create_comet_lp_pool(&e, &bombadil, &blnd, &usdc);
         let (backstop_address, backstop_client) = testutils::create_backstop(&e);
@@ -1068,7 +1068,7 @@ mod tests {
         let pool_address = create_pool(&e);
 
         let (blnd, blnd_client) = testutils::create_blnd_token(&e, &pool_address, &bombadil);
-        let (usdc, usdc_client) = testutils::create_usdc_token(&e, &pool_address, &bombadil);
+        let (usdc, usdc_client) = testutils::create_token_contract(&e, &bombadil);
         let (lp_token, lp_token_client) =
             testutils::create_comet_lp_pool(&e, &bombadil, &blnd, &usdc);
         let (backstop_address, backstop_client) = testutils::create_backstop(&e);
@@ -1233,7 +1233,7 @@ mod tests {
         let pool_address = create_pool(&e);
 
         let (blnd, blnd_client) = testutils::create_blnd_token(&e, &pool_address, &bombadil);
-        let (usdc, usdc_client) = testutils::create_usdc_token(&e, &pool_address, &bombadil);
+        let (usdc, usdc_client) = testutils::create_token_contract(&e, &bombadil);
         let (lp_token, lp_token_client) =
             testutils::create_comet_lp_pool(&e, &bombadil, &blnd, &usdc);
         let (backstop_address, backstop_client) = testutils::create_backstop(&e);

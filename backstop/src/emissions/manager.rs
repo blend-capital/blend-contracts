@@ -93,8 +93,6 @@ pub fn gulp_emissions(e: &Env) -> i128 {
 
     let mut rz_balance: Vec<PoolBalance> = vec![e];
 
-    // TODO: Potential to assume optimization of backstop token balances ~= RZ tokens
-    //       However, linear iteration over the RZ will still occur
     // fetch total tokens of BLND in the reward zone
     let mut total_non_queued_tokens: i128 = 0;
     for rz_pool_index in 0..rz_len {
@@ -140,12 +138,12 @@ pub fn gulp_pool_emissions(e: &Env, pool_id: &Address) -> i128 {
     let blnd_token_client = TokenClient::new(e, &storage::get_blnd_token(e));
     let current_allowance = blnd_token_client.allowance(&e.current_contract_address(), pool_id);
     let new_tokens = current_allowance + pool_emissions;
-    let new_seq = e.ledger().sequence() + 17_280 * 30; // ~30 days: TODO: check phase 1 limits
+    let new_seq = e.ledger().sequence() + storage::LEDGER_BUMP_USER; // ~120 days
     blnd_token_client.approve(
         &e.current_contract_address(),
         pool_id,
         &new_tokens,
-        &new_seq, // ~30 days: TODO: check phase 1 limits
+        &new_seq,
     );
     storage::set_pool_emissions(e, pool_id, 0);
     pool_emissions

@@ -1361,7 +1361,7 @@ mod tests {
         let samwise = Address::generate(&e);
 
         let pool_address = create_pool(&e);
-        let (usdc_id, usdc_client) = testutils::create_usdc_token(&e, &pool_address, &bombadil);
+        let (usdc_id, usdc_client) = testutils::create_token_contract(&e, &bombadil);
         let (blnd_id, blnd_client) = testutils::create_blnd_token(&e, &pool_address, &bombadil);
 
         let (backstop_token_id, backstop_token_client) =

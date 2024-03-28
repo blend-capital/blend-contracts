@@ -1,6 +1,9 @@
 use soroban_sdk::{contracttype, panic_with_error, vec, Env, Vec};
 
-use crate::errors::BackstopError;
+use crate::{
+    constants::{MAX_Q4W_SIZE, Q4W_LOCK_TIME},
+    errors::BackstopError,
+};
 
 /// A deposit that is queued for withdrawal
 #[derive(Clone)]
@@ -51,14 +54,15 @@ impl UserBalance {
         if self.shares < to_q {
             panic_with_error!(e, BackstopError::BalanceError);
         }
+        if self.q4w.len() >= MAX_Q4W_SIZE {
+            panic_with_error!(e, BackstopError::TooManyQ4WEntries);
+        }
         self.shares = self.shares - to_q;
 
         // user has enough tokens to withdrawal, add Q4W
-        // TODO: Consider capping how many active Q4Ws a user can have
-        let twentyone_days_in_sec = 21 * 24 * 60 * 60;
         let new_q4w = Q4W {
             amount: to_q,
-            exp: e.ledger().timestamp() + twentyone_days_in_sec,
+            exp: e.ledger().timestamp() + Q4W_LOCK_TIME,
         };
         self.q4w.push_back(new_q4w.clone());
     }
@@ -208,6 +212,75 @@ mod tests {
             exp: 11000000 + 21 * 24 * 60 * 60,
         });
         assert_eq_vec_q4w(&user.q4w, &cur_q4w);
+    }
+
+    #[test]
+    fn test_q4w_new_to_max_works() {
+        let e = Env::default();
+        let exp = 12592000;
+        let mut cur_q4w = vec![&e];
+        for i in 0..20 {
+            cur_q4w.push_back(Q4W {
+                amount: 200,
+                exp: exp + i,
+            });
+        }
+        let mut user = UserBalance {
+            shares: 1000,
+            q4w: cur_q4w.clone(),
+        };
+
+        e.ledger().set(LedgerInfo {
+            protocol_version: 20,
+            sequence_number: 1,
+            timestamp: 11000000,
+            network_id: Default::default(),
+            base_reserve: 10,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 3110400,
+        });
+
+        let to_queue = 500;
+        user.queue_shares_for_withdrawal(&e, to_queue);
+        cur_q4w.push_back(Q4W {
+            amount: to_queue,
+            exp: 11000000 + 21 * 24 * 60 * 60,
+        });
+        assert_eq_vec_q4w(&user.q4w, &cur_q4w);
+    }
+
+    #[test]
+    #[should_panic(expected = "Error(Contract, #1007)")]
+    fn test_q4w_new_over_max_panics() {
+        let e = Env::default();
+
+        let exp = 12592000;
+        let mut cur_q4w = vec![&e];
+        for i in 0..21 {
+            cur_q4w.push_back(Q4W {
+                amount: 200,
+                exp: exp + i,
+            });
+        }
+        let mut user = UserBalance {
+            shares: 1000,
+            q4w: cur_q4w.clone(),
+        };
+
+        e.ledger().set(LedgerInfo {
+            protocol_version: 20,
+            sequence_number: 1,
+            timestamp: 11000000,
+            network_id: Default::default(),
+            base_reserve: 10,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 3110400,
+        });
+
+        let to_queue = 500;
+        user.queue_shares_for_withdrawal(&e, to_queue);
     }
 
     #[test]

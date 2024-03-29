@@ -5,15 +5,14 @@ use soroban_fixed_point_math::FixedPoint;
 use fuzz_common::{
     verify_contract_result, Borrow, ClaimPool, NatI128, PassTime, Repay, Supply, Withdraw,
 };
-use lending_pool::{PoolState, PositionData, Request};
+use pool::{PoolState, PositionData, Request};
 use libfuzzer_sys::fuzz_target;
-use soroban_sdk::arbitrary::arbitrary::{self, Arbitrary, Unstructured};
-use soroban_sdk::{testutils::Address as _, vec, Address};
+use soroban_sdk::testutils::arbitrary::{fuzz_catch_panic, arbitrary::{self, Arbitrary, Unstructured}};
+use soroban_sdk::{testutils::Address as _, vec, Address, token::TokenClient};
 use test_suites::{
     assertions::assert_approx_eq_abs,
     create_fixture_with_data,
     test_fixture::{PoolFixture, TestFixture, TokenIndex, SCALAR_7, SCALAR_9},
-    token::TokenClient,
 };
 
 #[derive(Arbitrary, Debug)]
@@ -105,7 +104,7 @@ impl Asserts for TestFixture<'_> {
             let mut pool_state = PoolState::load(&self.env);
             for (token_index, reserve_index) in pool_fixture.reserves.iter() {
                 let asset = &self.tokens[token_index.clone()];
-                let reserve = pool_state.load_reserve(&self.env, &asset.address);
+                let reserve = pool_state.load_reserve(&self.env, &asset.address, false);
                 let asset_to_base = pool_state.load_price(&self.env, &reserve.asset);
                 supply += asset_to_base
                     .fixed_mul_floor(

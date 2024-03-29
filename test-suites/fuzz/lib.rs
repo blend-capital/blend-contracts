@@ -3,23 +3,22 @@
 #![no_main]
 
 use soroban_fixed_point_math::FixedPoint;
-use lending_pool::{PoolState, PositionData, Request};
+use pool::{PoolState, PositionData, Request, RequestType};
 use libfuzzer_sys::fuzz_target;
-use soroban_sdk::arbitrary::arbitrary::{self, Arbitrary, Unstructured};
-use soroban_sdk::{testutils::Address as _, vec, Address};
+use soroban_sdk::testutils::arbitrary::{fuzz_catch_panic, arbitrary::{self, Arbitrary, Unstructured}};
+use soroban_sdk::{testutils::Address as _, vec, Address, token::TokenClient};
 use test_suites::{
     assertions::assert_approx_eq_abs,
     create_fixture_with_data,
     test_fixture::{PoolFixture, TestFixture, TokenIndex, SCALAR_7, SCALAR_9},
-    token::TokenClient,
 };
 
 #[derive(Arbitrary, Debug)]
 pub struct NatI128(
-    #[arbitrary(with = |u: &mut Unstructured| u.int_in_range(0..=i128::MAX))] pub i128,
+    #[arbitrary(with = |u: &mut Unstructured| u.int_in_range(0..=(i64::MAX as i128)))] pub i128,
 );
 
-type ContractResult<T> = Result<T, Result<soroban_sdk::Error, core::convert::Infallible>>;
+type ContractResult<T> = Result<T, Result<soroban_sdk::Error, soroban_sdk::InvokeError>>;
 
 /// Panic if a contract call result might have been the result of an unexpected panic.
 ///

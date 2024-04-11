@@ -3,7 +3,7 @@ resolver = "2"
 
 members = [
     "backstop",
-    "blend-interfaces",
+    "blend-contract-sdk",
     "emitter",
     "pool",
     "mocks/mock-pool-factory",
@@ -36,10 +36,7 @@ version = "0.3.0"
 default-features = false
 
 [workspace.dependencies.sep-40-oracle]
-version = "0.2.0"
+version = "1.0.0"
 
 [workspace.dependencies.sep-41-token]
-version = "0.3.0"
-
-[workspace.dependencies.blend-interfaces]
-path = "./blend-interfaces"
+version = "1.0.0"

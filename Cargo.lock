@@ -49,7 +49,7 @@ checksum = "d468802bab17cbc0cc575e9b053f41e72aa36bfa6b7f55e3529ffa43161b97fa"
 
 [[package]]
 name = "backstop"
-version = "0.0.1"
+version = "1.0.0"
 dependencies = [
  "cast",
  "emitter",
@@ -105,8 +105,8 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8c3c1a368f70d6cf7302d78f8f7093da241fb8e8807c05cc9e51a125895a6d5b"
 
 [[package]]
-name = "blend-interfaces"
-version = "0.0.2"
+name = "blend-contract-sdk"
+version = "0.1.0"
 dependencies = [
  "soroban-sdk",
 ]
@@ -400,7 +400,7 @@ dependencies = [
 
 [[package]]
 name = "emitter"
-version = "0.0.1"
+version = "1.0.0"
 dependencies = [
  "sep-41-token",
  "soroban-sdk",
@@ -760,7 +760,7 @@ checksum = "4503fa043bf02cee09a9582e9554b4c6403b2ef55e4612e96561d294419429f8"
 
 [[package]]
 name = "pool"
-version = "0.0.1"
+version = "1.0.0"
 dependencies = [
  "backstop",
  "cast",
@@ -774,7 +774,7 @@ dependencies = [
 
 [[package]]
 name = "pool-factory"
-version = "0.0.1"
+version = "1.0.0"
 dependencies = [
  "rand 0.7.3",
  "soroban-sdk",
@@ -938,18 +938,18 @@ checksum = "b0293b4b29daaf487284529cc2f5675b8e57c61f70167ba415a463651fd6a918"
 
 [[package]]
 name = "sep-40-oracle"
-version = "0.2.0"
+version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ea393e9867e2a2a73a32be6e7a7b81c78ee3779dc1cdf7b2343b23a16739a181"
+checksum = "841b6a0722971d450567c6cba4b8e00fc00a8774e3cac6f4df4ce16491a7fb93"
 dependencies = [
  "soroban-sdk",
 ]
 
 [[package]]
 name = "sep-41-token"
-version = "0.3.0"
+version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8832c57dd6d2ad1d31f9ac8434bd84677ab4f7ca0e2369fd57df49f42f2567ff"
+checksum = "a0512f9829db34a9a9076e95c8137bbf88276915ec568d91e37350046fc3168c"
 dependencies = [
  "soroban-sdk",
 ]

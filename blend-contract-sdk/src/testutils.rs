@@ -133,9 +133,8 @@ impl<'a> BlendFixture<'a> {
 #[cfg(test)]
 mod tests {
     use soroban_sdk::{
-        symbol_short,
         testutils::{Address as _, BytesN as _},
-        Address, BytesN, Env,
+        Address, BytesN, Env, String,
     };
 
     use crate::{
@@ -156,7 +155,7 @@ mod tests {
         let token = env.register_stellar_asset_contract(deployer.clone());
         let pool = blend.pool_factory.mock_all_auths().deploy(
             &deployer,
-            &symbol_short!("test"),
+            &String::from_str(&env, "test"),
             &BytesN::<32>::random(&env),
             &Address::generate(&env),
             &0_1000000, // 10%

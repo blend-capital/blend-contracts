@@ -10,7 +10,7 @@ To learn more about the Blend Protocol, visit the docs:
 
 ## Audits
 
-No audits have been conducted for the protocol at this time. Results will be included here at the conclusion of an audit.
+Conducted audits can be viewed in the `audits` folder.
 
 ## Getting Started
 

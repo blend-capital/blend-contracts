@@ -5,7 +5,7 @@ use crate::{
         self, has_queued_reserve_set, PoolConfig, QueuedReserveInit, ReserveConfig, ReserveData,
     },
 };
-use soroban_sdk::{panic_with_error, Address, Env, Symbol};
+use soroban_sdk::{panic_with_error, Address, Env, String};
 
 use super::pool::Pool;
 
@@ -16,7 +16,7 @@ use super::pool::Pool;
 pub fn execute_initialize(
     e: &Env,
     admin: &Address,
-    name: &Symbol,
+    name: &String,
     oracle: &Address,
     bstop_rate: &u32,
     max_positions: &u32,
@@ -195,7 +195,7 @@ mod tests {
         let pool = testutils::create_pool(&e);
 
         let admin = Address::generate(&e);
-        let name = Symbol::new(&e, "pool_name");
+        let name = String::from_str(&e, "pool_name");
         let oracle = Address::generate(&e);
         let bstop_rate: u32 = 0_1000000;
         let max_positions = 2;
@@ -231,7 +231,7 @@ mod tests {
         let pool = testutils::create_pool(&e);
 
         let admin = Address::generate(&e);
-        let name = Symbol::new(&e, "pool_name");
+        let name = String::from_str(&e, "pool_name");
         let oracle = Address::generate(&e);
         let bstop_rate: u32 = 0_1000000;
         let max_positions = 3;
@@ -270,7 +270,7 @@ mod tests {
         let pool = testutils::create_pool(&e);
 
         let admin = Address::generate(&e);
-        let name = Symbol::new(&e, "pool_name");
+        let name = String::from_str(&e, "pool_name");
         let oracle = Address::generate(&e);
         let bstop_rate = 1_0000000;
         let max_positions = 3;
@@ -298,7 +298,7 @@ mod tests {
         let pool = testutils::create_pool(&e);
 
         let admin = Address::generate(&e);
-        let name = Symbol::new(&e, "pool_name");
+        let name = String::from_str(&e, "pool_name");
         let oracle = Address::generate(&e);
         let bstop_rate = 0_1000000;
         let max_positions = 1;

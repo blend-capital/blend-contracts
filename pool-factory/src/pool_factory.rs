@@ -4,7 +4,7 @@ use crate::{
 };
 use soroban_sdk::{
     contract, contractclient, contractimpl, panic_with_error, vec, Address, Bytes, BytesN, Env,
-    IntoVal, Symbol, Val, Vec,
+    IntoVal, String, Symbol, Val, Vec,
 };
 
 const SCALAR_7: u32 = 1_0000000;
@@ -32,7 +32,7 @@ pub trait PoolFactory {
     fn deploy(
         e: Env,
         admin: Address,
-        name: Symbol,
+        name: String,
         salt: BytesN<32>,
         oracle: Address,
         backstop_take_rate: u32,
@@ -64,7 +64,7 @@ impl PoolFactory for PoolFactoryContract {
     fn deploy(
         e: Env,
         admin: Address,
-        name: Symbol,
+        name: String,
         salt: BytesN<32>,
         oracle: Address,
         backstop_take_rate: u32,

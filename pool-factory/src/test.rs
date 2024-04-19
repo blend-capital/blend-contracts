@@ -2,7 +2,7 @@
 
 use soroban_sdk::{
     testutils::{Address as _, BytesN as _, Events},
-    vec, Address, BytesN, Env, IntoVal, Symbol,
+    vec, Address, BytesN, Env, IntoVal, String, Symbol,
 };
 
 use crate::{PoolFactoryClient, PoolFactoryContract, PoolInitMeta};
@@ -44,8 +44,8 @@ fn test_pool_factory() {
     let result = pool_factory_client.try_initialize(&pool_init_meta);
     assert!(result.is_err());
 
-    let name1 = Symbol::new(&e, "pool1");
-    let name2 = Symbol::new(&e, "pool2");
+    let name1 = String::from_str(&e, "pool1");
+    let name2 = String::from_str(&e, "pool2");
     let salt = BytesN::<32>::random(&e);
 
     let deployed_pool_address_1 = pool_factory_client.deploy(
@@ -146,7 +146,7 @@ fn test_pool_factory_invalid_pool_init_args_backstop_rate() {
     let backstop_rate: u32 = 1_0000000;
     let max_positions: u32 = 6;
 
-    let name1 = Symbol::new(&e, "pool1");
+    let name1 = String::from_str(&e, "pool1");
     let salt = BytesN::<32>::random(&e);
 
     pool_factory_client.deploy(
@@ -184,7 +184,7 @@ fn test_pool_factory_invalid_pool_init_args_max_positions() {
     let backstop_rate: u32 = 0_1000000;
     let max_positions: u32 = 1;
 
-    let name1 = Symbol::new(&e, "pool1");
+    let name1 = String::from_str(&e, "pool1");
     let salt = BytesN::<32>::random(&e);
 
     pool_factory_client.deploy(
@@ -223,8 +223,8 @@ fn test_pool_factory_frontrun_protection() {
     };
     pool_factory_client.initialize(&pool_init_meta);
 
-    let name1 = Symbol::new(&e, "pool1");
-    let name2 = Symbol::new(&e, "pool_front_run");
+    let name1 = String::from_str(&e, "pool1");
+    let name2 = String::from_str(&e, "pool_front_run");
     let salt = BytesN::<32>::random(&e);
 
     // verify two different users don't get the same pool address with the same

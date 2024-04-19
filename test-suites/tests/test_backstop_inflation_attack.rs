@@ -1,6 +1,6 @@
 #![cfg(test)]
 
-use soroban_sdk::{testutils::Address as _, vec, Address, Error, Symbol};
+use soroban_sdk::{testutils::Address as _, vec, Address, Error, String};
 use test_suites::{
     pool::default_reserve_metadata,
     test_fixture::{TestFixture, TokenIndex, SCALAR_7},
@@ -15,7 +15,7 @@ fn test_backstop_inflation_attack() {
     let pippen = Address::generate(&fixture.env);
 
     // create pool with 1 new reserve
-    fixture.create_pool(Symbol::new(&fixture.env, "Teapot"), 0, 6);
+    fixture.create_pool(String::from_str(&fixture.env, "Teapot"), 0, 6);
 
     let xlm_config = default_reserve_metadata();
     fixture.create_pool_reserve(0, TokenIndex::XLM, &xlm_config);

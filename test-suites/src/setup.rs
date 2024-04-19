@@ -1,5 +1,5 @@
 use pool::{Request, RequestType, ReserveEmissionMetadata};
-use soroban_sdk::{testutils::Address as _, vec as svec, Address, Symbol, Vec as SVec};
+use soroban_sdk::{testutils::Address as _, vec as svec, Address, String, Vec as SVec};
 
 use crate::{
     pool::default_reserve_metadata,
@@ -33,7 +33,7 @@ pub fn create_fixture_with_data<'a>(wasm: bool) -> TestFixture<'a> {
     );
 
     // create pool
-    fixture.create_pool(Symbol::new(&fixture.env, "Teapot"), 0_1000000, 6);
+    fixture.create_pool(String::from_str(&fixture.env, "Teapot"), 0_1000000, 6);
 
     let mut stable_config = default_reserve_metadata();
     stable_config.decimals = 6;

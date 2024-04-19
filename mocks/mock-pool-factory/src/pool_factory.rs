@@ -3,7 +3,8 @@ use crate::{
     PoolFactoryError,
 };
 use soroban_sdk::{
-    contract, contractimpl, panic_with_error, vec, Address, BytesN, Env, IntoVal, Symbol, Val, Vec,
+    contract, contractimpl, panic_with_error, vec, Address, BytesN, Env, IntoVal, String, Symbol,
+    Val, Vec,
 };
 
 use pool::PoolContract;
@@ -28,7 +29,7 @@ pub trait MockPoolFactoryTrait {
     fn deploy(
         e: Env,
         admin: Address,
-        name: Symbol,
+        name: String,
         salt: BytesN<32>,
         oracle: Address,
         backstop_take_rate: u32,
@@ -62,7 +63,7 @@ impl MockPoolFactoryTrait for MockPoolFactory {
     fn deploy(
         e: Env,
         admin: Address,
-        name: Symbol,
+        name: String,
         _salt: BytesN<32>,
         oracle: Address,
         backstop_take_rate: u32,

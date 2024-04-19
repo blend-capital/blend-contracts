@@ -4,7 +4,7 @@ use crate::{
     pool::{self, Positions, Request},
     storage::{self, ReserveConfig},
 };
-use soroban_sdk::{contract, contractclient, contractimpl, Address, Env, Symbol, Vec};
+use soroban_sdk::{contract, contractclient, contractimpl, Address, Env, String, Symbol, Vec};
 
 /// ### Pool
 ///
@@ -31,7 +31,7 @@ pub trait Pool {
     fn initialize(
         e: Env,
         admin: Address,
-        name: Symbol,
+        name: String,
         oracle: Address,
         bstop_rate: u32,
         max_positions: u32,
@@ -236,7 +236,7 @@ impl Pool for PoolContract {
     fn initialize(
         e: Env,
         admin: Address,
-        name: Symbol,
+        name: String,
         oracle: Address,
         bstop_rate: u32,
         max_postions: u32,

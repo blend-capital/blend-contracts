@@ -4,7 +4,7 @@ use emitter::Swap;
 use pool::{Request, RequestType, ReserveEmissionMetadata};
 use soroban_sdk::{
     testutils::{Address as _, Events},
-    vec as svec, Address, IntoVal, Symbol, Vec as SVec,
+    vec as svec, Address, IntoVal, String, Symbol, Vec as SVec,
 };
 use test_suites::{
     create_fixture_with_data,
@@ -40,7 +40,7 @@ fn test_emitter_no_reward_zone() {
     );
 
     // create pool
-    fixture.create_pool(Symbol::new(&fixture.env, "Teapot"), 0_1000000, 6);
+    fixture.create_pool(String::from_str(&fixture.env, "Teapot"), 0_1000000, 6);
 
     let mut stable_config = default_reserve_metadata();
     stable_config.decimals = 6;

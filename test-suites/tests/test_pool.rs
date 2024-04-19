@@ -4,7 +4,7 @@ use pool::{Request, RequestType, ReserveEmissionMetadata};
 use soroban_fixed_point_math::FixedPoint;
 use soroban_sdk::{
     testutils::{Address as _, AuthorizedFunction, AuthorizedInvocation, Events},
-    vec, Address, IntoVal, Symbol, Val,
+    vec, Address, IntoVal, String, Symbol, Val,
 };
 use test_suites::{
     assertions::assert_approx_eq_abs,
@@ -542,7 +542,7 @@ fn test_pool_config() {
     // Verify initialize can't be run again
     let result = pool_fixture.pool.try_initialize(
         &Address::generate(&fixture.env),
-        &Symbol::new(&fixture.env, "teapot"),
+        &String::from_str(&fixture.env, "Teapot"),
         &Address::generate(&fixture.env),
         &10000,
         &4,

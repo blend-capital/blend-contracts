@@ -1,6 +1,6 @@
 use soroban_sdk::{
     contracttype, map, panic_with_error, unwrap::UnwrapOptimized, vec, Address, Env, IntoVal, Map,
-    Symbol, TryFromVal, Val, Vec,
+    String, Symbol, TryFromVal, Val, Vec,
 };
 
 use crate::{auctions::AuctionData, pool::Positions, PoolError};
@@ -251,10 +251,10 @@ pub fn set_admin(e: &Env, new_admin: &Address) {
 ///
 /// ### Arguments
 /// * `name` - The Name of the pool
-pub fn set_name(e: &Env, name: &Symbol) {
+pub fn set_name(e: &Env, name: &String) {
     e.storage()
         .instance()
-        .set::<Symbol, Symbol>(&Symbol::new(e, NAME_KEY), name);
+        .set::<Symbol, String>(&Symbol::new(e, NAME_KEY), name);
 }
 
 /********** Backstop **********/

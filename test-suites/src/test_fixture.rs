@@ -18,7 +18,7 @@ use pool_factory::{PoolFactoryClient, PoolInitMeta};
 use sep_40_oracle::testutils::{Asset, MockPriceOracleClient};
 use sep_41_token::testutils::MockTokenClient;
 use soroban_sdk::testutils::{Address as _, BytesN as _, Ledger, LedgerInfo};
-use soroban_sdk::{vec as svec, Address, BytesN, Env, Map, Symbol};
+use soroban_sdk::{vec as svec, Address, BytesN, Env, Map, String, Symbol};
 
 pub const SCALAR_7: i128 = 1_000_0000;
 pub const SCALAR_9: i128 = 1_000_000_000;
@@ -166,7 +166,7 @@ impl TestFixture<'_> {
         fixture
     }
 
-    pub fn create_pool(&mut self, name: Symbol, backstop_take_rate: u32, max_positions: u32) {
+    pub fn create_pool(&mut self, name: String, backstop_take_rate: u32, max_positions: u32) {
         let pool_id = self.pool_factory.deploy(
             &self.bombadil,
             &name,

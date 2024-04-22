@@ -71,7 +71,7 @@ The WASM files included will align with the GitHub release the SDK was published
 Since WASM builds can vary based on factors like OS, here are the details of the machine that built the WASMs included in this package:
 
 * Ubuntu 22.04.4 LTS
-* x86
+* stable-x86_64-unknown-linux-gnu (default)
 * rustc 1.77.1 (7cf61ebde 2024-03-27)
 * soroban 20.3.1 (ae5446f63ca8a275e61912019199254d598f3bd5)
 * soroban-env 20.2.1 (18a10592853d9edf4e341b565b0b1638f95f0393)
@@ -80,7 +80,7 @@ Since WASM builds can vary based on factors like OS, here are the details of the
 * xdr curr (b96148cd4acc372cc9af17b909ffe4b12c43ecb6)
 
 The SHA256 Checksums:
-* backstop - `ac3dfcdbaff35d1b6da24096e2d67486336cd33232cf73682fca3844feb36ebd`
-* emitter - `0daab61baabfb15de1f1b23ea1b8ff1744169b45257c9e3fade0cf06c543d813`
-* pool_factory - `c93274926c28b7aedd294c3f8eacaa1e407c469419c0055edf4dba6dac87be6b`
-* pool - `2609ae9150344ac6b54852b4490493a63ac796620a3f4161912a7358229b9db7`
+* backstop - `8dfbc6ba300cde6ebe747cf985cf9221bf3594981595b9c26bbd108ff19a5598`
+* emitter - `b1555702a4cca7c44e02beb5aa82b0271c0367471c68f2ec9246c31b202e38ee`
+* pool_factory - `8bc7894d8a4e46b085d0579e233e3c436bb34e18f9a2a83d4bde8526cde18cb6`
+* pool - `76ebcea354d5959c5b0d38818ddf1524c5af16970231b532f5caa63121930861`

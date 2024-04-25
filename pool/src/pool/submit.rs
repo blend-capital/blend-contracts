@@ -41,6 +41,7 @@ pub fn execute_submit(
     // panics if the new positions set does not meet the health factor requirement
     // min is 1.0000100 to prevent rounding errors
     if check_health
+        && new_from_state.positions.liabilities.len() > 0
         && PositionData::calculate_from_positions(e, &mut pool, &new_from_state.positions)
             .is_hf_under(1_0000100)
     {

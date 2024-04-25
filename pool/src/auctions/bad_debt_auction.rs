@@ -88,7 +88,6 @@ pub fn fill_bad_debt_auction(
     let backstop_client = BackstopClient::new(e, &backstop_address);
     let backstop_token_id = backstop_client.backstop_token();
     let lot_amount = auction_data.lot.get(backstop_token_id).unwrap_optimized();
-    let backstop_client = BackstopClient::new(e, &backstop_address);
     backstop_client.draw(
         &e.current_contract_address(),
         &lot_amount,

@@ -41,6 +41,7 @@ pub fn execute_submit(
     // panics if the new positions set does not meet the health factor requirement
     // min is 1.0000100 to prevent rounding errors
     if check_health
+        && new_from_state.has_liabilities()
         && PositionData::calculate_from_positions(e, &mut pool, &new_from_state.positions)
             .is_hf_under(1_0000100)
     {
@@ -170,6 +171,93 @@ mod tests {
 
             assert_eq!(underlying_0_client.balance(&frodo), 1_0000000);
             assert_eq!(underlying_1_client.balance(&merry), 1_5000000);
+        });
+    }
+
+    #[test]
+    fn test_submit_no_liabilities_does_not_load_oracle() {
+        let e = Env::default();
+        e.budget().reset_unlimited();
+        e.mock_all_auths_allowing_non_root_auth();
+
+        e.ledger().set(LedgerInfo {
+            timestamp: 600,
+            protocol_version: 20,
+            sequence_number: 1234,
+            network_id: Default::default(),
+            base_reserve: 10,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 3110400,
+        });
+
+        let bombadil = Address::generate(&e);
+        let samwise = Address::generate(&e);
+        let frodo = Address::generate(&e);
+        let pool = testutils::create_pool(&e);
+        let oracle = Address::generate(&e); // will fail if executed against
+
+        let (underlying_0, underlying_0_client) = testutils::create_token_contract(&e, &bombadil);
+        let (reserve_config, reserve_data) = testutils::default_reserve_meta();
+        testutils::create_reserve(&e, &pool, &underlying_0, &reserve_config, &reserve_data);
+
+        let (underlying_1, underlying_1_client) = testutils::create_token_contract(&e, &bombadil);
+        let (reserve_config, reserve_data) = testutils::default_reserve_meta();
+        testutils::create_reserve(&e, &pool, &underlying_1, &reserve_config, &reserve_data);
+
+        underlying_0_client.mint(&frodo, &16_0000000);
+        underlying_1_client.mint(&frodo, &10_0000000);
+
+        let pool_config = PoolConfig {
+            oracle,
+            bstop_rate: 0_1000000,
+            status: 0,
+            max_positions: 2,
+        };
+        e.as_contract(&pool, || {
+            e.mock_all_auths_allowing_non_root_auth();
+            storage::set_pool_config(&e, &pool_config);
+
+            let pre_pool_balance_0 = underlying_0_client.balance(&pool);
+            let pre_pool_balance_1 = underlying_1_client.balance(&pool);
+
+            let requests = vec![
+                &e,
+                Request {
+                    request_type: RequestType::SupplyCollateral as u32,
+                    address: underlying_0,
+                    amount: 15_0000000,
+                },
+                // force check_health to true
+                Request {
+                    request_type: RequestType::Borrow as u32,
+                    address: underlying_1.clone(),
+                    amount: 1_5000000,
+                },
+                Request {
+                    request_type: RequestType::Repay as u32,
+                    address: underlying_1,
+                    amount: 1_5000001,
+                },
+            ];
+            let positions = execute_submit(&e, &samwise, &frodo, &frodo, requests);
+
+            assert_eq!(positions.liabilities.len(), 0);
+            assert_eq!(positions.collateral.len(), 1);
+            assert_eq!(positions.supply.len(), 0);
+            assert_eq!(positions.collateral.get_unchecked(0), 14_9999884);
+
+            assert_eq!(
+                underlying_0_client.balance(&pool),
+                pre_pool_balance_0 + 15_0000000
+            );
+            assert_eq!(
+                underlying_1_client.balance(&pool),
+                pre_pool_balance_1 + 1 // repayment rounded against user
+            );
+
+            assert_eq!(underlying_0_client.balance(&frodo), 1_0000000);
+            assert_eq!(underlying_1_client.balance(&frodo), 10_0000000 - 1);
         });
     }
 

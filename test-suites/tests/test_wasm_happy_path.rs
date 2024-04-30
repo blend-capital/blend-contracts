@@ -391,7 +391,7 @@ fn test_wasm_happy_path() {
         &vec![&fixture.env, pool_fixture.pool.address.clone()],
         &frodo,
     );
-    assert_eq!(claim_amount, 420798_0000000);
+    assert_eq!(claim_amount, 420797_9966204);
     backstop_blnd_balance -= claim_amount;
     assert_eq!(
         fixture.tokens[TokenIndex::BLND].balance(&fixture.backstop.address),
@@ -433,8 +433,8 @@ fn test_wasm_happy_path() {
         &vec![&fixture.env, pool_fixture.pool.address.clone()],
         &frodo,
     );
-    assert_eq!(claim_amount, 22014719_9998450); //actual amount is 22014720_0000000 but get's rounded down // 22014719_9998450
-    backstop_blnd_balance -= 22014719_9998450;
+    assert_eq!(claim_amount, 22014719_9894996); //actual amount is 22014720_0000000 but get's rounded down
+    backstop_blnd_balance -= 22014719_9894996;
     assert_eq!(
         fixture.tokens[TokenIndex::BLND].balance(&fixture.backstop.address),
         backstop_blnd_balance

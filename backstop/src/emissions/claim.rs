@@ -212,7 +212,7 @@ mod tests {
             assert_eq!(result, 75_3145677 + 6_2904190);
             assert_eq!(
                 lp_client.balance(&backstop_address),
-                backstop_lp_balance + 6_5244800
+                backstop_lp_balance + 6_4729326
             );
             assert_eq!(
                 blnd_token_client.balance(&backstop_address),
@@ -221,18 +221,18 @@ mod tests {
             let sam_balance_1 = storage::get_user_balance(&e, &pool_1_id, &samwise);
             assert_eq!(sam_balance_1.shares, 9_0000000);
             let frodo_balance_1 = storage::get_user_balance(&e, &pool_1_id, &frodo);
-            assert_eq!(frodo_balance_1.shares, pre_frodo_balance_1 + 4_5761820);
+            assert_eq!(frodo_balance_1.shares, pre_frodo_balance_1 + 4_5400274);
             let sam_balance_2 = storage::get_user_balance(&e, &pool_2_id, &samwise);
             assert_eq!(sam_balance_2.shares, 7_5000000);
             let frodo_balance_2 = storage::get_user_balance(&e, &pool_2_id, &frodo);
-            assert_eq!(frodo_balance_2.shares, pre_frodo_balance_2 + 0_3947102);
+            assert_eq!(frodo_balance_2.shares, pre_frodo_balance_2 + 0_3915917);
 
             let pool_balance_1 = storage::get_pool_balance(&e, &pool_1_id);
-            assert_eq!(pool_balance_1.tokens, pre_pool_tokens_1 + 6_1015761);
-            assert_eq!(pool_balance_1.shares, pre_pool_shares_1 + 4_5761820);
+            assert_eq!(pool_balance_1.tokens, pre_pool_tokens_1 + 6_0533699);
+            assert_eq!(pool_balance_1.shares, pre_pool_shares_1 + 4_5400274);
             let pool_balance_2 = storage::get_pool_balance(&e, &pool_2_id);
-            assert_eq!(pool_balance_2.tokens, pre_pool_tokens_2 + 0_4229038);
-            assert_eq!(pool_balance_2.shares, pre_pool_shares_2 + 0_3947102);
+            assert_eq!(pool_balance_2.tokens, pre_pool_tokens_2 + 0_4195626);
+            assert_eq!(pool_balance_2.shares, pre_pool_shares_2 + 0_3915917);
 
             let new_backstop_1_data =
                 storage::get_backstop_emis_data(&e, &pool_1_id).unwrap_optimized();
@@ -371,7 +371,7 @@ mod tests {
             assert_eq!(result, 75_3145677 + 6_2904190);
             assert_eq!(
                 lp_client.balance(&backstop_address),
-                backstop_lp_balance + 6_5244800
+                backstop_lp_balance + 6_4729326
             );
             assert_eq!(
                 blnd_token_client.balance(&backstop_address),
@@ -380,18 +380,18 @@ mod tests {
             let sam_balance_1 = storage::get_user_balance(&e, &pool_1_id, &samwise);
             assert_eq!(sam_balance_1.shares, 9_0000000);
             let frodo_balance_1 = storage::get_user_balance(&e, &pool_1_id, &frodo);
-            assert_eq!(frodo_balance_1.shares, pre_frodo_balance_1 + 4_5761820);
+            assert_eq!(frodo_balance_1.shares, pre_frodo_balance_1 + 4_5400274);
             let sam_balance_2 = storage::get_user_balance(&e, &pool_2_id, &samwise);
             assert_eq!(sam_balance_2.shares, 7_5000000);
             let frodo_balance_2 = storage::get_user_balance(&e, &pool_2_id, &frodo);
-            assert_eq!(frodo_balance_2.shares, pre_frodo_balance_2 + 0_3947102);
+            assert_eq!(frodo_balance_2.shares, pre_frodo_balance_2 + 0_3915917);
 
             let pool_balance_1 = storage::get_pool_balance(&e, &pool_1_id);
-            assert_eq!(pool_balance_1.tokens, pre_pool_tokens_1 + 6_1015761);
-            assert_eq!(pool_balance_1.shares, pre_pool_shares_1 + 4_5761820);
+            assert_eq!(pool_balance_1.tokens, pre_pool_tokens_1 + 6_0533699);
+            assert_eq!(pool_balance_1.shares, pre_pool_shares_1 + 4_5400274);
             let pool_balance_2 = storage::get_pool_balance(&e, &pool_2_id);
-            assert_eq!(pool_balance_2.tokens, pre_pool_tokens_2 + 0_4229038);
-            assert_eq!(pool_balance_2.shares, pre_pool_shares_2 + 0_3947102);
+            assert_eq!(pool_balance_2.tokens, pre_pool_tokens_2 + 0_4195626);
+            assert_eq!(pool_balance_2.shares, pre_pool_shares_2 + 0_3915917);
 
             let new_backstop_1_data =
                 storage::get_backstop_emis_data(&e, &pool_1_id).unwrap_optimized();
@@ -435,47 +435,47 @@ mod tests {
                 &vec![&e, pool_1_id.clone(), pool_2_id.clone()],
                 &frodo,
             );
-            assert_eq!(result_1, 1005009202);
+            assert_eq!(result_1, 1005194703);
             assert_eq!(
                 blnd_token_client.balance(&backstop_address),
-                200_0000000 - (75_3145677 + 6_2904190) - (1005009202)
+                200_0000000 - (75_3145677 + 6_2904190) - (1005194703)
             );
             assert_eq!(
                 lp_client.balance(&backstop_address),
-                backstop_lp_balance + 7_9137036
+                backstop_lp_balance + 7_7889107
             );
             let sam_balance_1 = storage::get_user_balance(&e, &pool_1_id, &samwise);
             assert_eq!(sam_balance_1.shares, 9_0000000);
             let frodo_balance_1 = storage::get_user_balance(&e, &pool_1_id, &frodo);
-            assert_eq!(frodo_balance_1.shares, pre_frodo_balance_1 + 4_3004891);
+            assert_eq!(frodo_balance_1.shares, pre_frodo_balance_1 + 4_2609092);
             let sam_balance_2 = storage::get_user_balance(&e, &pool_2_id, &samwise);
             assert_eq!(sam_balance_2.shares, 7_5000000);
             let frodo_balance_2 = storage::get_user_balance(&e, &pool_2_id, &frodo);
-            assert_eq!(frodo_balance_2.shares, pre_frodo_balance_2 + 2_0344033);
+            assert_eq!(frodo_balance_2.shares, pre_frodo_balance_2 + 2_0152958);
 
             let pool_balance_1 = storage::get_pool_balance(&e, &pool_1_id);
-            assert_eq!(pool_balance_1.tokens, pre_pool_tokens_1 + 5_7339856);
-            assert_eq!(pool_balance_1.shares, pre_pool_shares_1 + 4_3004891);
+            assert_eq!(pool_balance_1.tokens, pre_pool_tokens_1 + 5_6812124);
+            assert_eq!(pool_balance_1.shares, pre_pool_shares_1 + 4_2609092);
             let pool_balance_2 = storage::get_pool_balance(&e, &pool_2_id);
-            assert_eq!(pool_balance_2.tokens, pre_pool_tokens_2 + 2_1797179);
-            assert_eq!(pool_balance_2.shares, pre_pool_shares_2 + 2_0344033);
+            assert_eq!(pool_balance_2.tokens, pre_pool_tokens_2 + 2_1592456);
+            assert_eq!(pool_balance_2.shares, pre_pool_shares_2 + 2_0152958);
             let new_backstop_1_data =
                 storage::get_backstop_emis_data(&e, &pool_1_id).unwrap_optimized();
             let new_user_1_data =
                 storage::get_user_emis_data(&e, &pool_1_id, &samwise).unwrap_optimized();
             assert_eq!(new_backstop_1_data.last_time, block_timestamp_1);
-            assert_eq!(new_backstop_1_data.index, 164344784);
+            assert_eq!(new_backstop_1_data.index, 164363961);
             assert_eq!(new_user_1_data.accrued, 0);
-            assert_eq!(new_user_1_data.index, 164344784);
+            assert_eq!(new_user_1_data.index, 164363961);
 
             let new_backstop_2_data =
                 storage::get_backstop_emis_data(&e, &pool_2_id).unwrap_optimized();
             let new_user_2_data =
                 storage::get_user_emis_data(&e, &pool_2_id, &samwise).unwrap_optimized();
             assert_eq!(new_backstop_2_data.last_time, block_timestamp_1);
-            assert_eq!(new_backstop_2_data.index, 43961378);
+            assert_eq!(new_backstop_2_data.index, 43963099);
             assert_eq!(new_user_2_data.accrued, 0);
-            assert_eq!(new_user_2_data.index, 43961378);
+            assert_eq!(new_user_2_data.index, 43963099);
         });
     }
 

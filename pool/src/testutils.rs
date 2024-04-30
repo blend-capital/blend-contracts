@@ -145,20 +145,14 @@ pub(crate) fn create_comet_lp_pool<'a>(
     let usdc_client = MockTokenClient::new(e, usdc_token);
     blnd_client.mint(&admin, &1_000_0000000);
     usdc_client.mint(&admin, &25_0000000);
-    let exp_ledger = e.ledger().sequence() + 100;
-    blnd_client.approve(&admin, &contract_address, &2_000_0000000, &exp_ledger);
-    usdc_client.approve(&admin, &contract_address, &2_000_0000000, &exp_ledger);
 
-    client.init(&Address::generate(e), &admin);
-    client.bundle_bind(
+    client.init(
+        admin,
         &vec![e, blnd_token.clone(), usdc_token.clone()],
+        &vec![e, 0_8000000, 0_2000000],
         &vec![e, 1_000_0000000, 25_0000000],
-        &vec![e, 8_0000000, 2_0000000],
+        &0_0030000,
     );
-
-    client.set_swap_fee(&0_0030000, &admin);
-    client.set_public_swap(&admin, &true);
-    client.finalize();
 
     (contract_address, client)
 }

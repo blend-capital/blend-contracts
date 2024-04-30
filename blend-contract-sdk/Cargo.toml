@@ -1,6 +1,6 @@
 [package]
 name = "blend-contract-sdk"
-version = "0.2.0"
+version = "0.3.0"
 description = "Traits, clients, types, and WASMs for the Blend Protocol for use in Soroban contract development."
 homepage = "https://github.com/blend-capital/blend-contracts"
 repository = "https://github.com/blend-capital/blend-contracts"

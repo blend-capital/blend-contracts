@@ -66,21 +66,12 @@ pool_client.mock_all_auths().update_status(); // update status based on backstop
 
 ## WASM Verification
 
-The WASM files included will align with the GitHub release the SDK was published with (the version numbers will match). The WASM files were generated with the Makefile.
+The WASM files included will align with the GitHub release the SDK was published with (the version numbers will match).
 
-Since WASM builds can vary based on factors like OS, here are the details of the machine that built the WASMs included in this package:
-
-* Ubuntu 22.04.4 LTS
-* stable-x86_64-unknown-linux-gnu (default)
-* rustc 1.77.1 (7cf61ebde 2024-03-27)
-* soroban 20.3.1 (ae5446f63ca8a275e61912019199254d598f3bd5)
-* soroban-env 20.2.1 (18a10592853d9edf4e341b565b0b1638f95f0393)
-* soroban-env interface version 85899345920
-* stellar-xdr 20.1.0 (8b9d623ef40423a8462442b86997155f2c04d3a1)
-* xdr curr (b96148cd4acc372cc9af17b909ffe4b12c43ecb6)
+The WASMs are generated with the [Stellar Expert WASM Release Action](https://github.com/stellar-expert/soroban-build-workflow)
 
 The SHA256 Checksums:
-* backstop - `8dfbc6ba300cde6ebe747cf985cf9221bf3594981595b9c26bbd108ff19a5598`
-* emitter - `b1555702a4cca7c44e02beb5aa82b0271c0367471c68f2ec9246c31b202e38ee`
-* pool_factory - `8bc7894d8a4e46b085d0579e233e3c436bb34e18f9a2a83d4bde8526cde18cb6`
-* pool - `76ebcea354d5959c5b0d38818ddf1524c5af16970231b532f5caa63121930861`
+* backstop - `8ed2a58d4b71e3d8f15b74bae8287a825f7bb78ba72663a920141d9d1c1d8bb2`
+* emitter - `ce85c955b135e08e055b157fc96c371c9107b4f3a16d920668f5529d7c616b9c`
+* pool_factory - `0287f4ad7350935b83d94e046c0bcabc960b233dbce1531008c021b71d406a1d`
+* pool - `baf978f10efdbcd85747868bef8832845ea6809f7643b67a4ac0cd669327fc2c`

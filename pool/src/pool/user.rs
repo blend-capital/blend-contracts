@@ -53,6 +53,11 @@ impl User {
         storage::set_user_positions(e, &self.address, &self.positions);
     }
 
+    /// Check if the user has liabilities
+    pub fn has_liabilities(&self) -> bool {
+        !self.positions.liabilities.is_empty()
+    }
+
     /// Get the debtToken position for the reserve at the given index
     pub fn get_liabilities(&self, reserve_index: u32) -> i128 {
         self.positions.liabilities.get(reserve_index).unwrap_or(0)
@@ -287,10 +292,12 @@ mod tests {
         };
         e.as_contract(&pool, || {
             assert_eq!(user.get_liabilities(0), 0);
+            assert_eq!(user.has_liabilities(), false);
 
             user.add_liabilities(&e, &mut reserve_0, 123);
             assert_eq!(user.get_liabilities(0), 123);
             assert_eq!(reserve_0.d_supply, starting_d_supply_0 + 123);
+            assert_eq!(user.has_liabilities(), true);
 
             user.add_liabilities(&e, &mut reserve_1, 456);
             assert_eq!(user.get_liabilities(0), 123);
@@ -305,6 +312,12 @@ mod tests {
             assert_eq!(user.get_liabilities(1), 0);
             assert_eq!(user.positions.liabilities.len(), 1);
             assert_eq!(reserve_1.d_supply, starting_d_supply_1);
+
+            user.remove_liabilities(&e, &mut reserve_0, 123);
+            assert_eq!(user.get_liabilities(0), 0);
+            assert_eq!(user.positions.liabilities.len(), 0);
+            assert_eq!(reserve_0.d_supply, starting_d_supply_0);
+            assert_eq!(user.has_liabilities(), false);
         });
     }
 

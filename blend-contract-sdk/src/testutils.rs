@@ -1,13 +1,9 @@
-use soroban_sdk::{testutils::Address as _, token::StellarAssetClient, vec, Address, Env, Map};
+use soroban_sdk::{token::StellarAssetClient, vec, Address, Env, Vec};
 
 use crate::{backstop, emitter, pool, pool_factory};
 
 pub mod comet {
     soroban_sdk::contractimport!(file = "./wasm/comet.wasm");
-}
-
-pub mod comet_factory {
-    soroban_sdk::contractimport!(file = "./wasm/comet_factory.wasm");
 }
 
 /// Create a "good enough" ReserveConfig for most testing usecases
@@ -70,22 +66,13 @@ impl<'a> BlendFixture<'a> {
             .mint(deployer, &(25_0000000 * 2001));
 
         let comet_client: comet::Client<'a> = comet::Client::new(env, &comet);
-        comet_client
-            .mock_all_auths()
-            .init(&Address::generate(env), deployer);
-
-        comet_client.mock_all_auths().bundle_bind(
+        comet_client.mock_all_auths().init(
+            &deployer,
             &vec![env, blnd.clone(), usdc.clone()],
+            &vec![env, 0_8000000, 0_2000000],
             &vec![env, 1_000_0000000, 25_0000000],
-            &vec![env, 8_0000000, 2_0000000],
+            &0_0030000,
         );
-        comet_client
-            .mock_all_auths()
-            .set_swap_fee(&30000_i128, deployer);
-        comet_client
-            .mock_all_auths()
-            .set_public_swap(deployer, &true);
-        comet_client.mock_all_auths().finalize();
 
         comet_client.mock_all_auths().join_pool(
             &199_900_0000000, // finalize mints 100
@@ -106,7 +93,7 @@ impl<'a> BlendFixture<'a> {
             &usdc,
             &blnd,
             &pool_factory,
-            &Map::new(env),
+            &Vec::new(env),
         );
 
         let pool_hash = env.deployer().upload_contract_wasm(pool::WASM);

@@ -10,9 +10,7 @@ use emitter::{EmitterClient, EmitterContract};
 use sep_40_oracle::testutils::{MockPriceOracleClient, MockPriceOracleWASM};
 use sep_41_token::testutils::{MockTokenClient, MockTokenWASM};
 use soroban_fixed_point_math::FixedPoint;
-use soroban_sdk::{
-    map, testutils::Address as _, unwrap::UnwrapOptimized, vec, Address, Env, IntoVal,
-};
+use soroban_sdk::{testutils::Address as _, unwrap::UnwrapOptimized, vec, Address, Env, IntoVal};
 
 use backstop::{BackstopClient, BackstopContract};
 use mock_pool_factory::{MockPoolFactory, MockPoolFactoryClient};
@@ -117,7 +115,7 @@ pub(crate) fn setup_backstop(
         usdc_token,
         blnd_token,
         &pool_factory,
-        &map![e, (pool_address.clone(), 50_000_000 * SCALAR_7)],
+        &vec![e, (pool_address.clone(), 50_000_000 * SCALAR_7)],
     );
     e.as_contract(pool_address, || {
         storage::set_backstop(e, backstop_id);
@@ -145,20 +143,14 @@ pub(crate) fn create_comet_lp_pool<'a>(
     let usdc_client = MockTokenClient::new(e, usdc_token);
     blnd_client.mint(&admin, &1_000_0000000);
     usdc_client.mint(&admin, &25_0000000);
-    let exp_ledger = e.ledger().sequence() + 100;
-    blnd_client.approve(&admin, &contract_address, &2_000_0000000, &exp_ledger);
-    usdc_client.approve(&admin, &contract_address, &2_000_0000000, &exp_ledger);
 
-    client.init(&Address::generate(e), &admin);
-    client.bundle_bind(
+    client.init(
+        admin,
         &vec![e, blnd_token.clone(), usdc_token.clone()],
+        &vec![e, 0_8000000, 0_2000000],
         &vec![e, 1_000_0000000, 25_0000000],
-        &vec![e, 8_0000000, 2_0000000],
+        &0_0030000,
     );
-
-    client.set_swap_fee(&0_0030000, &admin);
-    client.set_public_swap(&admin, &true);
-    client.finalize();
 
     (contract_address, client)
 }

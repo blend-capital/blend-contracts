@@ -3,7 +3,7 @@
 use soroban_fixed_point_math::FixedPoint;
 use soroban_sdk::{
     testutils::{Address as _, AuthorizedFunction, AuthorizedInvocation, Events},
-    vec, Address, IntoVal, Map, Symbol, Val, Vec,
+    vec, Address, IntoVal, Symbol, Val, Vec,
 };
 use test_suites::{
     assertions::assert_approx_eq_abs,
@@ -29,7 +29,7 @@ fn test_backstop() {
         &Address::generate(&fixture.env),
         &Address::generate(&fixture.env),
         &Address::generate(&fixture.env),
-        &Map::new(&fixture.env),
+        &vec![&fixture.env],
     );
     assert!(result.is_err());
     assert_eq!(

@@ -11,24 +11,18 @@ pub fn create_fixture_with_data<'a>(wasm: bool) -> TestFixture<'a> {
     let mut fixture = TestFixture::create(wasm);
 
     // mint whale tokens
-    let frodo = Address::generate(&fixture.env);
-    fixture.users.push(frodo.clone());
+    let frodo = fixture.users[0].clone();
     fixture.tokens[TokenIndex::STABLE].mint(&frodo, &(100_000 * 10i128.pow(6)));
     fixture.tokens[TokenIndex::XLM].mint(&frodo, &(1_000_000 * SCALAR_7));
     fixture.tokens[TokenIndex::WETH].mint(&frodo, &(100 * 10i128.pow(9)));
 
     // mint LP tokens with whale
-    fixture.tokens[TokenIndex::BLND].mint(&frodo, &(500_0010_000_0000_0000 * SCALAR_7));
-    // fixture.tokens[TokenIndex::BLND].approve(&frodo, &fixture.lp.address, &i128::MAX, &99999);
-    fixture.tokens[TokenIndex::USDC].mint(&frodo, &(12_5010_000_0000_0000 * SCALAR_7));
-    // fixture.tokens[TokenIndex::USDC].approve(&frodo, &fixture.lp.address, &i128::MAX, &99999);
+    // frodo has 40m BLND from drop
+    fixture.tokens[TokenIndex::BLND].mint(&frodo, &(70_000_000 * SCALAR_7));
+    fixture.tokens[TokenIndex::USDC].mint(&frodo, &(2_600_000 * SCALAR_7));
     fixture.lp.join_pool(
-        &(500_000_0000 * SCALAR_7),
-        &svec![
-            &fixture.env,
-            500_0010_000_0000_0000 * SCALAR_7,
-            12_5010_000_0000_0000 * SCALAR_7,
-        ],
+        &(10_000_000 * SCALAR_7),
+        &svec![&fixture.env, 110_000_000 * SCALAR_7, 2_600_000 * SCALAR_7,],
         &frodo,
     );
 
@@ -90,20 +84,6 @@ pub fn create_fixture_with_data<'a>(wasm: bool) -> TestFixture<'a> {
     pool_fixture.pool.gulp_emissions();
 
     fixture.jump(60);
-
-    // fixture.tokens[TokenIndex::STABLE].approve(
-    //     &frodo,
-    //     &pool_fixture.pool.address,
-    //     &i128::MAX,
-    //     &(fixture.env.ledger().sequence() + 100),
-    // );
-    // fixture.tokens[TokenIndex::WETH].approve(
-    //     &frodo,
-    //     &pool_fixture.pool.address,
-    //     &i128::MAX,
-    //     &(fixture.env.ledger().sequence() + 100),
-    // );
-    // fixture.tokens[TokenIndex::XLM].approve(&frodo, &pool_fixture.pool.address, &i128::MAX, &50000);
 
     // supply and borrow STABLE for 80% utilization (close to target)
     let requests: SVec<Request> = svec![
@@ -172,10 +152,14 @@ mod tests {
         let frodo = fixture.users.get(0).unwrap();
         let pool_fixture: &PoolFixture = fixture.pools.get(0).unwrap();
 
-        // validate backstop deposit
+        // validate backstop deposit and drop
         assert_eq!(
             50_000 * SCALAR_7,
             fixture.lp.balance(&fixture.backstop.address)
+        );
+        assert_eq!(
+            10_000_000 * SCALAR_7,
+            fixture.tokens[TokenIndex::BLND].balance(&fixture.bombadil)
         );
 
         // validate pool actions
@@ -224,10 +208,15 @@ mod tests {
         let fixture = create_fixture_with_data(false);
         let frodo = fixture.users.get(0).unwrap();
         let pool_fixture: &PoolFixture = fixture.pools.get(0).unwrap();
+
         // validate backstop deposit
         assert_eq!(
             50_000 * SCALAR_7,
             fixture.lp.balance(&fixture.backstop.address)
+        );
+        assert_eq!(
+            10_000_000 * SCALAR_7,
+            fixture.tokens[TokenIndex::BLND].balance(&fixture.bombadil)
         );
 
         // validate pool actions

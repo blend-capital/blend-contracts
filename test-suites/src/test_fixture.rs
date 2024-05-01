@@ -69,6 +69,7 @@ impl TestFixture<'_> {
         e.budget().reset_unlimited();
 
         let bombadil = Address::generate(&e);
+        let frodo = Address::generate(&e);
 
         e.ledger().set(LedgerInfo {
             timestamp: 1441065600, // Sept 1st, 2015 (backstop epoch)
@@ -97,7 +98,6 @@ impl TestFixture<'_> {
         let (lp, lp_client) = create_lp_pool(&e, &bombadil, &blnd_id, &usdc_id);
 
         // initialize emitter
-        blnd_client.mint(&bombadil, &(10_000_000 * SCALAR_7));
         blnd_client.set_admin(&emitter_id);
         emitter_client.initialize(&blnd_id, &backstop_id, &lp);
 
@@ -108,7 +108,11 @@ impl TestFixture<'_> {
             &usdc_id,
             &blnd_id,
             &pool_factory_id,
-            &Map::new(&e),
+            &svec![
+                &e,
+                (bombadil.clone(), 10_000_000 * SCALAR_7),
+                (frodo.clone(), 40_000_000 * SCALAR_7)
+            ],
         );
 
         // initialize pool factory
@@ -120,6 +124,9 @@ impl TestFixture<'_> {
         };
         let pool_factory_client = PoolFactoryClient::new(&e, &pool_factory_id);
         pool_factory_client.initialize(&pool_init_meta);
+
+        // drop tokens to bombadil
+        backstop_client.drop();
 
         // initialize oracle
         let (_, mock_oracle_client) = create_mock_oracle(&e);
@@ -147,7 +154,7 @@ impl TestFixture<'_> {
         let fixture = TestFixture {
             env: e,
             bombadil,
-            users: vec![],
+            users: vec![frodo],
             emitter: emitter_client,
             backstop: backstop_client,
             pool_factory: pool_factory_client,

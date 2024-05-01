@@ -18,24 +18,18 @@ use test_suites::{
 fn test_emitter_no_reward_zone() {
     let mut fixture = TestFixture::create(false);
     // mint whale tokens
-    let frodo = Address::generate(&fixture.env);
-    fixture.users.push(frodo.clone());
+    let frodo = fixture.users[0].clone();
     fixture.tokens[TokenIndex::STABLE].mint(&frodo, &(100_000 * 10i128.pow(6)));
     fixture.tokens[TokenIndex::XLM].mint(&frodo, &(1_000_000 * SCALAR_7));
     fixture.tokens[TokenIndex::WETH].mint(&frodo, &(100 * 10i128.pow(9)));
 
     // mint LP tokens with whale
-    fixture.tokens[TokenIndex::BLND].mint(&frodo, &(500_0010_000_0000_0000 * SCALAR_7));
-    // fixture.tokens[TokenIndex::BLND].approve(&frodo, &fixture.lp.address, &i128::MAX, &99999);
-    fixture.tokens[TokenIndex::USDC].mint(&frodo, &(12_5010_000_0000_0000 * SCALAR_7));
-    // fixture.tokens[TokenIndex::USDC].approve(&frodo, &fixture.lp.address, &i128::MAX, &99999);
+    // frodo has 40m BLND from drop
+    fixture.tokens[TokenIndex::BLND].mint(&frodo, &(70_000_000 * SCALAR_7));
+    fixture.tokens[TokenIndex::USDC].mint(&frodo, &(2_600_000 * SCALAR_7));
     fixture.lp.join_pool(
-        &(500_000_0000 * SCALAR_7),
-        &svec![
-            &fixture.env,
-            500_0010_000_0000_0000 * SCALAR_7,
-            12_5010_000_0000_0000 * SCALAR_7,
-        ],
+        &(10_000_000 * SCALAR_7),
+        &svec![&fixture.env, 110_000_000 * SCALAR_7, 2_600_000 * SCALAR_7,],
         &frodo,
     );
 

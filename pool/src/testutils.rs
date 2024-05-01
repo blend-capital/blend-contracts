@@ -10,9 +10,7 @@ use emitter::{EmitterClient, EmitterContract};
 use sep_40_oracle::testutils::{MockPriceOracleClient, MockPriceOracleWASM};
 use sep_41_token::testutils::{MockTokenClient, MockTokenWASM};
 use soroban_fixed_point_math::FixedPoint;
-use soroban_sdk::{
-    map, testutils::Address as _, unwrap::UnwrapOptimized, vec, Address, Env, IntoVal,
-};
+use soroban_sdk::{testutils::Address as _, unwrap::UnwrapOptimized, vec, Address, Env, IntoVal};
 
 use backstop::{BackstopClient, BackstopContract};
 use mock_pool_factory::{MockPoolFactory, MockPoolFactoryClient};
@@ -117,7 +115,7 @@ pub(crate) fn setup_backstop(
         usdc_token,
         blnd_token,
         &pool_factory,
-        &map![e, (pool_address.clone(), 50_000_000 * SCALAR_7)],
+        &vec![e, (pool_address.clone(), 50_000_000 * SCALAR_7)],
     );
     e.as_contract(pool_address, || {
         storage::set_backstop(e, backstop_id);

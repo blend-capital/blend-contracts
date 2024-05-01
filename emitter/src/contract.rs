@@ -1,6 +1,6 @@
 use crate::{backstop_manager, emitter, errors::EmitterError, storage};
 use soroban_sdk::{
-    contract, contractclient, contractimpl, panic_with_error, Address, Env, Map, Symbol,
+    contract, contractclient, contractimpl, panic_with_error, Address, Env, Symbol, Vec,
 };
 
 /// ### Emitter
@@ -61,7 +61,7 @@ pub trait Emitter {
     /// or if the queued swap has not been unlocked.
     fn swap_backstop(e: Env);
 
-    /// Distributes initial BLND after a new backstop is set
+    /// (Backstop only) Distributes initial BLND after a new backstop is set
     ///
     /// ### Arguments
     /// * `list` - The list of address and amounts to distribute too
@@ -69,7 +69,7 @@ pub trait Emitter {
     /// ### Errors
     /// If drop has already been called for the backstop, the backstop is not the caller,
     /// or the list exceeds the drop amount maximum.
-    fn drop(e: Env, list: Map<Address, i128>);
+    fn drop(e: Env, list: Vec<(Address, i128)>);
 }
 
 #[contractimpl]
@@ -135,7 +135,7 @@ impl Emitter for EmitterContract {
         e.events().publish((Symbol::new(&e, "swap"),), swap);
     }
 
-    fn drop(e: Env, list: Map<Address, i128>) {
+    fn drop(e: Env, list: Vec<(Address, i128)>) {
         storage::extend_instance(&e);
         emitter::execute_drop(&e, &list);
 

@@ -1,6 +1,6 @@
 use crate::{constants::SCALAR_7, errors::EmitterError, storage};
 use sep_41_token::StellarAssetClient;
-use soroban_sdk::{panic_with_error, Address, Env, Map};
+use soroban_sdk::{panic_with_error, Address, Env, Vec};
 
 /// Perform a distribution
 pub fn execute_distribute(e: &Env, backstop: &Address) -> i128 {
@@ -18,7 +18,7 @@ pub fn execute_distribute(e: &Env, backstop: &Address) -> i128 {
 }
 
 /// Perform drop BLND distribution
-pub fn execute_drop(e: &Env, list: &Map<Address, i128>) {
+pub fn execute_drop(e: &Env, list: &Vec<(Address, i128)>) {
     let backstop = storage::get_backstop(e);
     backstop.require_auth();
 
@@ -51,8 +51,8 @@ mod tests {
     use super::*;
     use sep_41_token::testutils::MockTokenClient;
     use soroban_sdk::{
-        map,
         testutils::{Address as _, Ledger, LedgerInfo},
+        vec,
     };
 
     #[test]
@@ -112,10 +112,10 @@ mod tests {
 
         let blnd_id = e.register_stellar_asset_contract(emitter.clone());
         let blnd_client = MockTokenClient::new(&e, &blnd_id);
-        let drop_list = map![
+        let drop_list = vec![
             &e,
             (frodo.clone(), 20_000_000 * SCALAR_7),
-            (samwise.clone(), 30_000_000 * SCALAR_7)
+            (samwise.clone(), 30_000_000 * SCALAR_7),
         ];
 
         e.as_contract(&emitter, || {
@@ -153,10 +153,10 @@ mod tests {
         let backstop = Address::generate(&e);
 
         let blnd_id = e.register_stellar_asset_contract(emitter.clone());
-        let drop_list = map![
+        let drop_list = vec![
             &e,
             (frodo.clone(), 20_000_000 * SCALAR_7),
-            (samwise.clone(), 30_000_000 * SCALAR_7)
+            (samwise.clone(), 30_000_000 * SCALAR_7),
         ];
 
         e.as_contract(&emitter, || {
@@ -193,10 +193,10 @@ mod tests {
         let backstop = Address::generate(&e);
 
         let blnd_id = e.register_stellar_asset_contract(emitter.clone());
-        let drop_list = map![
+        let drop_list = vec![
             &e,
             (frodo.clone(), 20_000_000 * SCALAR_7),
-            (samwise.clone(), 30_000_001 * SCALAR_7)
+            (samwise.clone(), 30_000_001 * SCALAR_7),
         ];
 
         e.as_contract(&emitter, || {

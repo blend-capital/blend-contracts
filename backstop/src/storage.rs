@@ -1,6 +1,5 @@
 use soroban_sdk::{
-    contracttype, unwrap::UnwrapOptimized, vec, Address, Env, IntoVal, Map, Symbol, TryFromVal,
-    Val, Vec,
+    contracttype, unwrap::UnwrapOptimized, vec, Address, Env, IntoVal, Symbol, TryFromVal, Val, Vec,
 };
 
 use crate::backstop::{PoolBalance, UserBalance};
@@ -466,10 +465,10 @@ pub fn set_user_emis_data(
 /********** Drop Emissions **********/
 
 /// Get the current pool addresses that are in the drop list and the amount of the initial distribution they receive
-pub fn get_drop_list(e: &Env) -> Map<Address, i128> {
+pub fn get_drop_list(e: &Env) -> Vec<(Address, i128)> {
     e.storage()
         .temporary()
-        .get::<Symbol, Map<Address, i128>>(&Symbol::new(&e, DROP_LIST_KEY))
+        .get::<Symbol, Vec<(Address, i128)>>(&Symbol::new(&e, DROP_LIST_KEY))
         .unwrap_optimized()
 }
 
@@ -477,10 +476,10 @@ pub fn get_drop_list(e: &Env) -> Map<Address, i128> {
 ///
 /// ### Arguments
 /// * `drop_list` - The map of pool addresses to the amount of the initial distribution they receive
-pub fn set_drop_list(e: &Env, drop_list: &Map<Address, i128>) {
+pub fn set_drop_list(e: &Env, drop_list: &Vec<(Address, i128)>) {
     e.storage()
         .temporary()
-        .set::<Symbol, Map<Address, i128>>(&Symbol::new(&e, DROP_LIST_KEY), drop_list);
+        .set::<Symbol, Vec<(Address, i128)>>(&Symbol::new(&e, DROP_LIST_KEY), drop_list);
     e.storage().temporary().extend_ttl(
         &Symbol::new(&e, DROP_LIST_KEY),
         LEDGER_THRESHOLD_USER,

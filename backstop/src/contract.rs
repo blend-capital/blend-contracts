@@ -6,7 +6,7 @@ use crate::{
     storage,
 };
 use soroban_sdk::{
-    contract, contractclient, contractimpl, panic_with_error, Address, Env, Map, Symbol, Vec,
+    contract, contractclient, contractimpl, panic_with_error, Address, Env, Symbol, Vec,
 };
 
 /// ### Backstop
@@ -38,7 +38,7 @@ pub trait Backstop {
         blnd_token: Address,
         usdc_token: Address,
         pool_factory: Address,
-        drop_list: Map<Address, i128>,
+        drop_list: Vec<(Address, i128)>,
     );
 
     /********** Core **********/
@@ -184,7 +184,7 @@ impl Backstop for BackstopContract {
         usdc_token: Address,
         blnd_token: Address,
         pool_factory: Address,
-        drop_list: Map<Address, i128>,
+        drop_list: Vec<(Address, i128)>,
     ) {
         storage::extend_instance(&e);
         if storage::get_is_init(&e) {

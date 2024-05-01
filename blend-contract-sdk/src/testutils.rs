@@ -1,4 +1,4 @@
-use soroban_sdk::{token::StellarAssetClient, vec, Address, Env, Map};
+use soroban_sdk::{token::StellarAssetClient, vec, Address, Env, Vec};
 
 use crate::{backstop, emitter, pool, pool_factory};
 
@@ -93,7 +93,7 @@ impl<'a> BlendFixture<'a> {
             &usdc,
             &blnd,
             &pool_factory,
-            &Map::new(env),
+            &Vec::new(env),
         );
 
         let pool_hash = env.deployer().upload_contract_wasm(pool::WASM);

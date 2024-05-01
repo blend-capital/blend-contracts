@@ -30,19 +30,14 @@ pub(crate) fn create_lp_pool<'a>(
     let token_2_client = MockTokenClient::new(e, token_2);
     token_1_client.mint(&admin, &1_000_0000000);
     token_2_client.mint(&admin, &25_0000000);
-    token_1_client.approve(&admin, &contract_address, &1_000_0000000, &5356700);
-    token_2_client.approve(&admin, &contract_address, &1_000_0000000, &5356700);
 
-    client.init(&Address::generate(e), &admin);
-    client.bundle_bind(
+    client.init(
+        admin,
         &vec![e, token_1.clone(), token_2.clone()],
+        &vec![e, 0_8000000, 0_2000000],
         &vec![e, 1_000_0000000, 25_0000000],
-        &vec![e, 8_0000000, 2_0000000],
+        &0_0030000,
     );
-
-    client.set_swap_fee(&0_0030000, &admin);
-    client.set_public_swap(&admin, &true);
-    client.finalize();
 
     (contract_address, client)
 }

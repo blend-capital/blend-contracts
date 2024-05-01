@@ -15,10 +15,14 @@ pub struct PoolBackstopData {
 
 pub fn load_pool_backstop_data(e: &Env, address: &Address) -> PoolBackstopData {
     let pool_balance = storage::get_pool_balance(e, address);
-    let q4w_pct = pool_balance
-        .q4w
-        .fixed_div_ceil(pool_balance.shares, SCALAR_7)
-        .unwrap_optimized();
+    let q4w_pct = if pool_balance.shares > 0 {
+        pool_balance
+            .q4w
+            .fixed_div_ceil(pool_balance.shares, SCALAR_7)
+            .unwrap_optimized()
+    } else {
+        0
+    };
 
     let (blnd_per_tkn, usdc_per_tkn) = storage::get_lp_token_val(e);
     let blnd = pool_balance
@@ -197,6 +201,34 @@ mod tests {
 
             assert_eq!(pool_data.tokens, 250_0000000);
             assert_eq!(pool_data.q4w_pct, 0_3333334); // rounds up
+            assert_eq!(pool_data.blnd, 1_250_0000000);
+            assert_eq!(pool_data.usdc, 12_5000000);
+        });
+    }
+
+    #[test]
+    fn test_load_pool_data_no_shares() {
+        let e = Env::default();
+
+        let backstop_address = create_backstop(&e);
+        let pool = Address::generate(&e);
+
+        e.as_contract(&backstop_address, || {
+            storage::set_pool_balance(
+                &e,
+                &pool,
+                &PoolBalance {
+                    shares: 0,
+                    tokens: 250_0000000,
+                    q4w: 0,
+                },
+            );
+            storage::set_lp_token_val(&e, &(5_0000000, 0_0500000));
+
+            let pool_data = load_pool_backstop_data(&e, &pool);
+
+            assert_eq!(pool_data.tokens, 250_0000000);
+            assert_eq!(pool_data.q4w_pct, 0);
             assert_eq!(pool_data.blnd, 1_250_0000000);
             assert_eq!(pool_data.usdc, 12_5000000);
         });

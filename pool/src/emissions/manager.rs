@@ -17,9 +17,9 @@ use super::distributor;
 /// Metadata for a pool's reserve emission configuration
 #[contracttype]
 pub struct ReserveEmissionMetadata {
-    pub res_index: u32,
-    pub res_type: u32,
-    pub share: u64,
+    pub res_index: u32, // index of the reserve as defined by the ReserveConfig
+    pub res_type: u32,  // 0 for liabilities, 1 for supply
+    pub share: u64, // percent of the total pool emissions this reserve should receive. Scaled to 7 decimals
 }
 
 /// Set the pool emissions
